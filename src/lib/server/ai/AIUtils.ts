@@ -4,6 +4,7 @@ import * as table from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { notifier } from '$lib/server/notifier';
+import { getPublicAppUrl } from '$lib/server/utils/publicUrl';
 import { ModelResolver } from './services/ModelResolver';
 import { UsageTracker } from './services/UsageTracker';
 import { SystemPromptBuilder } from './services/SystemPromptBuilder';
@@ -253,6 +254,18 @@ export class AIUtils {
         return result?.courseId;
     }
 
+    public static async getCourseNamesByInteractiveLearningId(interactiveLearningId: string): Promise<string[]> {
+        const rows = await db
+            .select({ name: table.course.name })
+            .from(table.courseInteractiveLearning)
+            .innerJoin(table.course, eq(table.course.id, table.courseInteractiveLearning.courseId))
+            .where(eq(table.courseInteractiveLearning.interactiveLearningId, interactiveLearningId))
+            .orderBy(table.courseInteractiveLearning.order)
+            .all();
+
+        return [...new Set(rows.map((row) => row.name).filter(Boolean))];
+    }
+
     public static async getPreviousMessages(ilcid: string, cid: string): Promise<ModelMessage[]> {
         const chatMessages = await db
             .select()
@@ -467,11 +480,15 @@ export class AIUtils {
             .where(eq(table.interactiveLearning.id, interactiveLearningChat.id)); // El id del chat ES el interactiveLearningId
         if (!interactiveLearning) return;
 
+        const courseNames = await this.getCourseNamesByInteractiveLearningId(interactiveLearning.id);
+
         const userName = user.username || user.email;
-        const chatViewLink = `https://sapinweb.duckdns.org/interactive-chat/${interactiveLearning.id}/view/${chat.id}`;
+        const chatViewLink = `${getPublicAppUrl()}/interactive-chat/${interactiveLearning.id}/view/${chat.id}`;
+        const courseLine =
+            courseNames.length > 0 ? `\n📚 Curso: ${courseNames[0]}` : '\n📚 Curso: Sin curso asociado';
 
         notifier.notify(
-            `📝 Nuevo chat finalizado\n📚 Curso: ${interactiveLearning.name}\n👤 Usuario: ${userName}\n\n🔗 Ver chat: ${chatViewLink}`
+            `📝 Nuevo chat finalizado\n🧩 Actividad: ${interactiveLearning.name}${courseLine}\n👤 Usuario: ${userName}\n\n🔗 Ver chat: ${chatViewLink}`
         );
     }
 
