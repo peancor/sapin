@@ -1,0 +1,25 @@
+{
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"hello_world": "Hello, {name} from es!",
+	"sapin": "Sapin",
+	"language_tag": "ES",
+
+	"home": "Inicio",
+	"about": "Acerca de",
+	"contact": "Contacto",
+	"login": "Iniciar sesión",
+	"email_or_username": "Correo",
+	"enter_email_or_username": "Ingrese correo",
+	"enter_email": "Ingrese su correo electrónico",
+	"password": "Contraseña",
+	"have_invite_code_register": "¿Tiene un código de invitación? Regístrese aquí",
+	"register": "Registrarse",
+	"invite_code": "Código de invitación",
+	"email": "Correo electrónico",
+	"already_have_account": "¿Ya tienes una cuenta? Inicia sesión aquí",
+
+	"allRightsReserved": "Todos los derechos reservados",
+	"privacyPolicy": "Política de Privacidad",
+	"cookiePolicy": "Política de Cookies",
+	"attributions": "Atribuciones"
+}

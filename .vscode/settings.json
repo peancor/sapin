@@ -1,0 +1,6 @@
+{
+    //"explorer.sortOrder": "filesFirst",
+    "files.associations": {
+        "*.css": "tailwindcss"
+      }
+}

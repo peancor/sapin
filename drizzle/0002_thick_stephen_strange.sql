@@ -1,0 +1,1 @@
+ALTER TABLE `interactive_learning_chat` ADD `rag_config` text;

@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1769938063860,
+      "tag": "0000_numerous_wither",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1770321092386,
+      "tag": "0001_productive_bedlam",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1770967741819,
+      "tag": "0002_thick_stephen_strange",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1770968203164,
+      "tag": "0003_slimy_steve_rogers",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1771697805326,
+      "tag": "0004_giant_the_spike",
+      "breakpoints": true
+    }
+  ]
+}

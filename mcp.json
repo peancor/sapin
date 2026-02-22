@@ -1,0 +1,13 @@
+{
+	"servers": {
+		"sveltekit mcp server": {
+			"url": "https://mcp.svelte.dev/mcp",
+			"type": "http"
+		},
+		"flowbite-svelte": {
+			"args": ["D:/mcp/flowbite-svelte-mcp/build/server.js"],
+			"command": "node"
+		}
+	},
+	"inputs": []
+}

@@ -1,0 +1,82 @@
+
+# Delapouite Avatar Icons Attribution
+
+## Source
+- **Artist:** Delapouite
+- **Website:** https://game-icons.net/
+- **Collection:** https://game-icons.net/tags/creature.html
+
+## License
+**CC BY 3.0** - Creative Commons Attribution 3.0 Unported
+- License URL: https://creativecommons.org/licenses/by/3.0/
+- You are free to:
+  - Share — copy and redistribute the material in any medium or format
+  - Adapt — remix, transform, and build upon the material for any purpose
+- Under the condition that:
+  - Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made
+
+## Icons Included (61 total)
+
+1. alien-bug.svg
+2. alien-egg.svg
+3. anubis.svg
+4. bottled-shadow.svg
+5. brain-tentacle.svg
+6. brute.svg
+7. bullet-bill.svg
+8. bully-minion.svg
+9. carnivorous-plant.svg
+10. ceiling-barnacle.svg
+11. centaur.svg
+12. daemon-pull.svg
+13. devil-mask.svg
+14. djinn.svg
+15. drakkar-dragon.svg
+16. egyptian-sphinx.svg
+17. elysium-shade.svg
+18. fairy.svg
+19. female-vampire.svg
+20. fish-monster.svg
+21. floating-ghost.svg
+22. floating-tentacles.svg
+23. gargoyle.svg
+24. giant.svg
+25. goblin-head.svg
+26. golem-head.svg
+27. grasping-slug.svg
+28. greek-sphinx.svg
+29. griffin-symbol.svg
+30. half-body-crawling.svg
+31. horned-reptile.svg
+32. horus.svg
+33. ice-golem.svg
+34. jawless-cyclop.svg
+35. kenku-head.svg
+36. kraken-tentacle.svg
+37. mermaid.svg
+38. metroid.svg
+39. mimic-chest.svg
+40. mummy-head.svg
+41. ogre.svg
+42. oni.svg
+43. orc-head.svg
+44. pick-of-destiny.svg
+45. purple-tentacle.svg
+46. resting-vampire.svg
+47. rock-golem.svg
+48. sasquatch.svg
+49. shambling-mound.svg
+50. shambling-zombie.svg
+51. slime.svg
+52. spider-eye.svg
+53. spiked-dragon-head.svg
+54. swallower.svg
+55. swamp-bat.svg
+56. thwomp.svg
+57. troglodyte.svg
+58. unicorn.svg
+59. vampire-dracula.svg
+
+---
+
+**Attribution:** Icons by Delapouite, used under CC BY 3.0 license.

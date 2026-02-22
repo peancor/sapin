@@ -1,0 +1,6 @@
+files/*
+!files/.gitkeep
+temp/*
+!temp/.gitkeep
+deleted/*
+!deleted/.gitkeep

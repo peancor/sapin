@@ -1,0 +1,42 @@
+services:
+  sapin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: peancor/sapin:local
+    container_name: sapin
+    restart: unless-stopped
+    depends_on:
+      - qdrant
+    ports:
+      - "${SAPIN_PORT:-3000}:3000"
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      ORIGIN: ${ORIGIN:-http://localhost:3000}
+      DATABASE_URL: /data/sapin.db
+      FILES_STORAGE_PATH: /data/files/uploads
+      FILES_TEMP_PATH: /data/files/temp
+      FILES_DELETED_PATH: /data/files/deleted
+      MODERATE_PROMPTS: ${MODERATE_PROMPTS:-false}
+      PUBLIC_TURNSTILE_SITE_KEY: ${PUBLIC_TURNSTILE_SITE_KEY:-}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      ENABLE_TELEGRAM_NOTIFICATIONS: ${ENABLE_TELEGRAM_NOTIFICATIONS:-false}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      EMBEDDINGS_OPENROUTER_API_KEY: ${EMBEDDINGS_OPENROUTER_API_KEY:-}
+      OPENAI_MODERATION_API_KEY: ${OPENAI_MODERATION_API_KEY:-}
+    volumes:
+      - data:/data
+
+  qdrant:
+    image: qdrant/qdrant:v1.15.4
+    container_name: sapin-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  data:
+  qdrant_data:
