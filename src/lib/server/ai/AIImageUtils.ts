@@ -1,6 +1,7 @@
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { buildOpenRouterHeaders } from '$lib/server/utils/openRouter';
 
 export class AIImageUtils {
 	private static async getSetting(key: string, defaultValue: string = ''): Promise<string> {
@@ -62,12 +63,7 @@ export class AIImageUtils {
 
 		const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
 			method: 'POST',
-			headers: {
-				'Authorization': `Bearer ${openRouterKey}`,
-				'Content-Type': 'application/json',
-				'HTTP-Referer': 'https://sapinweb.duckdns.org',
-				'X-Title': 'SAPIN Image Generation'
-			},
+			headers: buildOpenRouterHeaders(openRouterKey, 'SAPIN Image Generation'),
 			body: JSON.stringify(payload)
 		});
 

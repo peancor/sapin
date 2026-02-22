@@ -1,4 +1,5 @@
 import { EMBEDDINGS_OPENROUTER_API_KEY } from '$env/static/private';
+import { buildOpenRouterHeaders } from '$lib/server/utils/openRouter';
 
 // Gemini embedding model configuration
 const GEMINI_EMBEDDING_MODEL = 'google/gemini-embedding-001';
@@ -13,12 +14,7 @@ type EmbeddingApiItem = {
 async function requestEmbeddings(input: string | string[]): Promise<number[][]> {
     const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
         method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${EMBEDDINGS_OPENROUTER_API_KEY}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://sapinweb.duckdns.org',
-            'X-Title': 'SAPIN Embeddings'
-        },
+        headers: buildOpenRouterHeaders(EMBEDDINGS_OPENROUTER_API_KEY, 'SAPIN Embeddings'),
         body: JSON.stringify({
             model: GEMINI_EMBEDDING_MODEL,
             input
