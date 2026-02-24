@@ -24,7 +24,8 @@
 		Cpu,
 		FolderOpen,
 		ScrollText,
-		TicketPlus
+		TicketPlus,
+		Wrench
 	} from 'lucide-svelte';
 	import { min } from 'drizzle-orm';
 
@@ -112,6 +113,13 @@
 			href: '/admin/logs',
 			icon: ScrollText,
 			minLevel: ROLE_LEVELS.ADMIN
+		},
+		{
+			id: 'maintenance',
+			label: 'Mantenimiento',
+			href: '/admin/maintenance',
+			icon: Wrench,
+			minLevel: ROLE_LEVELS.SUPER_ADMIN
 		},
 		{ id: 'settings', label: 'Configuración', href: '/admin/settings', icon: Settings }
 	];
