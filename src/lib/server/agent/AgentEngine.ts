@@ -9,6 +9,24 @@ import { AgentPromptBuilder } from './AgentPromptBuilder';
 import type { AgentContext, AgentStreamPart } from '$lib/types/agent';
 import { nanoid } from 'nanoid';
 
+/** Sentinel emitido por herramientas de tipo ui_renderer */
+interface UISentinel {
+    __uiComponent: true;
+    instanceId: string;
+    componentKey: string;
+    props: Record<string, unknown>;
+    interactive: boolean;
+}
+
+function isUISentinel(value: unknown): value is UISentinel {
+    return (
+        typeof value === 'object' &&
+        value !== null &&
+        '__uiComponent' in value &&
+        (value as Record<string, unknown>).__uiComponent === true
+    );
+}
+
 /** Sentinel emitido por la función execute de una herramienta con requiresConfirmation */
 interface HitlSentinel {
     __hitl: true;
@@ -74,6 +92,32 @@ export class AgentEngine {
             context.enabledTools,
             async (toolName, input, toolCallId) => {
                 const toolDef = context.enabledTools.find(t => t.name === toolName);
+
+                // ─── UI Renderer ───
+                if (toolDef?.executorType === 'builtin' && toolDef?.executorConfig?.handler === 'ui_renderer') {
+                    const componentKey = toolDef.executorConfig.componentKey as string;
+                    const interactive = (toolDef.executorConfig.interactive as boolean) ?? false;
+                    const instanceId = nanoid();
+
+                    const uiComp = await DBAgentUtils.getUIComponentByKey(componentKey);
+                    if (uiComp) {
+                        await DBAgentUtils.saveUIInstance({
+                            id: instanceId,
+                            messageId: assistantMsgId,
+                            uiComponentId: uiComp.id,
+                            componentKey,
+                            props: JSON.stringify(input)
+                        });
+                    }
+
+                    return {
+                        __uiComponent: true,
+                        instanceId,
+                        componentKey,
+                        props: input,
+                        interactive
+                    } satisfies UISentinel;
+                }
 
                 if (toolDef?.requiresConfirmation) {
                     // Marcar como awaiting_confirmation (ya fue guardado como 'executing' en tool-call event)
@@ -150,6 +194,39 @@ export class AgentEngine {
                 case 'tool-result': {
                     const toolCallId = event.toolCallId;
                     const toolOutput = event.output as unknown;
+
+                    // ─── Detección de UI Component ───
+                    if (isUISentinel(toolOutput)) {
+                        yield {
+                            type: 'ui-component',
+                            instanceId: toolOutput.instanceId,
+                            componentKey: toolOutput.componentKey,
+                            props: toolOutput.props,
+                            interactive: toolOutput.interactive
+                        };
+
+                        const cleanResult = {
+                            rendered: true,
+                            componentKey: toolOutput.componentKey,
+                            instanceId: toolOutput.instanceId
+                        };
+
+                        await DBAgentUtils.updateToolCall(toolCallId, {
+                            result: JSON.stringify(cleanResult),
+                            status: 'completed'
+                        });
+
+                        await DBAgentUtils.saveAgentMessage({
+                            chatId: context.chatId,
+                            role: 'tool',
+                            textContent: JSON.stringify(cleanResult),
+                            toolCallId,
+                            toolName: event.toolName,
+                            sequenceOrder: 2
+                        });
+
+                        break;
+                    }
 
                     // ─── Detección de HITL ───
                     if (isHitlSentinel(toolOutput)) {

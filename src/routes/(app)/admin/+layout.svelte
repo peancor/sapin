@@ -26,7 +26,8 @@
 		ScrollText,
 		TicketPlus,
 		Wrench,
-		Puzzle
+		Puzzle,
+		LayoutGrid
 	} from 'lucide-svelte';
 	import { min } from 'drizzle-orm';
 
@@ -120,6 +121,13 @@
 			label: 'Herramientas Agent',
 			href: '/admin/agent-tools',
 			icon: Puzzle,
+			minLevel: ROLE_LEVELS.ADMIN
+		},
+		{
+			id: 'agent-ui-components',
+			label: 'Componentes UI Agent',
+			href: '/admin/agent-ui-components',
+			icon: LayoutGrid,
 			minLevel: ROLE_LEVELS.ADMIN
 		},
 		{

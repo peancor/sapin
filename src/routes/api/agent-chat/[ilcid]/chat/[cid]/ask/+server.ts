@@ -86,9 +86,10 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
         // Cargar herramientas habilitadas para esta actividad
         const enabledTools = await DBAgentUtils.getEnabledToolsForActivity(ilcid);
 
-        // Seed de herramientas builtin si no hay ninguna aún
+        // Seed de herramientas builtin y componentes UI si no hay ninguna aún
         if (enabledTools.length === 0) {
             await DBAgentUtils.seedBuiltinTools();
+            await DBAgentUtils.seedBuiltinUIComponents();
         }
 
         // Obtener historial de mensajes para el contexto (solo para executeLoop)

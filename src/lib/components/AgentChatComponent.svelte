@@ -3,6 +3,7 @@
     import { marked } from 'marked';
     import type { AgentStreamPart, AgentDisplayMessage, AgentDisplayPart } from '$lib/types/agent';
     import HumanInTheLoopModal from './HumanInTheLoopModal.svelte';
+    import UIComponentRenderer from './UIComponentRenderer.svelte';
 
     interface Props {
         initialMessages?: AgentDisplayMessage[];
@@ -220,6 +221,18 @@
                         break;
                     }
 
+                    case 'ui-component': {
+                        currentTextPartIndex = -1;
+                        parts.push({
+                            kind: 'ui-component',
+                            instanceId: part.instanceId,
+                            componentKey: part.componentKey,
+                            props: part.props,
+                            interactive: part.interactive
+                        });
+                        break;
+                    }
+
                     case 'tool-result': {
                         const idx = parts.findIndex(
                             (p) => p.kind === 'tool-call' && p.toolCallId === part.toolCallId
@@ -385,6 +398,16 @@
                                     </div>
                                 {/if}
                             </div>
+
+                        {:else if part.kind === 'ui-component'}
+                            <UIComponentRenderer
+                                instanceId={part.instanceId}
+                                componentKey={part.componentKey}
+                                props={part.props}
+                                interactive={part.interactive}
+                                initialUserResponse={part.userResponse}
+                                apiBase={apiBaseForHitl}
+                            />
                         {/if}
                     {/each}
 
