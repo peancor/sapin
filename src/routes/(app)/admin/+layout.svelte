@@ -131,6 +131,13 @@
 			minLevel: ROLE_LEVELS.ADMIN
 		},
 		{
+			id: 'agent-analytics',
+			label: 'Analítica Agent',
+			href: '/admin/agent-analytics',
+			icon: BarChart3,
+			minLevel: ROLE_LEVELS.ADMIN
+		},
+		{
 			id: 'maintenance',
 			label: 'Mantenimiento',
 			href: '/admin/maintenance',
