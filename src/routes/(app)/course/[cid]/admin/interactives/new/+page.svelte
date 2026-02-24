@@ -3,13 +3,16 @@
 	import { enhance } from '$app/forms';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import { page } from '$app/stores';
-	import { ArrowLeft } from 'lucide-svelte';
+	import { ArrowLeft, MessageSquare, Bot } from 'lucide-svelte';
 	import ChatConfigForm from '$lib/components/ChatConfigForm.svelte';
+	import AgentConfigForm from '$lib/components/AgentConfigForm.svelte';
 	import { onMount } from 'svelte';
 	import { beforeNavigate, goto } from '$app/navigation';
-	import textContentOfSystemPrompt from '$lib/helpers/systemPromptTemplateRAG.md?raw';
 
 	let { data }: { data: PageData } = $props();
+
+	// Activity type selector
+	let selectedType = $state<'chat' | 'agent'>('chat');
 
 	// Chat configuration fields
 	let name = $state('');
@@ -20,9 +23,16 @@
 	let temperature = $state(0.7);
 	let maxTokens = $state(2000);
 	let topP = $state(0.9);
-	let systemPrompt = $state(''); //por defecto vacío para que se use el system prompt predefinido en el sistema.
+	let systemPrompt = $state('');
 	let llmContext = $state('');
 	let status = $state<'hidden' | 'published' | 'closed' | 'archived'>('hidden');
+
+	// Agent configuration fields
+	let maxToolRoundtrips = $state(5);
+	let parallelToolCalls = $state(false);
+	let toolChoice = $state<'auto' | 'required' | 'none'>('auto');
+	let selectedToolIds = $state<string[]>([]);
+	let selectedUIComponentIds = $state<string[]>([]);
 
 	let isDirty = $state(false);
 
@@ -97,7 +107,6 @@
 		action="?/create"
 		use:enhance={() => {
 			return async ({ result }) => {
-				console.log(result);
 				if (result.type === 'redirect') {
 					isDirty = false;
 					goto(`/course/${data.courseId}/admin`, { invalidateAll: true });
@@ -106,8 +115,46 @@
 		}}
 		class="space-y-6 rounded-lg bg-white p-6 shadow dark:bg-gray-800"
 	>
-		<!-- Hidden type field (only chat supported) -->
-		<input type="hidden" name="type" value="chat" />
+		<!-- Type selector -->
+		<input type="hidden" name="type" value={selectedType} />
+
+		<div>
+			<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+				Tipo de actividad
+			</label>
+			<div class="grid gap-3 sm:grid-cols-2">
+				<button
+					type="button"
+					onclick={() => { selectedType = 'chat'; markDirty(); }}
+					class="flex items-center gap-3 rounded-lg border-2 p-4 text-left transition-colors {selectedType === 'chat'
+						? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20'
+						: 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'}"
+				>
+					<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
+						<MessageSquare class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+					</div>
+					<div>
+						<p class="font-medium text-gray-900 dark:text-white">Conversacional (Chat)</p>
+						<p class="text-xs text-gray-500 dark:text-gray-400">Chat interactivo con un rol IA</p>
+					</div>
+				</button>
+				<button
+					type="button"
+					onclick={() => { selectedType = 'agent'; markDirty(); }}
+					class="flex items-center gap-3 rounded-lg border-2 p-4 text-left transition-colors {selectedType === 'agent'
+						? 'border-green-500 bg-green-50 dark:border-green-400 dark:bg-green-900/20'
+						: 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'}"
+				>
+					<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/40">
+						<Bot class="h-5 w-5 text-green-600 dark:text-green-400" />
+					</div>
+					<div>
+						<p class="font-medium text-gray-900 dark:text-white">Agente con Herramientas</p>
+						<p class="text-xs text-gray-500 dark:text-gray-400">Agente IA con acceso a herramientas</p>
+					</div>
+				</button>
+			</div>
+		</div>
 
 		<ChatConfigForm
 			bind:name
@@ -126,6 +173,19 @@
 			showNameField={true}
 			onchange={markDirty}
 		/>
+
+		{#if selectedType === 'agent'}
+			<AgentConfigForm
+				bind:maxToolRoundtrips
+				bind:parallelToolCalls
+				bind:toolChoice
+				tools={data.activeTools}
+				bind:selectedToolIds
+				uiComponents={data.activeUIComponents}
+				bind:selectedUIComponentIds
+				onchange={markDirty}
+			/>
+		{/if}
 
 		<div class="flex gap-4">
 			<button type="submit" class="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600">

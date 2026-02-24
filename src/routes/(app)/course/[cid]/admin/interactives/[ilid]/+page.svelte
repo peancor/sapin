@@ -13,7 +13,9 @@
 		Edit,
 		Settings,
 		AlertCircle,
-		ArrowLeft
+		ArrowLeft,
+		Bot,
+		Wrench
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -32,6 +34,8 @@
 		});
 	}
 
+	const isAgent = $derived(data.interactive.type === 'agent');
+
 	// Quick actions
 	const quickActions = $derived([
 		{
@@ -43,17 +47,17 @@
 		},
 		{
 			label: 'Revisar respuestas',
-			href: resolve(`/course/${cid}/admin/interactives/${ilid}/chat-review`),
+			href: resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chat-review'}`),
 			icon: Eye,
 			color: 'green',
-			description: 'Revisar las conversaciones de los estudiantes'
+			description: isAgent ? 'Editar configuración del agente' : 'Revisar las conversaciones de los estudiantes'
 		},
 		{
 			label: 'Editar actividad',
-			href: resolve(`/course/${cid}/admin/interactives/${ilid}/chatedit`),
+			href: resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chatedit'}`),
 			icon: Edit,
 			color: 'purple',
-			description: 'Modificar la configuración del chat'
+			description: isAgent ? 'Modificar la configuración del agente' : 'Modificar la configuración del chat'
 		},
 		{
 			label: 'Generar insights',
@@ -209,45 +213,83 @@
 					Configuración de la actividad
 				</h2>
 				<a
-					href={resolve(`/course/${cid}/admin/interactives/${ilid}/chatedit`)}
+					href={resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chatedit'}`)}
 					class="text-sm text-primary-600 hover:underline dark:text-primary-400"
 				>
 					Editar
 				</a>
 			</div>
-			<div class="space-y-4">
-				<div class="flex items-start gap-3">
-					<Settings class="mt-0.5 h-5 w-5 text-gray-400" />
-					<div>
-						<p class="text-sm font-medium text-gray-900 dark:text-white">Rol del asistente</p>
-						<p class="text-sm text-gray-500 dark:text-gray-400">
-							{data.chatConfig?.llmRole || 'No configurado'}
-						</p>
-					</div>
-				</div>
-				{#if data.chatConfig?.llmInstructions}
+			{#if isAgent}
+				<div class="space-y-4">
 					<div class="flex items-start gap-3">
-						<MessageSquare class="mt-0.5 h-5 w-5 text-gray-400" />
+						<Bot class="mt-0.5 h-5 w-5 text-gray-400" />
 						<div>
-							<p class="text-sm font-medium text-gray-900 dark:text-white">Instrucciones</p>
-							<p class="line-clamp-3 text-sm text-gray-500 dark:text-gray-400">
-								{data.chatConfig.llmInstructions}
+							<p class="text-sm font-medium text-gray-900 dark:text-white">Rol del agente</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								{data.agentConfig?.llmRole || 'No configurado'}
 							</p>
 						</div>
 					</div>
-				{/if}
-				<div class="flex items-start gap-3">
-					<Activity class="mt-0.5 h-5 w-5 text-gray-400" />
-					<div>
-						<p class="text-sm font-medium text-gray-900 dark:text-white">
-							Criterio de finalización
-						</p>
-						<p class="text-sm text-gray-500 dark:text-gray-400">
-							Mínimo {data.stats.requiresMinMessages} mensajes + marca [[DONE]]
-						</p>
+					<div class="flex items-start gap-3">
+						<Settings class="mt-0.5 h-5 w-5 text-gray-400" />
+						<div>
+							<p class="text-sm font-medium text-gray-900 dark:text-white">Configuración agéntica</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								Máx. {data.agentConfig?.maxToolRoundtrips ?? 5} rondas · {data.agentConfig?.toolChoice ?? 'auto'}
+							</p>
+						</div>
+					</div>
+					{#if data.enabledTools && data.enabledTools.length > 0}
+						<div class="flex items-start gap-3">
+							<Wrench class="mt-0.5 h-5 w-5 text-gray-400" />
+							<div>
+								<p class="text-sm font-medium text-gray-900 dark:text-white">Herramientas habilitadas</p>
+								<div class="mt-1 flex flex-wrap gap-1">
+									{#each data.enabledTools as tool (tool.id)}
+										<span class="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+											{tool.displayName}
+										</span>
+									{/each}
+								</div>
+							</div>
+						</div>
+					{/if}
+				</div>
+			{:else}
+				<div class="space-y-4">
+					<div class="flex items-start gap-3">
+						<Settings class="mt-0.5 h-5 w-5 text-gray-400" />
+						<div>
+							<p class="text-sm font-medium text-gray-900 dark:text-white">Rol del asistente</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								{data.chatConfig?.llmRole || 'No configurado'}
+							</p>
+						</div>
+					</div>
+					{#if data.chatConfig?.llmInstructions}
+						<div class="flex items-start gap-3">
+							<MessageSquare class="mt-0.5 h-5 w-5 text-gray-400" />
+							<div>
+								<p class="text-sm font-medium text-gray-900 dark:text-white">Instrucciones</p>
+								<p class="line-clamp-3 text-sm text-gray-500 dark:text-gray-400">
+									{data.chatConfig.llmInstructions}
+								</p>
+							</div>
+						</div>
+					{/if}
+					<div class="flex items-start gap-3">
+						<Activity class="mt-0.5 h-5 w-5 text-gray-400" />
+						<div>
+							<p class="text-sm font-medium text-gray-900 dark:text-white">
+								Criterio de finalización
+							</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								Mínimo {data.stats.requiresMinMessages} mensajes + marca [[DONE]]
+							</p>
+						</div>
 					</div>
 				</div>
-			</div>
+			{/if}
 		</div>
 
 		<!-- Progress Overview -->
@@ -306,7 +348,7 @@
 	<!-- Preview Button -->
 	<div class="flex justify-center">
 		<a
-			href={resolve(`/interactive-chat/${ilid}`)}
+			href={resolve(isAgent ? `/agent-chat/${ilid}` : `/interactive-chat/${ilid}`)}
 			target="_blank"
 			class="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-6 py-3 text-white transition-colors hover:bg-primary-700"
 		>

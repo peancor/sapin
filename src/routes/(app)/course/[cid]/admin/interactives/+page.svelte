@@ -16,7 +16,8 @@
 		List,
 		BookOpen,
 		Download,
-		Upload
+		Upload,
+		Bot
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -77,6 +78,8 @@
 		switch (type) {
 			case 'chat':
 				return 'blue';
+			case 'agent':
+				return 'green';
 			case 'quiz':
 				return 'purple';
 			case 'simulation':
@@ -84,6 +87,12 @@
 			default:
 				return 'gray';
 		}
+	}
+
+	function getPreviewUrl(interactive: { id: string; type: string }): string {
+		return interactive.type === 'agent'
+			? `/agent-chat/${interactive.id}`
+			: `/interactive-chat/${interactive.id}`;
 	}
 
 	function getStatusColor(status: string): 'green' | 'yellow' | 'orange' | 'gray' {
@@ -287,9 +296,13 @@
 						<div class="flex items-start justify-between">
 							<div class="flex items-center gap-3">
 								<div
-									class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/50"
+									class="flex h-10 w-10 items-center justify-center rounded-lg {interactive.type === 'agent' ? 'bg-green-100 dark:bg-green-900/50' : 'bg-blue-100 dark:bg-blue-900/50'}"
 								>
-									<MessageSquare class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+									{#if interactive.type === 'agent'}
+										<Bot class="h-5 w-5 text-green-600 dark:text-green-400" />
+									{:else}
+										<MessageSquare class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+									{/if}
 								</div>
 								<div>
 									<h3 class="line-clamp-1 font-semibold text-gray-900 dark:text-white">
@@ -311,7 +324,7 @@
 								<MoreVertical class="h-4 w-4" />
 							</Button>
 							<Dropdown triggeredBy="#dropdown-btn-{interactive.id}" simple>
-								<DropdownItem href="/interactive-chat/{interactive.id}">
+								<DropdownItem href={getPreviewUrl(interactive)}>
 									<Eye class="mr-2 inline h-4 w-4" /> Previsualizar
 								</DropdownItem>
 								<DropdownItem href="./{interactive.id}/students">
@@ -422,7 +435,7 @@
 							<td class="px-6 py-4">
 								<div class="flex items-center justify-center gap-1">
 									<a
-										href="/interactive-chat/{interactive.id}"
+										href={getPreviewUrl(interactive)}
 										class="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-600"
 										title="Previsualizar"
 									>

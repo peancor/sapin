@@ -1,8 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { interactiveLearning, courseInteractiveLearning, interactiveLearningChat } from '$lib/server/db/schema';
-import { eq, and, sql, count } from 'drizzle-orm';
+import { interactiveLearning, courseInteractiveLearning, interactiveLearningChat, userInteractiveLearningChat } from '$lib/server/db/schema';
+import { eq, and, sql, count, inArray } from 'drizzle-orm';
 
 export const load = (async ({ params, locals }) => {
 	if (!locals.user) {
@@ -31,25 +31,42 @@ export const load = (async ({ params, locals }) => {
 		)
 		.orderBy(courseInteractiveLearning.order);
 
-	// Obtener conteo de participaciones por actividad (el id del chat ES el interactiveLearningId)
-	const participationCounts = await db
-		.select({
-			interactiveLearningId: interactiveLearningChat.id,
-			count: count()
-		})
-		.from(interactiveLearningChat)
-		.where(
-			sql`${interactiveLearningChat.id} IN (${sql.join(
-				interactives.map((i) => sql`${i.id}`),
-				sql`, `
-			)})`
-		)
-		.groupBy(interactiveLearningChat.id);
+	// Separar por tipo
+	const chatIds = interactives.filter((i) => i.type === 'chat').map((i) => i.id);
+	const agentIds = interactives.filter((i) => i.type === 'agent').map((i) => i.id);
+
+	// Conteo de participaciones para actividades tipo chat (via interactiveLearningChat)
+	const chatParticipationCounts =
+		chatIds.length > 0
+			? await db
+					.select({
+						interactiveLearningId: interactiveLearningChat.id,
+						count: count()
+					})
+					.from(interactiveLearningChat)
+					.where(inArray(interactiveLearningChat.id, chatIds))
+					.groupBy(interactiveLearningChat.id)
+			: [];
+
+	// Conteo de participaciones para actividades tipo agent (via userInteractiveLearningChat)
+	const agentParticipationCounts =
+		agentIds.length > 0
+			? await db
+					.select({
+						interactiveLearningId: userInteractiveLearningChat.interactiveLearningChatId,
+						count: count()
+					})
+					.from(userInteractiveLearningChat)
+					.where(inArray(userInteractiveLearningChat.interactiveLearningChatId, agentIds))
+					.groupBy(userInteractiveLearningChat.interactiveLearningChatId)
+			: [];
+
+	const allParticipationCounts = [...chatParticipationCounts, ...agentParticipationCounts];
 
 	// Combinar datos
 	const interactivesWithStats = interactives.map((interactive) => ({
 		...interactive,
-		participations: participationCounts.find((p) => p.interactiveLearningId === interactive.id)?.count || 0
+		participations: allParticipationCounts.find((p) => p.interactiveLearningId === interactive.id)?.count || 0
 	}));
 
 	return {

@@ -131,6 +131,42 @@ export default class DBAgentUtils {
         }
     }
 
+    static async setActivityUIComponents(activityId: string, uiComponentIds: string[]) {
+        await db
+            .delete(schema.agentActivityUIComponent)
+            .where(eq(schema.agentActivityUIComponent.agentActivityId, activityId));
+
+        if (uiComponentIds.length > 0) {
+            await db.insert(schema.agentActivityUIComponent).values(
+                uiComponentIds.map((uiId) => ({
+                    id: nanoid(),
+                    agentActivityId: activityId,
+                    uiComponentId: uiId,
+                    isEnabled: true,
+                    createdAt: new Date()
+                }))
+            );
+        }
+    }
+
+    static async getEnabledUIComponentsForActivity(activityId: string) {
+        const rows = await db
+            .select({ component: schema.agentUIComponent })
+            .from(schema.agentActivityUIComponent)
+            .innerJoin(
+                schema.agentUIComponent,
+                eq(schema.agentActivityUIComponent.uiComponentId, schema.agentUIComponent.id)
+            )
+            .where(
+                and(
+                    eq(schema.agentActivityUIComponent.agentActivityId, activityId),
+                    eq(schema.agentActivityUIComponent.isEnabled, true),
+                    eq(schema.agentUIComponent.isActive, true)
+                )
+            );
+        return rows.map((r) => r.component);
+    }
+
     // ─── Mensajes Agénticos ───
 
     static async saveAgentMessage(data: {

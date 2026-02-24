@@ -2,13 +2,14 @@ import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { db } from '$lib/server/db';
-import { interactiveLearning, courseInteractiveLearning, interactiveLearningChat, appSetting } from '$lib/server/db/schema';
+import { interactiveLearning, courseInteractiveLearning, interactiveLearningChat, interactiveLearningAgent } from '$lib/server/db/schema';
 import { nanoid } from 'nanoid';
 import { interactiveLearningTypes } from '$lib/constants';
 import { eq, sql } from 'drizzle-orm';
 import { AIUtils } from '$lib/server/ai/AIUtils';
 import { auditService, auditAction } from '$lib/server/logging';
 import { generateSlug } from '$lib/utils/slug';
+import DBAgentUtils from '$lib/server/db/DBAgentUtils';
 
 function getClientIP(request: Request): string | null {
     return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -31,11 +32,19 @@ export const load = (async ({ locals, params }) => {
     // Obtener modelo por defecto
     const defaultModel = await AIUtils.getDefaultModel();
 
+    // Seed y cargar catálogos para actividades agénticas
+    await DBAgentUtils.seedBuiltinTools();
+    await DBAgentUtils.seedBuiltinUIComponents();
+    const activeTools = await DBAgentUtils.getActiveToolDefinitions();
+    const activeUIComponents = await DBAgentUtils.getAllUIComponents();
+
     return {
         courseId: params.cid,
         types: Object.values(interactiveLearningTypes),
         models,
-        defaultModel
+        defaultModel,
+        activeTools,
+        activeUIComponents
     };
 }) satisfies PageServerLoad;
 
@@ -123,6 +132,40 @@ export const actions = {
                 createdAt: now,
                 metadata: '{}'
             });
+        } else if (type === 'agent') {
+            const maxToolRoundtrips = data.get('maxToolRoundtrips') ? parseInt(data.get('maxToolRoundtrips')?.toString() || '5') : 5;
+            const parallelToolCalls = data.get('parallelToolCalls') === 'on' || data.get('parallelToolCalls') === 'true';
+            const toolChoice = (['auto', 'required', 'none'].includes(data.get('toolChoice')?.toString() ?? '')) ? (data.get('toolChoice')?.toString() as 'auto' | 'required' | 'none') : 'auto';
+
+            let selectedToolIds: string[] = [];
+            let selectedUIComponentIds: string[] = [];
+            try {
+                const toolIdsRaw = data.get('selectedToolIds')?.toString();
+                if (toolIdsRaw) selectedToolIds = JSON.parse(toolIdsRaw) as string[];
+            } catch { /* ignore */ }
+            try {
+                const uiIdsRaw = data.get('selectedUIComponentIds')?.toString();
+                if (uiIdsRaw) selectedUIComponentIds = JSON.parse(uiIdsRaw) as string[];
+            } catch { /* ignore */ }
+
+            await db.insert(interactiveLearningAgent).values({
+                id,
+                llmRole,
+                llmInstructions,
+                llmContext,
+                systemPrompt,
+                llmModel: llmModel || 'GPT-4o',
+                temperature,
+                maxTokens,
+                topP,
+                maxToolRoundtrips,
+                parallelToolCalls,
+                toolChoice,
+                createdAt: now
+            });
+
+            await DBAgentUtils.setActivityTools(id, selectedToolIds);
+            await DBAgentUtils.setActivityUIComponents(id, selectedUIComponentIds);
         }
 
         // Obtener el último orden para este curso

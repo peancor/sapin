@@ -17,7 +17,8 @@
 		Users,
 		ChevronLeft,
 		BarChart3,
-		MessageSquare
+		MessageSquare,
+		Bot
 	} from 'lucide-svelte';
 	import { resolve } from '$app/paths';
 
@@ -37,6 +38,8 @@
 	// Active URL
 	let activeUrl = $derived(page.url.pathname);
 
+	const isAgent = $derived(data.interactive.type === 'agent');
+
 	// Menu items for interactive admin
 	const menuItems = $derived([
 		{
@@ -48,13 +51,15 @@
 		{
 			id: 'editor',
 			label: 'Editor',
-			href: resolve(`/course/${cid}/admin/interactives/${ilid}/chatedit`),
+			href: resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chatedit'}`),
 			icon: Edit
 		},
 		{
 			id: 'review',
 			label: 'Revisión',
-			href: resolve(`/course/${cid}/admin/interactives/${ilid}/chat-review`),
+			href: isAgent
+				? resolve(`/course/${cid}/admin/interactives/${ilid}`)
+				: resolve(`/course/${cid}/admin/interactives/${ilid}/chat-review`),
 			icon: Eye
 		},
 		{
@@ -70,6 +75,10 @@
 			icon: BarChart3
 		}
 	]);
+
+	const previewHref = $derived(
+		isAgent ? resolve(`/agent-chat/${ilid}`) : resolve(`/interactive-chat/${ilid}`)
+	);
 
 	const spanClass = 'ms-3 flex-1 whitespace-nowrap';
 	const iconClass =
@@ -89,8 +98,12 @@
 			class="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
 		/>
 		<div class="flex items-center gap-3 truncate">
-			<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/50">
-				<MessageSquare class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+			<div class="flex h-8 w-8 items-center justify-center rounded-lg {isAgent ? 'bg-green-100 dark:bg-green-900/50' : 'bg-blue-100 dark:bg-blue-900/50'}">
+				{#if isAgent}
+					<Bot class="h-4 w-4 text-green-600 dark:text-green-400" />
+				{:else}
+					<MessageSquare class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+				{/if}
 			</div>
 			<span class="truncate text-lg font-semibold text-gray-900 dark:text-white">
 				{data.interactive.name}
@@ -128,16 +141,20 @@
 					</a>
 
 					<!-- Interactive Header -->
-					<div class="rounded-xl bg-linear-to-br from-blue-500 to-blue-600 p-4">
+					<div class="rounded-xl bg-linear-to-br {isAgent ? 'from-green-500 to-green-600' : 'from-blue-500 to-blue-600'} p-4">
 						<div class="flex items-center gap-3">
 							<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
-								<MessageSquare class="h-5 w-5 text-white" />
+								{#if isAgent}
+									<Bot class="h-5 w-5 text-white" />
+								{:else}
+									<MessageSquare class="h-5 w-5 text-white" />
+								{/if}
 							</div>
 							<div class="min-w-0 flex-1">
 								<h2 class="line-clamp-2 text-sm font-bold text-white">
 									{data.interactive.name}
 								</h2>
-								<span class="text-xs text-blue-100">
+								<span class="text-xs {isAgent ? 'text-green-100' : 'text-blue-100'}">
 									{data.interactive.type || 'chat'}
 								</span>
 							</div>
@@ -185,7 +202,7 @@
 						Acciones rápidas
 					</p>
 					<a
-						href={resolve(`/interactive-chat/${ilid}`)}
+						href={previewHref}
 						target="_blank"
 						class="flex items-center gap-3 rounded-lg bg-green-50 p-3 text-green-700 transition-colors hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
 					>
