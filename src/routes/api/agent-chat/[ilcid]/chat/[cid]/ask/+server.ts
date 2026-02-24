@@ -37,18 +37,24 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
         });
     }
 
-    let userMessage = url.searchParams.get('message');
+    const userMessage = url.searchParams.get('message');
+    const isResume = url.searchParams.get('resume') === 'true';
     const { ilcid, cid } = params;
 
-    if (!userMessage || !ilcid || !cid) {
+    // En modo resume no requiere mensaje; en modo normal sí
+    if (!isResume && (!userMessage || !ilcid || !cid)) {
+        return sseError('Missing required parameters');
+    }
+    if (!ilcid || !cid) {
         return sseError('Missing required parameters');
     }
 
-    // Moderación si está habilitada
-    if (MODERATE_PROMPTS === 'true') {
-        const isSafe = await isPromptSafe(userMessage);
+    // Moderación (solo para mensajes nuevos)
+    let finalUserMessage = userMessage ?? '';
+    if (!isResume && MODERATE_PROMPTS === 'true') {
+        const isSafe = await isPromptSafe(finalUserMessage);
         if (!isSafe) {
-            userMessage = '[[El contenido enviado fue moderado por contener lenguaje inapropiado]]';
+            finalUserMessage = '[[El contenido enviado fue moderado por contener lenguaje inapropiado]]';
         }
     }
 
@@ -85,8 +91,8 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
             await DBAgentUtils.seedBuiltinTools();
         }
 
-        // Obtener historial de mensajes para el contexto
-        const messageHistory = await DBAgentUtils.getAgentMessages(cid);
+        // Obtener historial de mensajes para el contexto (solo para executeLoop)
+        const messageHistory = isResume ? [] : await DBAgentUtils.getAgentMessages(cid);
 
         // Construir el contexto del agente
         const context: AgentContext = {
@@ -119,7 +125,12 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
         const stream = new ReadableStream({
             async start(controller) {
                 try {
-                    for await (const part of AgentEngine.executeLoop(context, userMessage!)) {
+                    // Elegir entre loop normal o resume post-HITL
+                    const generator = isResume
+                        ? AgentEngine.resumeFromToolCall(context)
+                        : AgentEngine.executeLoop(context, finalUserMessage);
+
+                    for await (const part of generator) {
                         const data = JSON.stringify(part);
                         controller.enqueue(encoder.encode(`data: ${data}\n\n`));
                     }

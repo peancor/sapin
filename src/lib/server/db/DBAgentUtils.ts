@@ -7,6 +7,7 @@ import type {
     ToolDefinitionResolved,
     AgentHistoryMessage
 } from '$lib/types/agent';
+import type { ModelMessage } from 'ai';
 
 export default class DBAgentUtils {
     // ─── Actividad Agéntica ───
@@ -232,6 +233,64 @@ export default class DBAgentUtils {
         return record ?? null;
     }
 
+    /**
+     * Reconstruye el historial de mensajes completo como ModelMessage[] para el resume post-HITL.
+     * Para mensajes role='assistant', incluye los ToolCallPart de los agentToolCall asociados.
+     */
+    static async getAgentMessagesAsModelMessages(chatId: string): Promise<ModelMessage[]> {
+        const rawMessages = await db
+            .select()
+            .from(schema.agentMessage)
+            .where(eq(schema.agentMessage.chatId, chatId))
+            .orderBy(asc(schema.agentMessage.createdAt), asc(schema.agentMessage.sequenceOrder));
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result: any[] = [];
+
+        for (const msg of rawMessages) {
+            if (msg.role === 'user') {
+                result.push({ role: 'user', content: msg.textContent ?? '' });
+            } else if (msg.role === 'system') {
+                result.push({ role: 'system', content: msg.textContent ?? '' });
+            } else if (msg.role === 'assistant') {
+                // Obtener tool calls asociados a este mensaje
+                const toolCalls = await db
+                    .select()
+                    .from(schema.agentToolCall)
+                    .where(eq(schema.agentToolCall.messageId, msg.id))
+                    .orderBy(asc(schema.agentToolCall.createdAt));
+
+                if (toolCalls.length > 0) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const content: any[] = [];
+                    if (msg.textContent) {
+                        content.push({ type: 'text', text: msg.textContent });
+                    }
+                    for (const tc of toolCalls) {
+                        let input: Record<string, unknown> = {};
+                        try { input = JSON.parse(tc.arguments) as Record<string, unknown>; } catch { /* ignore */ }
+                        content.push({ type: 'tool-call', toolCallId: tc.id, toolName: tc.toolName, input });
+                    }
+                    result.push({ role: 'assistant', content });
+                } else {
+                    result.push({ role: 'assistant', content: msg.textContent ?? '' });
+                }
+            } else if (msg.role === 'tool') {
+                result.push({
+                    role: 'tool',
+                    content: [{
+                        type: 'tool-result',
+                        toolCallId: msg.toolCallId ?? '',
+                        toolName: msg.toolName ?? '',
+                        output: { type: 'text', value: msg.textContent ?? '' }
+                    }]
+                });
+            }
+        }
+
+        return result as ModelMessage[];
+    }
+
     // ─── Catálogo Global de Herramientas (Admin) ───
 
     static async getAllToolDefinitions() {
@@ -404,6 +463,88 @@ export default class DBAgentUtils {
                 executorType: 'builtin' as const,
                 executorConfig: JSON.stringify({ handler: 'calculateExpression' }),
                 requiresConfirmation: false,
+                riskLevel: 'low' as const,
+                isSystem: true,
+                version: '1.0.0'
+            },
+            {
+                name: 'save_grade',
+                displayName: 'Guardar calificación',
+                description:
+                    'Guarda una calificación para el estudiante en la actividad actual u otra del curso. Úsala cuando hayas evaluado al estudiante y quieras registrar su nota. ¡REQUIERE CONFIRMACIÓN del estudiante antes de ejecutarse!',
+                category: 'evaluation',
+                parametersSchema: JSON.stringify({
+                    type: 'object',
+                    properties: {
+                        score: {
+                            type: 'number',
+                            description: 'Calificación entre 0.0 (0%) y 1.0 (100%)',
+                            minimum: 0,
+                            maximum: 1
+                        },
+                        feedback: {
+                            type: 'string',
+                            description: 'Retroalimentación textual para el estudiante'
+                        },
+                        activityId: {
+                            type: 'string',
+                            description: 'ID de la actividad a calificar. Si se omite, usa la actividad actual.'
+                        }
+                    },
+                    required: ['score']
+                }),
+                responseSchema: JSON.stringify({
+                    type: 'object',
+                    properties: {
+                        activityId: { type: 'string' },
+                        score: { type: 'number' },
+                        scorePercent: { type: 'integer' }
+                    }
+                }),
+                executorType: 'builtin' as const,
+                executorConfig: JSON.stringify({ handler: 'saveGrade' }),
+                requiresConfirmation: true,
+                riskLevel: 'medium' as const,
+                isSystem: true,
+                version: '1.0.0'
+            },
+            {
+                name: 'send_notification',
+                displayName: 'Enviar notificación',
+                description:
+                    'Envía una notificación in-app al estudiante. Úsala para felicitar logros, recordar tareas pendientes o enviar mensajes importantes. REQUIERE CONFIRMACIÓN antes de enviar.',
+                category: 'communication',
+                parametersSchema: JSON.stringify({
+                    type: 'object',
+                    properties: {
+                        title: {
+                            type: 'string',
+                            description: 'Título breve de la notificación'
+                        },
+                        message: {
+                            type: 'string',
+                            description: 'Cuerpo del mensaje de la notificación'
+                        },
+                        priority: {
+                            type: 'string',
+                            description: 'Prioridad: low, normal o high',
+                            enum: ['low', 'normal', 'high'],
+                            default: 'normal'
+                        }
+                    },
+                    required: ['title', 'message']
+                }),
+                responseSchema: JSON.stringify({
+                    type: 'object',
+                    properties: {
+                        title: { type: 'string' },
+                        message: { type: 'string' },
+                        notificationId: { type: 'string' }
+                    }
+                }),
+                executorType: 'builtin' as const,
+                executorConfig: JSON.stringify({ handler: 'sendNotification' }),
+                requiresConfirmation: true,
                 riskLevel: 'low' as const,
                 isSystem: true,
                 version: '1.0.0'

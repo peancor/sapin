@@ -2,6 +2,7 @@
     import { onMount, onDestroy } from 'svelte';
     import { marked } from 'marked';
     import type { AgentStreamPart, AgentDisplayMessage, AgentDisplayPart } from '$lib/types/agent';
+    import HumanInTheLoopModal from './HumanInTheLoopModal.svelte';
 
     interface Props {
         initialMessages?: AgentDisplayMessage[];
@@ -23,6 +24,18 @@
     let chatContainer: HTMLDivElement | undefined = $state();
     let textarea: HTMLTextAreaElement | undefined = $state();
     let eventSource: EventSource | null = null;
+
+    // ─── HITL state ───
+    let hitlOpen = $state(false);
+    let hitlToolCallId = $state('');
+    let hitlToolName = $state('');
+    let hitlToolDisplayName = $state('');
+    let hitlArgs = $state<Record<string, unknown>>({});
+    let hitlRiskLevel = $state<'low' | 'medium' | 'high'>('low');
+    let hitlConfirmationMessage = $state('');
+
+    // Base URL for the confirm-tool endpoint (strip trailing /ask)
+    const apiBaseForHitl = $derived(apiEndpoint.replace(/\/ask$/, ''));
 
     // ─── Utilidades ───
     function processContent(content: string): string {
@@ -108,11 +121,22 @@
         const url = new URL(apiEndpoint, window.location.origin);
         url.searchParams.set('message', text);
 
-        eventSource?.close();
-        eventSource = new EventSource(url.toString());
+        startStream(url.toString(), assistantMsgId);
+    }
+
+    // ─── SSE stream (reusable for initial send + HITL resume) ───
+    let currentAssistantMsgId = '';
+
+    function startStream(url: string, assistantMsgId?: string) {
+        // Use the stored assistantMsgId on resume if not provided
+        const targetMsgId = assistantMsgId ?? currentAssistantMsgId;
+        currentAssistantMsgId = targetMsgId;
 
         // Acumulador de texto actual del assistant
         let currentTextPartIndex = -1;
+
+        eventSource?.close();
+        eventSource = new EventSource(url);
 
         eventSource.addEventListener('message', (event) => {
             if (event.data === '[DONE]') {
@@ -129,9 +153,31 @@
                 return;
             }
 
+            // ─── HITL: pause stream when confirmation is required ───
+            if ((part as { type: string }).type === 'tool-confirm-required') {
+                const p = part as unknown as {
+                    type: 'tool-confirm-required';
+                    toolCallId: string;
+                    toolName: string;
+                    toolDisplayName: string;
+                    args: Record<string, unknown>;
+                    riskLevel: 'low' | 'medium' | 'high';
+                    confirmationMessage: string;
+                };
+                hitlToolCallId = p.toolCallId;
+                hitlToolName = p.toolName;
+                hitlToolDisplayName = p.toolDisplayName;
+                hitlArgs = p.args;
+                hitlRiskLevel = p.riskLevel;
+                hitlConfirmationMessage = p.confirmationMessage;
+                hitlOpen = true;
+                // Stream closes on its own after this event; no further SSE events expected
+                return;
+            }
+
             // Actualizar el mensaje del assistant según el tipo de parte
             messages = messages.map((msg) => {
-                if (msg.id !== assistantMsgId) return msg;
+                if (msg.id !== targetMsgId) return msg;
 
                 const parts = [...msg.parts];
 
@@ -221,6 +267,36 @@
             eventSource = null;
             isLoading = false;
             errorMessage = 'Se perdió la conexión con el servidor. Inténtalo de nuevo.';
+        });
+    }
+
+    // ─── HITL handlers ───
+    function handleHitlConfirm(toolCallId: string) {
+        hitlOpen = false;
+        // Re-open the SSE stream in resume mode to get the agent's follow-up
+        const resumeUrl = new URL(apiEndpoint, window.location.origin);
+        resumeUrl.searchParams.set('resume', 'true');
+        resumeUrl.searchParams.set('toolCallId', toolCallId);
+        startStream(resumeUrl.toString());
+    }
+
+    function handleHitlReject(toolCallId: string) {
+        hitlOpen = false;
+        isLoading = false;
+        // Update the tool-call part in the current message to show rejected
+        messages = messages.map((msg) => {
+            if (msg.id !== currentAssistantMsgId) return msg;
+            const parts = [...msg.parts];
+            const idx = parts.findIndex(
+                (p) => p.kind === 'tool-call' && (p as { toolCallId: string }).toolCallId === toolCallId
+            );
+            if (idx >= 0) {
+                const prev = parts[idx];
+                if (prev.kind === 'tool-call') {
+                    parts[idx] = { ...prev, status: 'rejected' as typeof prev.status, result: { rejected: true } };
+                }
+            }
+            return { ...msg, parts };
         });
     }
 
@@ -331,6 +407,21 @@
             {errorMessage}
         </div>
     {/if}
+
+    <!-- Human-in-the-Loop confirmation modal -->
+    <HumanInTheLoopModal
+        bind:isOpen={hitlOpen}
+        toolCallId={hitlToolCallId}
+        toolName={hitlToolName}
+        toolDisplayName={hitlToolDisplayName}
+        args={hitlArgs}
+        riskLevel={hitlRiskLevel}
+        confirmationMessage={hitlConfirmationMessage}
+        apiBase={apiBaseForHitl}
+        onConfirm={handleHitlConfirm}
+        onReject={handleHitlReject}
+        onError={(msg) => console.error('HITL error:', msg)}
+    />
 
     <!-- Input -->
     <div class="border-t border-gray-200 dark:border-gray-700 p-4">

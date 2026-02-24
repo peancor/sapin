@@ -25,7 +25,8 @@
 		FolderOpen,
 		ScrollText,
 		TicketPlus,
-		Wrench
+		Wrench,
+		Puzzle
 	} from 'lucide-svelte';
 	import { min } from 'drizzle-orm';
 
@@ -112,6 +113,13 @@
 			label: 'Audit Logs',
 			href: '/admin/logs',
 			icon: ScrollText,
+			minLevel: ROLE_LEVELS.ADMIN
+		},
+		{
+			id: 'agent-tools',
+			label: 'Herramientas Agent',
+			href: '/admin/agent-tools',
+			icon: Puzzle,
 			minLevel: ROLE_LEVELS.ADMIN
 		},
 		{

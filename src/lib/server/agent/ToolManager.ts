@@ -91,7 +91,8 @@ export class ToolManager {
         tools: ToolDefinitionResolved[],
         executeHandler: (
             toolName: string,
-            input: Record<string, unknown>
+            input: Record<string, unknown>,
+            toolCallId: string
         ) => Promise<unknown>
     ): Record<string, ReturnType<typeof aiTool>> {
         const result: Record<string, ReturnType<typeof aiTool>> = {};
@@ -109,9 +110,9 @@ export class ToolManager {
                 description: toolDef.description,
                 // v6: `inputSchema` (not `parameters`)
                 inputSchema: inputSchema,
-                // v6: execute receives `input` as first arg
-                execute: async (input: unknown) => {
-                    return await executeHandler(name, input as Record<string, unknown>);
+                // v6: execute receives `input` as first arg and options (with toolCallId) as second
+                execute: async (input: unknown, options: { toolCallId: string }) => {
+                    return await executeHandler(name, input as Record<string, unknown>, options.toolCallId);
                 }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any);

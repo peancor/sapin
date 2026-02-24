@@ -2,6 +2,8 @@ import type { AgentContext, ToolDefinitionResolved, ToolResult } from '$lib/type
 import { searchCourseContent } from './builtins/searchCourseContent';
 import { getStudentProgress } from './builtins/getStudentProgress';
 import { calculateExpression } from './builtins/calculateExpression';
+import { saveGrade } from './builtins/saveGrade';
+import { sendNotification } from './builtins/sendNotification';
 
 type BuiltinHandler = (args: unknown, context: AgentContext) => Promise<ToolResult>;
 
@@ -12,7 +14,9 @@ type BuiltinHandler = (args: unknown, context: AgentContext) => Promise<ToolResu
 const BUILTIN_HANDLERS: Record<string, BuiltinHandler> = {
     searchCourseContent: searchCourseContent as unknown as BuiltinHandler,
     getStudentProgress: getStudentProgress as unknown as BuiltinHandler,
-    calculateExpression: calculateExpression as unknown as BuiltinHandler
+    calculateExpression: calculateExpression as unknown as BuiltinHandler,
+    saveGrade: saveGrade as unknown as BuiltinHandler,
+    sendNotification: sendNotification as unknown as BuiltinHandler
 };
 
 export interface ToolExecutionResult {
