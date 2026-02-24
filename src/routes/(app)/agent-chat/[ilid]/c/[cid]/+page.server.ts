@@ -61,6 +61,9 @@ export const load = (async ({ params, locals }) => {
         // Solo mostrar user y assistant (no system ni tool internos)
         if (msg.role !== 'user' && msg.role !== 'assistant') continue;
 
+        // Ocultar mensajes de trigger internos como [[Usuario conectado: ...]]
+        if (msg.role === 'user' && msg.textContent && /^\[\[.*\]\]$/s.test(msg.textContent.trim())) continue;
+
         const parts: AgentDisplayPart[] = [];
 
         // Texto principal

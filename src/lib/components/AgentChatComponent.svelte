@@ -313,10 +313,36 @@
         });
     }
 
+    // ─── Auto-start: trigger agent greeting when chat is brand new ───
+    function sendAutoStart() {
+        const assistantMsg: AgentDisplayMessage = {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            parts: [],
+            createdAt: new Date()
+        };
+        messages = [assistantMsg];
+        const assistantMsgId = assistantMsg.id;
+
+        isLoading = true;
+        userHasScrolled = false;
+        isAtBottom = true;
+
+        setTimeout(() => scrollToBottom(true), 50);
+
+        const url = new URL(apiEndpoint, window.location.origin);
+        url.searchParams.set('message', `[[Usuario conectado: ${user?.username ?? 'usuario'}]]`);
+        startStream(url.toString(), assistantMsgId);
+    }
+
     // ─── Lifecycle ───
     onMount(() => {
         scrollToBottom(true);
         chatContainer?.addEventListener('scroll', handleScroll);
+
+        if (messages.length === 0 && user?.username) {
+            sendAutoStart();
+        }
     });
 
     onDestroy(() => {
