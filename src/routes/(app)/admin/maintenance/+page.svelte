@@ -6,9 +6,33 @@
 	type RiskLevel = 'low' | 'medium' | 'high';
 
 	interface AffectedUser {
-		id: string;
+		id?: string;
 		username: string;
 		email: string;
+		roleName?: string;
+	}
+
+	interface OrphanFile {
+		name: string;
+		category: string;
+		entityType: string;
+		entityId: string;
+		sizeKb: number;
+		uploadedAt: Date | null;
+	}
+
+	interface PreviewData {
+		// fix-student-roles
+		users?: AffectedUser[];
+		// deactivate-expired-roles
+		assignments?: AffectedUser[];
+		// orphan-file-detection
+		files?: OrphanFile[];
+		totalSizeKb?: number;
+		// generic count previews
+		count?: number;
+		daysToRebuild?: number;
+		pairsToRebuild?: number;
 	}
 
 	interface ScriptResult {
@@ -17,11 +41,13 @@
 		errors?: number;
 		deleted?: number;
 		deactivated?: number;
+		marked?: number;
+		rebuilt?: number;
 	}
 
 	interface ScriptState {
 		loading: boolean;
-		previewData: AffectedUser[] | null;
+		previewData: PreviewData | null;
 		result: ScriptResult | null;
 		error: string | null;
 	}
@@ -34,8 +60,55 @@
 			description:
 				'Comprueba los usuarios enrolados en algún curso como estudiantes y verifica que tengan asignado al menos el rol de sistema "Estudiante". Si no lo tienen, se les asigna automáticamente.',
 			risk: 'low' as RiskLevel,
-			endpoint: '/api/admin/maintenance/fix-student-roles',
-			previewLabel: 'usuarios sin rol de sistema'
+			endpoint: '/api/admin/maintenance/fix-student-roles'
+		},
+		{
+			id: 'cleanup-expired-sessions',
+			title: 'Eliminar sesiones de autenticación expiradas',
+			description:
+				'Elimina de la base de datos los registros de sesión cuya fecha de expiración ya ha pasado. Las sesiones activas no se ven afectadas.',
+			risk: 'low' as RiskLevel,
+			endpoint: '/api/admin/maintenance/cleanup-expired-sessions'
+		},
+		{
+			id: 'deactivate-expired-roles',
+			title: 'Desactivar asignaciones de rol expiradas',
+			description:
+				'Marca como inactivas las asignaciones de rol de sistema que tenían fecha de expiración y ya han superado ese plazo.',
+			risk: 'low' as RiskLevel,
+			endpoint: '/api/admin/maintenance/deactivate-expired-roles'
+		},
+		{
+			id: 'orphan-file-detection',
+			title: 'Gestionar archivos huérfanos',
+			description:
+				'Detecta archivos marcados como huérfanos en el sistema de ficheros. La vista previa muestra los archivos afectados y su tamaño total. La ejecución los desactiva y los marca para eliminación.',
+			risk: 'medium' as RiskLevel,
+			endpoint: '/api/admin/maintenance/orphan-file-detection'
+		},
+		{
+			id: 'rebuild-ai-stats',
+			title: 'Reconstruir estadísticas diarias de uso de IA',
+			description:
+				'Elimina y recalcula desde cero los resúmenes diarios de uso de IA (aiUsageDailyStats) a partir de los registros brutos de aiUsageLog.',
+			risk: 'medium' as RiskLevel,
+			endpoint: '/api/admin/maintenance/rebuild-ai-stats'
+		},
+		{
+			id: 'rebuild-analytics-stats',
+			title: 'Reconstruir estadísticas diarias de analítica',
+			description:
+				'Elimina y recalcula desde cero los resúmenes diarios de analítica (analyticsDailyStats) a partir de los eventos y sesiones brutas.',
+			risk: 'medium' as RiskLevel,
+			endpoint: '/api/admin/maintenance/rebuild-analytics-stats'
+		},
+		{
+			id: 'rebuild-course-progress',
+			title: 'Reconstruir resúmenes de progreso de curso',
+			description:
+				'Elimina y recalcula desde cero los resúmenes de progreso por usuario-curso (courseProgressSummary) a partir de los registros de learningActivityProgress.',
+			risk: 'medium' as RiskLevel,
+			endpoint: '/api/admin/maintenance/rebuild-course-progress'
 		}
 	] as const;
 
@@ -43,7 +116,13 @@
 
 	// --- estado por script ---
 	let states = $state<Record<ScriptId, ScriptState>>({
-		'fix-student-roles': { loading: false, previewData: null, result: null, error: null }
+		'fix-student-roles': { loading: false, previewData: null, result: null, error: null },
+		'cleanup-expired-sessions': { loading: false, previewData: null, result: null, error: null },
+		'deactivate-expired-roles': { loading: false, previewData: null, result: null, error: null },
+		'orphan-file-detection': { loading: false, previewData: null, result: null, error: null },
+		'rebuild-ai-stats': { loading: false, previewData: null, result: null, error: null },
+		'rebuild-analytics-stats': { loading: false, previewData: null, result: null, error: null },
+		'rebuild-course-progress': { loading: false, previewData: null, result: null, error: null }
 	});
 
 	let confirmScript = $state<ScriptId | null>(null);
@@ -68,7 +147,7 @@
 			});
 			const data = await res.json();
 			if (!res.ok) throw new Error(data.error ?? 'Error desconocido');
-			states[id].previewData = data.users ?? [];
+			states[id].previewData = data;
 		} catch (e: unknown) {
 			states[id].error = e instanceof Error ? e.message : 'Error desconocido';
 		} finally {
@@ -106,6 +185,33 @@
 		} finally {
 			states[id].loading = false;
 		}
+	}
+
+	function previewSummary(id: ScriptId): string | null {
+		const d = states[id].previewData;
+		if (!d) return null;
+		if (id === 'fix-student-roles') return `${d.users?.length ?? 0} usuario(s) sin rol de sistema`;
+		if (id === 'cleanup-expired-sessions') return `${d.count ?? 0} sesión(es) expirada(s)`;
+		if (id === 'deactivate-expired-roles') return `${d.assignments?.length ?? 0} asignación(es) expirada(s)`;
+		if (id === 'orphan-file-detection') return `${d.files?.length ?? 0} archivo(s) huérfano(s) — ${d.totalSizeKb ?? 0} KB`;
+		if (id === 'rebuild-ai-stats') return `${d.daysToRebuild ?? 0} combinación(es) día-modelo a reconstruir`;
+		if (id === 'rebuild-analytics-stats') return `${d.daysToRebuild ?? 0} día(s) a reconstruir`;
+		if (id === 'rebuild-course-progress') return `${d.pairsToRebuild ?? 0} par(es) usuario-curso a reconstruir`;
+		return null;
+	}
+
+	function resultSummary(id: ScriptId): string | null {
+		const r = states[id].result;
+		if (!r) return null;
+		const parts: string[] = [];
+		if (r.assigned !== undefined) parts.push(`${r.assigned} asignado(s)`);
+		if (r.skipped !== undefined) parts.push(`${r.skipped} omitido(s)`);
+		if (r.errors !== undefined) parts.push(`${r.errors} error(es)`);
+		if (r.deleted !== undefined) parts.push(`${r.deleted} eliminado(s)`);
+		if (r.deactivated !== undefined) parts.push(`${r.deactivated} desactivado(s)`);
+		if (r.marked !== undefined) parts.push(`${r.marked} marcado(s) para eliminación`);
+		if (r.rebuilt !== undefined) parts.push(`${r.rebuilt} reconstruido(s)`);
+		return parts.join(', ');
 	}
 </script>
 
@@ -177,39 +283,21 @@
 				{#if state.result}
 					<Alert color="green" class="mb-4">
 						<CircleCheck class="mr-2 h-4 w-4 shrink-0" />
-						<span>
-							Completado —
-							{#if state.result.assigned !== undefined}
-								<strong>{state.result.assigned}</strong> asignados,
-							{/if}
-							{#if state.result.skipped !== undefined}
-								<strong>{state.result.skipped}</strong> omitidos,
-							{/if}
-							{#if state.result.errors !== undefined}
-								<strong>{state.result.errors}</strong> errores.
-							{/if}
-							{#if state.result.deleted !== undefined}
-								<strong>{state.result.deleted}</strong> eliminados.
-							{/if}
-							{#if state.result.deactivated !== undefined}
-								<strong>{state.result.deactivated}</strong> desactivados.
-							{/if}
-						</span>
+						<span>Completado — {resultSummary(script.id)}</span>
 					</Alert>
 				{/if}
 
-				<!-- tabla de preview -->
+				<!-- resumen de preview -->
 				{#if state.previewData !== null}
-					{#if state.previewData.length === 0}
-						<Alert color="blue">
-							<Info class="mr-2 h-4 w-4 shrink-0" />
-							No se encontraron {script.previewLabel}. No hay nada que corregir.
-						</Alert>
-					{:else}
-						<p class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-							{state.previewData.length}
-							{script.previewLabel} encontrados:
-						</p>
+					{@const summary = previewSummary(script.id)}
+					{@const pd = state.previewData}
+					<Alert color="blue" class="mb-4">
+						<Info class="mr-2 h-4 w-4 shrink-0" />
+						<span>{summary ?? 'Vista previa completada.'}</span>
+					</Alert>
+
+					<!-- tabla detallada solo para scripts con listas de entidades -->
+					{#if script.id === 'fix-student-roles' && pd.users && pd.users.length > 0}
 						<div class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
 							<Table hoverable>
 								<TableHead>
@@ -217,10 +305,52 @@
 									<TableHeadCell>Email</TableHeadCell>
 								</TableHead>
 								<TableBody>
-									{#each state.previewData as u (u.id)}
+									{#each pd.users as u (u.email)}
 										<TableBodyRow>
 											<TableBodyCell>{u.username}</TableBodyCell>
 											<TableBodyCell>{u.email}</TableBodyCell>
+										</TableBodyRow>
+									{/each}
+								</TableBody>
+							</Table>
+						</div>
+					{/if}
+
+					{#if script.id === 'deactivate-expired-roles' && pd.assignments && pd.assignments.length > 0}
+						<div class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+							<Table hoverable>
+								<TableHead>
+									<TableHeadCell>Usuario</TableHeadCell>
+									<TableHeadCell>Email</TableHeadCell>
+									<TableHeadCell>Rol</TableHeadCell>
+								</TableHead>
+								<TableBody>
+									{#each pd.assignments as a (a.email + (a.roleName ?? ''))}
+										<TableBodyRow>
+											<TableBodyCell>{a.username}</TableBodyCell>
+											<TableBodyCell>{a.email}</TableBodyCell>
+											<TableBodyCell>{a.roleName ?? '—'}</TableBodyCell>
+										</TableBodyRow>
+									{/each}
+								</TableBody>
+							</Table>
+						</div>
+					{/if}
+
+					{#if script.id === 'orphan-file-detection' && pd.files && pd.files.length > 0}
+						<div class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+							<Table hoverable>
+								<TableHead>
+									<TableHeadCell>Nombre</TableHeadCell>
+									<TableHeadCell>Categoría</TableHeadCell>
+									<TableHeadCell>Tamaño (KB)</TableHeadCell>
+								</TableHead>
+								<TableBody>
+									{#each pd.files as f (f.entityId + f.name)}
+										<TableBodyRow>
+											<TableBodyCell class="max-w-xs truncate">{f.name}</TableBodyCell>
+											<TableBodyCell>{f.category}</TableBodyCell>
+											<TableBodyCell>{f.sizeKb}</TableBodyCell>
 										</TableBodyRow>
 									{/each}
 								</TableBody>
