@@ -36,6 +36,13 @@
       "when": 1771697805326,
       "tag": "0004_giant_the_spike",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1771954635553,
+      "tag": "0005_illegal_vindicator",
+      "breakpoints": true
     }
   ]
 }
