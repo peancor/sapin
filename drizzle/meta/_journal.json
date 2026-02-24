@@ -43,6 +43,13 @@
       "when": 1771954635553,
       "tag": "0005_illegal_vindicator",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1771964021291,
+      "tag": "0006_supreme_stone_men",
+      "breakpoints": true
     }
   ]
 }

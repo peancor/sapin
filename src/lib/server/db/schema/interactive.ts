@@ -101,6 +101,8 @@ export const interactiveLearningChat = sqliteTable(
 );
 
 // Add user chats table to link users with interactive learning chats
+// Note: interactiveLearningChatId references interactiveLearning.id (not interactiveLearningChat.id)
+// so that both chat AND agent activities can store sessions here using the same column.
 export const userInteractiveLearningChat = sqliteTable(
     'user_interactive_learning_chat',
     {
@@ -110,7 +112,7 @@ export const userInteractiveLearningChat = sqliteTable(
             .references(() => user.id),
         interactiveLearningChatId: text('interactive_learning_chat_id')
             .notNull()
-            .references(() => interactiveLearningChat.id),
+            .references(() => interactiveLearning.id),
         chatId: text('chat_id')
             .notNull()
             .references(() => chat.id),
