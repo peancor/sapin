@@ -4,16 +4,19 @@ import { course } from '$lib/server/db/schema';
 import { error, fail } from '@sveltejs/kit';
 import { createInviteSchema, inviteConfigSchema } from '$lib/server/db/InvitationUtils';
 import { eq } from 'drizzle-orm';
+import { ROLE_LEVELS } from '$lib/server/roles';
 
 export const load = (async ({ locals }) => {
     if (!locals.user?.id) throw error(401, 'No autenticado');
 
-    const [invites, stats, courses, roles] = await Promise.all([
+    const [invites, stats, courses, allRoles] = await Promise.all([
         InvitationUtils.getAllInvites(),
         InvitationUtils.getInviteStats(),
         db.select({ id: course.id, name: course.name }).from(course).all(),
         RoleUtils.getAllRoles()
     ]);
+
+    const roles = allRoles.filter((r) => r.level < ROLE_LEVELS.ADMIN);
 
     return { invites, stats, courses, roles };
 }) satisfies PageServerLoad;
@@ -41,19 +44,28 @@ export const actions = {
                 config = { type: 'course_student', courseId, courseName: c?.name };
                 break;
             }
-            case 'course_role': {
+            case 'course_teacher': {
                 const courseId = formData.get('courseId')?.toString();
-                const courseRole = formData.get('courseRole')?.toString();
                 if (!courseId) return fail(400, { message: 'Debe seleccionar un curso' });
-                if (!courseRole) return fail(400, { message: 'Debe seleccionar un rol de curso' });
                 const [c] = await db.select({ name: course.name }).from(course).where(eq(course.id, courseId));
-                config = { type: 'course_role', courseId, courseRole, courseName: c?.name };
+                config = { type: 'course_teacher', courseId, courseName: c?.name };
                 break;
             }
             case 'system_role': {
                 const systemRoleId = formData.get('systemRoleId')?.toString();
                 if (!systemRoleId) return fail(400, { message: 'Debe seleccionar un rol de sistema' });
+
+                const selectedRole = (await RoleUtils.getAllRoles()).find((r) => r.id === systemRoleId);
+                if (!selectedRole) return fail(400, { message: 'Rol de sistema inválido' });
+                if (selectedRole.level >= ROLE_LEVELS.ADMIN) {
+                    return fail(400, { message: 'No se permite generar invitaciones para roles de administración' });
+                }
+
                 config = { type: 'system_role', systemRoleId };
+                break;
+            }
+            case 'generic_student': {
+                config = { type: 'generic_student' };
                 break;
             }
             case 'open_registration': {

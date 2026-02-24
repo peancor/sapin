@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { db } from './index';
-import { invite, course, user, courseRoleType, inviteType } from './schema';
-import { eq, and, desc, sql, or, gt, isNull } from 'drizzle-orm';
+import { invite, course, user, role } from './schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { sn } from '$lib/server/sn';
 import type { InviteConfig, InviteType } from './schema/courses';
@@ -18,6 +18,18 @@ export const inviteConfigSchema = z.discriminatedUnion('type', [
         type: z.literal('course_student'),
         courseId: z.string().min(1),
         courseName: z.string().optional(),
+        welcomeMessage: z.string().max(500).optional()
+    }),
+    // Invitación a curso como profesor
+    z.object({
+        type: z.literal('course_teacher'),
+        courseId: z.string().min(1),
+        courseName: z.string().optional(),
+        welcomeMessage: z.string().max(500).optional()
+    }),
+    // Invitación genérica de estudiante (sin curso)
+    z.object({
+        type: z.literal('generic_student'),
         welcomeMessage: z.string().max(500).optional()
     }),
     // Invitación a curso con rol específico
@@ -80,6 +92,30 @@ export interface InviteWithDetails {
 // ============================================
 
 export class InvitationUtils {
+    static async ensureSystemRoleAssigned(userId: string, roleId: string, reason: string): Promise<void> {
+        const targetRole = await db
+            .select({ id: role.id, name: role.name })
+            .from(role)
+            .where(
+                and(
+                    eq(role.id, roleId),
+                    eq(role.isActive, true)
+                )
+            )
+            .get();
+
+        if (!targetRole) {
+            return;
+        }
+
+        const alreadyAssigned = await RoleUtils.userHasRole(userId, targetRole.name);
+        if (alreadyAssigned) {
+            return;
+        }
+
+        await RoleUtils.assignRoleToUser(userId, roleId, undefined, reason);
+    }
+
     /**
      * Genera una o más invitaciones con configuración
      */
@@ -298,12 +334,18 @@ export class InvitationUtils {
                     if (config.courseId) {
                         await CourseRoleUtils.assignCourseRole(config.courseId, userId, 'student');
                     }
-                    // Also assign a base system role so the user has a proper system-level identity
-                    try {
-                        await RoleUtils.assignRoleToUser(userId, 'role_student', undefined, 'Assigned via course invitation');
-                    } catch {
-                        // role_student may not exist; not critical
+                    await this.ensureSystemRoleAssigned(userId, 'role_student', 'Assigned via course invitation');
+                    break;
+                }
+                case 'course_teacher': {
+                    if (config.courseId) {
+                        await CourseRoleUtils.assignCourseRole(config.courseId, userId, 'teacher');
                     }
+                    await this.ensureSystemRoleAssigned(userId, 'role_teacher', 'Assigned via course teacher invitation');
+                    break;
+                }
+                case 'generic_student': {
+                    await this.ensureSystemRoleAssigned(userId, 'role_student', 'Assigned via generic student invitation');
                     break;
                 }
                 case 'course_role': {
@@ -318,26 +360,12 @@ export class InvitationUtils {
                 }
                 case 'system_role': {
                     if (config.systemRoleId) {
-                        try {
-                            await RoleUtils.assignRoleToUser(
-                                userId,
-                                config.systemRoleId,
-                                undefined,
-                                'Assigned via invitation'
-                            );
-                        } catch (e) {
-                            console.warn('Could not assign system role via invite:', e);
-                        }
+                        await this.ensureSystemRoleAssigned(userId, config.systemRoleId, 'Assigned via invitation');
                     }
                     break;
                 }
                 case 'open_registration': {
-                    // Assign base user/student system role
-                    try {
-                        await RoleUtils.assignRoleToUser(userId, 'role_student', undefined, 'Assigned via open registration');
-                    } catch {
-                        // role may not exist; not critical
-                    }
+                    await this.ensureSystemRoleAssigned(userId, 'role_user', 'Assigned via open registration');
                     break;
                 }
             }
@@ -353,7 +381,7 @@ export class InvitationUtils {
      * Desactiva invitaciones
      */
     static async deactivateInvite(inviteId: string): Promise<boolean> {
-        const result = await db
+        await db
             .update(invite)
             .set({ isActive: false })
             .where(eq(invite.id, inviteId));
@@ -365,7 +393,7 @@ export class InvitationUtils {
      * Desactiva todas las invitaciones de una campaña
      */
     static async deactivateCampaign(campaignName: string): Promise<number> {
-        const result = await db
+        await db
             .update(invite)
             .set({ isActive: false })
             .where(

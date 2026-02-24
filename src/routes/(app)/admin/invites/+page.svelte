@@ -35,7 +35,6 @@
     let campaign = $state('');
     let email = $state('');
     let courseId = $state('');
-    let courseRole = $state('student');
     let systemRoleId = $state('');
     let expiresInDays = $state(30);
     let maxUses = $state(1);
@@ -44,9 +43,11 @@
     let showCodesModal = $state(false);
     let filterType = $state('all');
     let copiedCode = $state('');
+    type InviteRow = PageData['invites'][number];
+    type GenerateActionResult = { codes?: string[] };
 
     // New codes from generation
-    let generatedCodes = $derived((form as any)?.codes as string[] | undefined);
+    let generatedCodes = $derived((form as GenerateActionResult | null | undefined)?.codes);
 
     $effect(() => {
         if (generatedCodes && generatedCodes.length > 0) {
@@ -117,14 +118,14 @@
         URL.revokeObjectURL(url);
     }
 
-    function getStatusLabel(inv: any): string {
+    function getStatusLabel(inv: InviteRow): string {
         if (!inv.isActive) return 'Desactivada';
         if (inv.isExpired) return 'Expirada';
         if (inv.isFullyUsed) return 'Agotada';
         return 'Disponible';
     }
 
-    function getStatusColor(inv: any): 'green' | 'red' | 'yellow' | 'gray' {
+    function getStatusColor(inv: InviteRow): 'green' | 'red' | 'yellow' | 'gray' {
         if (!inv.isActive) return 'gray';
         if (inv.isExpired) return 'red';
         if (inv.isFullyUsed) return 'yellow';
@@ -135,6 +136,10 @@
         switch (type) {
             case 'course_student':
                 return 'Alumno en curso';
+            case 'course_teacher':
+                return 'Profesor en curso';
+            case 'generic_student':
+                return 'Estudiante general';
             case 'course_role':
                 return 'Rol en curso';
             case 'system_role':
@@ -150,6 +155,10 @@
         switch (type) {
             case 'course_student':
                 return 'blue';
+            case 'course_teacher':
+                return 'purple';
+            case 'generic_student':
+                return 'green';
             case 'course_role':
                 return 'purple';
             case 'system_role':
@@ -167,14 +176,6 @@
             : data.invites.filter((inv) => inv.config?.type === filterType)
     );
 
-    const courseRoleOptions = [
-        { value: 'student', name: 'Estudiante' },
-        { value: 'assistant', name: 'Asistente' },
-        { value: 'grader', name: 'Calificador' },
-        { value: 'teacher', name: 'Profesor' },
-        { value: 'admin', name: 'Admin de curso' },
-        { value: 'owner', name: 'Propietario' }
-    ];
 </script>
 
 <div class="space-y-6">
@@ -251,7 +252,8 @@
                             bind:value={inviteType}
                             items={[
                                 { value: 'course_student', name: 'Alumno en curso' },
-                                { value: 'course_role', name: 'Rol específico en curso' },
+                                { value: 'course_teacher', name: 'Profesor en curso' },
+                                { value: 'generic_student', name: 'Estudiante general' },
                                 { value: 'system_role', name: 'Rol de sistema' },
                                 { value: 'open_registration', name: 'Registro abierto' }
                             ]}
@@ -259,7 +261,7 @@
                     </div>
 
                     <!-- Course selector (for course types) -->
-                    {#if inviteType === 'course_student' || inviteType === 'course_role'}
+                    {#if inviteType === 'course_student' || inviteType === 'course_teacher'}
                         <div>
                             <Label for="courseId" class="mb-2">Curso</Label>
                             <Select
@@ -268,19 +270,6 @@
                                 bind:value={courseId}
                                 items={data.courses.map((c) => ({ value: c.id, name: c.name }))}
                                 placeholder="Seleccione un curso"
-                            />
-                        </div>
-                    {/if}
-
-                    <!-- Course role (for course_role type) -->
-                    {#if inviteType === 'course_role'}
-                        <div>
-                            <Label for="courseRole" class="mb-2">Rol en el curso</Label>
-                            <Select
-                                id="courseRole"
-                                name="courseRole"
-                                bind:value={courseRole}
-                                items={courseRoleOptions}
                             />
                         </div>
                     {/if}
@@ -399,7 +388,7 @@
                 <div
                     class="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-gray-200 p-3 dark:border-gray-600"
                 >
-                    {#each generatedCodes as code}
+                    {#each generatedCodes as code (code)}
                         <div
                             class="flex items-center justify-between rounded bg-gray-50 px-3 py-2 dark:bg-gray-700"
                         >
@@ -447,7 +436,8 @@
             items={[
                 { value: 'all', name: 'Todos los tipos' },
                 { value: 'course_student', name: 'Alumno en curso' },
-                { value: 'course_role', name: 'Rol en curso' },
+                { value: 'course_teacher', name: 'Profesor en curso' },
+                { value: 'generic_student', name: 'Estudiante general' },
                 { value: 'system_role', name: 'Rol de sistema' },
                 { value: 'open_registration', name: 'Registro abierto' }
             ]}
@@ -470,7 +460,7 @@
             <TableHeadCell>Acciones</TableHeadCell>
         </TableHead>
         <TableBody>
-            {#each filteredInvites as inv}
+            {#each filteredInvites as inv (inv.id)}
                 <TableBodyRow>
                     <TableBodyCell>
                         <div class="flex items-center gap-2">
@@ -503,6 +493,8 @@
                                 {#if inv.config?.type === 'course_role'}
                                     <Badge color="purple" class="ml-1">{inv.config.courseRole}</Badge>
                                 {/if}
+                            {:else if inv.config?.type === 'course_teacher'}
+                                {inv.config.courseName || inv.courseId || '-'}
                             {:else if inv.config?.type === 'system_role'}
                                 Rol: {inv.config.systemRoleId}
                             {:else}
