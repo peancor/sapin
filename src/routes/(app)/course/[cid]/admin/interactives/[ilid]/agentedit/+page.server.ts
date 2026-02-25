@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import { AIUtils } from '$lib/server/ai/AIUtils';
 import { auditService, auditAction } from '$lib/server/logging';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentActivityUtils, DBAgentToolUtils, DBAgentUIUtils } from '$lib/server/db/agent';
 
 function getClientIP(request: Request): string | null {
     return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -35,21 +35,21 @@ export const load = (async ({ params, locals }) => {
     if (!interactive) throw error(404, 'Actividad no encontrada');
     if (interactive.type !== 'agent') throw error(400, 'Esta actividad no es de tipo agente');
 
-    const agentConfig = await DBAgentUtils.getAgentActivity(ilid);
+    const agentConfig = await DBAgentActivityUtils.getAgentActivity(ilid);
     if (!agentConfig) throw error(404, 'Configuración agéntica no encontrada');
 
     const availableModels = await AIUtils.getAvailableModels();
     const models = availableModels.map(m => ({ name: m.name, provider: m.provider }));
     const defaultModel = await AIUtils.getDefaultModel();
 
-    await DBAgentUtils.seedBuiltinTools();
-    await DBAgentUtils.seedBuiltinUIComponents();
-    const activeTools = await DBAgentUtils.getActiveToolDefinitions();
-    const activeUIComponents = await DBAgentUtils.getAllUIComponents();
+    await DBAgentToolUtils.seedBuiltinTools();
+    await DBAgentUIUtils.seedBuiltinUIComponents();
+    const activeTools = await DBAgentToolUtils.getActiveToolDefinitions();
+    const activeUIComponents = await DBAgentUIUtils.getAllUIComponents();
 
     // Get currently assigned tool and UI component IDs
-    const enabledTools = await DBAgentUtils.getEnabledToolsForActivity(ilid);
-    const enabledUIComponents = await DBAgentUtils.getEnabledUIComponentsForActivity(ilid);
+    const enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilid);
+    const enabledUIComponents = await DBAgentActivityUtils.getEnabledUIComponentsForActivity(ilid);
     const assignedToolIds = enabledTools.map(t => t.id);
     const assignedUIComponentIds = enabledUIComponents.map(c => c.id);
 
@@ -118,7 +118,7 @@ export const actions = {
             })
             .where(eq(interactiveLearning.id, ilid));
 
-        await DBAgentUtils.updateAgentActivity(ilid, {
+        await DBAgentActivityUtils.updateAgentActivity(ilid, {
             llmRole,
             llmInstructions,
             llmContext,
@@ -132,8 +132,8 @@ export const actions = {
             toolChoice
         });
 
-        await DBAgentUtils.setActivityTools(ilid, selectedToolIds);
-        await DBAgentUtils.setActivityUIComponents(ilid, selectedUIComponentIds);
+        await DBAgentActivityUtils.setActivityTools(ilid, selectedToolIds);
+        await DBAgentActivityUtils.setActivityUIComponents(ilid, selectedUIComponentIds);
 
         await auditService.log({
             action: auditAction.ACTIVITY_UPDATED,

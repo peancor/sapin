@@ -3,7 +3,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentActivityUtils, DBAgentMessageUtils } from '$lib/server/db/agent';
 import type { AgentDisplayMessage, AgentDisplayPart } from '$lib/types/agent';
 
 export const load = (async ({ params, locals }) => {
@@ -27,7 +27,7 @@ export const load = (async ({ params, locals }) => {
     if (!userChat) throw error(403, 'No tienes acceso a este chat');
 
     // Load messages
-    const rawMessages = await DBAgentUtils.getAgentMessagesRaw(cid);
+    const rawMessages = await DBAgentMessageUtils.getAgentMessagesRaw(cid);
 
     const assistantMessageIds = rawMessages
         .filter((m) => m.role === 'assistant')
@@ -122,7 +122,7 @@ export const load = (async ({ params, locals }) => {
 
     return {
         chatId: cid,
-        activityId: DBAgentUtils.GLOBAL_TUTOR_ID,
+        activityId: DBAgentActivityUtils.GLOBAL_TUTOR_ID,
         messages: displayMessages,
         user: {
             username: user.username ?? undefined,

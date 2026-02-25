@@ -9,7 +9,7 @@ import { eq, sql } from 'drizzle-orm';
 import { AIUtils } from '$lib/server/ai/AIUtils';
 import { auditService, auditAction } from '$lib/server/logging';
 import { generateSlug } from '$lib/utils/slug';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentActivityUtils, DBAgentToolUtils, DBAgentUIUtils } from '$lib/server/db/agent';
 
 function getClientIP(request: Request): string | null {
     return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -33,10 +33,10 @@ export const load = (async ({ locals, params }) => {
     const defaultModel = await AIUtils.getDefaultModel();
 
     // Seed y cargar catálogos para actividades agénticas
-    await DBAgentUtils.seedBuiltinTools();
-    await DBAgentUtils.seedBuiltinUIComponents();
-    const activeTools = await DBAgentUtils.getActiveToolDefinitions();
-    const activeUIComponents = await DBAgentUtils.getAllUIComponents();
+    await DBAgentToolUtils.seedBuiltinTools();
+    await DBAgentUIUtils.seedBuiltinUIComponents();
+    const activeTools = await DBAgentToolUtils.getActiveToolDefinitions();
+    const activeUIComponents = await DBAgentUIUtils.getAllUIComponents();
 
     return {
         courseId: params.cid,
@@ -164,8 +164,8 @@ export const actions = {
                 createdAt: now
             });
 
-            await DBAgentUtils.setActivityTools(id, selectedToolIds);
-            await DBAgentUtils.setActivityUIComponents(id, selectedUIComponentIds);
+            await DBAgentActivityUtils.setActivityTools(id, selectedToolIds);
+            await DBAgentActivityUtils.setActivityUIComponents(id, selectedUIComponentIds);
         }
 
         // Obtener el último orden para este curso

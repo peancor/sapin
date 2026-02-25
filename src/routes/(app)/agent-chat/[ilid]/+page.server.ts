@@ -4,7 +4,7 @@ import { InteractiveChatAuthUtils } from '$lib/server/db';
 import { and, desc, eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { error } from '@sveltejs/kit';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentActivityUtils } from '$lib/server/db/agent';
 
 export const load = (async ({ params, locals }) => {
     const { ilid } = params;
@@ -28,7 +28,7 @@ export const load = (async ({ params, locals }) => {
 
     if (!interactiveLearning) throw error(404, 'Actividad no encontrada');
 
-    const agentActivity = await DBAgentUtils.getAgentActivity(ilid);
+    const agentActivity = await DBAgentActivityUtils.getAgentActivity(ilid);
     if (!agentActivity) throw error(404, 'Configuración agéntica no encontrada');
 
     // Cargar chats anteriores del usuario

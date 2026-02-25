@@ -5,7 +5,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { InteractiveChatAuthUtils } from '$lib/server/db';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentMessageUtils } from '$lib/server/db/agent';
 import { db } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -23,7 +23,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
     try {
         // Obtener mensajes agénticos con sus tool calls e instancias UI
-        const messages = await DBAgentUtils.getAgentMessagesRaw(params.cid!);
+        const messages = await DBAgentMessageUtils.getAgentMessagesRaw(params.cid!);
 
         // Para cada mensaje assistant, obtener sus tool calls y UI instances
         const messagesWithDetails = await Promise.all(

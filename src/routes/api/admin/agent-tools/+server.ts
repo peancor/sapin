@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentToolUtils } from '$lib/server/db/agent';
 import { ROLE_LEVELS } from '$lib/server/roles';
 
 // GET /api/admin/agent-tools — listar todas las herramientas
@@ -10,7 +10,7 @@ export const GET: RequestHandler = async ({ locals }) => {
         return new Response('Forbidden', { status: 403 });
 
     try {
-        const tools = await DBAgentUtils.getAllToolDefinitions();
+        const tools = await DBAgentToolUtils.getAllToolDefinitions();
         return json({ tools });
     } catch (err) {
         console.error('[admin/agent-tools] GET error:', err);
@@ -46,7 +46,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
             catch { return json({ error: 'executorConfig no es JSON válido' }, { status: 400 }); }
         }
 
-        const id = await DBAgentUtils.createToolDefinition({
+        const id = await DBAgentToolUtils.createToolDefinition({
             name,
             displayName,
             description,

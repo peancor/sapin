@@ -15,7 +15,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { InteractiveChatAuthUtils } from '$lib/server/db';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentActivityUtils, DBAgentMessageUtils } from '$lib/server/db/agent';
 import { ToolExecutor } from '$lib/server/agent/ToolExecutor';
 import type { AgentContext } from '$lib/types/agent';
 import { db } from '$lib/server/db';
@@ -49,7 +49,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     }
 
     // Buscar el tool call en la BD
-    const toolCall = await DBAgentUtils.getToolCall(toolCallId);
+    const toolCall = await DBAgentMessageUtils.getToolCall(toolCallId);
     if (!toolCall) return json({ error: 'Tool call no encontrado' }, { status: 404 });
 
     if (toolCall.status !== 'awaiting_confirmation') {
@@ -60,14 +60,14 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
     if (!approved) {
         // Rechazado
-        await DBAgentUtils.updateToolCall(toolCallId, {
+        await DBAgentMessageUtils.updateToolCall(toolCallId, {
             status: 'rejected',
             errorMessage: rejectionReason ?? 'Rechazado por el usuario',
             confirmedAt: now
         });
 
         // Guardar mensaje tool con resultado de rechazo para que el LLM sepa
-        await DBAgentUtils.saveAgentMessage({
+        await DBAgentMessageUtils.saveAgentMessage({
             chatId: cid,
             role: 'tool',
             textContent: JSON.stringify({ rejected: true, reason: rejectionReason ?? 'El usuario rechazó la ejecución de la herramienta.' }),
@@ -80,17 +80,17 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     }
 
     // Aprobado — ejecutar la herramienta
-    await DBAgentUtils.updateToolCall(toolCallId, {
+    await DBAgentMessageUtils.updateToolCall(toolCallId, {
         status: 'executing',
         confirmedBy: user.id,
         confirmedAt: now
     });
 
     // Reconstruir contexto mínimo para ejecutar la herramienta
-    const agentActivity = await DBAgentUtils.getAgentActivity(ilcid);
+    const agentActivity = await DBAgentActivityUtils.getAgentActivity(ilcid);
     if (!agentActivity) return json({ error: 'Actividad no encontrada' }, { status: 404 });
 
-    const enabledTools = await DBAgentUtils.getEnabledToolsForActivity(ilcid);
+    const enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilcid);
 
     const [courseRelation] = await db
         .select({ courseId: schema.courseInteractiveLearning.courseId })
@@ -132,14 +132,14 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
     const resultData = execResult.success ? execResult.data : { error: execResult.errorMessage };
 
-    await DBAgentUtils.updateToolCall(toolCallId, {
+    await DBAgentMessageUtils.updateToolCall(toolCallId, {
         result: JSON.stringify(resultData),
         status: execResult.success ? 'completed' : 'failed',
         errorMessage: execResult.success ? undefined : execResult.errorMessage
     });
 
     // Guardar mensaje tool para que el LLM tenga el resultado al retomar
-    await DBAgentUtils.saveAgentMessage({
+    await DBAgentMessageUtils.saveAgentMessage({
         chatId: cid,
         role: 'tool',
         textContent: JSON.stringify(resultData),

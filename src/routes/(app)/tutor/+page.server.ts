@@ -1,16 +1,16 @@
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentActivityUtils } from '$lib/server/db/agent';
 
 export const load = (async ({ locals, fetch }) => {
     const user = locals.user;
     if (!user) throw redirect(302, '/login');
 
     // Seed global tutor if not yet seeded
-    await DBAgentUtils.seedGlobalTutor();
+    await DBAgentActivityUtils.seedGlobalTutor();
 
     // Get or create the tutor chat
-    const chatId = await DBAgentUtils.getOrCreateTutorChat(user.id);
+    const chatId = await DBAgentActivityUtils.getOrCreateTutorChat(user.id);
 
     // Redirect to the chat page
     throw redirect(302, `/tutor/c/${chatId}`);

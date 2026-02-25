@@ -2,7 +2,7 @@ import { streamText, stepCountIs, type ModelMessage } from 'ai';
 import { ModelResolver } from '$lib/server/ai/services/ModelResolver';
 import { UsageTracker } from '$lib/server/ai/services/UsageTracker';
 import { RagService } from '$lib/server/ai/services/RagService';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentUIUtils, DBAgentMessageUtils } from '$lib/server/db/agent';
 import { ToolManager } from './ToolManager';
 import { ToolExecutor } from './ToolExecutor';
 import { AgentPromptBuilder } from './AgentPromptBuilder';
@@ -99,9 +99,9 @@ export class AgentEngine {
                     const interactive = (toolDef.executorConfig.interactive as boolean) ?? false;
                     const instanceId = nanoid();
 
-                    const uiComp = await DBAgentUtils.getUIComponentByKey(componentKey);
+                    const uiComp = await DBAgentUIUtils.getUIComponentByKey(componentKey);
                     if (uiComp) {
-                        await DBAgentUtils.saveUIInstance({
+                        await DBAgentUIUtils.saveUIInstance({
                             id: instanceId,
                             messageId: assistantMsgId,
                             uiComponentId: uiComp.id,
@@ -121,7 +121,7 @@ export class AgentEngine {
 
                 if (toolDef?.requiresConfirmation) {
                     // Marcar como awaiting_confirmation (ya fue guardado como 'executing' en tool-call event)
-                    await DBAgentUtils.updateToolCall(toolCallId, { status: 'awaiting_confirmation' });
+                    await DBAgentMessageUtils.updateToolCall(toolCallId, { status: 'awaiting_confirmation' });
 
                     return {
                         __hitl: true,
@@ -165,7 +165,7 @@ export class AgentEngine {
                     const toolCallId = event.toolCallId;
                     const toolInput = event.input as Record<string, unknown>;
 
-                    await DBAgentUtils.saveToolCall({
+                    await DBAgentMessageUtils.saveToolCall({
                         id: toolCallId,
                         messageId: assistantMsgId,
                         toolName: event.toolName,
@@ -211,12 +211,12 @@ export class AgentEngine {
                             instanceId: toolOutput.instanceId
                         };
 
-                        await DBAgentUtils.updateToolCall(toolCallId, {
+                        await DBAgentMessageUtils.updateToolCall(toolCallId, {
                             result: JSON.stringify(cleanResult),
                             status: 'completed'
                         });
 
-                        await DBAgentUtils.saveAgentMessage({
+                        await DBAgentMessageUtils.saveAgentMessage({
                             chatId: context.chatId,
                             role: 'tool',
                             textContent: JSON.stringify(cleanResult),
@@ -231,7 +231,7 @@ export class AgentEngine {
                     // ─── Detección de HITL ───
                     if (isHitlSentinel(toolOutput)) {
                         // Guardar el texto acumulado hasta ahora en el mensaje del assistant
-                        await DBAgentUtils.updateAgentMessage(assistantMsgId, {
+                        await DBAgentMessageUtils.updateAgentMessage(assistantMsgId, {
                             textContent: accumulated.text,
                             finishReason: 'hitl'
                         });
@@ -254,13 +254,13 @@ export class AgentEngine {
                     const toolOutputObj = toolOutput as Record<string, unknown> | null;
                     const isError = toolOutputObj !== null && typeof toolOutputObj === 'object' && 'error' in toolOutputObj;
 
-                    await DBAgentUtils.updateToolCall(toolCallId, {
+                    await DBAgentMessageUtils.updateToolCall(toolCallId, {
                         result: JSON.stringify(toolOutput),
                         status: isError ? 'failed' : 'completed',
                         errorMessage: isError ? (toolOutputObj?.error as string) : undefined
                     });
 
-                    await DBAgentUtils.saveAgentMessage({
+                    await DBAgentMessageUtils.saveAgentMessage({
                         chatId: context.chatId,
                         role: 'tool',
                         textContent: JSON.stringify(toolOutput),
@@ -332,7 +332,7 @@ export class AgentEngine {
         const systemPrompt = AgentPromptBuilder.buildSystemPrompt(config, context.enabledTools, ragContext);
 
         // 5. Guardar mensaje usuario
-        await DBAgentUtils.saveAgentMessage({
+        await DBAgentMessageUtils.saveAgentMessage({
             chatId: context.chatId,
             role: 'user',
             textContent: userMessage,
@@ -354,7 +354,7 @@ export class AgentEngine {
         }
 
         // 8. Crear mensaje assistant vacío en BD
-        const assistantMsgId = await DBAgentUtils.saveAgentMessage({
+        const assistantMsgId = await DBAgentMessageUtils.saveAgentMessage({
             chatId: context.chatId,
             role: 'assistant',
             textContent: '',
@@ -406,7 +406,7 @@ export class AgentEngine {
 
             if (!hitlDetected) {
                 // Flujo normal: actualizar mensaje del assistant y emitir done
-                await DBAgentUtils.updateAgentMessage(assistantMsgId, {
+                await DBAgentMessageUtils.updateAgentMessage(assistantMsgId, {
                     textContent: accumulated.text,
                     finishReason: 'stop'
                 });
@@ -453,7 +453,7 @@ export class AgentEngine {
         }
 
         // Reconstruir historial completo desde BD (incluye AssistantMessage con ToolCallPart + ToolResultMessage)
-        const messages = await DBAgentUtils.getAgentMessagesAsModelMessages(context.chatId);
+        const messages = await DBAgentMessageUtils.getAgentMessagesAsModelMessages(context.chatId);
 
         if (messages.length === 0) {
             yield { type: 'error', code: 'RESUME_ERROR', message: 'No se pudo reconstruir el historial.' };
@@ -471,7 +471,7 @@ export class AgentEngine {
         }
 
         // Crear nuevo mensaje assistant para la respuesta de continuación
-        const assistantMsgId = await DBAgentUtils.saveAgentMessage({
+        const assistantMsgId = await DBAgentMessageUtils.saveAgentMessage({
             chatId: context.chatId,
             role: 'assistant',
             textContent: '',
@@ -523,7 +523,7 @@ export class AgentEngine {
             }
 
             if (!hitlDetected) {
-                await DBAgentUtils.updateAgentMessage(assistantMsgId, {
+                await DBAgentMessageUtils.updateAgentMessage(assistantMsgId, {
                     textContent: accumulated.text,
                     finishReason: 'stop'
                 });

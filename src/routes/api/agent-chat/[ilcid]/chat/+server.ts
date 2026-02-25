@@ -14,7 +14,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { markActivityInProgress } from '$lib/server/db/ProgressWriteUtils';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentActivityUtils } from '$lib/server/db/agent';
 
 const createChatPayloadSchema = z.object({
     courseId: z.string().min(1).optional()
@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     }
 
     try {
-        const agentActivity = await DBAgentUtils.getAgentActivity(params.ilcid);
+        const agentActivity = await DBAgentActivityUtils.getAgentActivity(params.ilcid);
         if (!agentActivity) {
             return json({ error: 'Actividad agéntica no encontrada' }, { status: 404 });
         }
@@ -92,7 +92,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
         }
 
         // Verificar que existe la configuración agéntica
-        const agentActivity = await DBAgentUtils.getAgentActivity(params.ilcid);
+        const agentActivity = await DBAgentActivityUtils.getAgentActivity(params.ilcid);
         if (!agentActivity) {
             return json({ error: 'Configuración agéntica no encontrada' }, { status: 404 });
         }

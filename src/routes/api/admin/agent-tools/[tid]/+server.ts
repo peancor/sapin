@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentToolUtils } from '$lib/server/db/agent';
 import { ROLE_LEVELS } from '$lib/server/roles';
 
 function adminGuard(locals: App.Locals): Response | null {
@@ -14,7 +14,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
     const guard = adminGuard(locals);
     if (guard) return guard;
 
-    const tool = await DBAgentUtils.getToolDefinitionById(params.tid!);
+    const tool = await DBAgentToolUtils.getToolDefinitionById(params.tid!);
     if (!tool) return json({ error: 'Herramienta no encontrada' }, { status: 404 });
     return json({ tool });
 };
@@ -26,7 +26,7 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 
     try {
         const body = await request.json();
-        const tool = await DBAgentUtils.getToolDefinitionById(params.tid!);
+        const tool = await DBAgentToolUtils.getToolDefinitionById(params.tid!);
         if (!tool) return json({ error: 'Herramienta no encontrada' }, { status: 404 });
 
         const updates: Record<string, unknown> = {};
@@ -56,7 +56,7 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
         }
 
         // No permitir editar el name ni isSystem
-        await DBAgentUtils.updateToolDefinition(params.tid!, updates as Parameters<typeof DBAgentUtils.updateToolDefinition>[1]);
+        await DBAgentToolUtils.updateToolDefinition(params.tid!, updates as Parameters<typeof DBAgentToolUtils.updateToolDefinition>[1]);
         return json({ success: true });
     } catch (err) {
         console.error('[admin/agent-tools/[tid]] PUT error:', err);
@@ -70,11 +70,11 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
     if (guard) return guard;
 
     try {
-        const tool = await DBAgentUtils.getToolDefinitionById(params.tid!);
+        const tool = await DBAgentToolUtils.getToolDefinitionById(params.tid!);
         if (!tool) return json({ error: 'Herramienta no encontrada' }, { status: 404 });
         if (tool.isSystem) return json({ error: 'No se pueden eliminar herramientas del sistema' }, { status: 403 });
 
-        await DBAgentUtils.deleteToolDefinition(params.tid!);
+        await DBAgentToolUtils.deleteToolDefinition(params.tid!);
         return json({ success: true });
     } catch (err) {
         console.error('[admin/agent-tools/[tid]] DELETE error:', err);

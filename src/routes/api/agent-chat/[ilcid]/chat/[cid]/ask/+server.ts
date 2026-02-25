@@ -7,7 +7,7 @@
  */
 import type { RequestHandler } from '@sveltejs/kit';
 import { InteractiveChatAuthUtils } from '$lib/server/db';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentActivityUtils, DBAgentToolUtils, DBAgentUIUtils, DBAgentMessageUtils } from '$lib/server/db/agent';
 import { AgentEngine } from '$lib/server/agent/AgentEngine';
 import type { AgentContext } from '$lib/types/agent';
 import { markActivityInProgress } from '$lib/server/db/ProgressWriteUtils';
@@ -60,7 +60,7 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
 
     try {
         // Cargar configuración de la actividad agéntica
-        const agentActivity = await DBAgentUtils.getAgentActivity(ilcid);
+        const agentActivity = await DBAgentActivityUtils.getAgentActivity(ilcid);
         if (!agentActivity) {
             return sseError('Actividad agéntica no encontrada');
         }
@@ -84,16 +84,16 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
         }
 
         // Cargar herramientas habilitadas para esta actividad
-        const enabledTools = await DBAgentUtils.getEnabledToolsForActivity(ilcid);
+        const enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilcid);
 
         // Seed de herramientas builtin y componentes UI si no hay ninguna aún
         if (enabledTools.length === 0) {
-            await DBAgentUtils.seedBuiltinTools();
-            await DBAgentUtils.seedBuiltinUIComponents();
+            await DBAgentToolUtils.seedBuiltinTools();
+            await DBAgentUIUtils.seedBuiltinUIComponents();
         }
 
         // Obtener historial de mensajes para el contexto (solo para executeLoop)
-        const messageHistory = isResume ? [] : await DBAgentUtils.getAgentMessages(cid);
+        const messageHistory = isResume ? [] : await DBAgentMessageUtils.getAgentMessages(cid);
 
         // Construir el contexto del agente
         const context: AgentContext = {

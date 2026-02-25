@@ -5,15 +5,15 @@
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentActivityUtils } from '$lib/server/db/agent';
 
 export const POST: RequestHandler = async ({ locals }) => {
     const user = locals.user;
     if (!user) return json({ error: 'Unauthorized' }, { status: 401 });
 
     // Ensure global tutor is seeded
-    await DBAgentUtils.seedGlobalTutor();
+    await DBAgentActivityUtils.seedGlobalTutor();
 
-    const chatId = await DBAgentUtils.getOrCreateTutorChat(user.id);
-    return json({ chatId, activityId: DBAgentUtils.GLOBAL_TUTOR_ID });
+    const chatId = await DBAgentActivityUtils.getOrCreateTutorChat(user.id);
+    return json({ chatId, activityId: DBAgentActivityUtils.GLOBAL_TUTOR_ID });
 };

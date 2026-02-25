@@ -4,7 +4,7 @@ import { InteractiveChatAuthUtils } from '$lib/server/db';
 import { eq, asc } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { error } from '@sveltejs/kit';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentMessageUtils } from '$lib/server/db/agent';
 import type { AgentDisplayMessage, AgentDisplayPart } from '$lib/types/agent';
 
 export const load = (async ({ params, locals }) => {
@@ -22,7 +22,7 @@ export const load = (async ({ params, locals }) => {
     }
 
     // Cargar mensajes agénticos
-    const rawMessages = await DBAgentUtils.getAgentMessagesRaw(cid);
+    const rawMessages = await DBAgentMessageUtils.getAgentMessagesRaw(cid);
 
     // Cargar tool calls e instancias UI para los mensajes assistant
     const assistantMessageIds = rawMessages

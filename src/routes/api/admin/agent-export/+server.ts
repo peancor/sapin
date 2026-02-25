@@ -6,7 +6,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { ROLE_LEVELS } from '$lib/server/roles';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentAnalyticsUtils } from '$lib/server/db/agent';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
     const user = locals.user;
@@ -18,7 +18,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         return json({ error: 'activityId is required' }, { status: 400 });
     }
 
-    const results = await DBAgentUtils.getUIResponsesForActivity(activityId);
+    const results = await DBAgentAnalyticsUtils.getUIResponsesForActivity(activityId);
 
     // Return as JSON with content-disposition for download
     const filename = `agent-results-${activityId}-${new Date().toISOString().slice(0, 10)}.json`;

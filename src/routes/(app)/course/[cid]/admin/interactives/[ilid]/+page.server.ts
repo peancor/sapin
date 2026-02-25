@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { interactiveLearning, interactiveLearningChat } from '$lib/server/db/schema';
 import type { PageServerLoad } from './$types';
 import DBChatUtils from '$lib/server/db/DBChatUtils';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentActivityUtils, DBAgentAnalyticsUtils } from '$lib/server/db/agent';
 import { ACTIVITY_COMPLETION_MIN_MESSAGES } from '$lib/constants';
 
 export const load = (async ({ params, locals }) => {
@@ -39,9 +39,9 @@ export const load = (async ({ params, locals }) => {
 
 	// === Actividad de tipo AGENT ===
 	if (interactive.type === 'agent') {
-		const agentConfig = await DBAgentUtils.getAgentActivity(ilid);
-		const agentStats = await DBAgentUtils.getActivityAgentStats(ilid);
-		const enabledTools = await DBAgentUtils.getEnabledToolsForActivity(ilid);
+		const agentConfig = await DBAgentActivityUtils.getAgentActivity(ilid);
+		const agentStats = await DBAgentAnalyticsUtils.getActivityAgentStats(ilid);
+		const enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilid);
 
 		return {
 			interactive,

@@ -5,7 +5,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { InteractiveChatAuthUtils } from '$lib/server/db';
-import DBAgentUtils from '$lib/server/db/DBAgentUtils';
+import { DBAgentUIUtils } from '$lib/server/db/agent';
 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
     const user = locals.user;
@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     }
 
     // Verificar que la instancia existe
-    const instance = await DBAgentUtils.getUIInstance(instanceId);
+    const instance = await DBAgentUIUtils.getUIInstance(instanceId);
     if (!instance) {
         return json({ error: 'UI instance not found' }, { status: 404 });
     }
@@ -39,7 +39,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     // Actualizar la instancia con la respuesta del usuario
     const score = typeof payload.score === 'number' ? payload.score : undefined;
 
-    await DBAgentUtils.updateUIInstance(instanceId, {
+    await DBAgentUIUtils.updateUIInstance(instanceId, {
         userResponse: JSON.stringify(payload),
         respondedAt: new Date(),
         ...(score !== undefined ? { score } : {})
