@@ -46,11 +46,11 @@
 			description: 'Ver el progreso de cada estudiante'
 		},
 		{
-			label: 'Revisar respuestas',
-			href: resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chat-review'}`),
+			label: 'Revisar sesiones',
+			href: resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agent-review' : 'chat-review'}`),
 			icon: Eye,
 			color: 'green',
-			description: isAgent ? 'Editar configuración del agente' : 'Revisar las conversaciones de los estudiantes'
+			description: isAgent ? 'Revisar las sesiones de los estudiantes con el agente' : 'Revisar las conversaciones de los estudiantes'
 		},
 		{
 			label: 'Editar actividad',

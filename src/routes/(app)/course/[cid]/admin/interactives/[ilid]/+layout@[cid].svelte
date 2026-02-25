@@ -57,9 +57,9 @@
 		{
 			id: 'review',
 			label: 'Revisión',
-			href: isAgent
-				? resolve(`/course/${cid}/admin/interactives/${ilid}`)
-				: resolve(`/course/${cid}/admin/interactives/${ilid}/chat-review`),
+			href: resolve(
+				`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agent-review' : 'chat-review'}`
+			),
 			icon: Eye
 		},
 		{

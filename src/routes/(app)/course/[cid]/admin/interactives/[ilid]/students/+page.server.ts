@@ -1,7 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import { db, CourseRoleUtils, CourseInteractiveAuthUtils } from '$lib/server/db';
-import { eq } from 'drizzle-orm';
-import { interactiveLearning } from '$lib/server/db/schema';
+import { eq, inArray, count } from 'drizzle-orm';
+import { interactiveLearning, userInteractiveLearningChat, agentMessage } from '$lib/server/db/schema';
 import type { PageServerLoad } from './$types';
 import DBChatUtils from '$lib/server/db/DBChatUtils';
 import { ACTIVITY_COMPLETION_MIN_MESSAGES } from '$lib/constants';
@@ -21,15 +21,7 @@ export const load = (async ({ params, locals }) => {
         throw error(403, access.reason || 'No tienes permisos para ver esta información');
     }
 
-    // Obtener el interactive chat
-    // bypassStatusCheck: true porque es una ruta admin
-    const interactiveChat = await DBChatUtils.loadInteractiveChatFromInteractiveId(ilid, { bypassStatusCheck: true });
-
-    if (!interactiveChat) {
-        throw error(404, 'Chat interactivo no encontrado');
-    }
-
-    // Verificar que el interactive learning existe
+    // Verificar que el interactive learning existe y obtener su tipo
     const interactive = await db
         .select()
         .from(interactiveLearning)
@@ -52,6 +44,63 @@ export const load = (async ({ params, locals }) => {
             image: u.image,
             alias: u.alias
         }));
+
+    // === Actividad de tipo AGENT ===
+    if (interactive.type === 'agent') {
+        const sessions = await db
+            .select()
+            .from(userInteractiveLearningChat)
+            .where(eq(userInteractiveLearningChat.interactiveLearningChatId, ilid));
+
+        const chatIds = sessions.map(s => s.chatId);
+        const messageCounts: Record<string, number> = {};
+        if (chatIds.length > 0) {
+            const counts = await db
+                .select({ chatId: agentMessage.chatId, messageCount: count(agentMessage.id) })
+                .from(agentMessage)
+                .where(inArray(agentMessage.chatId, chatIds))
+                .groupBy(agentMessage.chatId);
+            counts.forEach(c => { messageCounts[c.chatId] = c.messageCount; });
+        }
+
+        const studentsWithActivity = enrolledStudents.map(student => {
+            const studentSessions = sessions.filter(s => s.userId === student.id);
+            const totalMessages = studentSessions.reduce(
+                (sum, s) => sum + (messageCounts[s.chatId] || 0), 0
+            );
+            const hasActivity = studentSessions.length > 0;
+            const lastActivity = studentSessions.length > 0
+                ? new Date(Math.max(...studentSessions.map(s =>
+                    s.createdAt instanceof Date ? s.createdAt.getTime() : new Date(s.createdAt).getTime()
+                )))
+                : null;
+
+            return {
+                ...student,
+                chats: studentSessions.map(s => ({ chat: s, messages: [] })),
+                hasActivity,
+                isCompleted: false,
+                inProgress: hasActivity,
+                lastActivity,
+                totalMessages,
+                hasCompletionMarker: false
+            };
+        });
+
+        return {
+            interactive,
+            interactiveChat: null,
+            students: studentsWithActivity,
+            requiresMinMessages: ACTIVITY_COMPLETION_MIN_MESSAGES
+        };
+    }
+
+    // === Actividad de tipo CHAT (lógica existente) ===
+    const interactiveChat = await DBChatUtils.loadInteractiveChatFromInteractiveId(ilid, { bypassStatusCheck: true });
+
+    if (!interactiveChat) {
+        throw error(404, 'Chat interactivo no encontrado');
+    }
 
     // Obtener todas las instancias de chat para esta actividad interactiva
     const chatResults = await DBChatUtils.getAllChatInstancesFromInteractiveId(
