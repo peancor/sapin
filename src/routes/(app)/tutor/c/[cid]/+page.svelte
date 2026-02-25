@@ -1,7 +1,7 @@
 <script lang="ts">
     import type { PageData } from './$types';
     import { base } from '$app/paths';
-    import AgentChatComponent from '$lib/components/AgentChatComponent.svelte';
+    import AgentChatComponent from '$lib/components/agent/AgentChatComponent.svelte';
 
     let { data }: { data: PageData } = $props();
 

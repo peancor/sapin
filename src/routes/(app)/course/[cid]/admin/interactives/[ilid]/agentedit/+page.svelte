@@ -5,7 +5,7 @@
 	import { ArrowLeft, Bot } from 'lucide-svelte';
 	import { Toast } from 'flowbite-svelte';
 	import ChatConfigForm from '$lib/components/ChatConfigForm.svelte';
-	import AgentConfigForm from '$lib/components/AgentConfigForm.svelte';
+	import AgentConfigForm from '$lib/components/agent/AgentConfigForm.svelte';
 	import { onMount } from 'svelte';
 	import { beforeNavigate } from '$app/navigation';
 

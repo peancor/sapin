@@ -1,6 +1,6 @@
 <script lang="ts">
-    import QuizCard from './QuizCard.svelte';
-    import FlashcardDeck from './FlashcardDeck.svelte';
+    import QuizCard from './ui/QuizCard.svelte';
+    import FlashcardDeck from './ui/FlashcardDeck.svelte';
 
     interface Props {
         instanceId: string;

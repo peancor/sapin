@@ -5,7 +5,7 @@
 	import { page } from '$app/stores';
 	import { ArrowLeft, MessageSquare, Bot } from 'lucide-svelte';
 	import ChatConfigForm from '$lib/components/ChatConfigForm.svelte';
-	import AgentConfigForm from '$lib/components/AgentConfigForm.svelte';
+	import AgentConfigForm from '$lib/components/agent/AgentConfigForm.svelte';
 	import { onMount } from 'svelte';
 	import { beforeNavigate, goto } from '$app/navigation';
 
