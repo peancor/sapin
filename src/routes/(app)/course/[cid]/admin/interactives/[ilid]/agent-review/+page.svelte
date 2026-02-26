@@ -96,6 +96,7 @@
 			case 'failed': return 'red';
 			case 'rejected': return 'orange';
 			case 'awaiting_confirmation': return 'yellow';
+			case 'awaiting_ui_response': return 'yellow';
 			default: return 'gray';
 		}
 	}
@@ -106,6 +107,7 @@
 			case 'failed': return 'Fallida';
 			case 'rejected': return 'Rechazada';
 			case 'awaiting_confirmation': return 'Pendiente';
+			case 'awaiting_ui_response': return 'Esperando respuesta UI';
 			case 'executing': return 'Ejecutando';
 			default: return status;
 		}

@@ -106,7 +106,8 @@ export class AgentEngine {
                             messageId: assistantMsgId,
                             uiComponentId: uiComp.id,
                             componentKey,
-                            props: JSON.stringify(input)
+                            props: JSON.stringify(input),
+                            metadata: JSON.stringify({ componentKey, toolCallId })
                         });
                     }
 
@@ -148,10 +149,13 @@ export class AgentEngine {
         result: any,
         context: AgentContext,
         assistantMsgId: string,
-        accumulated: { text: string; toolCallsCount: number }
+        accumulated: {
+            text: string;
+            toolCallsCount: number;
+            hitlTriggered: boolean;
+            uiWaitTriggered: boolean;
+        }
     ): AsyncGenerator<AgentStreamPart> {
-        let hitlTriggered = false;
-
         for await (const event of result.fullStream) {
             switch (event.type) {
                 case 'text-delta':
@@ -211,19 +215,33 @@ export class AgentEngine {
                             instanceId: toolOutput.instanceId
                         };
 
-                        await DBAgentMessageUtils.updateToolCall(toolCallId, {
-                            result: JSON.stringify(cleanResult),
-                            status: 'completed'
-                        });
+                        if (toolOutput.interactive) {
+                            await DBAgentMessageUtils.updateToolCall(toolCallId, {
+                                result: JSON.stringify(cleanResult),
+                                status: 'awaiting_ui_response'
+                            });
 
-                        await DBAgentMessageUtils.saveAgentMessage({
-                            chatId: context.chatId,
-                            role: 'tool',
-                            textContent: JSON.stringify(cleanResult),
-                            toolCallId,
-                            toolName: event.toolName,
-                            sequenceOrder: 2
-                        });
+                            await DBAgentMessageUtils.updateAgentMessage(assistantMsgId, {
+                                textContent: accumulated.text,
+                                finishReason: 'ui_wait'
+                            });
+
+                            accumulated.uiWaitTriggered = true;
+                        } else {
+                            await DBAgentMessageUtils.updateToolCall(toolCallId, {
+                                result: JSON.stringify(cleanResult),
+                                status: 'completed'
+                            });
+
+                            await DBAgentMessageUtils.saveAgentMessage({
+                                chatId: context.chatId,
+                                role: 'tool',
+                                textContent: JSON.stringify(cleanResult),
+                                toolCallId,
+                                toolName: event.toolName,
+                                sequenceOrder: 2
+                            });
+                        }
 
                         break;
                     }
@@ -246,7 +264,7 @@ export class AgentEngine {
                             confirmationMessage: `¿Autorizar la ejecución de "${toolOutput.toolDisplayName}"?`
                         };
 
-                        hitlTriggered = true;
+                        accumulated.hitlTriggered = true;
                         break; // break del switch
                     }
 
@@ -290,7 +308,7 @@ export class AgentEngine {
                     break;
             }
 
-            if (hitlTriggered) break; // break del for..of
+            if (accumulated.hitlTriggered || accumulated.uiWaitTriggered) break; // break del for..of
         }
     }
 
@@ -361,7 +379,12 @@ export class AgentEngine {
             sequenceOrder: 1
         });
 
-        const accumulated = { text: '', toolCallsCount: 0 };
+        const accumulated = {
+            text: '',
+            toolCallsCount: 0,
+            hitlTriggered: false,
+            uiWaitTriggered: false
+        };
 
         try {
             const result = streamText({
@@ -395,16 +418,11 @@ export class AgentEngine {
                 }
             });
 
-            // Procesar stream y detectar HITL
-            let hitlDetected = false;
             for await (const part of this.processStream(result, context, assistantMsgId, accumulated)) {
                 yield part;
-                if (part.type === 'tool-confirm-required') {
-                    hitlDetected = true;
-                }
             }
 
-            if (!hitlDetected) {
+            if (!accumulated.hitlTriggered && !accumulated.uiWaitTriggered) {
                 // Flujo normal: actualizar mensaje del assistant y emitir done
                 await DBAgentMessageUtils.updateAgentMessage(assistantMsgId, {
                     textContent: accumulated.text,
@@ -423,7 +441,7 @@ export class AgentEngine {
                     finishReason: (await result.finishReason) ?? 'stop'
                 };
             }
-            // Si hitlDetected: el stream se cierra sin 'done'. El frontend lo espera.
+            // Si hay HITL o UI wait: el stream se cierra sin 'done'. El frontend lo espera.
 
         } catch (error) {
             yield {
@@ -478,7 +496,12 @@ export class AgentEngine {
             sequenceOrder: 99
         });
 
-        const accumulated = { text: '', toolCallsCount: 0 };
+        const accumulated = {
+            text: '',
+            toolCallsCount: 0,
+            hitlTriggered: false,
+            uiWaitTriggered: false
+        };
 
         yield { type: 'status', status: 'thinking' };
 
@@ -514,15 +537,11 @@ export class AgentEngine {
                 }
             });
 
-            let hitlDetected = false;
             for await (const part of this.processStream(result, context, assistantMsgId, accumulated)) {
                 yield part;
-                if (part.type === 'tool-confirm-required') {
-                    hitlDetected = true;
-                }
             }
 
-            if (!hitlDetected) {
+            if (!accumulated.hitlTriggered && !accumulated.uiWaitTriggered) {
                 await DBAgentMessageUtils.updateAgentMessage(assistantMsgId, {
                     textContent: accumulated.text,
                     finishReason: 'stop'

@@ -31,6 +31,7 @@ export const agentToolExecutorType = {
 export const agentToolCallStatus = {
     PENDING: 'pending',
     AWAITING_CONFIRMATION: 'awaiting_confirmation',
+    AWAITING_UI_RESPONSE: 'awaiting_ui_response',
     EXECUTING: 'executing',
     COMPLETED: 'completed',
     FAILED: 'failed',
@@ -276,7 +277,7 @@ export const agentToolCall = sqliteTable(
 
         // Estado del tool call
         status: text('status').notNull().default('pending'),
-        // "pending" | "awaiting_confirmation" | "executing" | "completed" | "failed" | "rejected"
+        // "pending" | "awaiting_confirmation" | "awaiting_ui_response" | "executing" | "completed" | "failed" | "rejected"
 
         // Confirmación HITL
         confirmedBy: text('confirmed_by').references(() => user.id),

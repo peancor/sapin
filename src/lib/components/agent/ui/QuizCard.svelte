@@ -30,6 +30,7 @@
     let submitted = $state(!!initialUserResponse);
     let interactive = $state(initialInteractive && !initialUserResponse);
     let isSubmitting = $state(false);
+    let submitError = $state('');
 
     // User's selected answers (index or -1 for unanswered)
     let answers = $state<number[]>(
@@ -56,11 +57,12 @@
     async function submitQuiz() {
         if (!allAnswered || submitted || isSubmitting) return;
         isSubmitting = true;
+        submitError = '';
 
         const finalScore = answers.filter((a, i) => a === questions[i].correctIndex).length / questions.length;
 
         try {
-            await fetch(`${apiBase}/ui-response`, {
+            const res = await fetch(`${apiBase}/ui-response`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -73,13 +75,19 @@
                     }
                 })
             });
+            if (!res.ok) {
+                submitError = 'No se pudo guardar tu respuesta. Intenta nuevamente.';
+                return;
+            }
         } catch {
-            // Non-critical, continue
+            submitError = 'No se pudo guardar tu respuesta. Intenta nuevamente.';
+            return;
+        } finally {
+            isSubmitting = false;
         }
 
         submitted = true;
         interactive = false;
-        isSubmitting = false;
         onRespond?.(finalScore);
     }
 
@@ -151,7 +159,11 @@
 
     <!-- Footer -->
     {#if interactive && !submitted}
-        <div class="px-4 py-3 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+        <div class="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+            {#if submitError}
+                <p class="mb-2 text-xs text-red-600 dark:text-red-400">{submitError}</p>
+            {/if}
+            <div class="flex justify-end">
             <button
                 onclick={submitQuiz}
                 disabled={!allAnswered || isSubmitting}
@@ -166,6 +178,7 @@
                     Enviar respuestas
                 {/if}
             </button>
+            </div>
         </div>
     {:else if submitted}
         <div class="px-4 py-3 border-t border-gray-100 dark:border-gray-700">

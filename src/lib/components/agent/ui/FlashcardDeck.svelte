@@ -30,6 +30,7 @@
     let currentIndex = $state(0);
     let isFlipped = $state(false);
     let isSubmitting = $state(false);
+    let submitError = $state('');
     let reviewedCount = $state(
         initialUserResponse?.cardsReviewed ? (initialUserResponse.cardsReviewed as number) : 0
     );
@@ -59,9 +60,10 @@
     async function finish() {
         if (!interactive || isSubmitting) return;
         isSubmitting = true;
+        submitError = '';
 
         try {
-            await fetch(`${apiBase}/ui-response`, {
+            const res = await fetch(`${apiBase}/ui-response`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -73,13 +75,19 @@
                     }
                 })
             });
+            if (!res.ok) {
+                submitError = 'No se pudo guardar el progreso. Intenta nuevamente.';
+                return;
+            }
         } catch {
-            // Non-critical
+            submitError = 'No se pudo guardar el progreso. Intenta nuevamente.';
+            return;
+        } finally {
+            isSubmitting = false;
         }
 
         completed = true;
         interactive = false;
-        isSubmitting = false;
         onRespond?.();
     }
 </script>
@@ -132,7 +140,11 @@
         </div>
 
         <!-- Navigation -->
-        <div class="px-4 py-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+        <div class="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+            {#if submitError}
+                <p class="mb-2 text-xs text-red-600 dark:text-red-400">{submitError}</p>
+            {/if}
+            <div class="flex items-center justify-between">
             <button
                 onclick={prev}
                 disabled={currentIndex === 0}
@@ -179,6 +191,7 @@
                     Siguiente →
                 </button>
             {/if}
+            </div>
         </div>
     {/if}
 </div>

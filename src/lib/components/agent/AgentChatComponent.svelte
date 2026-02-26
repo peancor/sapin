@@ -313,6 +313,19 @@
         });
     }
 
+    function handleUIComponentRespond(assistantMsgId: string) {
+        if (!assistantMsgId || isLoading) return;
+
+        errorMessage = '';
+        isLoading = true;
+        userHasScrolled = false;
+        isAtBottom = true;
+
+        const resumeUrl = new URL(apiEndpoint, window.location.origin);
+        resumeUrl.searchParams.set('resume', 'true');
+        startStream(resumeUrl.toString(), assistantMsgId);
+    }
+
     // ─── Auto-start: trigger agent greeting when chat is brand new ───
     function sendAutoStart() {
         const assistantMsg: AgentDisplayMessage = {
@@ -433,6 +446,7 @@
                                 interactive={part.interactive}
                                 initialUserResponse={part.userResponse}
                                 apiBase={apiBaseForHitl}
+                                onRespond={() => handleUIComponentRespond(msg.id)}
                             />
                         {/if}
                     {/each}
