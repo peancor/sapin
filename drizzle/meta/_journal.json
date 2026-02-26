@@ -57,6 +57,13 @@
       "when": 1772103346807,
       "tag": "0007_white_dazzler",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1772129227482,
+      "tag": "0008_plain_ser_duncan",
+      "breakpoints": true
     }
   ]
 }

@@ -124,50 +124,6 @@ export const userInteractiveLearningChat = sqliteTable(
     ]
 );
 
-// Tabla para documentos RAG asociados a un chat interactivo
-export const interactiveLearningChatRagDocument = sqliteTable(
-    'interactive_learning_chat_rag_document',
-    {
-        id: text('id').primaryKey(),
-        interactiveLearningChatId: text('interactive_learning_chat_id')
-            .notNull()
-            .references(() => interactiveLearningChat.id, { onDelete: 'cascade' }),
-        name: text('name').notNull(), // Nombre del documento
-        originalPath: text('original_path'), // Ruta al archivo original (si existe)
-        fileType: text('file_type').notNull(), // pdf, docx, txt, etc.
-        fileSize: integer('file_size'), // Tamaño en bytes
-        chunkCount: integer('chunk_count').default(0), // Número de chunks generados
-        totalCharacters: integer('total_characters').default(0), // Total de caracteres
-        status: text('status').notNull().default('pending'), // pending, processing, indexed, error
-        errorMessage: text('error_message'), // Mensaje de error si falló
-        qdrantPointIds: text('qdrant_point_ids'), // JSON array con los IDs de los puntos en Qdrant
-        metadata: text('metadata'), // Metadata adicional en JSON
-        createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-        updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
-    },
-    (table) => [
-        index('interactive_learning_chat_rag_document_chat_idx').on(table.interactiveLearningChatId),
-        index('interactive_learning_chat_rag_document_status_idx').on(table.status)
-    ]
-);
-
-export const interactiveLearningChatFile = sqliteTable(
-    'interactive_learning_chat_file',
-    {
-        id: text('id').primaryKey(),
-        interactiveLearningChatId: text('interactive_learning_chat_id')
-            .notNull()
-            .references(() => interactiveLearningChat.id),
-        name: text('name').notNull(),
-        path: text('path').notNull(),
-        type: text('type').$type<keyof typeof fileType>().notNull(),
-        size: integer('size').notNull(),
-        mimeType: text('mime_type').notNull(),
-        createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
-    },
-    (table) => [index('interactive_learning_chat_file_idx').on(table.interactiveLearningChatId)]
-);
-
 // Shared files for any interactive learning activity (chat/agent/others)
 export const interactiveLearningFile = sqliteTable(
     'interactive_learning_file',
@@ -236,9 +192,7 @@ export const interactiveLearningChatRelations = relations(interactiveLearningCha
         fields: [interactiveLearningChat.id],
         references: [interactiveLearning.id]
     }),
-    userChats: many(userInteractiveLearningChat),
-    ragDocuments: many(interactiveLearningChatRagDocument),
-    files: many(interactiveLearningChatFile)
+    userChats: many(userInteractiveLearningChat)
 }));
 
 export const courseInteractiveLearningRelations = relations(courseInteractiveLearning, ({ one }) => ({
@@ -264,20 +218,6 @@ export const userInteractiveLearningChatRelations = relations(userInteractiveLea
     chat: one(chat, {
         fields: [userInteractiveLearningChat.chatId],
         references: [chat.id]
-    })
-}));
-
-export const interactiveLearningChatRagDocumentRelations = relations(interactiveLearningChatRagDocument, ({ one }) => ({
-    interactiveLearningChat: one(interactiveLearningChat, {
-        fields: [interactiveLearningChatRagDocument.interactiveLearningChatId],
-        references: [interactiveLearningChat.id]
-    })
-}));
-
-export const interactiveLearningChatFileRelations = relations(interactiveLearningChatFile, ({ one }) => ({
-    interactiveLearningChat: one(interactiveLearningChat, {
-        fields: [interactiveLearningChatFile.interactiveLearningChatId],
-        references: [interactiveLearningChat.id]
     })
 }));
 
@@ -327,12 +267,6 @@ export const selectCourseInteractiveLearningSchema = createSelectSchema(courseIn
 export const insertUserInteractiveLearningChatSchema = createInsertSchema(userInteractiveLearningChat);
 export const selectUserInteractiveLearningChatSchema = createSelectSchema(userInteractiveLearningChat);
 
-export const insertInteractiveLearningChatRagDocumentSchema = createInsertSchema(interactiveLearningChatRagDocument);
-export const selectInteractiveLearningChatRagDocumentSchema = createSelectSchema(interactiveLearningChatRagDocument);
-
-export const insertInteractiveLearningChatFileSchema = createInsertSchema(interactiveLearningChatFile);
-export const selectInteractiveLearningChatFileSchema = createSelectSchema(interactiveLearningChatFile);
-
 export const insertInteractiveLearningFileSchema = createInsertSchema(interactiveLearningFile);
 export const selectInteractiveLearningFileSchema = createSelectSchema(interactiveLearningFile);
 
@@ -345,7 +279,5 @@ export type InteractiveLearning = typeof interactiveLearning.$inferSelect;
 export type CourseInteractiveLearning = typeof courseInteractiveLearning.$inferSelect;
 export type InteractiveLearningChat = typeof interactiveLearningChat.$inferSelect;
 export type UserInteractiveLearningChat = typeof userInteractiveLearningChat.$inferSelect;
-export type InteractiveLearningChatRagDocument = typeof interactiveLearningChatRagDocument.$inferSelect;
-export type InteractiveLearningChatFile = typeof interactiveLearningChatFile.$inferSelect;
 export type InteractiveLearningFile = typeof interactiveLearningFile.$inferSelect;
 export type InteractiveLearningRagDocument = typeof interactiveLearningRagDocument.$inferSelect;
