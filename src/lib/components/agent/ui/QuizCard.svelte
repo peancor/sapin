@@ -1,4 +1,12 @@
 <script lang="ts">
+    import { marked } from 'marked';
+    import katex from 'katex';
+    import markedKatex from 'marked-katex-extension';
+    import 'katex/dist/katex.min.css';
+    import { preprocessMathExpressions } from '$lib/utils';
+
+    marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
+
     interface Question {
         question: string;
         options: string[];
@@ -105,6 +113,14 @@
         if (isSelected && !isCorrect) return 'border-red-400 bg-red-50 dark:bg-red-950 dark:border-red-400 text-red-800 dark:text-red-200';
         return 'border-gray-200 dark:border-gray-600 opacity-50';
     }
+
+    function renderInline(content: string): string {
+        return marked.parseInline(preprocessMathExpressions(content ?? '')) as string;
+    }
+
+    function renderBlock(content: string): string {
+        return marked.parse(preprocessMathExpressions(content ?? '')) as string;
+    }
 </script>
 
 <div class="my-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden shadow-sm">
@@ -133,7 +149,7 @@
         {#each questions as q, qIdx}
             <div class="px-4 py-3">
                 <p class="text-sm font-medium text-gray-900 dark:text-white mb-2.5">
-                    {qIdx + 1}. {q.question}
+                    {qIdx + 1}. {@html renderInline(q.question)}
                 </p>
                 <div class="space-y-1.5">
                     {#each q.options as opt, optIdx}
@@ -144,14 +160,14 @@
                             disabled={!interactive || submitted}
                         >
                             <span class="font-medium mr-1.5">{String.fromCharCode(65 + optIdx)}.</span>
-                            {opt}
+                            <span class="[&_p]:inline">{@html renderInline(opt)}</span>
                         </button>
                     {/each}
                 </div>
                 {#if submitted && q.explanation}
-                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400 italic">
-                        {q.explanation}
-                    </p>
+                    <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 italic [&_p]:m-0">
+                        {@html renderBlock(q.explanation)}
+                    </div>
                 {/if}
             </div>
         {/each}
