@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import {
     interactiveLearningChat,
     interactiveLearningChatFile,
+    interactiveLearningFile,
     interactiveLearning
 } from '$lib/server/db/schema';
 import type { LayoutServerLoad } from './$types';
@@ -46,11 +47,29 @@ export const load = (async ({ params, locals }) => {
         throw error(404, 'Interactive chat not found');
     }
 
-    const files = await db
+    const sharedFiles = await db
+        .select()
+        .from(interactiveLearningFile)
+        .where(eq(interactiveLearningFile.interactiveLearningId, ilid))
+        .all();
+
+    const files = sharedFiles.length > 0
+        ? sharedFiles
+        : (await db
         .select()
         .from(interactiveLearningChatFile)
         .where(eq(interactiveLearningChatFile.interactiveLearningChatId, chat.id))
-        .all();
+        .all()).map((legacyFile) => ({
+            id: legacyFile.id,
+            interactiveLearningId: legacyFile.interactiveLearningChatId,
+            fileStorageId: null,
+            name: legacyFile.name,
+            path: legacyFile.path,
+            type: legacyFile.type,
+            size: legacyFile.size,
+            mimeType: legacyFile.mimeType,
+            createdAt: legacyFile.createdAt
+        }));
 
     // Determinar si el usuario puede ver todos los chats:
     // - Admin/SuperAdmin del SISTEMA tiene acceso total

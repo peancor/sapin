@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { fileStorage, user, course, interactiveLearningChat } from '$lib/server/db/schema';
+import { fileStorage, user, course, interactiveLearning, interactiveLearningChat } from '$lib/server/db/schema';
 import type { FileStorage } from '$lib/server/db/schema';
 import { eq, and, lt, sql, isNull } from 'drizzle-orm';
 import fs from 'fs/promises';
@@ -178,6 +178,13 @@ class FileCleanupService {
 						.where(eq(interactiveLearningChat.id, file.entityId))
 						.limit(1);
 					isOrphan = chatExists.length === 0;
+				} else if (file.entityType === 'interactive_learning') {
+					const interactiveExists = await db
+						.select({ id: interactiveLearning.id })
+						.from(interactiveLearning)
+						.where(eq(interactiveLearning.id, file.entityId))
+						.limit(1);
+					isOrphan = interactiveExists.length === 0;
 				}
 				// 'system' entityType is never orphaned
 

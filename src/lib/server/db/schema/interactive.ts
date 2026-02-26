@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { user } from './users';
 import { course } from './courses';
 import { chat } from './chat';
-import { fileType } from './files';
+import { fileType, fileStorage } from './files';
 import type { RagConfig } from '$lib/server/rag/config';
 
 // ============================================
@@ -168,6 +168,57 @@ export const interactiveLearningChatFile = sqliteTable(
     (table) => [index('interactive_learning_chat_file_idx').on(table.interactiveLearningChatId)]
 );
 
+// Shared files for any interactive learning activity (chat/agent/others)
+export const interactiveLearningFile = sqliteTable(
+    'interactive_learning_file',
+    {
+        id: text('id').primaryKey(),
+        interactiveLearningId: text('interactive_learning_id')
+            .notNull()
+            .references(() => interactiveLearning.id, { onDelete: 'cascade' }),
+        fileStorageId: text('file_storage_id').references(() => fileStorage.id, { onDelete: 'set null' }),
+        name: text('name').notNull(),
+        path: text('path').notNull(),
+        type: text('type').$type<keyof typeof fileType>().notNull(),
+        size: integer('size').notNull(),
+        mimeType: text('mime_type').notNull(),
+        createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
+    },
+    (table) => [
+        index('interactive_learning_file_il_idx').on(table.interactiveLearningId),
+        index('interactive_learning_file_storage_idx').on(table.fileStorageId)
+    ]
+);
+
+// Shared RAG documents for any interactive learning activity (chat/agent/others)
+export const interactiveLearningRagDocument = sqliteTable(
+    'interactive_learning_rag_document',
+    {
+        id: text('id').primaryKey(),
+        interactiveLearningId: text('interactive_learning_id')
+            .notNull()
+            .references(() => interactiveLearning.id, { onDelete: 'cascade' }),
+        fileStorageId: text('file_storage_id').references(() => fileStorage.id, { onDelete: 'set null' }),
+        name: text('name').notNull(),
+        originalPath: text('original_path'),
+        fileType: text('file_type').notNull(),
+        fileSize: integer('file_size'),
+        chunkCount: integer('chunk_count').default(0),
+        totalCharacters: integer('total_characters').default(0),
+        status: text('status').notNull().default('pending'),
+        errorMessage: text('error_message'),
+        qdrantPointIds: text('qdrant_point_ids'),
+        metadata: text('metadata'),
+        createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+        updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
+    },
+    (table) => [
+        index('interactive_learning_rag_document_il_idx').on(table.interactiveLearningId),
+        index('interactive_learning_rag_document_status_idx').on(table.status),
+        index('interactive_learning_rag_document_storage_idx').on(table.fileStorageId)
+    ]
+);
+
 // ========== Drizzle Relations ==========
 
 export const interactiveLearningRelations = relations(interactiveLearning, ({ one, many }) => ({
@@ -175,7 +226,9 @@ export const interactiveLearningRelations = relations(interactiveLearning, ({ on
         fields: [interactiveLearning.id],
         references: [interactiveLearningChat.id]
     }),
-    courses: many(courseInteractiveLearning)
+    courses: many(courseInteractiveLearning),
+    files: many(interactiveLearningFile),
+    ragDocuments: many(interactiveLearningRagDocument)
 }));
 
 export const interactiveLearningChatRelations = relations(interactiveLearningChat, ({ one, many }) => ({
@@ -228,6 +281,28 @@ export const interactiveLearningChatFileRelations = relations(interactiveLearnin
     })
 }));
 
+export const interactiveLearningFileRelations = relations(interactiveLearningFile, ({ one }) => ({
+    interactiveLearning: one(interactiveLearning, {
+        fields: [interactiveLearningFile.interactiveLearningId],
+        references: [interactiveLearning.id]
+    }),
+    storageFile: one(fileStorage, {
+        fields: [interactiveLearningFile.fileStorageId],
+        references: [fileStorage.id]
+    })
+}));
+
+export const interactiveLearningRagDocumentRelations = relations(interactiveLearningRagDocument, ({ one }) => ({
+    interactiveLearning: one(interactiveLearning, {
+        fields: [interactiveLearningRagDocument.interactiveLearningId],
+        references: [interactiveLearning.id]
+    }),
+    storageFile: one(fileStorage, {
+        fields: [interactiveLearningRagDocument.fileStorageId],
+        references: [fileStorage.id]
+    })
+}));
+
 // ========== Drizzle-Zod Schemas ==========
 
 export const insertInteractiveLearningSchema = createInsertSchema(interactiveLearning, {
@@ -258,6 +333,12 @@ export const selectInteractiveLearningChatRagDocumentSchema = createSelectSchema
 export const insertInteractiveLearningChatFileSchema = createInsertSchema(interactiveLearningChatFile);
 export const selectInteractiveLearningChatFileSchema = createSelectSchema(interactiveLearningChatFile);
 
+export const insertInteractiveLearningFileSchema = createInsertSchema(interactiveLearningFile);
+export const selectInteractiveLearningFileSchema = createSelectSchema(interactiveLearningFile);
+
+export const insertInteractiveLearningRagDocumentSchema = createInsertSchema(interactiveLearningRagDocument);
+export const selectInteractiveLearningRagDocumentSchema = createSelectSchema(interactiveLearningRagDocument);
+
 // ========== Type Exports ==========
 
 export type InteractiveLearning = typeof interactiveLearning.$inferSelect;
@@ -266,3 +347,5 @@ export type InteractiveLearningChat = typeof interactiveLearningChat.$inferSelec
 export type UserInteractiveLearningChat = typeof userInteractiveLearningChat.$inferSelect;
 export type InteractiveLearningChatRagDocument = typeof interactiveLearningChatRagDocument.$inferSelect;
 export type InteractiveLearningChatFile = typeof interactiveLearningChatFile.$inferSelect;
+export type InteractiveLearningFile = typeof interactiveLearningFile.$inferSelect;
+export type InteractiveLearningRagDocument = typeof interactiveLearningRagDocument.$inferSelect;

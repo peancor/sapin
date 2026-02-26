@@ -730,7 +730,7 @@ export const actions = {
         const uploadResult = await fileStorageService.upload({
             file,
             category: 'rag_document',
-            entityType: 'interactive_learning_chat',
+            entityType: 'interactive_learning',
             entityId: chat.id,
             uploadedBy: locals.user?.id || 'system',
             displayName: file.name,
@@ -1178,7 +1178,7 @@ export const actions = {
         const result = await fileStorageService.upload({
             file,
             category: 'chat',
-            entityType: 'interactive_learning_chat',
+            entityType: 'interactive_learning',
             entityId: chat.id,
             uploadedBy: locals.user?.id || 'system',
             displayName: file.name,

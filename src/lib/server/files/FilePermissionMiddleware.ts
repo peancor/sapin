@@ -4,7 +4,7 @@ import {
 	courseRole,
 	user,
 	userInteractiveLearningChat,
-	interactiveLearningChat,
+	interactiveLearning,
 	courseInteractiveLearning,
 	userRoleAssignment,
 	role
@@ -173,16 +173,16 @@ class FilePermissionMiddleware {
 		userId: string,
 		action: string
 	): Promise<PermissionCheckResult> {
-		const chatId = file.entityId;
+		const interactiveLearningId = file.entityId;
 
-		// Check if user has access to this interactive learning chat
+		// Check if user has access to this interactive learning activity
 		const userChat = await db
 			.select()
 			.from(userInteractiveLearningChat)
 			.where(
 				and(
 					eq(userInteractiveLearningChat.userId, userId),
-					eq(userInteractiveLearningChat.interactiveLearningChatId, chatId)
+					eq(userInteractiveLearningChat.interactiveLearningChatId, interactiveLearningId)
 				)
 			)
 			.limit(1);
@@ -191,21 +191,18 @@ class FilePermissionMiddleware {
 			return { allowed: true };
 		}
 
-		// Also check if user is a teacher of the course that contains this chat
-		const chatData = await db
+		// Ensure associated interactive learning exists
+		const interactiveData = await db
 			.select()
-			.from(interactiveLearningChat)
-			.where(eq(interactiveLearningChat.id, chatId))
+			.from(interactiveLearning)
+			.where(eq(interactiveLearning.id, interactiveLearningId))
 			.limit(1);
 
-		if (chatData.length === 0) {
-			return { allowed: false, reason: 'Chat not found' };
+		if (interactiveData.length === 0) {
+			return { allowed: false, reason: 'Associated activity not found' };
 		}
 
-		// El id del chat ES el interactiveLearningId (patrón de herencia 1:1)
-		const interactiveLearningId = chatData[0].id;
-
-		// Get course that contains this interactive learning
+		// Check if user is a teacher of a course that contains this activity
 		const courseInteractive = await db
 			.select()
 			.from(courseInteractiveLearning)
@@ -253,21 +250,17 @@ class FilePermissionMiddleware {
 		// RAG documents are private by default
 		// Already checked: uploader and admin have access
 
-		const chatId = file.entityId;
+		const interactiveLearningId = file.entityId;
 
-		// Get the interactive learning chat
-		const chatData = await db
+		const interactiveData = await db
 			.select()
-			.from(interactiveLearningChat)
-			.where(eq(interactiveLearningChat.id, chatId))
+			.from(interactiveLearning)
+			.where(eq(interactiveLearning.id, interactiveLearningId))
 			.limit(1);
 
-		if (chatData.length === 0) {
-			return { allowed: false, reason: 'Associated chat not found' };
+		if (interactiveData.length === 0) {
+			return { allowed: false, reason: 'Associated activity not found' };
 		}
-
-		// El id del chat ES el interactiveLearningId (patrón de herencia 1:1)
-		const interactiveLearningId = chatData[0].id;
 
 		// Get course that contains this interactive learning
 		const courseInteractive = await db
