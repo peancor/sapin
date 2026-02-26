@@ -1,16 +1,19 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { ArrowLeft, Bot } from 'lucide-svelte';
 	import { Toast } from 'flowbite-svelte';
+	import RagSection from '$lib/components/RagSection.svelte';
 	import ChatConfigForm from '$lib/components/ChatConfigForm.svelte';
 	import AgentConfigForm from '$lib/components/agent/AgentConfigForm.svelte';
+	import InteractiveFilesSection from '$lib/components/InteractiveFilesSection.svelte';
 	import { onMount } from 'svelte';
 	import { beforeNavigate } from '$app/navigation';
+	import type { SubmitFunction } from '@sveltejs/kit';
 
 	let { data }: { data: PageData } = $props();
-
 	const { cid, ilid } = page.params;
 
 	let llmRole = $state('');
@@ -48,7 +51,6 @@
 		status = (data.interactive?.status ?? 'hidden') as typeof status;
 		llmContext = data.agentConfig?.llmContext ?? '';
 		systemPrompt = data.agentConfig?.systemPrompt ?? '';
-
 		maxToolRoundtrips = data.agentConfig?.maxToolRoundtrips ?? 5;
 		parallelToolCalls = data.agentConfig?.parallelToolCalls ?? false;
 		toolChoice = (data.agentConfig?.toolChoice ?? 'auto') as typeof toolChoice;
@@ -76,15 +78,32 @@
 			navigation.cancel();
 		}
 	});
+
+	const handleEnhance: SubmitFunction = () => {
+		return async ({ result, update }) => {
+			await update({ reset: false });
+
+			if (result.type === 'success') {
+				isDirty = false;
+				showToast = true;
+				toastMessage = 'Agente actualizado correctamente';
+				toastType = 'success';
+			} else {
+				showToast = true;
+				toastMessage = 'Error al guardar los cambios';
+				toastType = 'error';
+			}
+			setTimeout(() => (showToast = false), 3000);
+		};
+	};
 </script>
 
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-	<!-- Header -->
 	<div class="sticky top-0 z-10 bg-white shadow-sm dark:bg-gray-800">
 		<div class="container mx-auto max-w-screen-xl px-4">
 			<div class="flex items-center gap-4 py-4">
 				<a
-					href="/course/{cid}/admin/interactives/{ilid}"
+					href={resolve(`/course/${cid}/admin/interactives/${ilid}`)}
 					class="-ml-2 rounded-lg p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
 					title="Volver a la actividad"
 				>
@@ -102,53 +121,33 @@
 		</div>
 	</div>
 
-	<!-- Content -->
 	<div class="container mx-auto max-w-screen-xl px-4 py-6">
 		<form
 			method="POST"
 			action="?/updateAgent"
-			use:enhance={() => {
-				return async ({ result }) => {
-					if (result.type === 'success') {
-						isDirty = false;
-						showToast = true;
-						toastMessage = 'Agente actualizado correctamente';
-						toastType = 'success';
-						setTimeout(() => (showToast = false), 3000);
-					} else {
-						showToast = true;
-						toastMessage = 'Error al guardar los cambios';
-						toastType = 'error';
-						setTimeout(() => (showToast = false), 3000);
-					}
-				};
-			}}
-			class="space-y-6"
+			use:enhance={handleEnhance}
+			class="space-y-6 rounded-lg bg-white p-6 shadow-sm dark:bg-gray-800"
 		>
-			<!-- Chat / LLM config -->
-			<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-gray-800">
-				<ChatConfigForm
-					bind:description
-					bind:llmRole
-					bind:llmInstructions
-					bind:llmModel
-					bind:temperature
-					bind:maxTokens
-					bind:topP
-					bind:systemPrompt
-					bind:llmContext
-					bind:status
-					models={data.models}
-					defaultModel={data.defaultModel}
-					showNameField={false}
-					onchange={markDirty}
-				/>
-			</div>
+			<ChatConfigForm
+				bind:description
+				bind:llmRole
+				bind:llmInstructions
+				bind:llmModel
+				bind:temperature
+				bind:maxTokens
+				bind:topP
+				bind:systemPrompt
+				bind:llmContext
+				bind:status
+				models={data.models}
+				defaultModel={data.defaultModel}
+				showNameField={false}
+				onchange={markDirty}
+			/>
 
-			<!-- Agent-specific config -->
-			<div class="rounded-lg bg-white p-6 shadow-sm dark:bg-gray-800">
+			<div>
 				<h2 class="mb-4 text-base font-semibold text-gray-900 dark:text-white">
-					Configuración del Agente
+					Configuracion del Agente
 				</h2>
 				<AgentConfigForm
 					bind:maxToolRoundtrips
@@ -162,7 +161,6 @@
 				/>
 			</div>
 
-			<!-- Actions -->
 			<div class="flex items-center gap-4">
 				<button
 					type="submit"
@@ -171,7 +169,7 @@
 					Guardar cambios
 				</button>
 				<a
-					href="/course/{cid}/admin/interactives/{ilid}"
+					href={resolve(`/course/${cid}/admin/interactives/${ilid}`)}
 					class="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
 				>
 					Cancelar
@@ -181,10 +179,37 @@
 				{/if}
 			</div>
 		</form>
+
+		<div class="mt-6">
+			<RagSection
+				ragChunkSize={data.ragConfig?.chunkSize ?? 6000}
+				ragChunkOverlap={data.ragConfig?.chunkOverlap ?? 200}
+				ragTopK={data.ragConfig?.topK ?? 5}
+				ragMinScore={data.ragConfig?.minScore ?? 0.55}
+				ragContextMaxChars={data.ragConfig?.contextMaxChars ?? 18000}
+				ragMergeAdjacentChunks={data.ragConfig?.mergeAdjacentChunks ?? true}
+				ragAdjacencyWindow={data.ragConfig?.adjacencyWindow ?? 0}
+				ragPerSourceMaxBlocks={data.ragConfig?.perSourceMaxBlocks ?? 3}
+				ragFallbackMinScore={data.ragConfig?.fallbackMinScore ?? 0.45}
+				ragDocuments={data.ragDocuments ?? []}
+				ragUploadMaxBytes={data.ragUploadMaxBytes ?? 50 * 1024 * 1024}
+				qdrantConnected={data.qdrantStatus?.connected ?? false}
+				ragCollectionInfo={data.ragCollectionInfo}
+				ragTechnicalInfo={data.ragTechnicalInfo}
+			/>
+		</div>
+
+		<InteractiveFilesSection
+			files={data.files ?? []}
+			title="Recursos compartidos de la actividad"
+			description="Sube imágenes y documentos para reutilizarlos en prompts y UI del agente."
+			warningMessage="Importante: estos adjuntos no sustituyen al RAG. Se usan como recursos visuales o enlaces que puedes referenciar en las instrucciones del agente."
+			copyHint='Usa "Copiar enlace" para referenciar recursos en instrucciones.'
+			emptyMessage="Aún no hay recursos. Sube imágenes o documentos para reutilizarlos en la actividad."
+		/>
 	</div>
 </div>
 
-<!-- Toast -->
 {#if showToast}
 	<div class="fixed bottom-4 right-4 z-50">
 		<Toast color={toastType === 'success' ? 'green' : 'red'}>
