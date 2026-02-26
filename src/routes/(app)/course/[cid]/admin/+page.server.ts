@@ -5,7 +5,8 @@ import {
     interactiveLearning,
     courseInteractiveLearning,
     interactiveLearningChat,
-    interactiveLearningChatFile,
+    interactiveLearningFile,
+    interactiveLearningRagDocument,
     userInteractiveLearningChat,
     chat,
     message
@@ -78,8 +79,13 @@ export const actions = {
             if (chatInteractive) {
                 // 2. Borrar archivos asociados al chat
                 await tx
-                    .delete(interactiveLearningChatFile)
-                    .where(eq(interactiveLearningChatFile.interactiveLearningChatId, chatInteractive.id));
+                    .delete(interactiveLearningFile)
+                    .where(eq(interactiveLearningFile.interactiveLearningId, chatInteractive.id));
+
+                // 2b. Borrar documentos RAG asociados
+                await tx
+                    .delete(interactiveLearningRagDocument)
+                    .where(eq(interactiveLearningRagDocument.interactiveLearningId, chatInteractive.id));
 
                 // 3. Obtener las conexiones de usuarios con el chat
                 const userChats = await tx
