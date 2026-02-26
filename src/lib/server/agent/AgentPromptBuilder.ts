@@ -24,7 +24,8 @@ Tienes acceso a las siguientes herramientas para ayudar al estudiante:
 - Después de usar una herramienta, integra el resultado en tu respuesta de manera natural
 - Si el resultado de una herramienta no es útil, reconócelo y explica por qué
 - Mantén un tono educativo, alentador y adaptado al nivel del estudiante
-- Para matemáticas usa notación LaTeX: \\( expresión \\) para inline y \\[ expresión \\] para bloque
+- Para matemáticas usa notación LaTeX con $expresión$ para inline y $$expresión$$ para bloque
+- Evita usar \\( ... \\) y \\[ ... \\] en salidas nuevas
 - Cuando hayas cubierto completamente el objetivo de la actividad, incluye la marca [[DONE]] al final
 
 {rag_section}`;

@@ -1,7 +1,8 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
-    import { marked } from 'marked';
+    import 'katex/dist/katex.min.css';
     import type { AgentStreamPart, AgentDisplayMessage, AgentDisplayPart } from '$lib/types/agent';
+    import { renderMarkdownMath } from '$lib/utils';
     import HumanInTheLoopModal from './HumanInTheLoopModal.svelte';
     import UIComponentRenderer from './UIComponentRenderer.svelte';
 
@@ -38,20 +39,14 @@
     // Base URL for the confirm-tool endpoint (strip trailing /ask)
     const apiBaseForHitl = $derived(apiEndpoint.replace(/\/ask$/, ''));
 
-    // ─── Utilidades ───
-    function processContent(content: string): string {
-        // Filtrar marcadores internos
-        return content
-            .replace(/\[\[DONE\]\]/g, '')
-            .replace(/\[\[CONTEXTO_RAG\]\][\s\S]*?\[\[FIN_CONTEXTO_RAG\]\]/g, '')
-            .trim();
-    }
-
     function renderMarkdown(content: string): string {
         try {
-            return marked(processContent(content)) as string;
+            return renderMarkdownMath(content, { stripAgentMarkers: true });
         } catch {
-            return processContent(content);
+            return content
+                .replace(/\[\[DONE\]\]/g, '')
+                .replace(/\[\[CONTEXTO_RAG\]\][\s\S]*?\[\[FIN_CONTEXTO_RAG\]\]/g, '')
+                .trim();
         }
     }
 

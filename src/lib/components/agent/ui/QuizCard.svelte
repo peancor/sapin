@@ -1,11 +1,6 @@
 <script lang="ts">
-    import { marked } from 'marked';
-    import katex from 'katex';
-    import markedKatex from 'marked-katex-extension';
     import 'katex/dist/katex.min.css';
-    import { preprocessMathExpressions } from '$lib/utils';
-
-    marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
+    import { renderMarkdownMath } from '$lib/utils';
 
     interface Question {
         question: string;
@@ -115,11 +110,11 @@
     }
 
     function renderInline(content: string): string {
-        return marked.parseInline(preprocessMathExpressions(content ?? '')) as string;
+        return renderMarkdownMath(content ?? '', { inline: true });
     }
 
     function renderBlock(content: string): string {
-        return marked.parse(preprocessMathExpressions(content ?? '')) as string;
+        return renderMarkdownMath(content ?? '');
     }
 </script>
 

@@ -1,1 +1,2 @@
-export * from './mathPreprocessor'; 
+export * from './mathPreprocessor';
+export * from './markdownMath';
