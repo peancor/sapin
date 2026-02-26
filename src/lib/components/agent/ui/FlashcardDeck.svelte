@@ -1,4 +1,7 @@
 <script lang="ts">
+    import 'katex/dist/katex.min.css';
+    import { renderMarkdownMath } from '$lib/utils';
+
     interface Flashcard {
         front: string;
         back: string;
@@ -37,6 +40,14 @@
 
     const currentCard = $derived(cards[currentIndex]);
     const isLast = $derived(currentIndex === cards.length - 1);
+
+    function renderCardContent(content: string): string {
+        try {
+            return renderMarkdownMath(content ?? '');
+        } catch {
+            return content ?? '';
+        }
+    }
 
     function flip() {
         isFlipped = !isFlipped;
@@ -130,9 +141,9 @@
                     {isFlipped ? 'text-indigo-400' : 'text-gray-400'}">
                     {isFlipped ? 'Respuesta' : 'Pregunta'}
                 </div>
-                <p class="text-sm text-gray-900 dark:text-white">
-                    {isFlipped ? currentCard.back : currentCard.front}
-                </p>
+                <div class="prose prose-sm max-w-none text-sm text-gray-900 dark:prose-invert dark:text-white [&_p]:m-0">
+                    {@html renderCardContent(isFlipped ? currentCard.back : currentCard.front)}
+                </div>
                 <p class="mt-2 text-xs text-gray-400 text-right">
                     {isFlipped ? 'Clic para ver la pregunta' : 'Clic para ver la respuesta'}
                 </p>
