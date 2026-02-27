@@ -37,6 +37,7 @@
 		"db:migrate-chat-ids": "npx tsx scripts/migrate-interactive-chat-ids.ts",
 		"db:migrate-chat-ids:dry": "npx tsx scripts/migrate-interactive-chat-ids.ts --dry-run",
 		"db:migrate-chat-ids:backup": "npx tsx scripts/migrate-interactive-chat-ids.ts --backup",
+		"db:backfill-agent-ui-components": "npx tsx scripts/backfill-agent-ui-components.ts",
 		"machine-translate": "inlang machine translate --project project.inlang"
 	},
 	"devDependencies": {
