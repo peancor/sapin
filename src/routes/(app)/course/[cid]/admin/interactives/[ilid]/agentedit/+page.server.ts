@@ -400,6 +400,29 @@ export const actions = {
         const toolChoice = (['auto', 'required', 'none'].includes(toolChoiceRaw ?? ''))
             ? (toolChoiceRaw as 'auto' | 'required' | 'none')
             : 'auto';
+        const finalizationEnabledRaw = data.get('finalizationEnabled')?.toString();
+        const finalizationEnabled = finalizationEnabledRaw === undefined || finalizationEnabledRaw === null
+            ? true
+            : finalizationEnabledRaw === 'on' || finalizationEnabledRaw === 'true';
+        const finalizationToolName = data.get('finalizationToolName')?.toString().trim() || 'finalize_activity';
+        const finalizationHandlerRaw = data.get('finalizationHandler')?.toString();
+        const finalizationHandler = (['mark_complete_and_notify', 'mark_complete_only', 'notify_only'].includes(finalizationHandlerRaw ?? ''))
+            ? (finalizationHandlerRaw as 'mark_complete_and_notify' | 'mark_complete_only' | 'notify_only')
+            : 'mark_complete_and_notify';
+        const requireFinalizationToolCallRaw = data.get('requireFinalizationToolCall')?.toString();
+        const requireFinalizationToolCall = requireFinalizationToolCallRaw === undefined || requireFinalizationToolCallRaw === null
+            ? true
+            : requireFinalizationToolCallRaw === 'on' || requireFinalizationToolCallRaw === 'true';
+        const finalizationConfigRaw = data.get('finalizationConfig')?.toString().trim() || '';
+        let finalizationConfig: string | null = null;
+        if (finalizationConfigRaw) {
+            try {
+                JSON.parse(finalizationConfigRaw);
+                finalizationConfig = finalizationConfigRaw;
+            } catch {
+                throw error(400, 'finalizationConfig debe ser JSON valido');
+            }
+        }
 
         let selectedToolIds: string[] = [];
         let selectedUIComponentIds: string[] = [];
@@ -438,7 +461,12 @@ export const actions = {
             topP,
             maxToolRoundtrips,
             parallelToolCalls,
-            toolChoice
+            toolChoice,
+            finalizationEnabled,
+            finalizationToolName,
+            finalizationHandler,
+            finalizationConfig,
+            requireFinalizationToolCall
         });
 
         await DBAgentActivityUtils.setActivityTools(ilid, selectedToolIds);

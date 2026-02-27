@@ -1,7 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import { db, CourseRoleUtils, CourseInteractiveAuthUtils } from '$lib/server/db';
-import { eq, inArray, count } from 'drizzle-orm';
-import { interactiveLearning, userInteractiveLearningChat, agentMessage } from '$lib/server/db/schema';
+import { and, eq, inArray, count } from 'drizzle-orm';
+import { interactiveLearning, userInteractiveLearningChat, agentMessage, learningActivityProgress } from '$lib/server/db/schema';
 import type { PageServerLoad } from './$types';
 import DBChatUtils from '$lib/server/db/DBChatUtils';
 import { ACTIVITY_COMPLETION_MIN_MESSAGES } from '$lib/constants';
@@ -52,8 +52,11 @@ export const load = (async ({ params, locals }) => {
             .from(userInteractiveLearningChat)
             .where(eq(userInteractiveLearningChat.interactiveLearningChatId, ilid));
 
+        const studentIds = enrolledStudents.map((student) => student.id);
         const chatIds = sessions.map(s => s.chatId);
         const messageCounts: Record<string, number> = {};
+        const progressStatusByUser = new Map<string, string>();
+
         if (chatIds.length > 0) {
             const counts = await db
                 .select({ chatId: agentMessage.chatId, messageCount: count(agentMessage.id) })
@@ -63,12 +66,31 @@ export const load = (async ({ params, locals }) => {
             counts.forEach(c => { messageCounts[c.chatId] = c.messageCount; });
         }
 
+        if (studentIds.length > 0) {
+            const progressRows = await db
+                .select({ userId: learningActivityProgress.userId, status: learningActivityProgress.status })
+                .from(learningActivityProgress)
+                .where(
+                    and(
+                        eq(learningActivityProgress.courseId, cid),
+                        eq(learningActivityProgress.activityId, ilid),
+                        inArray(learningActivityProgress.userId, studentIds)
+                    )
+                );
+
+            for (const row of progressRows) {
+                progressStatusByUser.set(row.userId, row.status);
+            }
+        }
+
         const studentsWithActivity = enrolledStudents.map(student => {
             const studentSessions = sessions.filter(s => s.userId === student.id);
             const totalMessages = studentSessions.reduce(
                 (sum, s) => sum + (messageCounts[s.chatId] || 0), 0
             );
             const hasActivity = studentSessions.length > 0;
+            const progressStatus = progressStatusByUser.get(student.id);
+            const isCompleted = progressStatus === 'completed';
             const lastActivity = studentSessions.length > 0
                 ? new Date(Math.max(...studentSessions.map(s =>
                     s.createdAt instanceof Date ? s.createdAt.getTime() : new Date(s.createdAt).getTime()
@@ -79,11 +101,11 @@ export const load = (async ({ params, locals }) => {
                 ...student,
                 chats: studentSessions.map(s => ({ chat: s, messages: [] })),
                 hasActivity,
-                isCompleted: false,
-                inProgress: hasActivity,
+                isCompleted,
+                inProgress: hasActivity && !isCompleted,
                 lastActivity,
                 totalMessages,
-                hasCompletionMarker: false
+                hasCompletionMarker: isCompleted
             };
         });
 

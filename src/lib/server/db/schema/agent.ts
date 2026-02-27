@@ -151,6 +151,13 @@ export const interactiveLearningAgent = sqliteTable('interactive_learning_agent'
     maxToolRoundtrips: integer('max_tool_roundtrips').notNull().default(5),
     parallelToolCalls: integer('parallel_tool_calls', { mode: 'boolean' }).notNull().default(false),
     toolChoice: text('tool_choice').notNull().default('auto'), // "auto" | "required" | "none"
+    finalizationEnabled: integer('finalization_enabled', { mode: 'boolean' }).notNull().default(true),
+    finalizationToolName: text('finalization_tool_name').notNull().default('finalize_activity'),
+    finalizationHandler: text('finalization_handler').notNull().default('mark_complete_and_notify'),
+    finalizationConfig: text('finalization_config'),
+    requireFinalizationToolCall: integer('require_finalization_tool_call', { mode: 'boolean' })
+        .notNull()
+        .default(true),
 
     // RAG (mismo patrón que interactiveLearningChat)
     ragEnabled: integer('rag_enabled', { mode: 'boolean' }).default(false),

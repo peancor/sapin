@@ -112,6 +112,11 @@ export interface AgentActivityConfig {
     maxToolRoundtrips: number;
     parallelToolCalls: boolean;
     toolChoice: 'auto' | 'required' | 'none';
+    finalizationEnabled: boolean;
+    finalizationToolName: string;
+    finalizationHandler: 'mark_complete_and_notify' | 'mark_complete_only' | 'notify_only';
+    finalizationConfig?: string | null;
+    requireFinalizationToolCall: boolean;
     ragEnabled?: boolean | null;
     ragCollectionName?: string | null;
     ragConfig?: string | null;

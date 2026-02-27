@@ -17,6 +17,8 @@
 		category: string;
 	}
 
+	type FinalizationHandler = 'mark_complete_and_notify' | 'mark_complete_only' | 'notify_only';
+
 	interface Props {
 		maxToolRoundtrips?: number;
 		parallelToolCalls?: boolean;
@@ -25,6 +27,11 @@
 		selectedToolIds?: string[];
 		uiComponents?: UIComponent[];
 		selectedUIComponentIds?: string[];
+		finalizationEnabled?: boolean;
+		finalizationToolName?: string;
+		finalizationHandler?: FinalizationHandler;
+		finalizationConfig?: string;
+		requireFinalizationToolCall?: boolean;
 		onchange?: () => void;
 	}
 
@@ -36,13 +43,18 @@
 		selectedToolIds = $bindable<string[]>([]),
 		uiComponents = [],
 		selectedUIComponentIds = $bindable<string[]>([]),
+		finalizationEnabled = $bindable(true),
+		finalizationToolName = $bindable('finalize_activity'),
+		finalizationHandler = $bindable<FinalizationHandler>('mark_complete_and_notify'),
+		finalizationConfig = $bindable(''),
+		requireFinalizationToolCall = $bindable(true),
 		onchange
 	}: Props = $props();
 
 	const categoryLabels: Record<string, string> = {
 		knowledge: 'Conocimiento',
-		evaluation: 'Evaluación',
-		communication: 'Comunicación',
+		evaluation: 'Evaluacion',
+		communication: 'Comunicacion',
 		data: 'Datos',
 		ui: 'Interfaz UI'
 	};
@@ -53,7 +65,6 @@
 		high: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
 	};
 
-	// Group tools by category
 	let toolsByCategory = $derived(
 		tools.reduce<Record<string, Tool[]>>((acc, tool) => {
 			if (!acc[tool.category]) acc[tool.category] = [];
@@ -82,23 +93,20 @@
 </script>
 
 <div class="space-y-6">
-	<!-- Hidden inputs for form submission -->
 	<input type="hidden" name="selectedToolIds" value={JSON.stringify(selectedToolIds)} />
 	<input type="hidden" name="selectedUIComponentIds" value={JSON.stringify(selectedUIComponentIds)} />
 
-	<!-- Comportamiento del Agente -->
 	<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
 		<h3 class="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
 			Comportamiento del Agente
 		</h3>
 		<div class="grid gap-4 sm:grid-cols-2">
-			<!-- Max Tool Roundtrips -->
 			<div>
 				<label
 					for="maxToolRoundtrips"
 					class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
 				>
-					Rondas máximas de herramientas
+					Rondas maximas de herramientas
 				</label>
 				<input
 					id="maxToolRoundtrips"
@@ -111,11 +119,10 @@
 					class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				/>
 				<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-					Número máximo de veces que el agente puede invocar herramientas (1–20)
+					Numero maximo de veces que el agente puede invocar herramientas (1-20)
 				</p>
 			</div>
 
-			<!-- Parallel Tool Calls -->
 			<div>
 				<label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
 					Llamadas paralelas
@@ -124,23 +131,23 @@
 					<input
 						type="checkbox"
 						name="parallelToolCalls"
+						value="true"
 						bind:checked={parallelToolCalls}
 						onchange={onchange}
 						class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 					/>
 					<span class="text-sm text-gray-700 dark:text-gray-300">
-						Permitir invocar múltiples herramientas a la vez
+						Permitir invocar multiples herramientas a la vez
 					</span>
 				</label>
 			</div>
 
-			<!-- Tool Choice -->
 			<div class="sm:col-span-2">
 				<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-					Modo de selección de herramientas
+					Modo de seleccion de herramientas
 				</label>
 				<div class="flex flex-wrap gap-4">
-					{#each [{ value: 'auto', label: 'Automático', desc: 'El modelo decide si usa herramientas' }, { value: 'required', label: 'Requerido', desc: 'Siempre debe usar al menos una herramienta' }, { value: 'none', label: 'Ninguno', desc: 'No puede usar herramientas' }] as option (option.value)}
+					{#each [{ value: 'auto', label: 'Automatico', desc: 'El modelo decide si usa herramientas' }, { value: 'required', label: 'Requerido', desc: 'Siempre debe usar al menos una herramienta' }, { value: 'none', label: 'Ninguno', desc: 'No puede usar herramientas' }] as option (option.value)}
 						<label class="flex cursor-pointer items-start gap-2">
 							<input
 								type="radio"
@@ -163,7 +170,115 @@
 		</div>
 	</div>
 
-	<!-- Herramientas -->
+	<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+		<h3 class="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+			Finalizacion de actividad
+		</h3>
+		<div class="grid gap-4 sm:grid-cols-2">
+			<div class="sm:col-span-2">
+				<label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+					Habilitar finalizacion explicita
+				</label>
+				<label class="flex cursor-pointer items-center gap-3">
+					<input
+						type="checkbox"
+						name="finalizationEnabled"
+						value="true"
+						bind:checked={finalizationEnabled}
+						onchange={onchange}
+						class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+					/>
+					<input type="hidden" name="finalizationEnabled" value="false" />
+					<span class="text-sm text-gray-700 dark:text-gray-300">
+						El agente debe cerrar la actividad llamando una tool de finalizacion.
+					</span>
+				</label>
+			</div>
+
+			<div>
+				<label
+					for="finalizationToolName"
+					class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+				>
+					Nombre de la tool de cierre
+				</label>
+				<input
+					id="finalizationToolName"
+					type="text"
+					name="finalizationToolName"
+					bind:value={finalizationToolName}
+					oninput={onchange}
+					disabled={!finalizationEnabled}
+					class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+				/>
+				<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+					Recomendado: <code>finalize_activity</code>.
+				</p>
+			</div>
+
+			<div>
+				<label
+					for="finalizationHandler"
+					class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+				>
+					Accion al finalizar
+				</label>
+				<select
+					id="finalizationHandler"
+					name="finalizationHandler"
+					bind:value={finalizationHandler}
+					onchange={onchange}
+					disabled={!finalizationEnabled}
+					class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+				>
+					<option value="mark_complete_and_notify">Completar y notificar</option>
+					<option value="mark_complete_only">Solo completar</option>
+					<option value="notify_only">Solo notificar</option>
+				</select>
+			</div>
+
+			<div class="sm:col-span-2">
+				<label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+					Tool call de finalizacion obligatorio
+				</label>
+				<label class="flex cursor-pointer items-center gap-3">
+					<input
+						type="checkbox"
+						name="requireFinalizationToolCall"
+						value="true"
+						bind:checked={requireFinalizationToolCall}
+						onchange={onchange}
+						disabled={!finalizationEnabled}
+						class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
+					/>
+					<input type="hidden" name="requireFinalizationToolCall" value="false" />
+					<span class="text-sm text-gray-700 dark:text-gray-300">
+						Si esta activo, el backend no finaliza por heuristicas ni por texto libre.
+					</span>
+				</label>
+			</div>
+
+			<div class="sm:col-span-2">
+				<label
+					for="finalizationConfig"
+					class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+				>
+					Configuracion avanzada (JSON opcional)
+				</label>
+				<textarea
+					id="finalizationConfig"
+					name="finalizationConfig"
+					bind:value={finalizationConfig}
+					oninput={onchange}
+					disabled={!finalizationEnabled}
+					rows="3"
+					placeholder="&#123;&quot;notifyChannel&quot;:&quot;default&quot;&#125;"
+					class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+				></textarea>
+			</div>
+		</div>
+	</div>
+
 	{#if tools.length > 0}
 		<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -222,7 +337,6 @@
 		</div>
 	{/if}
 
-	<!-- Componentes UI -->
 	{#if uiComponents.length > 0}
 		<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">

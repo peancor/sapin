@@ -492,6 +492,31 @@ export class AIUtils {
         );
     }
 
+    public static async notifyEndOfAgentChat(chatId: string, activityId: string, userId: string) {
+        const [chat] = await db.select().from(table.chat).where(eq(table.chat.id, chatId));
+        if (!chat) return;
+
+        const [user] = await db.select().from(table.user).where(eq(table.user.id, userId));
+        if (!user) return;
+
+        const [interactiveLearning] = await db
+            .select()
+            .from(table.interactiveLearning)
+            .where(eq(table.interactiveLearning.id, activityId));
+        if (!interactiveLearning) return;
+
+        const courseNames = await this.getCourseNamesByInteractiveLearningId(interactiveLearning.id);
+
+        const userName = user.username || user.email;
+        const chatViewLink = `${getPublicAppUrl()}/agent-chat/${interactiveLearning.id}/c/${chat.id}`;
+        const courseLine =
+            courseNames.length > 0 ? `\nðŸ“š Curso: ${courseNames[0]}` : '\nðŸ“š Curso: Sin curso asociado';
+
+        notifier.notify(
+            `ðŸ¤– Nuevo chat de agente finalizado\nðŸ§© Actividad: ${interactiveLearning.name}${courseLine}\nðŸ‘¤ Usuario: ${userName}\n\nðŸ”— Ver chat: ${chatViewLink}`
+        );
+    }
+
     /**
         * Check if a response contains [[DONE]] marker and if there is no previous DONE
         * in persisted assistant messages for the same chat.

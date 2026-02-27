@@ -115,7 +115,11 @@
                         <p class="font-medium text-blue-800 dark:text-blue-200">Criterios de estado de actividad</p>
                         <ul class="list-disc ml-5 mt-2 text-sm text-blue-700 dark:text-blue-300">
                             <li>Un estudiante ha <strong>accedido</strong> a la actividad cuando tiene al menos un chat.</li>
-                            <li>Un estudiante ha <strong>completado</strong> la actividad cuando tiene al menos {data.requiresMinMessages} mensajes y uno de ellos contiene el texto <code>[[DONE]]</code>.</li>
+							{#if data.interactive.type === 'agent'}
+								<li>Un estudiante ha <strong>completado</strong> la actividad cuando el agente ejecuta la tool de finalizacion configurada y se registra progreso completado.</li>
+							{:else}
+                            	<li>Un estudiante ha <strong>completado</strong> la actividad cuando tiene al menos {data.requiresMinMessages} mensajes y uno de ellos contiene el texto <code>[[DONE]]</code>.</li>
+							{/if}
                             <li>Un estudiante está <strong>en progreso</strong> cuando ha accedido pero aún no ha completado la actividad.</li>
                         </ul>
                     </div>

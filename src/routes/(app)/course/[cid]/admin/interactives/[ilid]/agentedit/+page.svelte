@@ -32,6 +32,13 @@
 	let toolChoice = $state<'auto' | 'required' | 'none'>('auto');
 	let selectedToolIds = $state<string[]>([]);
 	let selectedUIComponentIds = $state<string[]>([]);
+	let finalizationEnabled = $state(true);
+	let finalizationToolName = $state('finalize_activity');
+	let finalizationHandler = $state<'mark_complete_and_notify' | 'mark_complete_only' | 'notify_only'>(
+		'mark_complete_and_notify'
+	);
+	let finalizationConfig = $state('');
+	let requireFinalizationToolCall = $state(true);
 
 	let showToast = $state(false);
 	let toastMessage = $state('');
@@ -54,6 +61,12 @@
 		maxToolRoundtrips = data.agentConfig?.maxToolRoundtrips ?? 5;
 		parallelToolCalls = data.agentConfig?.parallelToolCalls ?? false;
 		toolChoice = (data.agentConfig?.toolChoice ?? 'auto') as typeof toolChoice;
+		finalizationEnabled = data.agentConfig?.finalizationEnabled ?? true;
+		finalizationToolName = data.agentConfig?.finalizationToolName ?? 'finalize_activity';
+		finalizationHandler = (data.agentConfig?.finalizationHandler ??
+			'mark_complete_and_notify') as typeof finalizationHandler;
+		finalizationConfig = data.agentConfig?.finalizationConfig ?? '';
+		requireFinalizationToolCall = data.agentConfig?.requireFinalizationToolCall ?? true;
 		selectedToolIds = [...(data.assignedToolIds ?? [])];
 		selectedUIComponentIds = [...(data.assignedUIComponentIds ?? [])];
 	});
@@ -153,6 +166,11 @@
 					bind:maxToolRoundtrips
 					bind:parallelToolCalls
 					bind:toolChoice
+					bind:finalizationEnabled
+					bind:finalizationToolName
+					bind:finalizationHandler
+					bind:finalizationConfig
+					bind:requireFinalizationToolCall
 					tools={data.activeTools}
 					bind:selectedToolIds
 					uiComponents={data.activeUIComponents}
