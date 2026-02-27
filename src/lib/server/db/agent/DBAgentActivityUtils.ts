@@ -167,17 +167,22 @@ export default class DBAgentActivityUtils {
     static readonly GLOBAL_TUTOR_ID = 'system-global-tutor-v1';
 
     static async seedGlobalTutor() {
+        const { default: DBAgentToolUtils } = await import('./DBAgentToolUtils');
+        const { default: DBAgentUIUtils } = await import('./DBAgentUIUtils');
+
+        await DBAgentToolUtils.seedBuiltinTools();
+        await DBAgentUIUtils.seedBuiltinUIComponents();
+
         const existing = await db
             .select({ id: schema.interactiveLearning.id })
             .from(schema.interactiveLearning)
             .where(eq(schema.interactiveLearning.id, this.GLOBAL_TUTOR_ID))
             .get();
 
-        if (existing) return;
-
         const now = new Date();
 
-        await db.insert(schema.interactiveLearning).values({
+        if (!existing) {
+            await db.insert(schema.interactiveLearning).values({
             id: this.GLOBAL_TUTOR_ID,
             name: 'Asistente de Tutoría',
             slug: 'asistente-tutoria-global',
@@ -187,9 +192,12 @@ export default class DBAgentActivityUtils {
             status: 'published',
             createdAt: now,
             updatedAt: now
-        });
+            });
+        }
 
-        await db.insert(schema.interactiveLearningAgent).values({
+        const existingAgent = await this.getAgentActivity(this.GLOBAL_TUTOR_ID);
+        if (!existingAgent) {
+            await db.insert(schema.interactiveLearningAgent).values({
             id: this.GLOBAL_TUTOR_ID,
             llmRole: 'Asistente de Tutoría',
             llmInstructions:
@@ -198,24 +206,36 @@ export default class DBAgentActivityUtils {
             parallelToolCalls: false,
             toolChoice: 'auto',
             createdAt: now
-        });
+            });
+        }
 
-        // Importación diferida para evitar dependencia circular
-        const { default: DBAgentToolUtils } = await import('./DBAgentToolUtils');
-        const { default: DBAgentUIUtils } = await import('./DBAgentUIUtils');
-
-        await DBAgentToolUtils.seedBuiltinTools();
-        await DBAgentUIUtils.seedBuiltinUIComponents();
+        // Keep baseline tools synced in existing global tutor installations.
         const tools = await DBAgentToolUtils.getActiveToolDefinitions();
-        // Exclude tools that don't make sense without a course context
-        const globalTools = tools.filter((t) =>
-            ['calculate_expression', 'render_quiz', 'render_flashcards'].includes(t.name)
+        const defaultGlobalTools = tools.filter((t) =>
+            ['calculate_expression', 'render_quiz', 'render_timed_quiz', 'render_flashcards'].includes(t.name)
         );
-        if (globalTools.length > 0) {
+
+        if (defaultGlobalTools.length === 0) return;
+
+        if (!existing) {
             await this.setActivityTools(
                 this.GLOBAL_TUTOR_ID,
-                globalTools.map((t) => t.id)
+                defaultGlobalTools.map((t) => t.id)
             );
+            return;
+        }
+
+        const enabledTools = await this.getEnabledToolsForActivity(this.GLOBAL_TUTOR_ID);
+        const mergedToolIds = [...enabledTools.map((t) => t.id)];
+
+        for (const tool of defaultGlobalTools) {
+            if (!mergedToolIds.includes(tool.id)) {
+                mergedToolIds.push(tool.id);
+            }
+        }
+
+        if (mergedToolIds.length !== enabledTools.length) {
+            await this.setActivityTools(this.GLOBAL_TUTOR_ID, mergedToolIds);
         }
     }
 

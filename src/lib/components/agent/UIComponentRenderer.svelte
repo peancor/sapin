@@ -1,6 +1,7 @@
 <script lang="ts">
     import QuizCard from './ui/QuizCard.svelte';
     import FlashcardDeck from './ui/FlashcardDeck.svelte';
+    import TimedQuizCard from './ui/TimedQuizCard.svelte';
 
     interface Props {
         instanceId: string;
@@ -42,6 +43,19 @@
         {initialUserResponse}
         {apiBase}
         onRespond={() => onRespond?.()}
+    />
+{:else if componentKey === 'TimedQuizCard'}
+    <TimedQuizCard
+        {instanceId}
+        title={props.title as string | undefined}
+        difficulty={props.difficulty as 'easy' | 'medium' | 'hard' | undefined}
+        timerByDifficultySec={props.timerByDifficultySec as { easy?: number; medium?: number; hard?: number } | undefined}
+        autoAdvanceDelayMs={props.autoAdvanceDelayMs as number | undefined}
+        questions={props.questions as { question: string; options: string[]; correctIndex: number; explanation?: string }[]}
+        {interactive}
+        {initialUserResponse}
+        {apiBase}
+        onRespond={(score) => onRespond?.(score)}
     />
 {:else}
     <!-- Unknown component: show raw props as fallback -->

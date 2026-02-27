@@ -149,6 +149,79 @@ export default class DBAgentUIUtils {
                 version: '1.0.0'
             },
             {
+                name: 'timed_quiz_card',
+                displayName: 'Quiz Contrarreloj',
+                description: 'Componente tipo minijuego que presenta preguntas secuenciales con timer por dificultad.',
+                category: 'evaluation',
+                componentKey: 'TimedQuizCard',
+                propsSchema: JSON.stringify({
+                    type: 'object',
+                    properties: {
+                        title: { type: 'string', description: 'TÃ­tulo del quiz' },
+                        difficulty: {
+                            type: 'string',
+                            enum: ['easy', 'medium', 'hard'],
+                            description: 'Nivel de dificultad del quiz'
+                        },
+                        timerByDifficultySec: {
+                            type: 'object',
+                            description: 'ConfiguraciÃ³n opcional de segundos por dificultad',
+                            properties: {
+                                easy: { type: 'number' },
+                                medium: { type: 'number' },
+                                hard: { type: 'number' }
+                            }
+                        },
+                        autoAdvanceDelayMs: {
+                            type: 'number',
+                            description: 'Retraso en milisegundos antes de pasar a la siguiente pregunta'
+                        },
+                        questions: {
+                            type: 'array',
+                            description: 'Lista de preguntas del quiz',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    question: { type: 'string' },
+                                    options: { type: 'array', items: { type: 'string' } },
+                                    correctIndex: { type: 'integer' },
+                                    explanation: { type: 'string' }
+                                },
+                                required: ['question', 'options', 'correctIndex']
+                            }
+                        }
+                    },
+                    required: ['questions']
+                }),
+                responseSchema: JSON.stringify({
+                    type: 'object',
+                    properties: {
+                        answers: { type: 'array', items: { type: 'integer' } },
+                        difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+                        timePerQuestionSec: { type: 'number' },
+                        questionResults: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    selectedIndex: { type: 'integer' },
+                                    correctIndex: { type: 'integer' },
+                                    isCorrect: { type: 'boolean' },
+                                    timedOut: { type: 'boolean' },
+                                    responseMs: { type: ['number', 'null'] }
+                                }
+                            }
+                        },
+                        correctCount: { type: 'integer' },
+                        timeoutCount: { type: 'integer' },
+                        score: { type: 'number' },
+                        completed: { type: 'boolean' }
+                    }
+                }),
+                isSystem: true,
+                version: '1.0.0'
+            },
+            {
                 name: 'flashcard_deck',
                 displayName: 'Mazo de Flashcards',
                 description: 'Tarjetas de estudio interactivas para memorizar conceptos y definiciones.',

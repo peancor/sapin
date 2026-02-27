@@ -266,6 +266,68 @@ export default class DBAgentToolUtils {
                 version: '1.0.0'
             },
             {
+                name: 'render_timed_quiz',
+                displayName: 'Mostrar Quiz Contrarreloj',
+                description:
+                    'Genera y muestra un quiz secuencial con temporizador por dificultad, estilo minijuego, directamente en el chat.',
+                category: 'ui',
+                parametersSchema: JSON.stringify({
+                    type: 'object',
+                    properties: {
+                        title: { type: 'string', description: 'TÃ­tulo del quiz' },
+                        difficulty: {
+                            type: 'string',
+                            enum: ['easy', 'medium', 'hard'],
+                            description: 'Nivel de dificultad del quiz'
+                        },
+                        timerByDifficultySec: {
+                            type: 'object',
+                            description: 'Segundos por pregunta para cada dificultad (opcional)',
+                            properties: {
+                                easy: { type: 'number' },
+                                medium: { type: 'number' },
+                                hard: { type: 'number' }
+                            }
+                        },
+                        autoAdvanceDelayMs: {
+                            type: 'number',
+                            description: 'Pausa breve antes de pasar a la siguiente pregunta'
+                        },
+                        questions: {
+                            type: 'array',
+                            description: 'Lista de preguntas del quiz',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    question: { type: 'string', description: 'Texto de la pregunta' },
+                                    options: {
+                                        type: 'array',
+                                        description: 'Opciones de respuesta',
+                                        items: { type: 'string' }
+                                    },
+                                    correctIndex: {
+                                        type: 'integer',
+                                        description: 'Ãndice de la respuesta correcta (0-based)'
+                                    },
+                                    explanation: {
+                                        type: 'string',
+                                        description: 'ExplicaciÃ³n opcional de la respuesta correcta'
+                                    }
+                                },
+                                required: ['question', 'options', 'correctIndex']
+                            }
+                        }
+                    },
+                    required: ['questions']
+                }),
+                executorType: 'builtin' as const,
+                executorConfig: JSON.stringify({ handler: 'ui_renderer', componentKey: 'TimedQuizCard', interactive: true }),
+                requiresConfirmation: false,
+                riskLevel: 'low' as const,
+                isSystem: true,
+                version: '1.0.0'
+            },
+            {
                 name: 'render_flashcards',
                 displayName: 'Mostrar Flashcards',
                 description:
