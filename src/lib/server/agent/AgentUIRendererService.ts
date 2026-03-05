@@ -42,6 +42,12 @@ export class AgentUIRendererService {
 		}
 
 		const handler = getUIRendererHandler(componentKey);
+		if (!handler) {
+			return {
+				ok: false,
+				error: `No UI renderer handler is registered for component "${componentKey}".`
+			};
+		}
 
 		let handled;
 		try {
