@@ -476,7 +476,7 @@ export const actions = {
         return { success: true };
     },
 
-    updateRagConfig: async ({ request, params, locals }) => {
+    updateRagSettings: async ({ request, params, locals }) => {
         const { cid, ilid } = params;
         const { agentConfig } = await requireAgentAdminContext(cid, ilid, locals);
         const formData = await request.formData();
