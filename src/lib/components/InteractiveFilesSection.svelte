@@ -43,10 +43,26 @@
 
 	let isDragging = $state(false);
 	let isUploading = $state(false);
-	let copiedFileId = $state<string | null>(null);
+	let copiedToken = $state<string | null>(null);
 	let showToast = $state(false);
 	let toastMessage = $state('');
 	let toastType = $state<'success' | 'error'>('success');
+
+	async function copyTextToClipboard(value: string) {
+		try {
+			await navigator.clipboard.writeText(value);
+		} catch {
+			const textarea = document.createElement('textarea');
+			textarea.value = value;
+			textarea.setAttribute('readonly', '');
+			textarea.style.position = 'absolute';
+			textarea.style.left = '-9999px';
+			document.body.appendChild(textarea);
+			textarea.select();
+			document.execCommand('copy');
+			document.body.removeChild(textarea);
+		}
+	}
 
 	async function handleFileUpload(type: 'document' | 'image') {
 		const input = document.createElement('input');
@@ -134,27 +150,27 @@
 
 	async function copyFileUrl(file: { id: string; path?: string | null }) {
 		const absoluteUrl = `${window.location.origin}${getFileUrl(file)}`;
+		await copyTextToClipboard(absoluteUrl);
 
-		try {
-			await navigator.clipboard.writeText(absoluteUrl);
-		} catch {
-			const textarea = document.createElement('textarea');
-			textarea.value = absoluteUrl;
-			textarea.setAttribute('readonly', '');
-			textarea.style.position = 'absolute';
-			textarea.style.left = '-9999px';
-			document.body.appendChild(textarea);
-			textarea.select();
-			document.execCommand('copy');
-			document.body.removeChild(textarea);
-		}
-
-		copiedFileId = file.id;
+		copiedToken = `url:${file.id}`;
 		showToast = true;
 		toastMessage = 'Enlace copiado al portapapeles';
 		toastType = 'success';
 		setTimeout(() => {
-			copiedFileId = null;
+			copiedToken = null;
+			showToast = false;
+		}, 2000);
+	}
+
+	async function copyFileName(file: { id: string; name: string }) {
+		await copyTextToClipboard(file.name);
+
+		copiedToken = `name:${file.id}`;
+		showToast = true;
+		toastMessage = 'Nombre de imagen copiado al portapapeles';
+		toastType = 'success';
+		setTimeout(() => {
+			copiedToken = null;
 			showToast = false;
 		}, 2000);
 	}
@@ -287,13 +303,29 @@
 								</div>
 							</div>
 							<div class="flex items-center gap-2">
+								{#if file.type === 'IMAGE'}
+									<button
+										type="button"
+										class="inline-flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-medium text-gray-600 ring-1 ring-gray-300 transition-colors hover:bg-gray-50 hover:text-gray-800 dark:text-gray-300 dark:ring-gray-600 dark:hover:bg-gray-600"
+										title="Copiar nombre de la imagen"
+										onclick={() => copyFileName(file)}
+									>
+										{#if copiedToken === `name:${file.id}`}
+											<Check class="h-4 w-4" />
+											Nombre copiado
+										{:else}
+											<Copy class="h-4 w-4" />
+											Copiar nombre
+										{/if}
+									</button>
+								{/if}
 								<button
 									type="button"
 									class="inline-flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-medium text-gray-600 ring-1 ring-gray-300 transition-colors hover:bg-gray-50 hover:text-gray-800 dark:text-gray-300 dark:ring-gray-600 dark:hover:bg-gray-600"
 									title="Copiar enlace del archivo"
 									onclick={() => copyFileUrl(file)}
 								>
-									{#if copiedFileId === file.id}
+									{#if copiedToken === `url:${file.id}`}
 										<Check class="h-4 w-4" />
 										Copiado
 									{:else}

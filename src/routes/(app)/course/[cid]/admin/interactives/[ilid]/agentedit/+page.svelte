@@ -219,7 +219,7 @@
 			title="Recursos compartidos de la actividad"
 			description="Sube imágenes y documentos para reutilizarlos en prompts y UI del agente."
 			warningMessage="Importante: estos adjuntos no sustituyen al RAG. Se usan como recursos visuales o enlaces que puedes referenciar en las instrucciones del agente."
-			copyHint='Usa "Copiar enlace" para referenciar recursos en instrucciones.'
+			copyHint='En imágenes usa "Copiar nombre"; la tool buscará el recurso por nombre en esta actividad.'
 			emptyMessage="Aún no hay recursos. Sube imágenes o documentos para reutilizarlos en la actividad."
 		/>
 	</div>

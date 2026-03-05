@@ -15,6 +15,8 @@ type SharedImageResourceResolution =
 	| { ok: true; resource: SharedImageResource }
 	| { ok: false; error: string };
 
+type SharedImageCandidate = typeof schema.interactiveLearningFile.$inferSelect;
+
 export default class DBAgentActivityUtils {
 	// ─── Actividad Agéntica ───
 
@@ -140,6 +142,73 @@ export default class DBAgentActivityUtils {
 		return match?.[1] ?? null;
 	}
 
+	private static normalizeResourceName(value: string): string {
+		return value
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.trim()
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, ' ')
+			.replace(/\s+/g, ' ');
+	}
+
+	private static removeExtension(value: string): string {
+		return value.replace(/\.[a-z0-9]{1,6}$/i, '');
+	}
+
+	private static scoreImageNameMatch(query: string, candidateName: string): number {
+		const q = this.normalizeResourceName(query);
+		const c = this.normalizeResourceName(candidateName);
+		const qNoExt = this.removeExtension(q);
+		const cNoExt = this.removeExtension(c);
+
+		if (q.length === 0 || c.length === 0) return 0;
+		if (q === c) return 140;
+		if (qNoExt === cNoExt) return 130;
+		if (c.startsWith(q) || cNoExt.startsWith(qNoExt)) return 110;
+		if (c.includes(q) || cNoExt.includes(qNoExt)) return 90;
+
+		const queryTokens = qNoExt.split(' ').filter((token) => token.length > 1);
+		if (queryTokens.length === 0) return 0;
+
+		let overlap = 0;
+		for (const token of queryTokens) {
+			if (cNoExt.includes(token)) overlap++;
+		}
+
+		return overlap > 0 ? 40 + overlap * 10 : 0;
+	}
+
+	private static toSharedImageResource(
+		resource: SharedImageCandidate,
+		errorContext: string
+	): SharedImageResourceResolution {
+		if (!resource.mimeType.startsWith('image/')) {
+			return {
+				ok: false,
+				error: `Shared resource "${errorContext}" is not an image.`
+			};
+		}
+
+		const fileId = resource.fileStorageId ?? this.extractFileIdFromPath(resource.path);
+		if (!fileId) {
+			return {
+				ok: false,
+				error: `Shared resource "${errorContext}" has no valid file reference.`
+			};
+		}
+
+		return {
+			ok: true,
+			resource: {
+				resourceId: resource.id,
+				fileId,
+				name: resource.name,
+				mimeType: resource.mimeType
+			}
+		};
+	}
+
 	static async resolveSharedImageResource(
 		activityId: string,
 		resourceId: string
@@ -162,29 +231,72 @@ export default class DBAgentActivityUtils {
 			};
 		}
 
-		if (!resource.mimeType.startsWith('image/')) {
+		return this.toSharedImageResource(resource, resourceId);
+	}
+
+	static async resolveSharedImageResourceByName(
+		activityId: string,
+		resourceName: string
+	): Promise<SharedImageResourceResolution> {
+		const resources = await db
+			.select()
+			.from(schema.interactiveLearningFile)
+			.where(eq(schema.interactiveLearningFile.interactiveLearningId, activityId));
+
+		const imageResources = resources.filter((resource) => resource.mimeType.startsWith('image/'));
+		if (imageResources.length === 0) {
 			return {
 				ok: false,
-				error: `Shared resource "${resourceId}" is not an image.`
+				error: `No shared images are available in this activity for "${resourceName}".`
 			};
 		}
 
-		const fileId = resource.fileStorageId ?? this.extractFileIdFromPath(resource.path);
-		if (!fileId) {
+		const scored = imageResources
+			.map((resource) => ({
+				resource,
+				score: this.scoreImageNameMatch(resourceName, resource.name)
+			}))
+			.filter((entry) => entry.score > 0)
+			.sort((a, b) => {
+				if (b.score !== a.score) return b.score - a.score;
+				return b.resource.createdAt.getTime() - a.resource.createdAt.getTime();
+			});
+
+		const bestMatch = scored[0]?.resource;
+		if (!bestMatch) {
 			return {
 				ok: false,
-				error: `Shared resource "${resourceId}" has no valid file reference.`
+				error: `No shared image matching "${resourceName}" was found in this activity.`
 			};
+		}
+
+		return this.toSharedImageResource(bestMatch, resourceName);
+	}
+
+	static async resolveSharedImageResourceFlexible(
+		activityId: string,
+		params: { resourceId?: string; resourceName?: string }
+	): Promise<SharedImageResourceResolution> {
+		if (params.resourceName) {
+			const byName = await this.resolveSharedImageResourceByName(activityId, params.resourceName);
+			if (byName.ok) return byName;
+			if (!params.resourceId) return byName;
+		}
+
+		if (params.resourceId) {
+			const byId = await this.resolveSharedImageResource(activityId, params.resourceId);
+			if (byId.ok) return byId;
+
+			// Compatibilidad: si llega un nombre en resourceId, intentar resolverlo por nombre.
+			const byNameFallback = await this.resolveSharedImageResourceByName(activityId, params.resourceId);
+			if (byNameFallback.ok) return byNameFallback;
+
+			return byId;
 		}
 
 		return {
-			ok: true,
-			resource: {
-				resourceId: resource.id,
-				fileId,
-				name: resource.name,
-				mimeType: resource.mimeType
-			}
+			ok: false,
+			error: 'Either resourceId or resourceName is required to resolve a shared image.'
 		};
 	}
 

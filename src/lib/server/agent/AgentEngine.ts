@@ -229,10 +229,17 @@ export class AgentEngine {
 
 				let uiInput = validatedInput.input;
 				if (componentKey === 'SharedImageCard') {
-					const resourceId = validatedInput.input.resourceId as string;
-					const resolved = await DBAgentActivityUtils.resolveSharedImageResource(
+					const resourceId =
+						typeof validatedInput.input.resourceId === 'string'
+							? validatedInput.input.resourceId
+							: undefined;
+					const resourceName =
+						typeof validatedInput.input.resourceName === 'string'
+							? validatedInput.input.resourceName
+							: undefined;
+					const resolved = await DBAgentActivityUtils.resolveSharedImageResourceFlexible(
 						context.activityId,
-						resourceId
+						{ resourceId, resourceName }
 					);
 
 					if (!resolved.ok) {
@@ -313,11 +320,16 @@ export class AgentEngine {
 			const resourceId =
 				typeof input.resourceId === 'string' && input.resourceId.trim().length > 0
 					? input.resourceId.trim()
-					: null;
-			if (!resourceId) {
+					: undefined;
+			const resourceName =
+				typeof input.resourceName === 'string' && input.resourceName.trim().length > 0
+					? input.resourceName.trim()
+					: undefined;
+
+			if (!resourceId && !resourceName) {
 				return {
 					ok: false,
-					errorMessage: 'Invalid shared image config: resourceId is required.'
+					errorMessage: 'Invalid shared image config: resourceId or resourceName is required.'
 				};
 			}
 
@@ -334,7 +346,9 @@ export class AgentEngine {
 				};
 			}
 
-			const normalized: Record<string, unknown> = { resourceId };
+			const normalized: Record<string, unknown> = {};
+			if (resourceId) normalized.resourceId = resourceId;
+			if (resourceName) normalized.resourceName = resourceName;
 			if (typeof input.title === 'string' && input.title.trim().length > 0) {
 				normalized.title = input.title.trim();
 			}

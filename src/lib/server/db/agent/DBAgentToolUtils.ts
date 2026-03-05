@@ -451,20 +451,26 @@ export default class DBAgentToolUtils {
 				requiresConfirmation: false,
 				riskLevel: 'low' as const,
 				isSystem: true,
-				version: '1.0.0'
+				version: '1.1.0'
 			},
 			{
 				name: 'render_shared_image',
 				displayName: 'Mostrar Imagen Compartida',
 				description:
-					'Muestra en el chat una imagen subida como recurso compartido de la actividad actual usando su resourceId.',
+					'Muestra en el chat una imagen subida como recurso compartido de la actividad actual. Usa resourceName (preferido) para buscar por nombre o resourceId si ya lo conoces.',
 				category: 'ui',
 				parametersSchema: JSON.stringify({
 					type: 'object',
 					properties: {
+						resourceName: {
+							type: 'string',
+							description:
+								'Nombre del recurso de imagen compartido en la actividad (ej: "diagrama-celula.png")'
+						},
 						resourceId: {
 							type: 'string',
-							description: 'ID del recurso compartido (interactiveLearningFile.id)'
+							description:
+								'ID del recurso compartido (interactiveLearningFile.id). Opcional si ya se conoce.'
 						},
 						title: {
 							type: 'string',
@@ -474,8 +480,7 @@ export default class DBAgentToolUtils {
 							type: 'string',
 							description: 'Pie de foto opcional para la imagen'
 						}
-					},
-					required: ['resourceId']
+					}
 				}),
 				executorType: 'builtin' as const,
 				executorConfig: JSON.stringify({
@@ -535,6 +540,24 @@ export default class DBAgentToolUtils {
 			const existing = await this.getToolDefinitionByName(tool.name);
 			if (!existing) {
 				await this.createToolDefinition(tool);
+				continue;
+			}
+
+			// Mantener herramientas builtin sincronizadas en instalaciones existentes.
+			if (existing.isSystem) {
+				await this.updateToolDefinition(existing.id, {
+					displayName: tool.displayName,
+					description: tool.description,
+					category: tool.category,
+					parametersSchema: tool.parametersSchema,
+					responseSchema: tool.responseSchema,
+					executorType: tool.executorType,
+					executorConfig: tool.executorConfig,
+					requiresConfirmation: tool.requiresConfirmation,
+					riskLevel: tool.riskLevel,
+					isActive: true,
+					version: tool.version
+				});
 			}
 		}
 	}

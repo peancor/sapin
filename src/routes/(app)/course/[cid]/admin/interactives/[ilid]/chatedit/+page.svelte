@@ -160,7 +160,7 @@
 			title="Recursos de la actividad (imágenes y documentos)"
 			description="Sube imágenes para mostrarlas durante la actividad y documentos para enlazarlos desde las instrucciones."
 			warningMessage="Importante: el modelo de IA no tiene acceso directo al contenido interno de estas imágenes o documentos. Estos recursos se usan para mostrarse al estudiante o para enlazarse desde las instrucciones de la actividad."
-			copyHint='Usa "Copiar enlace" para referenciar recursos en las instrucciones.'
+			copyHint='En imágenes usa "Copiar nombre" para que la tool pueda localizar el recurso.'
 			emptyMessage="Aún no hay recursos. Sube imágenes o documentos para reutilizarlos en la actividad."
 		/>
 	</div>
