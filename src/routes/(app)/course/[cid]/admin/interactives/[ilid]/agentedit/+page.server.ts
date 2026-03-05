@@ -296,11 +296,10 @@ export const load = (async ({ params, locals }) => {
     await DBAgentUIUtils.seedBuiltinUIComponents();
     const activeTools = await DBAgentToolUtils.getActiveToolDefinitions();
     const activeUIComponents = await DBAgentUIUtils.getAllUIComponents();
+    const availableUIComponentKeys = activeUIComponents.map((component) => component.componentKey);
 
     const enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilid);
-    const enabledUIComponents = await DBAgentActivityUtils.getEnabledUIComponentsForActivity(ilid);
     const assignedToolIds = enabledTools.map((t) => t.id);
-    const assignedUIComponentIds = enabledUIComponents.map((c) => c.id);
 
     const files = await db
         .select()
@@ -367,9 +366,8 @@ export const load = (async ({ params, locals }) => {
         models,
         defaultModel,
         activeTools,
-        activeUIComponents,
-        assignedToolIds,
-        assignedUIComponentIds
+        availableUIComponentKeys,
+        assignedToolIds
     };
 }) satisfies PageServerLoad;
 
@@ -425,16 +423,9 @@ export const actions = {
         }
 
         let selectedToolIds: string[] = [];
-        let selectedUIComponentIds: string[] = [];
         try {
             const raw = data.get('selectedToolIds')?.toString();
             if (raw) selectedToolIds = JSON.parse(raw) as string[];
-        } catch {
-            // ignore malformed data
-        }
-        try {
-            const raw = data.get('selectedUIComponentIds')?.toString();
-            if (raw) selectedUIComponentIds = JSON.parse(raw) as string[];
         } catch {
             // ignore malformed data
         }
@@ -470,7 +461,6 @@ export const actions = {
         });
 
         await DBAgentActivityUtils.setActivityTools(ilid, selectedToolIds);
-        await DBAgentActivityUtils.setActivityUIComponents(ilid, selectedUIComponentIds);
 
         await auditService.log({
             action: auditAction.ACTIVITY_UPDATED,

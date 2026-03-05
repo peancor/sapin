@@ -21,6 +21,10 @@ import * as schema from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { isPromptSafe } from '$lib/server/utils/moderation';
 import { MODERATE_PROMPTS } from '$env/static/private';
+import {
+	deriveEnabledUIComponentKeysFromTools,
+	resolveUIRendererBindings
+} from '$lib/utils/agentToolUiMapping';
 
 export const GET: RequestHandler = async ({ url, params, locals }) => {
 	const user = locals.user;
@@ -91,17 +95,26 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
 			});
 		}
 
-		// Cargar herramientas y componentes UI habilitados para esta actividad
+		// Cargar herramientas habilitadas para esta actividad.
+		// Los UI components se derivan desde tools tipo ui_renderer.
 		let enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilcid);
-		let enabledUIComponents = await DBAgentActivityUtils.getEnabledUIComponentsForActivity(ilcid);
 
-		// Seed de herramientas builtin y componentes UI si no hay ninguna aún
-		if (enabledTools.length === 0 || enabledUIComponents.length === 0) {
+		// Seed de catálogos builtin si no hay herramientas habilitadas aún
+		if (enabledTools.length === 0) {
 			await DBAgentToolUtils.seedBuiltinTools();
 			await DBAgentUIUtils.seedBuiltinUIComponents();
 
 			enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilcid);
-			enabledUIComponents = await DBAgentActivityUtils.getEnabledUIComponentsForActivity(ilcid);
+		}
+
+		const enabledUIComponentKeys = deriveEnabledUIComponentKeysFromTools(enabledTools);
+		const uiToolWarnings = resolveUIRendererBindings(enabledTools).filter((b) => b.issue !== null);
+		for (const warning of uiToolWarnings) {
+			console.warn('[agent-chat] ui_renderer misconfigured', {
+				activityId: ilcid,
+				toolName: warning.toolName,
+				issue: warning.issue
+			});
 		}
 
 		// Obtener historial de mensajes para el contexto (solo para executeLoop)
@@ -138,7 +151,7 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
 				ragConfig: agentActivity.ragConfig as string | null
 			},
 			enabledTools,
-			enabledUIComponentKeys: enabledUIComponents.map((component) => component.componentKey),
+			enabledUIComponentKeys,
 			messageHistory
 		};
 

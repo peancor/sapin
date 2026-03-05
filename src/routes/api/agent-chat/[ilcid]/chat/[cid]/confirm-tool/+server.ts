@@ -21,6 +21,10 @@ import type { AgentContext } from '$lib/types/agent';
 import { db } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import {
+	deriveEnabledUIComponentKeysFromTools,
+	resolveUIRendererBindings
+} from '$lib/utils/agentToolUiMapping';
 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
 	const user = locals.user;
@@ -100,7 +104,15 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	if (!agentActivity) return json({ error: 'Actividad no encontrada' }, { status: 404 });
 
 	const enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilcid);
-	const enabledUIComponents = await DBAgentActivityUtils.getEnabledUIComponentsForActivity(ilcid);
+	const enabledUIComponentKeys = deriveEnabledUIComponentKeysFromTools(enabledTools);
+	const uiToolWarnings = resolveUIRendererBindings(enabledTools).filter((b) => b.issue !== null);
+	for (const warning of uiToolWarnings) {
+		console.warn('[agent-chat] confirm-tool ui_renderer misconfigured', {
+			activityId: ilcid,
+			toolName: warning.toolName,
+			issue: warning.issue
+		});
+	}
 
 	const [courseRelation] = await db
 		.select({ courseId: schema.courseInteractiveLearning.courseId })
@@ -138,7 +150,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 			ragConfig: agentActivity.ragConfig as string | null
 		},
 		enabledTools,
-		enabledUIComponentKeys: enabledUIComponents.map((component) => component.componentKey),
+		enabledUIComponentKeys,
 		messageHistory: []
 	};
 

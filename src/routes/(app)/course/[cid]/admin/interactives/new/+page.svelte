@@ -32,7 +32,6 @@
 	let parallelToolCalls = $state(false);
 	let toolChoice = $state<'auto' | 'required' | 'none'>('auto');
 	let selectedToolIds = $state<string[]>([]);
-	let selectedUIComponentIds = $state<string[]>([]);
 	let finalizationEnabled = $state(true);
 	let finalizationToolName = $state('finalize_activity');
 	let finalizationHandler = $state<'mark_complete_and_notify' | 'mark_complete_only' | 'notify_only'>(
@@ -192,9 +191,8 @@
 				bind:finalizationConfig
 				bind:requireFinalizationToolCall
 				tools={data.activeTools}
+				availableUIComponentKeys={data.availableUIComponentKeys}
 				bind:selectedToolIds
-				uiComponents={data.activeUIComponents}
-				bind:selectedUIComponentIds
 				onchange={markDirty}
 			/>
 		{/if}

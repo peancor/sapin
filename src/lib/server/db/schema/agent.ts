@@ -196,32 +196,6 @@ export const agentActivityTool = sqliteTable(
 );
 
 // ============================================
-// COMPONENTES UI HABILITADOS POR ACTIVIDAD
-// ============================================
-
-export const agentActivityUIComponent = sqliteTable(
-    'agent_activity_ui_component',
-    {
-        id: text('id').primaryKey(),
-        agentActivityId: text('agent_activity_id')
-            .notNull()
-            .references(() => interactiveLearningAgent.id, { onDelete: 'cascade' }),
-        uiComponentId: text('ui_component_id')
-            .notNull()
-            .references(() => agentUIComponent.id, { onDelete: 'cascade' }),
-
-        configOverride: text('config_override'),
-        isEnabled: integer('is_enabled', { mode: 'boolean' }).notNull().default(true),
-
-        createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
-    },
-    (table) => [
-        index('agent_activity_ui_activity_idx').on(table.agentActivityId),
-        index('agent_activity_ui_comp_idx').on(table.uiComponentId)
-    ]
-);
-
-// ============================================
 // MENSAJES AGÉNTICOS
 // (reemplaza la tabla `message` para actividades type='agent')
 // ============================================
@@ -351,7 +325,6 @@ export const agentToolDefinitionRelations = relations(agentToolDefinition, ({ ma
 }));
 
 export const agentUIComponentRelations = relations(agentUIComponent, ({ many }) => ({
-    activityUIComponents: many(agentActivityUIComponent),
     instances: many(agentUIInstance)
 }));
 
@@ -362,8 +335,7 @@ export const interactiveLearningAgentRelations = relations(
             fields: [interactiveLearningAgent.id],
             references: [interactiveLearning.id]
         }),
-        activityTools: many(agentActivityTool),
-        activityUIComponents: many(agentActivityUIComponent)
+        activityTools: many(agentActivityTool)
     })
 );
 
@@ -375,17 +347,6 @@ export const agentActivityToolRelations = relations(agentActivityTool, ({ one })
     toolDefinition: one(agentToolDefinition, {
         fields: [agentActivityTool.toolDefinitionId],
         references: [agentToolDefinition.id]
-    })
-}));
-
-export const agentActivityUIComponentRelations = relations(agentActivityUIComponent, ({ one }) => ({
-    agentActivity: one(interactiveLearningAgent, {
-        fields: [agentActivityUIComponent.agentActivityId],
-        references: [interactiveLearningAgent.id]
-    }),
-    uiComponent: one(agentUIComponent, {
-        fields: [agentActivityUIComponent.uiComponentId],
-        references: [agentUIComponent.id]
     })
 }));
 
@@ -438,7 +399,6 @@ export type InteractiveLearningAgent = typeof interactiveLearningAgent.$inferSel
 export type NewInteractiveLearningAgent = typeof interactiveLearningAgent.$inferInsert;
 
 export type AgentActivityTool = typeof agentActivityTool.$inferSelect;
-export type AgentActivityUIComponent = typeof agentActivityUIComponent.$inferSelect;
 
 export type AgentMessage = typeof agentMessage.$inferSelect;
 export type NewAgentMessage = typeof agentMessage.$inferInsert;

@@ -1,5 +1,5 @@
 import { db } from '..';
-import { eq, and, asc, desc } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import * as schema from '../schema';
 import { nanoid } from 'nanoid';
 import type { ToolDefinitionResolved } from '$lib/types/agent';
@@ -123,42 +123,6 @@ export default class DBAgentActivityUtils {
 		}
 	}
 
-	static async setActivityUIComponents(activityId: string, uiComponentIds: string[]) {
-		await db
-			.delete(schema.agentActivityUIComponent)
-			.where(eq(schema.agentActivityUIComponent.agentActivityId, activityId));
-
-		if (uiComponentIds.length > 0) {
-			await db.insert(schema.agentActivityUIComponent).values(
-				uiComponentIds.map((uiId) => ({
-					id: nanoid(),
-					agentActivityId: activityId,
-					uiComponentId: uiId,
-					isEnabled: true,
-					createdAt: new Date()
-				}))
-			);
-		}
-	}
-
-	static async getEnabledUIComponentsForActivity(activityId: string) {
-		const rows = await db
-			.select({ component: schema.agentUIComponent })
-			.from(schema.agentActivityUIComponent)
-			.innerJoin(
-				schema.agentUIComponent,
-				eq(schema.agentActivityUIComponent.uiComponentId, schema.agentUIComponent.id)
-			)
-			.where(
-				and(
-					eq(schema.agentActivityUIComponent.agentActivityId, activityId),
-					eq(schema.agentActivityUIComponent.isEnabled, true),
-					eq(schema.agentUIComponent.isActive, true)
-				)
-			);
-		return rows.map((r) => r.component);
-	}
-
 	// ─── Seed del Asistente Global de Tutoría ───
 
 	static readonly GLOBAL_TUTOR_ID = 'system-global-tutor-v1';
@@ -218,12 +182,7 @@ export default class DBAgentActivityUtils {
 			].includes(t.name)
 		);
 
-		const uiComponents = await DBAgentUIUtils.getAllUIComponents();
-		const defaultGlobalUIComponents = uiComponents.filter((component) =>
-			['quiz_card', 'timed_quiz_card', 'flashcard_deck', 'graph_plot_card'].includes(component.name)
-		);
-
-		if (defaultGlobalTools.length === 0 && defaultGlobalUIComponents.length === 0) return;
+		if (defaultGlobalTools.length === 0) return;
 
 		if (!existing) {
 			if (defaultGlobalTools.length > 0) {
@@ -233,12 +192,6 @@ export default class DBAgentActivityUtils {
 				);
 			}
 
-			if (defaultGlobalUIComponents.length > 0) {
-				await this.setActivityUIComponents(
-					this.GLOBAL_TUTOR_ID,
-					defaultGlobalUIComponents.map((component) => component.id)
-				);
-			}
 			return;
 		}
 
@@ -257,22 +210,6 @@ export default class DBAgentActivityUtils {
 			}
 		}
 
-		if (defaultGlobalUIComponents.length > 0) {
-			const enabledUIComponents = await this.getEnabledUIComponentsForActivity(
-				this.GLOBAL_TUTOR_ID
-			);
-			const mergedUIComponentIds = [...enabledUIComponents.map((component) => component.id)];
-
-			for (const component of defaultGlobalUIComponents) {
-				if (!mergedUIComponentIds.includes(component.id)) {
-					mergedUIComponentIds.push(component.id);
-				}
-			}
-
-			if (mergedUIComponentIds.length !== enabledUIComponents.length) {
-				await this.setActivityUIComponents(this.GLOBAL_TUTOR_ID, mergedUIComponentIds);
-			}
-		}
 	}
 
 	static async getOrCreateTutorChat(userId: string): Promise<string> {

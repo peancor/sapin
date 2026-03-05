@@ -37,6 +37,7 @@ export const load = (async ({ locals, params }) => {
     await DBAgentUIUtils.seedBuiltinUIComponents();
     const activeTools = await DBAgentToolUtils.getActiveToolDefinitions();
     const activeUIComponents = await DBAgentUIUtils.getAllUIComponents();
+    const availableUIComponentKeys = activeUIComponents.map((component) => component.componentKey);
 
     return {
         courseId: params.cid,
@@ -44,7 +45,7 @@ export const load = (async ({ locals, params }) => {
         models,
         defaultModel,
         activeTools,
-        activeUIComponents
+        availableUIComponentKeys
     };
 }) satisfies PageServerLoad;
 
@@ -161,14 +162,9 @@ export const actions = {
             }
 
             let selectedToolIds: string[] = [];
-            let selectedUIComponentIds: string[] = [];
             try {
                 const toolIdsRaw = data.get('selectedToolIds')?.toString();
                 if (toolIdsRaw) selectedToolIds = JSON.parse(toolIdsRaw) as string[];
-            } catch { /* ignore */ }
-            try {
-                const uiIdsRaw = data.get('selectedUIComponentIds')?.toString();
-                if (uiIdsRaw) selectedUIComponentIds = JSON.parse(uiIdsRaw) as string[];
             } catch { /* ignore */ }
 
             await db.insert(interactiveLearningAgent).values({
@@ -193,7 +189,6 @@ export const actions = {
             });
 
             await DBAgentActivityUtils.setActivityTools(id, selectedToolIds);
-            await DBAgentActivityUtils.setActivityUIComponents(id, selectedUIComponentIds);
         }
 
         // Obtener el último orden para este curso
