@@ -4,7 +4,7 @@ import type { AgentContext, AgentStreamPart, ToolDefinitionResolved } from '$lib
 import { ModelResolver } from '$lib/server/ai/services/ModelResolver';
 import { UsageTracker } from '$lib/server/ai/services/UsageTracker';
 import { RagService } from '$lib/server/ai/services/RagService';
-import { DBAgentUIUtils, DBAgentMessageUtils } from '$lib/server/db/agent';
+import { DBAgentActivityUtils, DBAgentUIUtils, DBAgentMessageUtils } from '$lib/server/db/agent';
 import { ToolManager } from './ToolManager';
 import { ToolExecutor } from './ToolExecutor';
 import { AgentPromptBuilder } from './AgentPromptBuilder';
@@ -227,6 +227,41 @@ export class AgentEngine {
 					};
 				}
 
+				let uiInput = validatedInput.input;
+				if (componentKey === 'SharedImageCard') {
+					const resourceId = validatedInput.input.resourceId as string;
+					const resolved = await DBAgentActivityUtils.resolveSharedImageResource(
+						context.activityId,
+						resourceId
+					);
+
+					if (!resolved.ok) {
+						return {
+							error: resolved.error
+						};
+					}
+
+					const title =
+						typeof validatedInput.input.title === 'string' &&
+						validatedInput.input.title.trim().length > 0
+							? validatedInput.input.title.trim()
+							: undefined;
+					const caption =
+						typeof validatedInput.input.caption === 'string' &&
+						validatedInput.input.caption.trim().length > 0
+							? validatedInput.input.caption.trim()
+							: undefined;
+
+					uiInput = {
+						resourceId: resolved.resource.resourceId,
+						fileId: resolved.resource.fileId,
+						name: resolved.resource.name,
+						mimeType: resolved.resource.mimeType,
+						...(title ? { title } : {}),
+						...(caption ? { caption } : {})
+					};
+				}
+
 				const uiComp = await DBAgentUIUtils.getUIComponentByKey(componentKey);
 				if (!uiComp) {
 					return {
@@ -239,7 +274,7 @@ export class AgentEngine {
 					messageId: assistantMsgId,
 					uiComponentId: uiComp.id,
 					componentKey,
-					props: JSON.stringify(validatedInput.input),
+					props: JSON.stringify(uiInput),
 					metadata: JSON.stringify({ componentKey, toolCallId })
 				});
 
@@ -247,7 +282,7 @@ export class AgentEngine {
 					__uiComponent: true,
 					instanceId,
 					componentKey,
-					props: validatedInput.input,
+					props: uiInput,
 					interactive
 				} satisfies UISentinel;
 			}
@@ -274,6 +309,41 @@ export class AgentEngine {
 		componentKey: string,
 		input: Record<string, unknown>
 	): UIInputValidationResult {
+		if (componentKey === 'SharedImageCard') {
+			const resourceId =
+				typeof input.resourceId === 'string' && input.resourceId.trim().length > 0
+					? input.resourceId.trim()
+					: null;
+			if (!resourceId) {
+				return {
+					ok: false,
+					errorMessage: 'Invalid shared image config: resourceId is required.'
+				};
+			}
+
+			if (input.title !== undefined && typeof input.title !== 'string') {
+				return {
+					ok: false,
+					errorMessage: 'Invalid shared image config: title must be a string.'
+				};
+			}
+			if (input.caption !== undefined && typeof input.caption !== 'string') {
+				return {
+					ok: false,
+					errorMessage: 'Invalid shared image config: caption must be a string.'
+				};
+			}
+
+			const normalized: Record<string, unknown> = { resourceId };
+			if (typeof input.title === 'string' && input.title.trim().length > 0) {
+				normalized.title = input.title.trim();
+			}
+			if (typeof input.caption === 'string' && input.caption.trim().length > 0) {
+				normalized.caption = input.caption.trim();
+			}
+			return { ok: true, input: normalized };
+		}
+
 		if (componentKey === 'GraphPlotCard') {
 			const parsed = graphPlotPropsSchema.safeParse(input);
 			if (!parsed.success) {

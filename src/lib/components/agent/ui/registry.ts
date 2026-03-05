@@ -2,6 +2,7 @@ import QuizCard from './QuizCard.svelte';
 import FlashcardDeck from './FlashcardDeck.svelte';
 import TimedQuizCard from './TimedQuizCard.svelte';
 import GraphPlotCard from './GraphPlotCard.svelte';
+import SharedImageCard from './SharedImageCard.svelte';
 
 interface UIComponentContext {
 	instanceId: string;
@@ -127,6 +128,22 @@ const uiComponentRegistry = {
 			initialUserResponse: ctx.initialUserResponse,
 			apiBase: ctx.apiBase,
 			onRespond: (score?: number) => ctx.onRespond?.(score)
+		})
+	},
+	SharedImageCard: {
+		component: SharedImageCard,
+		buildProps: (ctx: UIComponentContext) => ({
+			instanceId: ctx.instanceId,
+			resourceId: asString(ctx.props.resourceId) ?? '',
+			fileId: asString(ctx.props.fileId) ?? '',
+			name: asString(ctx.props.name) ?? 'image',
+			mimeType: asString(ctx.props.mimeType) ?? 'image/*',
+			title: asString(ctx.props.title),
+			caption: asString(ctx.props.caption),
+			interactive: ctx.interactive,
+			initialUserResponse: ctx.initialUserResponse,
+			apiBase: ctx.apiBase,
+			onRespond: () => ctx.onRespond?.()
 		})
 	}
 } as const;

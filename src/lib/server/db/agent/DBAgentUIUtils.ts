@@ -324,6 +324,28 @@ export default class DBAgentUIUtils {
 				}),
 				isSystem: true,
 				version: '1.0.0'
+			},
+			{
+				name: 'shared_image_card',
+				displayName: 'Imagen Compartida',
+				description:
+					'Muestra una imagen compartida de la actividad en el chat, con titulo y pie opcionales.',
+				category: 'visualization',
+				componentKey: 'SharedImageCard',
+				propsSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						resourceId: { type: 'string', description: 'ID del recurso compartido en la actividad' },
+						fileId: { type: 'string', description: 'ID real del archivo para /api/files/{fileId}' },
+						name: { type: 'string', description: 'Nombre original del archivo' },
+						mimeType: { type: 'string', description: 'MIME type de la imagen' },
+						title: { type: 'string', description: 'Titulo opcional para mostrar' },
+						caption: { type: 'string', description: 'Pie de foto opcional' }
+					},
+					required: ['resourceId', 'fileId', 'name', 'mimeType']
+				}),
+				isSystem: true,
+				version: '1.0.0'
 			}
 		];
 

@@ -4,6 +4,17 @@ import * as schema from '../schema';
 import { nanoid } from 'nanoid';
 import type { ToolDefinitionResolved } from '$lib/types/agent';
 
+interface SharedImageResource {
+	resourceId: string;
+	fileId: string;
+	name: string;
+	mimeType: string;
+}
+
+type SharedImageResourceResolution =
+	| { ok: true; resource: SharedImageResource }
+	| { ok: false; error: string };
+
 export default class DBAgentActivityUtils {
 	// ─── Actividad Agéntica ───
 
@@ -121,6 +132,60 @@ export default class DBAgentActivityUtils {
 				}))
 			);
 		}
+	}
+
+	private static extractFileIdFromPath(path: string | null | undefined): string | null {
+		if (!path) return null;
+		const match = path.match(/\/api\/files\/([^/?#]+)/i);
+		return match?.[1] ?? null;
+	}
+
+	static async resolveSharedImageResource(
+		activityId: string,
+		resourceId: string
+	): Promise<SharedImageResourceResolution> {
+		const [resource] = await db
+			.select()
+			.from(schema.interactiveLearningFile)
+			.where(
+				and(
+					eq(schema.interactiveLearningFile.id, resourceId),
+					eq(schema.interactiveLearningFile.interactiveLearningId, activityId)
+				)
+			)
+			.limit(1);
+
+		if (!resource) {
+			return {
+				ok: false,
+				error: `Shared resource "${resourceId}" was not found in this activity.`
+			};
+		}
+
+		if (!resource.mimeType.startsWith('image/')) {
+			return {
+				ok: false,
+				error: `Shared resource "${resourceId}" is not an image.`
+			};
+		}
+
+		const fileId = resource.fileStorageId ?? this.extractFileIdFromPath(resource.path);
+		if (!fileId) {
+			return {
+				ok: false,
+				error: `Shared resource "${resourceId}" has no valid file reference.`
+			};
+		}
+
+		return {
+			ok: true,
+			resource: {
+				resourceId: resource.id,
+				fileId,
+				name: resource.name,
+				mimeType: resource.mimeType
+			}
+		};
 	}
 
 	// ─── Seed del Asistente Global de Tutoría ───
