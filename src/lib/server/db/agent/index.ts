@@ -1,4 +1,5 @@
 export { default as DBAgentActivityUtils } from './DBAgentActivityUtils';
+export { default as DBAgentSharedResourceUtils } from './DBAgentSharedResourceUtils';
 export { default as DBAgentToolUtils } from './DBAgentToolUtils';
 export { default as DBAgentUIUtils } from './DBAgentUIUtils';
 export { default as DBAgentMessageUtils } from './DBAgentMessageUtils';

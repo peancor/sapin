@@ -457,7 +457,7 @@ export default class DBAgentToolUtils {
 				name: 'render_shared_image',
 				displayName: 'Mostrar Imagen Compartida',
 				description:
-					'Muestra en el chat una imagen subida como recurso compartido de la actividad actual. Usa resourceName (preferido) para buscar por nombre o resourceId si ya lo conoces.',
+					'Muestra en el chat una imagen subida como recurso compartido de la actividad actual. Usa resourceName para buscar la imagen por nombre dentro de la actividad.',
 				category: 'ui',
 				parametersSchema: JSON.stringify({
 					type: 'object',
@@ -467,11 +467,6 @@ export default class DBAgentToolUtils {
 							description:
 								'Nombre del recurso de imagen compartido en la actividad (ej: "diagrama-celula.png")'
 						},
-						resourceId: {
-							type: 'string',
-							description:
-								'ID del recurso compartido (interactiveLearningFile.id). Opcional si ya se conoce.'
-						},
 						title: {
 							type: 'string',
 							description: 'Titulo opcional para mostrar sobre la imagen'
@@ -480,7 +475,8 @@ export default class DBAgentToolUtils {
 							type: 'string',
 							description: 'Pie de foto opcional para la imagen'
 						}
-					}
+					},
+					required: ['resourceName']
 				}),
 				executorType: 'builtin' as const,
 				executorConfig: JSON.stringify({
@@ -491,7 +487,7 @@ export default class DBAgentToolUtils {
 				requiresConfirmation: false,
 				riskLevel: 'low' as const,
 				isSystem: true,
-				version: '1.0.0'
+				version: '2.0.0'
 			},
 			{
 				name: 'send_notification',

@@ -1,80 +1,20 @@
 import { streamText, stepCountIs, type ModelMessage } from 'ai';
-import { nanoid } from 'nanoid';
 import type { AgentContext, AgentStreamPart, ToolDefinitionResolved } from '$lib/types/agent';
 import { ModelResolver } from '$lib/server/ai/services/ModelResolver';
 import { UsageTracker } from '$lib/server/ai/services/UsageTracker';
 import { RagService } from '$lib/server/ai/services/RagService';
-import { DBAgentActivityUtils, DBAgentUIUtils, DBAgentMessageUtils } from '$lib/server/db/agent';
+import { DBAgentMessageUtils } from '$lib/server/db/agent';
 import { ToolManager } from './ToolManager';
 import { ToolExecutor } from './ToolExecutor';
 import { AgentPromptBuilder } from './AgentPromptBuilder';
-import { AgentFinalizationService, type FinalizeActivityPayload } from './AgentFinalizationService';
-import { graphPlotPropsSchema } from '$lib/components/charts/jsxgraph/schema';
-
-interface UISentinel {
-	__uiComponent: true;
-	instanceId: string;
-	componentKey: string;
-	props: Record<string, unknown>;
-	interactive: boolean;
-}
-
-interface HitlSentinel {
-	__hitl: true;
-	toolCallId: string;
-	toolName: string;
-	toolDisplayName: string;
-	riskLevel: 'low' | 'medium' | 'high';
-	args: Record<string, unknown>;
-}
-
-interface FinalizeSentinel {
-	__finalize: true;
-	summary: string;
-	result?: 'completed' | 'passed' | 'failed';
-	score?: number;
-	feedback?: string;
-}
-
-interface StreamAccumulator {
-	text: string;
-	toolCallsCount: number;
-	hitlTriggered: boolean;
-	uiWaitTriggered: boolean;
-	finalizationTriggered: boolean;
-	finalizationPayload: FinalizeActivityPayload | null;
-}
-
-type UIInputValidationResult =
-	| { ok: true; input: Record<string, unknown> }
-	| { ok: false; errorMessage: string };
-
-function isUISentinel(value: unknown): value is UISentinel {
-	return (
-		typeof value === 'object' &&
-		value !== null &&
-		'__uiComponent' in value &&
-		(value as Record<string, unknown>).__uiComponent === true
-	);
-}
-
-function isHitlSentinel(value: unknown): value is HitlSentinel {
-	return (
-		typeof value === 'object' &&
-		value !== null &&
-		'__hitl' in value &&
-		(value as Record<string, unknown>).__hitl === true
-	);
-}
-
-function isFinalizeSentinel(value: unknown): value is FinalizeSentinel {
-	return (
-		typeof value === 'object' &&
-		value !== null &&
-		'__finalize' in value &&
-		(value as Record<string, unknown>).__finalize === true
-	);
-}
+import { AgentFinalizationService } from './AgentFinalizationService';
+import { AgentUIRendererService } from './AgentUIRendererService';
+import {
+	AgentStreamProcessor,
+	type FinalizeSentinel,
+	type HitlSentinel,
+	type StreamAccumulator
+} from './AgentStreamProcessor';
 
 export class AgentEngine {
 	private static readonly DEFAULT_FINALIZATION_TOOL_NAME = 'finalize_activity';
@@ -210,88 +150,24 @@ export class AgentEngine {
 				toolDef?.executorType === 'builtin' &&
 				toolDef?.executorConfig?.handler === 'ui_renderer'
 			) {
-				const componentKey = toolDef.executorConfig.componentKey as string;
-				const interactive = (toolDef.executorConfig.interactive as boolean) ?? false;
-				const instanceId = nanoid();
-
-				if (!context.enabledUIComponentKeys.includes(componentKey)) {
-					return {
-						error: `UI component "${componentKey}" is not enabled for this activity.`
-					};
+				if (!toolDef) {
+					return { error: `Tool "${toolName}" is not available.` };
 				}
 
-				const validatedInput = this.validateUIRendererInput(componentKey, input);
-				if (!validatedInput.ok) {
-					return {
-						error: validatedInput.errorMessage
-					};
-				}
-
-				let uiInput = validatedInput.input;
-				if (componentKey === 'SharedImageCard') {
-					const resourceId =
-						typeof validatedInput.input.resourceId === 'string'
-							? validatedInput.input.resourceId
-							: undefined;
-					const resourceName =
-						typeof validatedInput.input.resourceName === 'string'
-							? validatedInput.input.resourceName
-							: undefined;
-					const resolved = await DBAgentActivityUtils.resolveSharedImageResourceFlexible(
-						context.activityId,
-						{ resourceId, resourceName }
-					);
-
-					if (!resolved.ok) {
-						return {
-							error: resolved.error
-						};
-					}
-
-					const title =
-						typeof validatedInput.input.title === 'string' &&
-						validatedInput.input.title.trim().length > 0
-							? validatedInput.input.title.trim()
-							: undefined;
-					const caption =
-						typeof validatedInput.input.caption === 'string' &&
-						validatedInput.input.caption.trim().length > 0
-							? validatedInput.input.caption.trim()
-							: undefined;
-
-					uiInput = {
-						resourceId: resolved.resource.resourceId,
-						fileId: resolved.resource.fileId,
-						name: resolved.resource.name,
-						mimeType: resolved.resource.mimeType,
-						...(title ? { title } : {}),
-						...(caption ? { caption } : {})
-					};
-				}
-
-				const uiComp = await DBAgentUIUtils.getUIComponentByKey(componentKey);
-				if (!uiComp) {
-					return {
-						error: `UI component "${componentKey}" was not found in the registry.`
-					};
-				}
-
-				await DBAgentUIUtils.saveUIInstance({
-					id: instanceId,
-					messageId: assistantMsgId,
-					uiComponentId: uiComp.id,
-					componentKey,
-					props: JSON.stringify(uiInput),
-					metadata: JSON.stringify({ componentKey, toolCallId })
+				const rendered = await AgentUIRendererService.renderUIComponent({
+					context,
+					runtimeTool: toolDef,
+					input,
+					assistantMsgId,
+					toolName,
+					toolCallId
 				});
 
-				return {
-					__uiComponent: true,
-					instanceId,
-					componentKey,
-					props: uiInput,
-					interactive
-				} satisfies UISentinel;
+				if (!rendered.ok) {
+					return { error: rendered.error };
+				}
+
+				return rendered.sentinel;
 			}
 
 			if (toolDef?.requiresConfirmation) {
@@ -310,282 +186,6 @@ export class AgentEngine {
 			const result = await ToolExecutor.execute(toolName, input, context);
 			return result.success ? result.data : { error: result.errorMessage };
 		});
-	}
-
-	private static validateUIRendererInput(
-		componentKey: string,
-		input: Record<string, unknown>
-	): UIInputValidationResult {
-		if (componentKey === 'SharedImageCard') {
-			const resourceId =
-				typeof input.resourceId === 'string' && input.resourceId.trim().length > 0
-					? input.resourceId.trim()
-					: undefined;
-			const resourceName =
-				typeof input.resourceName === 'string' && input.resourceName.trim().length > 0
-					? input.resourceName.trim()
-					: undefined;
-
-			if (!resourceId && !resourceName) {
-				return {
-					ok: false,
-					errorMessage: 'Invalid shared image config: resourceId or resourceName is required.'
-				};
-			}
-
-			if (input.title !== undefined && typeof input.title !== 'string') {
-				return {
-					ok: false,
-					errorMessage: 'Invalid shared image config: title must be a string.'
-				};
-			}
-			if (input.caption !== undefined && typeof input.caption !== 'string') {
-				return {
-					ok: false,
-					errorMessage: 'Invalid shared image config: caption must be a string.'
-				};
-			}
-
-			const normalized: Record<string, unknown> = {};
-			if (resourceId) normalized.resourceId = resourceId;
-			if (resourceName) normalized.resourceName = resourceName;
-			if (typeof input.title === 'string' && input.title.trim().length > 0) {
-				normalized.title = input.title.trim();
-			}
-			if (typeof input.caption === 'string' && input.caption.trim().length > 0) {
-				normalized.caption = input.caption.trim();
-			}
-			return { ok: true, input: normalized };
-		}
-
-		if (componentKey === 'GraphPlotCard') {
-			const parsed = graphPlotPropsSchema.safeParse(input);
-			if (!parsed.success) {
-				const issue = parsed.error.issues[0];
-				return {
-					ok: false,
-					errorMessage: `Invalid graph plot config: ${issue?.message ?? 'schema validation failed'}`
-				};
-			}
-
-			return { ok: true, input: parsed.data };
-		}
-
-		return { ok: true, input };
-	}
-
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	private static async *processStream(
-		result: any,
-		context: AgentContext,
-		runtimeTools: ToolDefinitionResolved[],
-		assistantMsgId: string,
-		accumulated: StreamAccumulator
-	): AsyncGenerator<AgentStreamPart> {
-		for await (const event of result.fullStream) {
-			switch (event.type) {
-				case 'text-delta':
-					accumulated.text += event.text;
-					yield { type: 'text-delta', text: event.text };
-					break;
-
-				case 'tool-call': {
-					accumulated.toolCallsCount++;
-					const toolDef = runtimeTools.find((t) => t.name === event.toolName);
-					const toolCallId = event.toolCallId;
-					const toolInput = event.input as Record<string, unknown>;
-
-					await DBAgentMessageUtils.saveToolCall({
-						id: toolCallId,
-						messageId: assistantMsgId,
-						toolName: event.toolName,
-						toolDefinitionId: toolDef?.id?.startsWith('__') ? undefined : toolDef?.id,
-						arguments: JSON.stringify(toolInput),
-						status: 'executing'
-					});
-
-					yield {
-						type: 'tool-call-start',
-						toolCallId,
-						toolName: event.toolName,
-						toolDisplayName: toolDef?.displayName ?? event.toolName,
-						args: toolInput
-					};
-
-					yield {
-						type: 'tool-call-delta',
-						toolCallId,
-						status: 'executing',
-						progressText: `Ejecutando ${toolDef?.displayName ?? event.toolName}...`
-					};
-					break;
-				}
-
-				case 'tool-result': {
-					const toolCallId = event.toolCallId;
-					const toolOutput = event.output as unknown;
-
-					if (isUISentinel(toolOutput)) {
-						yield {
-							type: 'ui-component',
-							instanceId: toolOutput.instanceId,
-							componentKey: toolOutput.componentKey,
-							props: toolOutput.props,
-							interactive: toolOutput.interactive
-						};
-
-						const cleanResult = {
-							rendered: true,
-							componentKey: toolOutput.componentKey,
-							instanceId: toolOutput.instanceId
-						};
-
-						if (toolOutput.interactive) {
-							await DBAgentMessageUtils.updateToolCall(toolCallId, {
-								result: JSON.stringify(cleanResult),
-								status: 'awaiting_ui_response'
-							});
-
-							await DBAgentMessageUtils.updateAgentMessage(assistantMsgId, {
-								textContent: accumulated.text,
-								finishReason: 'ui_wait'
-							});
-
-							accumulated.uiWaitTriggered = true;
-						} else {
-							await DBAgentMessageUtils.updateToolCall(toolCallId, {
-								result: JSON.stringify(cleanResult),
-								status: 'completed'
-							});
-
-							await DBAgentMessageUtils.saveAgentMessage({
-								chatId: context.chatId,
-								role: 'tool',
-								textContent: JSON.stringify(cleanResult),
-								toolCallId,
-								toolName: event.toolName,
-								sequenceOrder: 2
-							});
-						}
-
-						break;
-					}
-
-					if (isHitlSentinel(toolOutput)) {
-						await DBAgentMessageUtils.updateAgentMessage(assistantMsgId, {
-							textContent: accumulated.text,
-							finishReason: 'hitl'
-						});
-
-						yield {
-							type: 'tool-confirm-required',
-							toolCallId: toolOutput.toolCallId,
-							toolName: toolOutput.toolName,
-							toolDisplayName: toolOutput.toolDisplayName,
-							args: toolOutput.args,
-							riskLevel: toolOutput.riskLevel,
-							confirmationMessage: `¿Autorizar la ejecucion de "${toolOutput.toolDisplayName}"?`
-						};
-
-						accumulated.hitlTriggered = true;
-						break;
-					}
-
-					if (isFinalizeSentinel(toolOutput)) {
-						const finalizedResult = {
-							finalized: true,
-							summary: toolOutput.summary,
-							result: toolOutput.result,
-							score: toolOutput.score,
-							feedback: toolOutput.feedback
-						};
-
-						await DBAgentMessageUtils.updateToolCall(toolCallId, {
-							result: JSON.stringify(finalizedResult),
-							status: 'completed'
-						});
-
-						await DBAgentMessageUtils.saveAgentMessage({
-							chatId: context.chatId,
-							role: 'tool',
-							textContent: JSON.stringify(finalizedResult),
-							toolCallId,
-							toolName: event.toolName,
-							sequenceOrder: 2
-						});
-
-						accumulated.finalizationTriggered = true;
-						accumulated.finalizationPayload = {
-							summary: toolOutput.summary,
-							result: toolOutput.result,
-							score: toolOutput.score,
-							feedback: toolOutput.feedback,
-							toolCallId,
-							toolName: event.toolName
-						};
-
-						yield {
-							type: 'tool-result',
-							toolCallId,
-							toolName: event.toolName,
-							result: finalizedResult,
-							displayResult: 'Actividad finalizada.',
-							status: 'completed',
-							durationMs: 0
-						};
-
-						break;
-					}
-
-					const toolOutputObj = toolOutput as Record<string, unknown> | null;
-					const isError =
-						toolOutputObj !== null && typeof toolOutputObj === 'object' && 'error' in toolOutputObj;
-
-					await DBAgentMessageUtils.updateToolCall(toolCallId, {
-						result: JSON.stringify(toolOutput),
-						status: isError ? 'failed' : 'completed',
-						errorMessage: isError ? (toolOutputObj?.error as string) : undefined
-					});
-
-					await DBAgentMessageUtils.saveAgentMessage({
-						chatId: context.chatId,
-						role: 'tool',
-						textContent: JSON.stringify(toolOutput),
-						toolCallId,
-						toolName: event.toolName,
-						sequenceOrder: 2
-					});
-
-					yield {
-						type: 'tool-result',
-						toolCallId,
-						toolName: event.toolName,
-						result: toolOutput,
-						displayResult: isError ? `Error: ${toolOutputObj?.error}` : undefined,
-						status: isError ? 'failed' : 'completed',
-						durationMs: 0
-					};
-					break;
-				}
-
-				case 'error':
-					yield {
-						type: 'error',
-						code: 'STREAM_ERROR',
-						message:
-							event.error instanceof Error ? event.error.message : 'Error en el stream del agente'
-					};
-					break;
-			}
-
-			if (
-				accumulated.hitlTriggered ||
-				accumulated.uiWaitTriggered ||
-				accumulated.finalizationTriggered
-			) {
-				break;
-			}
-		}
 	}
 
 	static async *executeLoop(
@@ -717,7 +317,7 @@ export class AgentEngine {
 				}
 			});
 
-			for await (const part of this.processStream(
+			for await (const part of AgentStreamProcessor.process(
 				result,
 				context,
 				runtimeTools,
@@ -861,7 +461,7 @@ export class AgentEngine {
 				}
 			});
 
-			for await (const part of this.processStream(
+			for await (const part of AgentStreamProcessor.process(
 				result,
 				context,
 				runtimeTools,
