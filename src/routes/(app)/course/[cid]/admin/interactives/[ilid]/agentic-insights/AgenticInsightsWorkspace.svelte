@@ -26,6 +26,7 @@
 	import {
 		getInsightTemplate,
 		insightTemplates,
+		type InsightTemplateFamily,
 		type InsightPromptContext,
 		type InsightStudentOption,
 		type InsightTemplateDefinition,
@@ -58,15 +59,22 @@
 
 	function inferTemplateIdFromRun(run: PageData['selectedRun']): InsightTemplateId {
 		if (!run) return 'cohort_summary';
-		if (run.scope.studentIds.length === 1) return 'student_support';
 		const normalizedTitle = (run.title ?? '').toLowerCase();
+		if (normalizedTitle.includes('comparacion')) return 'compare_groups';
+		if (run.scope.studentIds.length === 1) return 'student_support';
 		if (normalizedTitle.includes('riesgo')) return 'risk_scan';
+		if (normalizedTitle.includes('friccion')) return 'friction_points';
+		if (normalizedTitle.includes('redise')) return 'redesign_summary';
+		if (normalizedTitle.includes('edicion')) return 'next_edition_adjustments';
 		return 'cohort_summary';
 	}
 
 	let draftStep = $state<WorkflowStep>(1);
 	let selectedTemplateId = $state<InsightTemplateId | null>(null);
 	let selectedStudentId = $state('');
+	let groupAStudentIds = $state<string[]>([]);
+	let groupALabel = $state('');
+	let groupBLabel = $state('');
 	let dateFrom = $state('');
 	let dateTo = $state('');
 	let search = $state('');
@@ -76,13 +84,40 @@
 	let pageMessage = $state('');
 	let chatApi = $state<ChatComposerApi | null>(null);
 	let pendingPromptRunId = $state('');
-	let runMeta = $state<{ templateId: InsightTemplateId | null; objective: string }>({
+	let runMeta = $state<{
+		templateId: InsightTemplateId | null;
+		objective: string;
+		groupAStudentIds: string[];
+		groupBStudentIds: string[];
+		groupALabel: string;
+		groupBLabel: string;
+	}>({
 		templateId: null,
-		objective: ''
+		objective: '',
+		groupAStudentIds: [],
+		groupBStudentIds: [],
+		groupALabel: '',
+		groupBLabel: ''
 	});
 
 	const studentById = $derived(new Map(data.students.map((student) => [student.id, student])));
 	const selectedTemplate = $derived(selectedTemplateId ? getInsightTemplate(selectedTemplateId) : null);
+	const familyLabels: Record<InsightTemplateFamily, string> = {
+		understand: 'Entender que pasa',
+		improve: 'Mejorar la actividad',
+		compare: 'Comparar y segmentar',
+		follow_up: 'Preparar seguimiento'
+	};
+	const groupedTemplates = $derived.by(() => {
+		const familyOrder: InsightTemplateFamily[] = ['understand', 'improve', 'compare', 'follow_up'];
+		return familyOrder
+			.map((family) => ({
+				family,
+				label: familyLabels[family],
+				templates: insightTemplates.filter((template) => template.family === family)
+			}))
+			.filter((group) => group.templates.length > 0);
+	});
 	const selectedStudent = $derived(
 		selectedStudentId
 			? ((studentById.get(selectedStudentId) as InsightStudentOption | undefined) ?? null)
@@ -105,7 +140,11 @@
 
 	const draftScope = $derived.by<InsightsAgentRunScope>(() => ({
 		mode: selectedTemplate?.defaultScope.mode ?? 'cohort',
-		studentIds: selectedTemplate?.requiresStudent && selectedStudentId ? [selectedStudentId] : [],
+		studentIds: selectedTemplate?.supportsGroupComparison
+			? [...groupAStudentIds]
+			: selectedTemplate?.requiresStudent && selectedStudentId
+				? [selectedStudentId]
+				: [],
 		chatIds: [],
 		dateFrom: selectedTemplate?.supportsDateRange ? dateFrom || null : null,
 		dateTo: selectedTemplate?.supportsDateRange ? dateTo || null : null,
@@ -118,7 +157,11 @@
 			activityName: data.activityContext.name,
 			objective,
 			scope: draftScope,
-			student: selectedStudent
+			student: selectedStudent,
+			groupAStudentIds: selectedTemplate?.supportsGroupComparison ? [...groupAStudentIds] : undefined,
+			groupBStudentIds: selectedTemplate?.supportsGroupComparison ? [] : undefined,
+			groupALabel: selectedTemplate?.supportsGroupComparison ? groupALabel.trim() || 'grupo seleccionado' : undefined,
+			groupBLabel: selectedTemplate?.supportsGroupComparison ? groupBLabel.trim() || 'resto de la cohorte' : undefined
 		};
 	});
 
@@ -154,7 +197,12 @@
 	const draftSummaryChips = $derived.by(() => {
 		if (!selectedTemplate) return [];
 		const chips = [selectedTemplate.title];
-		if (selectedTemplate.requiresStudent && selectedStudent) {
+		if (selectedTemplate.supportsGroupComparison) {
+			chips.push(
+				`Grupo A: ${groupALabel.trim() || 'grupo seleccionado'} (${groupAStudentIds.length})`
+			);
+			chips.push(`Comparado con: ${groupBLabel.trim() || 'resto de la cohorte'}`);
+		} else if (selectedTemplate.requiresStudent && selectedStudent) {
 			chips.push(`Estudiante: ${selectedStudent.username}`);
 		} else {
 			chips.push('Alcance: cohorte completa');
@@ -166,15 +214,25 @@
 		return chips;
 	});
 
+	const selectedRunTemplateId = $derived<InsightTemplateId | null>(
+		data.selectedRun ? runMeta.templateId ?? inferTemplateIdFromRun(data.selectedRun) : selectedTemplateId
+	);
 	const selectedRunScopeSummary = $derived.by(() => {
 		if (!data.selectedRun) return [];
 		const scope = data.selectedRun.scope;
 		const chips: string[] = [];
-		chips.push(
-			scope.studentIds.length === 1
-				? `Estudiante: ${studentById.get(scope.studentIds[0])?.username ?? scope.studentIds[0]}`
-				: 'Alcance: cohorte completa'
-		);
+		if (selectedRunTemplateId === 'compare_groups') {
+			chips.push(
+				`Grupo A: ${runMeta.groupALabel.trim() || 'grupo seleccionado'} (${runMeta.groupAStudentIds.length || scope.studentIds.length})`
+			);
+			chips.push(`Comparado con: ${runMeta.groupBLabel.trim() || 'resto de la cohorte'}`);
+		} else {
+			chips.push(
+				scope.studentIds.length === 1
+					? `Estudiante: ${studentById.get(scope.studentIds[0])?.username ?? scope.studentIds[0]}`
+					: 'Alcance: cohorte completa'
+			);
+		}
 		if (scope.dateFrom || scope.dateTo) {
 			chips.push(`Periodo: ${scope.dateFrom ?? 'inicio'} - ${scope.dateTo ?? 'hoy'}`);
 		}
@@ -185,7 +243,7 @@
 
 	const selectedRunTemplate = $derived.by<InsightTemplateDefinition | null>(() => {
 		if (data.selectedRun) {
-			return getInsightTemplate(runMeta.templateId ?? inferTemplateIdFromRun(data.selectedRun));
+			return selectedRunTemplateId ? getInsightTemplate(selectedRunTemplateId) : null;
 		}
 		return selectedTemplate;
 	});
@@ -204,13 +262,28 @@
 			student:
 				data.selectedRun.scope.studentIds.length === 1
 					? ((studentById.get(data.selectedRun.scope.studentIds[0]) as InsightStudentOption | undefined) ?? null)
-					: null
+					: null,
+			groupAStudentIds:
+				selectedRunTemplateId === 'compare_groups'
+					? [...(runMeta.groupAStudentIds.length ? runMeta.groupAStudentIds : data.selectedRun.scope.studentIds)]
+					: undefined,
+			groupBStudentIds:
+				selectedRunTemplateId === 'compare_groups' ? [...runMeta.groupBStudentIds] : undefined,
+			groupALabel:
+				selectedRunTemplateId === 'compare_groups'
+					? runMeta.groupALabel.trim() || 'grupo seleccionado'
+					: undefined,
+			groupBLabel:
+				selectedRunTemplateId === 'compare_groups'
+					? runMeta.groupBLabel.trim() || 'resto de la cohorte'
+					: undefined
 		};
 	});
 
 	const canContinueToReview = $derived(
 		!!selectedTemplate &&
 			(!selectedTemplate.requiresStudent || !!selectedStudentId) &&
+			(!selectedTemplate.supportsGroupComparison || groupAStudentIds.length > 0) &&
 			(!selectedTemplate.supportsDateRange || !dateFrom || !dateTo || dateFrom <= dateTo)
 	);
 	const canCreateRun = $derived(!!selectedTemplate && !!initialPrompt && canContinueToReview);
@@ -227,9 +300,18 @@
 		dateFrom = template.defaultScope.datePreset === 'last_14_days' ? formatDateInput(last14Days) : '';
 		dateTo = template.defaultScope.datePreset === 'last_14_days' ? formatDateInput(today) : '';
 		selectedStudentId = template.requiresStudent && data.students.length === 1 ? data.students[0].id : '';
+		groupAStudentIds = [];
+		groupALabel = '';
+		groupBLabel = '';
 		pageError = '';
 		pageMessage = '';
 		draftStep = 2;
+	}
+
+	function toggleGroupAStudent(studentId: string) {
+		groupAStudentIds = groupAStudentIds.includes(studentId)
+			? groupAStudentIds.filter((id) => id !== studentId)
+			: [...groupAStudentIds, studentId];
 	}
 
 	function goToDraftStep(step: WorkflowStep) {
@@ -254,7 +336,11 @@
 	function buildRunMeta() {
 		return {
 			templateId: selectedTemplateId,
-			objective: objective.trim()
+			objective: objective.trim(),
+			groupAStudentIds: [...groupAStudentIds],
+			groupBStudentIds: [],
+			groupALabel: groupALabel.trim(),
+			groupBLabel: groupBLabel.trim()
 		};
 	}
 
@@ -311,24 +397,56 @@
 	}
 	$effect(() => {
 		if (!browser || !data.selectedRun) {
-			runMeta = { templateId: selectedTemplateId, objective: objective.trim() };
+			runMeta = {
+				templateId: selectedTemplateId,
+				objective: objective.trim(),
+				groupAStudentIds: [...groupAStudentIds],
+				groupBStudentIds: [],
+				groupALabel: groupALabel.trim(),
+				groupBLabel: groupBLabel.trim()
+			};
 			return;
 		}
 
 		const rawValue = sessionStorage.getItem(getRunMetaKey(data.selectedRun.id));
 		if (!rawValue) {
-			runMeta = { templateId: null, objective: '' };
+			runMeta = {
+				templateId: null,
+				objective: '',
+				groupAStudentIds: [],
+				groupBStudentIds: [],
+				groupALabel: '',
+				groupBLabel: ''
+			};
 			return;
 		}
 
 		try {
-			const parsed = JSON.parse(rawValue) as { templateId?: InsightTemplateId; objective?: string };
+			const parsed = JSON.parse(rawValue) as {
+				templateId?: InsightTemplateId;
+				objective?: string;
+				groupAStudentIds?: string[];
+				groupBStudentIds?: string[];
+				groupALabel?: string;
+				groupBLabel?: string;
+			};
 			runMeta = {
 				templateId: parsed.templateId ?? null,
-				objective: parsed.objective ?? ''
+				objective: parsed.objective ?? '',
+				groupAStudentIds: Array.isArray(parsed.groupAStudentIds) ? parsed.groupAStudentIds : [],
+				groupBStudentIds: Array.isArray(parsed.groupBStudentIds) ? parsed.groupBStudentIds : [],
+				groupALabel: parsed.groupALabel ?? '',
+				groupBLabel: parsed.groupBLabel ?? ''
 			};
 		} catch {
-			runMeta = { templateId: null, objective: '' };
+			runMeta = {
+				templateId: null,
+				objective: '',
+				groupAStudentIds: [],
+				groupBStudentIds: [],
+				groupALabel: '',
+				groupBLabel: ''
+			};
 		}
 	});
 
@@ -493,42 +611,63 @@
 						</p>
 					</div>
 
-					<div class="mt-6 grid gap-4 lg:grid-cols-3">
-						{#each insightTemplates as template (template.id)}
-							<button
-								type="button"
-								class="group rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 text-left transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-white hover:shadow-md dark:border-slate-700 dark:bg-slate-800/80 dark:hover:border-blue-500 dark:hover:bg-slate-800"
-								onclick={() => applyTemplate(template.id)}
-							>
-								<div class="flex items-start justify-between gap-4">
-									<div class="rounded-2xl bg-white p-3 shadow-sm dark:bg-slate-900">
-										{#if template.id === 'risk_scan'}
-											<TriangleAlert class="h-5 w-5 text-amber-600 dark:text-amber-300" />
-										{:else if template.id === 'cohort_summary'}
-											<FileText class="h-5 w-5 text-blue-600 dark:text-blue-300" />
-										{:else}
-											<UserRound class="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
-										{/if}
-									</div>
-									<span class="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs text-slate-500 dark:border-slate-600 dark:text-slate-300">
-										<Clock3 class="h-3.5 w-3.5" />
-										{template.estimatedTime}
-									</span>
+					<div class="mt-6 space-y-8">
+						{#each groupedTemplates as group (group.family)}
+							<div>
+								<div class="mb-4 flex items-center gap-3">
+									<div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
+									<p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+										{group.label}
+									</p>
+									<div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
 								</div>
+								<div class="grid gap-4 lg:grid-cols-3">
+									{#each group.templates as template (template.id)}
+										<button
+											type="button"
+											class="group rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 text-left transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-white hover:shadow-md dark:border-slate-700 dark:bg-slate-800/80 dark:hover:border-blue-500 dark:hover:bg-slate-800"
+											onclick={() => applyTemplate(template.id)}
+										>
+											<div class="flex items-start justify-between gap-4">
+												<div class="rounded-2xl bg-white p-3 shadow-sm dark:bg-slate-900">
+													{#if template.id === 'risk_scan' || template.id === 'friction_points'}
+														<TriangleAlert class="h-5 w-5 text-amber-600 dark:text-amber-300" />
+													{:else if template.id === 'cohort_summary' || template.id === 'redesign_summary' || template.id === 'next_edition_adjustments'}
+														<FileText class="h-5 w-5 text-blue-600 dark:text-blue-300" />
+													{:else if template.id === 'compare_groups'}
+														<ListChecks class="h-5 w-5 text-fuchsia-600 dark:text-fuchsia-300" />
+													{:else}
+														<UserRound class="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+													{/if}
+												</div>
+												<span class="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs text-slate-500 dark:border-slate-600 dark:text-slate-300">
+													<Clock3 class="h-3.5 w-3.5" />
+													{template.estimatedTime}
+												</span>
+											</div>
 
-								<h3 class="mt-4 text-lg font-semibold text-slate-900 dark:text-white">{template.title}</h3>
-								<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{template.description}</p>
+											<h3 class="mt-4 text-lg font-semibold text-slate-900 dark:text-white">{template.title}</h3>
+											<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{template.description}</p>
 
-								<div class="mt-5 rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-900/80">
-									<p class="font-medium text-slate-900 dark:text-white">Resultado esperado</p>
-									<p class="mt-1 text-slate-500 dark:text-slate-400">{template.resultSummary}</p>
+											<div class="mt-5 rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-900/80">
+												<p class="font-medium text-slate-900 dark:text-white">Resultado esperado</p>
+												<p class="mt-1 text-slate-500 dark:text-slate-400">{template.resultSummary}</p>
+											</div>
+
+											{#if template.emptyStateHint}
+												<p class="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">
+													{template.emptyStateHint}
+												</p>
+											{/if}
+
+											<div class="mt-3 rounded-2xl bg-slate-100 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+												<ShieldCheck class="mr-1 inline h-3.5 w-3.5" />
+												{template.caution}
+											</div>
+										</button>
+									{/each}
 								</div>
-
-								<div class="mt-3 rounded-2xl bg-slate-100 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-									<ShieldCheck class="mr-1 inline h-3.5 w-3.5" />
-									{template.caution}
-								</div>
-							</button>
+							</div>
 						{/each}
 					</div>
 				</div>
@@ -555,6 +694,47 @@
 
 					<div class="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
 						<div class="space-y-5">
+							{#if selectedTemplate.supportsGroupComparison}
+								<div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/70">
+									<div class="flex items-center gap-2">
+										<ListChecks class="h-4 w-4 text-slate-500 dark:text-slate-300" />
+										<h3 class="text-sm font-semibold text-slate-900 dark:text-white">Grupo A</h3>
+									</div>
+									<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+										Seleccione uno o varios estudiantes para compararlos contra el resto de la cohorte.
+									</p>
+									<div class="mt-4 grid gap-4 md:grid-cols-2">
+										<div>
+											<label for="group-a-label" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Nombre del grupo A opcional</label>
+											<input id="group-a-label" bind:value={groupALabel} type="text" placeholder="Ej. estudiantes con baja participacion" class="block w-full rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-900 dark:text-white dark:focus:ring-blue-900" />
+										</div>
+										<div>
+											<label for="group-b-label" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Comparado con</label>
+											<input id="group-b-label" bind:value={groupBLabel} type="text" placeholder="Resto de la cohorte" class="block w-full rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-900 dark:text-white dark:focus:ring-blue-900" />
+										</div>
+									</div>
+									<div class="mt-4 max-h-64 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+										{#each data.students as student (student.id)}
+											<label class="flex items-start gap-3 rounded-xl px-2 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
+												<input type="checkbox" checked={groupAStudentIds.includes(student.id)} onchange={() => toggleGroupAStudent(student.id)} class="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+												<span class="min-w-0">
+													<span class="block font-medium text-slate-900 dark:text-white">{student.username}</span>
+													<span class="block text-xs text-slate-500 dark:text-slate-400">{student.email}</span>
+												</span>
+											</label>
+										{/each}
+									</div>
+									{#if data.students.length === 0}
+										<p class="mt-3 text-sm text-amber-700 dark:text-amber-300">
+											No hay estudiantes disponibles todavia para construir esta comparacion.
+										</p>
+									{/if}
+									<p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+										Recomendado: compare un grupo seleccionado frente al resto de la cohorte para mantener la lectura simple.
+									</p>
+								</div>
+							{/if}
+
 							{#if selectedTemplate.requiresStudent}
 								<div>
 									<label for="draft-student" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -624,6 +804,12 @@
 							<p class="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">
 								La respuesta pedira siempre separar "Datos observados" de "Interpretacion o recomendacion de la IA".
 							</p>
+							{#if selectedTemplate.recommendedTools && selectedTemplate.recommendedTools.length > 0}
+								<div class="mt-4 rounded-2xl border border-slate-200 bg-white p-3 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+									<p class="font-medium text-slate-900 dark:text-white">Enfoque recomendado</p>
+									<p class="mt-1">Esta plantilla prioriza comparacion, dificultad o progreso para producir una lectura mas analitica.</p>
+								</div>
+							{/if}
 						</aside>
 					</div>
 
