@@ -11,6 +11,8 @@ import {
 import type { ToolManifest } from '$lib/server/agent/tools/types';
 
 export default class DBAgentToolUtils {
+	static readonly ALL_BUILTIN_USAGE_DOMAINS = 'all';
+
 	// ─── Catálogo Global de Herramientas (Admin) ───
 	static async getAllToolDefinitions(usageDomain?: BuiltinToolUsageDomain) {
 		if (usageDomain !== undefined) {
@@ -117,28 +119,124 @@ export default class DBAgentToolUtils {
 		};
 	}
 
-	// ─── Seed de herramientas builtin ───
-
-	static async seedBuiltinTools(
-		usageDomain: BuiltinToolUsageDomain | string = BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
+	private static matchesManifestPayload(
+		record: typeof schema.agentToolDefinition.$inferSelect,
+		payload: ReturnType<typeof DBAgentToolUtils.manifestToDbPayload>
 	) {
+		return (
+			record.name === payload.name &&
+			record.displayName === payload.displayName &&
+			record.description === payload.description &&
+			record.category === payload.category &&
+			record.parametersSchema === payload.parametersSchema &&
+			record.responseSchema === payload.responseSchema &&
+			record.executorType === payload.executorType &&
+			record.executorConfig === payload.executorConfig &&
+			record.requiresConfirmation === payload.requiresConfirmation &&
+			record.riskLevel === payload.riskLevel &&
+			record.usageDomain === payload.usageDomain &&
+			record.isActive === payload.isActive &&
+			record.isSystem === payload.isSystem &&
+			record.version === payload.version
+		);
+	}
+
+	static async syncBuiltinTools(options?: {
+		usageDomain?: BuiltinToolUsageDomain | typeof DBAgentToolUtils.ALL_BUILTIN_USAGE_DOMAINS;
+		dryRun?: boolean;
+	}) {
+		const usageDomain = options?.usageDomain;
+		const dryRun = options?.dryRun ?? false;
 		const toolManifests =
-			usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT || usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_INSIGHTS
-				? getBuiltinToolManifestsByDomain(usageDomain)
-				: getAllBuiltinToolManifests();
+			usageDomain === undefined || usageDomain === this.ALL_BUILTIN_USAGE_DOMAINS
+				? getAllBuiltinToolManifests()
+				: getBuiltinToolManifestsByDomain(usageDomain);
+
+		const summary = {
+			totalBuiltin: toolManifests.length,
+			created: 0,
+			updated: 0,
+			skipped: 0,
+			conflicts: 0,
+			domains: Object.fromEntries(
+				toolManifests.reduce(
+					(acc, manifest) => acc.set(manifest.usageDomain, (acc.get(manifest.usageDomain) ?? 0) + 1),
+					new Map<string, number>()
+				)
+			),
+			tools: [] as Array<{
+				name: string;
+				usageDomain: string;
+				action: 'create' | 'update' | 'skip' | 'conflict';
+			}>
+		};
 
 		for (const manifest of toolManifests) {
 			const existing = await this.getToolDefinitionByName(manifest.name);
 			const payload = this.manifestToDbPayload(manifest);
 
 			if (!existing) {
-				await this.createToolDefinition(payload);
+				if (!dryRun) {
+					await this.createToolDefinition(payload);
+				}
+				summary.created++;
+				summary.tools.push({
+					name: manifest.name,
+					usageDomain: manifest.usageDomain,
+					action: 'create'
+				});
 				continue;
 			}
 
-			if (existing.isSystem) {
+			if (!existing.isSystem) {
+				summary.conflicts++;
+				summary.tools.push({
+					name: manifest.name,
+					usageDomain: manifest.usageDomain,
+					action: 'conflict'
+				});
+				continue;
+			}
+
+			if (this.matchesManifestPayload(existing, payload)) {
+				summary.skipped++;
+				summary.tools.push({
+					name: manifest.name,
+					usageDomain: manifest.usageDomain,
+					action: 'skip'
+				});
+				continue;
+			}
+
+			if (!dryRun) {
 				await this.updateToolDefinition(existing.id, payload);
 			}
+			summary.updated++;
+			summary.tools.push({
+				name: manifest.name,
+				usageDomain: manifest.usageDomain,
+				action: 'update'
+			});
 		}
+
+		return summary;
+	}
+
+	// ─── Seed de herramientas builtin ───
+
+	static async seedBuiltinTools(
+		usageDomain: BuiltinToolUsageDomain | string = DBAgentToolUtils.ALL_BUILTIN_USAGE_DOMAINS
+	) {
+		if (
+			usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT ||
+			usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_INSIGHTS
+		) {
+			return await this.syncBuiltinTools({ usageDomain, dryRun: false });
+		}
+
+		return await this.syncBuiltinTools({
+			usageDomain: this.ALL_BUILTIN_USAGE_DOMAINS,
+			dryRun: false
+		});
 	}
 }

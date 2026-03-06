@@ -33,6 +33,17 @@
 		count?: number;
 		daysToRebuild?: number;
 		pairsToRebuild?: number;
+		totalBuiltin?: number;
+		created?: number;
+		updated?: number;
+		skipped?: number;
+		conflicts?: number;
+		domains?: Record<string, number>;
+		tools?: Array<{
+			name: string;
+			usageDomain: string;
+			action: 'create' | 'update' | 'skip' | 'conflict';
+		}>;
 	}
 
 	interface ScriptResult {
@@ -43,6 +54,10 @@
 		deactivated?: number;
 		marked?: number;
 		rebuilt?: number;
+		created?: number;
+		updated?: number;
+		conflicts?: number;
+		totalBuiltin?: number;
 	}
 
 	interface ScriptState {
@@ -54,6 +69,14 @@
 
 	// --- definición de scripts ---
 	const scripts = [
+		{
+			id: 'sync-builtin-agent-tools',
+			title: 'Sincronizar herramientas agénticas built-in',
+			description:
+				'Revisa el registro local de herramientas built-in y sincroniza su definición con la base de datos. Crea las que faltan, actualiza las del sistema desalineadas y detecta conflictos por nombre.',
+			risk: 'low' as RiskLevel,
+			endpoint: '/api/admin/maintenance/sync-builtin-agent-tools'
+		},
 		{
 			id: 'fix-student-roles',
 			title: 'Corregir roles de sistema para estudiantes de curso',
@@ -116,6 +139,7 @@
 
 	// --- estado por script ---
 	let states = $state<Record<ScriptId, ScriptState>>({
+		'sync-builtin-agent-tools': { loading: false, previewData: null, result: null, error: null },
 		'fix-student-roles': { loading: false, previewData: null, result: null, error: null },
 		'cleanup-expired-sessions': { loading: false, previewData: null, result: null, error: null },
 		'deactivate-expired-roles': { loading: false, previewData: null, result: null, error: null },
@@ -190,6 +214,9 @@
 	function previewSummary(id: ScriptId): string | null {
 		const d = states[id].previewData;
 		if (!d) return null;
+		if (id === 'sync-builtin-agent-tools') {
+			return `${d.totalBuiltin ?? 0} built-in revisada(s): ${d.created ?? 0} a crear, ${d.updated ?? 0} a actualizar, ${d.conflicts ?? 0} conflicto(s), ${d.skipped ?? 0} sin cambios`;
+		}
 		if (id === 'fix-student-roles') return `${d.users?.length ?? 0} usuario(s) sin rol de sistema`;
 		if (id === 'cleanup-expired-sessions') return `${d.count ?? 0} sesión(es) expirada(s)`;
 		if (id === 'deactivate-expired-roles') return `${d.assignments?.length ?? 0} asignación(es) expirada(s)`;
@@ -204,6 +231,7 @@
 		const r = states[id].result;
 		if (!r) return null;
 		const parts: string[] = [];
+		if (r.totalBuiltin !== undefined) parts.push(`${r.totalBuiltin} built-in revisada(s)`);
 		if (r.assigned !== undefined) parts.push(`${r.assigned} asignado(s)`);
 		if (r.skipped !== undefined) parts.push(`${r.skipped} omitido(s)`);
 		if (r.errors !== undefined) parts.push(`${r.errors} error(es)`);
@@ -211,6 +239,9 @@
 		if (r.deactivated !== undefined) parts.push(`${r.deactivated} desactivado(s)`);
 		if (r.marked !== undefined) parts.push(`${r.marked} marcado(s) para eliminación`);
 		if (r.rebuilt !== undefined) parts.push(`${r.rebuilt} reconstruido(s)`);
+		if (r.created !== undefined) parts.push(`${r.created} creada(s)`);
+		if (r.updated !== undefined) parts.push(`${r.updated} actualizada(s)`);
+		if (r.conflicts !== undefined) parts.push(`${r.conflicts} conflicto(s)`);
 		return parts.join(', ');
 	}
 </script>
@@ -356,6 +387,91 @@
 								</TableBody>
 							</Table>
 						</div>
+					{/if}
+
+					{#if script.id === 'sync-builtin-agent-tools' && pd.domains}
+						<div class="mb-4 grid gap-3 md:grid-cols-4">
+							<div class="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30">
+								<p class="text-xs font-medium uppercase tracking-wide text-green-700 dark:text-green-300">
+									A crear
+								</p>
+								<p class="mt-1 text-2xl font-semibold text-green-800 dark:text-green-200">
+									{pd.created ?? 0}
+								</p>
+							</div>
+							<div class="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/30">
+								<p class="text-xs font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300">
+									A actualizar
+								</p>
+								<p class="mt-1 text-2xl font-semibold text-blue-800 dark:text-blue-200">
+									{pd.updated ?? 0}
+								</p>
+							</div>
+							<div class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
+								<p class="text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-300">
+									Conflictos
+								</p>
+								<p class="mt-1 text-2xl font-semibold text-amber-800 dark:text-amber-200">
+									{pd.conflicts ?? 0}
+								</p>
+							</div>
+							<div class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/60">
+								<p class="text-xs font-medium uppercase tracking-wide text-gray-700 dark:text-gray-300">
+									Sin cambios
+								</p>
+								<p class="mt-1 text-2xl font-semibold text-gray-800 dark:text-gray-200">
+									{pd.skipped ?? 0}
+								</p>
+							</div>
+						</div>
+
+						<div class="mb-4 rounded-lg border border-gray-200 dark:border-gray-700">
+							<Table hoverable>
+								<TableHead>
+									<TableHeadCell>Dominio</TableHeadCell>
+									<TableHeadCell>Built-in detectadas</TableHeadCell>
+								</TableHead>
+								<TableBody>
+									{#each Object.entries(pd.domains) as [domain, total] (domain)}
+										<TableBodyRow>
+											<TableBodyCell>{domain}</TableBodyCell>
+											<TableBodyCell>{total}</TableBodyCell>
+										</TableBodyRow>
+									{/each}
+								</TableBody>
+							</Table>
+						</div>
+
+						{#if pd.tools && pd.tools.length > 0}
+							<div class="max-h-80 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+								<Table hoverable>
+									<TableHead>
+										<TableHeadCell>Herramienta</TableHeadCell>
+										<TableHeadCell>Dominio</TableHeadCell>
+										<TableHeadCell>Acción prevista</TableHeadCell>
+									</TableHead>
+									<TableBody>
+										{#each pd.tools as tool (tool.name)}
+											<TableBodyRow>
+												<TableBodyCell class="font-mono text-xs">{tool.name}</TableBodyCell>
+												<TableBodyCell>{tool.usageDomain}</TableBodyCell>
+												<TableBodyCell>
+													{#if tool.action === 'create'}
+														<Badge color="green">Crear</Badge>
+													{:else if tool.action === 'update'}
+														<Badge color="blue">Actualizar</Badge>
+													{:else if tool.action === 'conflict'}
+														<Badge color="yellow">Conflicto</Badge>
+													{:else}
+														<Badge color="gray">Sin cambios</Badge>
+													{/if}
+												</TableBodyCell>
+											</TableBodyRow>
+										{/each}
+									</TableBody>
+								</Table>
+							</div>
+						{/if}
 					{/if}
 				{/if}
 			</div>

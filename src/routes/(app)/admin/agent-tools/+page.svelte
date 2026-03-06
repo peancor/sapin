@@ -36,15 +36,14 @@
 		data: PageData & { usageDomain?: string; availableUsageDomains?: string[] }
 	} = $props();
 
-	// Local copy so we can mutate it without refetching
-	let tools = $state(data.tools.slice());
+	let tools = $state<(typeof data.tools)[number][]>([]);
 
 	// Filters
 	let searchQuery = $state('');
 	let categoryFilter = $state('all');
 	let executorFilter = $state('all');
-	let domainFilter = $state((data as { usageDomain?: string }).usageDomain ?? 'all');
-	let availableUsageDomains = $state((data as { availableUsageDomains?: string[] }).availableUsageDomains ?? []);
+	let domainFilter = $state('all');
+	let availableUsageDomains = $state<string[]>([]);
 
 	// Feedback
 	let successMessage = $state('');
@@ -68,6 +67,12 @@
 	let formParametersSchema = $state('{\n  "type": "object",\n  "properties": {},\n  "required": []\n}');
 	let formResponseSchema = $state('');
 	let formExecutorConfig = $state('{}');
+
+	$effect(() => {
+		tools = data.tools.slice();
+		domainFilter = data.usageDomain ?? 'all';
+		availableUsageDomains = data.availableUsageDomains ?? [];
+	});
 
 	$effect(() => {
 		breadcrumb.set([
@@ -466,7 +471,7 @@
 					class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				>
 					<option value="all">Todos</option>
-					{#each availableUsageDomainOptions as option}
+					{#each availableUsageDomainOptions as option (option)}
 						<option value={option}>{usageDomainLabel(option)}</option>
 					{/each}
 				</select>
@@ -732,6 +737,7 @@
 							<option value="communication">Comunicación</option>
 							<option value="data">Datos</option>
 							<option value="custom">Personalizado</option>
+							<option value="ui">UI</option>
 						</select>
 					</div>
 
@@ -803,7 +809,7 @@
 						bind:value={formUsageDomain}
 						class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 					>
-						{#each availableUsageDomainOptions as option}
+						{#each availableUsageDomainOptions as option (option)}
 							<option value={option}>{usageDomainLabel(option)}</option>
 						{/each}
 					</select>
