@@ -85,6 +85,13 @@
       "when": 1772779256959,
       "tag": "0011_normal_roxanne_simpson",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1772790483479,
+      "tag": "0012_unusual_stellaris",
+      "breakpoints": true
     }
   ]
 }

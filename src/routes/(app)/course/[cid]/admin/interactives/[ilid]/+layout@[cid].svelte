@@ -17,6 +17,7 @@
 		Users,
 		ChevronLeft,
 		BarChart3,
+		Sparkles,
 		MessageSquare,
 		Bot
 	} from 'lucide-svelte';
@@ -68,11 +69,21 @@
 			href: resolve(`/course/${cid}/admin/interactives/${ilid}/students`),
 			icon: Users
 		},
+		...(!isAgent
+			? [
+					{
+						id: 'insights',
+						label: 'Insights',
+						href: resolve(`/course/${cid}/admin/interactives/${ilid}/insights`),
+						icon: BarChart3
+					}
+				]
+			: []),
 		{
-			id: 'insights',
-			label: 'Insights',
-			href: resolve(`/course/${cid}/admin/interactives/${ilid}/insights`),
-			icon: BarChart3
+			id: 'agentic-insights',
+			label: 'Insights agénticos',
+			href: resolve(`/course/${cid}/admin/interactives/${ilid}/agentic-insights`),
+			icon: Sparkles
 		}
 	]);
 
