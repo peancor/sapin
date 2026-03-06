@@ -1,7 +1,12 @@
+export { analyzeActivityDifficultyPackage } from './analyzeActivityDifficulty';
 export { calculateExpressionPackage } from './calculateExpression';
+export { compareStudentGroupsPackage } from './compareStudentGroups';
+export { findStuckSessionsPackage } from './findStuckSessions';
+export { getActivityToolUsageSummaryPackage } from './getActivityToolUsageSummary';
 export { getActivityEvidenceOverviewPackage } from './getActivityEvidenceOverview';
 export { getActivityTranscriptsPackage } from './getActivityTranscripts';
 export { getCourseStudentRosterPackage } from './getCourseStudentRoster';
+export { getLearningProgressTimelinePackage } from './getLearningProgressTimeline';
 export { getStudentProgressPackage } from './getStudentProgress';
 export { renderFlashcardsPackage } from './renderFlashcards';
 export { renderGraphPlotPackage } from './renderGraphPlot';

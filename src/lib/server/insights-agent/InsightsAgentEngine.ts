@@ -45,35 +45,25 @@ export class InsightsAgentEngine {
 		runtimeTools: ToolDefinitionResolved[],
 		scope: InsightsAgentRunScope
 	): Record<string, ReturnType<typeof ToolManager.buildVercelAITools>[string]> {
-		const withScopeDefaults = (
-			toolName: string,
-			input: Record<string, unknown>
-		): Record<string, unknown> => {
+		const withScopeDefaults = (input: Record<string, unknown>): Record<string, unknown> => {
 			const scopedInput = { ...input };
 
-			if (toolName === 'get_activity_evidence_overview') {
-				if (scope.mode === 'students' && scopedInput.studentIds === undefined) {
-					scopedInput.studentIds = scope.studentIds;
-				}
-				return scopedInput;
+			if (scope.mode === 'students' && scopedInput.studentIds === undefined && scope.studentIds.length > 0) {
+				scopedInput.studentIds = scope.studentIds;
 			}
 
-			if (toolName === 'get_activity_transcripts') {
-				if (scope.mode === 'students' && scopedInput.studentIds === undefined) {
-					scopedInput.studentIds = scope.studentIds;
-				}
-				if (scope.mode === 'sessions' && scopedInput.chatIds === undefined && scope.chatIds.length > 0) {
-					scopedInput.chatIds = scope.chatIds;
-				}
-				if (scopedInput.dateFrom === undefined && scope.dateFrom) {
-					scopedInput.dateFrom = scope.dateFrom;
-				}
-				if (scopedInput.dateTo === undefined && scope.dateTo) {
-					scopedInput.dateTo = scope.dateTo;
-				}
-				if (scopedInput.search === undefined && scope.search) {
-					scopedInput.search = scope.search;
-				}
+			if (scope.mode === 'sessions' && scopedInput.chatIds === undefined && scope.chatIds.length > 0) {
+				scopedInput.chatIds = scope.chatIds;
+			}
+
+			if (scopedInput.dateFrom === undefined && scope.dateFrom) {
+				scopedInput.dateFrom = scope.dateFrom;
+			}
+			if (scopedInput.dateTo === undefined && scope.dateTo) {
+				scopedInput.dateTo = scope.dateTo;
+			}
+			if (scopedInput.search === undefined && scope.search) {
+				scopedInput.search = scope.search;
 			}
 
 			return scopedInput;
@@ -81,7 +71,7 @@ export class InsightsAgentEngine {
 
 		return ToolManager.buildVercelAITools(runtimeTools, async (toolName, input, toolCallId) => {
 			const toolDef = runtimeTools.find((tool) => tool.name === toolName);
-			const scopedInput = withScopeDefaults(toolName, input);
+			const scopedInput = withScopeDefaults(input);
 			if (JSON.stringify(scopedInput) !== JSON.stringify(input)) {
 				await DBAgentMessageUtils.updateToolCall(toolCallId, {
 					arguments: JSON.stringify(scopedInput)

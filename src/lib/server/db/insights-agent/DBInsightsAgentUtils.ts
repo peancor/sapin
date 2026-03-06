@@ -14,9 +14,14 @@ import type {
 const DEFAULT_TOOL_NAMES = [
 	'get_activity_evidence_overview',
 	'get_activity_transcripts',
+	'get_learning_progress_timeline',
+	'get_activity_tool_usage_summary',
+	'find_stuck_sessions',
+	'analyze_activity_difficulty',
 	'get_course_student_roster',
 	'get_student_progress',
-	'search_course_content'
+	'search_course_content',
+	'compare_student_groups'
 ];
 const ALLOWED_GENERAL_TOOL_NAMES = ['get_student_progress', 'search_course_content', 'calculate_expression'];
 
@@ -219,6 +224,7 @@ export default class DBInsightsAgentUtils {
 	}
 
 	static async getConfigDTO(activityId: string): Promise<InsightsAgentConfig> {
+		await DBAgentToolUtils.seedBuiltinTools();
 		const config = await this.getOrCreateConfig(activityId);
 		const tools = await this.getEnabledToolsForActivity(activityId);
 		return this.toConfigDTO(config, tools.map((tool) => tool.id));
