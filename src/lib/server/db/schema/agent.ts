@@ -68,6 +68,7 @@ export const agentToolDefinition = sqliteTable(
         requiresConfirmation: integer('requires_confirmation', { mode: 'boolean' }).notNull().default(false),
         riskLevel: text('risk_level').notNull().default('low'), // low | medium | high
         requiredPermissions: text('required_permissions'),       // JSON array: ["read_course", "write_grade"]
+        usageDomain: text('usage_domain').notNull().default('agent_chat'),
 
         // Estado
         isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
@@ -83,6 +84,7 @@ export const agentToolDefinition = sqliteTable(
     (table) => [
         index('agent_tool_def_name_idx').on(table.name),
         index('agent_tool_def_category_idx').on(table.category),
+        index('agent_tool_def_usage_domain_idx').on(table.usageDomain),
         index('agent_tool_def_active_idx').on(table.isActive)
     ]
 );

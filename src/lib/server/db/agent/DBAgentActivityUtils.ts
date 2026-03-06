@@ -1,8 +1,9 @@
 import { db } from '..';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, isNull, or } from 'drizzle-orm';
 import * as schema from '../schema';
 import { nanoid } from 'nanoid';
 import type { ToolDefinitionResolved } from '$lib/types/agent';
+import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '$lib/server/agent/tools/constants';
 
 export default class DBAgentActivityUtils {
 	// ─── Actividad Agéntica ───
@@ -33,7 +34,15 @@ export default class DBAgentActivityUtils {
 
 	// ─── Herramientas Habilitadas por Actividad ───
 
-	static async getEnabledToolsForActivity(activityId: string): Promise<ToolDefinitionResolved[]> {
+	static async getEnabledToolsForActivity(
+		activityId: string,
+		usageDomain: string = BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
+	): Promise<ToolDefinitionResolved[]> {
+		const usageClause = or(
+			eq(schema.agentToolDefinition.usageDomain, usageDomain),
+			isNull(schema.agentToolDefinition.usageDomain)
+		);
+
 		const rows = await db
 			.select({
 				tool: schema.agentToolDefinition,
@@ -48,7 +57,8 @@ export default class DBAgentActivityUtils {
 				and(
 					eq(schema.agentActivityTool.agentActivityId, activityId),
 					eq(schema.agentActivityTool.isEnabled, true),
-					eq(schema.agentToolDefinition.isActive, true)
+					eq(schema.agentToolDefinition.isActive, true),
+					usageClause
 				)
 			);
 
@@ -98,6 +108,7 @@ export default class DBAgentActivityUtils {
 				executorConfig,
 				requiresConfirmation: tool.requiresConfirmation,
 				riskLevel: tool.riskLevel as 'low' | 'medium' | 'high',
+				usageDomain: tool.usageDomain,
 				configOverride
 			} satisfies ToolDefinitionResolved;
 		});
@@ -131,7 +142,8 @@ export default class DBAgentActivityUtils {
 		const { default: DBAgentToolUtils } = await import('./DBAgentToolUtils');
 		const { default: DBAgentUIUtils } = await import('./DBAgentUIUtils');
 
-		await DBAgentToolUtils.seedBuiltinTools();
+		const usageDomain = BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT;
+		await DBAgentToolUtils.seedBuiltinTools(usageDomain);
 		await DBAgentUIUtils.seedBuiltinUIComponents();
 
 		const existing = await db
@@ -171,7 +183,7 @@ export default class DBAgentActivityUtils {
 		}
 
 		// Keep baseline tools synced in existing global tutor installations.
-		const tools = await DBAgentToolUtils.getActiveToolDefinitions();
+		const tools = await DBAgentToolUtils.getActiveToolDefinitions(usageDomain);
 		const defaultGlobalTools = tools.filter((t) =>
 			[
 				'calculate_expression',
@@ -196,7 +208,7 @@ export default class DBAgentActivityUtils {
 		}
 
 		if (defaultGlobalTools.length > 0) {
-			const enabledTools = await this.getEnabledToolsForActivity(this.GLOBAL_TUTOR_ID);
+			const enabledTools = await this.getEnabledToolsForActivity(this.GLOBAL_TUTOR_ID, usageDomain);
 			const mergedToolIds = [...enabledTools.map((t) => t.id)];
 
 			for (const tool of defaultGlobalTools) {

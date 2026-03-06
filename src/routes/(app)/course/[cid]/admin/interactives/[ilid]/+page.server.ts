@@ -6,6 +6,7 @@ import type { PageServerLoad } from './$types';
 import DBChatUtils from '$lib/server/db/DBChatUtils';
 import { DBAgentActivityUtils, DBAgentAnalyticsUtils } from '$lib/server/db/agent';
 import { ACTIVITY_COMPLETION_MIN_MESSAGES } from '$lib/constants';
+import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '$lib/server/agent/tools/constants';
 
 export const load = (async ({ params, locals }) => {
 	// Verificación de seguridad (defensa en profundidad)
@@ -41,7 +42,10 @@ export const load = (async ({ params, locals }) => {
 	if (interactive.type === 'agent') {
 		const agentConfig = await DBAgentActivityUtils.getAgentActivity(ilid);
 		const agentStats = await DBAgentAnalyticsUtils.getActivityAgentStats(ilid);
-		const enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilid);
+		const enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(
+			ilid,
+			BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
+		);
 
 		return {
 			interactive,

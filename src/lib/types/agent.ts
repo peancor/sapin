@@ -136,6 +136,7 @@ export interface ToolDefinitionResolved {
 	executorConfig: Record<string, unknown>;
 	requiresConfirmation: boolean;
 	riskLevel: 'low' | 'medium' | 'high';
+	usageDomain?: string;
 	configOverride?: Record<string, unknown>; // Override por actividad
 }
 

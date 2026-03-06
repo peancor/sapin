@@ -1,8 +1,8 @@
-import { graphPlotCardHandler } from './handlers/graphPlotCard.handler';
-import { flashcardDeckHandler } from './handlers/flashcardDeck.handler';
-import { quizCardHandler } from './handlers/quizCard.handler';
-import { sharedImageCardHandler } from './handlers/sharedImageCard.handler';
-import { timedQuizCardHandler } from './handlers/timedQuizCard.handler';
+import { graphPlotCardHandler } from './handlers/graph-plot-card';
+import { flashcardDeckHandler } from './handlers/flashcard-deck';
+import { quizCardHandler } from './handlers/quiz-card';
+import { sharedImageCardHandler } from './handlers/shared-image-card';
+import { timedQuizCardHandler } from './handlers/timed-quiz-card';
 import type { UIRendererHandler } from './types';
 
 const UI_RENDERER_HANDLER_REGISTRY: Record<string, UIRendererHandler> = {

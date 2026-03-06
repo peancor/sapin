@@ -25,6 +25,7 @@ import {
 	deriveEnabledUIComponentKeysFromTools,
 	resolveUIRendererBindings
 } from '$lib/utils/agentToolUiMapping';
+import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '$lib/server/agent/tools/constants';
 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
 	const user = locals.user;
@@ -41,6 +42,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	}
 
 	const { ilcid, cid } = params;
+	const usageDomain = BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT;
 	if (!ilcid || !cid) return json({ error: 'Parámetros requeridos' }, { status: 400 });
 
 	let body: { toolCallId: string; approved: boolean; rejectionReason?: string };
@@ -103,7 +105,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	const agentActivity = await DBAgentActivityUtils.getAgentActivity(ilcid);
 	if (!agentActivity) return json({ error: 'Actividad no encontrada' }, { status: 404 });
 
-	const enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilcid);
+	const enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilcid, usageDomain);
 	const enabledUIComponentKeys = deriveEnabledUIComponentKeysFromTools(enabledTools);
 	const uiToolWarnings = resolveUIRendererBindings(enabledTools).filter((b) => b.issue !== null);
 	for (const warning of uiToolWarnings) {

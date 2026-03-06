@@ -32,7 +32,9 @@
 		Package
 	} from 'lucide-svelte';
 
-	let { data }: { data: PageData } = $props();
+	let { data }: {
+		data: PageData & { usageDomain?: string; availableUsageDomains?: string[] }
+	} = $props();
 
 	// Local copy so we can mutate it without refetching
 	let tools = $state(data.tools.slice());
@@ -41,6 +43,8 @@
 	let searchQuery = $state('');
 	let categoryFilter = $state('all');
 	let executorFilter = $state('all');
+	let domainFilter = $state((data as { usageDomain?: string }).usageDomain ?? 'all');
+	let availableUsageDomains = $state((data as { availableUsageDomains?: string[] }).availableUsageDomains ?? []);
 
 	// Feedback
 	let successMessage = $state('');
@@ -60,6 +64,7 @@
 	let formRequiresConfirmation = $state(false);
 	let formIsActive = $state(true);
 	let formVersion = $state('1.0.0');
+	let formUsageDomain = $state('agent_chat');
 	let formParametersSchema = $state('{\n  "type": "object",\n  "properties": {},\n  "required": []\n}');
 	let formResponseSchema = $state('');
 	let formExecutorConfig = $state('{}');
@@ -85,11 +90,16 @@
 					t.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
 					t.name.toLowerCase().includes(searchQuery.toLowerCase())) &&
 				(categoryFilter === 'all' || t.category === categoryFilter) &&
-				(executorFilter === 'all' || t.executorType === executorFilter)
+				(executorFilter === 'all' || t.executorType === executorFilter) &&
+				(domainFilter === 'all' || t.usageDomain === domainFilter)
 		)
 	);
 
 	// Helpers
+	let availableUsageDomainOptions = $derived(
+		availableUsageDomains.length > 0 ? availableUsageDomains : ['agent_chat']
+	);
+
 	function categoryLabel(cat: string): string {
 		const labels: Record<string, string> = {
 			knowledge: 'Conocimiento',
@@ -114,10 +124,10 @@
 		return colors[cat] ?? 'gray';
 	}
 
-	function riskColor(risk: string): 'green' | 'yellow' | 'red' {
-		if (risk === 'low') return 'green';
-		if (risk === 'medium') return 'yellow';
-		return 'red';
+	function usageDomainLabel(domain: string | undefined | null): string {
+		if (domain === 'agent_chat') return 'Agente Chat';
+		if (domain === 'insights') return 'Insights';
+		return domain ?? 'Sin definir';
 	}
 
 	function riskLabel(risk: string): string {
@@ -153,6 +163,7 @@
 		formRequiresConfirmation = false;
 		formIsActive = true;
 		formVersion = '1.0.0';
+		formUsageDomain = domainFilter === 'all' ? (availableUsageDomainOptions[0] ?? 'agent_chat') : domainFilter;
 		formParametersSchema = '{\n  "type": "object",\n  "properties": {},\n  "required": []\n}';
 		formResponseSchema = '';
 		formExecutorConfig = '{}';
@@ -169,6 +180,7 @@
 		formRequiresConfirmation = tool.requiresConfirmation;
 		formIsActive = tool.isActive;
 		formVersion = tool.version;
+		formUsageDomain = tool.usageDomain || 'agent_chat';
 		formParametersSchema = tool.parametersSchema;
 		formResponseSchema = tool.responseSchema ?? '';
 		formExecutorConfig = tool.executorConfig;
@@ -218,6 +230,7 @@
 				requiresConfirmation: formRequiresConfirmation,
 				isActive: formIsActive,
 				version: formVersion.trim() || '1.0.0',
+				usageDomain: formUsageDomain.trim() || 'agent_chat',
 				parametersSchema: formParametersSchema.trim(),
 				responseSchema: formResponseSchema.trim() || null,
 				executorConfig: formExecutorConfig.trim()
@@ -438,6 +451,26 @@
 					<option value="script">Script</option>
 				</select>
 			</div>
+
+			<!-- Usage domain filter -->
+			<div class="w-full md:w-44">
+				<label
+					for="domainFilter"
+					class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+				>
+					Dominio
+				</label>
+				<select
+					id="domainFilter"
+					bind:value={domainFilter}
+					class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+				>
+					<option value="all">Todos</option>
+					{#each availableUsageDomainOptions as option}
+						<option value={option}>{usageDomainLabel(option)}</option>
+					{/each}
+				</select>
+			</div>
 		</div>
 	</div>
 
@@ -449,6 +482,7 @@
 					<TableHeadCell>Herramienta</TableHeadCell>
 					<TableHeadCell>Categoría</TableHeadCell>
 					<TableHeadCell>Ejecutor</TableHeadCell>
+					<TableHeadCell>Dominio</TableHeadCell>
 					<TableHeadCell>Riesgo</TableHeadCell>
 					<TableHeadCell>Confirmación</TableHeadCell>
 					<TableHeadCell>Estado</TableHeadCell>
@@ -498,6 +532,12 @@
 										Script
 									</Badge>
 								{/if}
+							</TableBodyCell>
+
+							<TableBodyCell>
+								<Badge color="gray">
+									{usageDomainLabel(tool.usageDomain)}
+								</Badge>
 							</TableBodyCell>
 
 							<!-- Riesgo -->
@@ -570,11 +610,16 @@
 						</TableBodyRow>
 					{:else}
 						<TableBodyRow>
-							<TableBodyCell colspan={7} class="py-10 text-center">
+							<TableBodyCell colspan={8} class="py-10 text-center">
 								<div class="flex flex-col items-center gap-2">
 									<Wrench size={40} class="text-gray-300 dark:text-gray-600" />
 									<p class="text-gray-500 dark:text-gray-400">No se encontraron herramientas</p>
-									{#if searchQuery || categoryFilter !== 'all' || executorFilter !== 'all'}
+									{#if
+										searchQuery ||
+										categoryFilter !== 'all' ||
+										executorFilter !== 'all' ||
+										domainFilter !== 'all'
+									}
 										<Button
 											color="alternative"
 											size="xs"
@@ -582,6 +627,7 @@
 												searchQuery = '';
 												categoryFilter = 'all';
 												executorFilter = 'all';
+												domainFilter = 'all';
 											}}
 										>
 											Limpiar filtros
@@ -743,6 +789,24 @@
 							class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
 						/>
 					</div>
+				</div>
+
+				<div>
+					<label
+						for="formUsageDomain"
+						class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+					>
+						Dominio de uso
+					</label>
+					<select
+						id="formUsageDomain"
+						bind:value={formUsageDomain}
+						class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+					>
+						{#each availableUsageDomainOptions as option}
+							<option value={option}>{usageDomainLabel(option)}</option>
+						{/each}
+					</select>
 				</div>
 
 				<!-- Toggles: requiresConfirmation + isActive -->

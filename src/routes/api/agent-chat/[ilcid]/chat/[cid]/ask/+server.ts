@@ -25,6 +25,7 @@ import {
 	deriveEnabledUIComponentKeysFromTools,
 	resolveUIRendererBindings
 } from '$lib/utils/agentToolUiMapping';
+import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '$lib/server/agent/tools/constants';
 
 export const GET: RequestHandler = async ({ url, params, locals }) => {
 	const user = locals.user;
@@ -52,6 +53,7 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
 	const userMessage = url.searchParams.get('message');
 	const isResume = url.searchParams.get('resume') === 'true';
 	const { ilcid, cid } = params;
+	const usageDomain = BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT;
 
 	// En modo resume no requiere mensaje; en modo normal sí
 	if (!isResume && (!userMessage || !ilcid || !cid)) {
@@ -97,14 +99,14 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
 
 		// Cargar herramientas habilitadas para esta actividad.
 		// Los UI components se derivan desde tools tipo ui_renderer.
-		let enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilcid);
+		let enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilcid, usageDomain);
 
 		// Seed de catálogos builtin si no hay herramientas habilitadas aún
 		if (enabledTools.length === 0) {
-			await DBAgentToolUtils.seedBuiltinTools();
+			await DBAgentToolUtils.seedBuiltinTools(usageDomain);
 			await DBAgentUIUtils.seedBuiltinUIComponents();
 
-			enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilcid);
+			enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilcid, usageDomain);
 		}
 
 		const enabledUIComponentKeys = deriveEnabledUIComponentKeysFromTools(enabledTools);

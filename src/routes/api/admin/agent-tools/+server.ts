@@ -2,15 +2,24 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { DBAgentToolUtils } from '$lib/server/db/agent';
 import { ROLE_LEVELS } from '$lib/server/roles';
+import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT, BUILTIN_TOOL_USAGE_DOMAINS } from '$lib/server/agent/tools/constants';
 
 // GET /api/admin/agent-tools — listar todas las herramientas
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
     if (!locals.user) return new Response('Unauthorized', { status: 401 });
     if (locals.user.highestRoleLevel < ROLE_LEVELS.ADMIN)
         return new Response('Forbidden', { status: 403 });
 
     try {
-        const tools = await DBAgentToolUtils.getAllToolDefinitions();
+		const requestedDomain = url.searchParams.get('usageDomain');
+		const usageDomain =
+			requestedDomain === 'all' ? undefined : (requestedDomain ?? BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT);
+
+		if (usageDomain !== undefined && !BUILTIN_TOOL_USAGE_DOMAINS.includes(usageDomain)) {
+			return json({ error: 'usageDomain no válido' }, { status: 400 });
+		}
+
+        const tools = await DBAgentToolUtils.getAllToolDefinitions(usageDomain);
         return json({ tools });
     } catch (err) {
         console.error('[admin/agent-tools] GET error:', err);
@@ -26,8 +35,20 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
     try {
         const body = await request.json();
-        const { name, displayName, description, category, parametersSchema, responseSchema,
-                executorType, executorConfig, requiresConfirmation, riskLevel, version } = body;
+        const {
+			name,
+			displayName,
+			description,
+			category,
+			parametersSchema,
+			responseSchema,
+			executorType,
+			executorConfig,
+			requiresConfirmation,
+			riskLevel,
+			version,
+			usageDomain
+		} = body;
 
         if (!name || !displayName || !description || !category || !executorType) {
             return json({ error: 'Campos requeridos: name, displayName, description, category, executorType' }, { status: 400 });
@@ -46,6 +67,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
             catch { return json({ error: 'executorConfig no es JSON válido' }, { status: 400 }); }
         }
 
+        const requestedDomain =
+			typeof usageDomain === 'string' && usageDomain.trim().length > 0 ? usageDomain.trim() : undefined;
+
+		if (requestedDomain !== undefined && !BUILTIN_TOOL_USAGE_DOMAINS.includes(requestedDomain)) {
+			return json({ error: 'usageDomain no válido' }, { status: 400 });
+		}
+
         const id = await DBAgentToolUtils.createToolDefinition({
             name,
             displayName,
@@ -57,6 +85,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
             executorConfig: parsedExecutorConfig,
             requiresConfirmation: requiresConfirmation === true,
             riskLevel: (riskLevel ?? 'low') as 'low' | 'medium' | 'high',
+            usageDomain: requestedDomain ?? BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT,
             isActive: true,
             isSystem: false,
             version: version ?? '1.0.0'

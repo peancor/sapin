@@ -1,23 +1,5 @@
 import type { AgentContext, ToolDefinitionResolved, ToolResult } from '$lib/types/agent';
-import { searchCourseContent } from './builtins/searchCourseContent';
-import { getStudentProgress } from './builtins/getStudentProgress';
-import { calculateExpression } from './builtins/calculateExpression';
-import { saveGrade } from './builtins/saveGrade';
-import { sendNotification } from './builtins/sendNotification';
-
-type BuiltinHandler = (args: unknown, context: AgentContext) => Promise<ToolResult>;
-
-/**
- * Registro de handlers builtin. Cada entrada mapea el nombre del handler
- * (definido en executorConfig.handler) a su implementación.
- */
-const BUILTIN_HANDLERS: Record<string, BuiltinHandler> = {
-    searchCourseContent: searchCourseContent as unknown as BuiltinHandler,
-    getStudentProgress: getStudentProgress as unknown as BuiltinHandler,
-    calculateExpression: calculateExpression as unknown as BuiltinHandler,
-    saveGrade: saveGrade as unknown as BuiltinHandler,
-    sendNotification: sendNotification as unknown as BuiltinHandler
-};
+import { getBuiltinToolHandler } from './tools/registry';
 
 export interface ToolExecutionResult {
     data: unknown;
@@ -114,7 +96,7 @@ export class ToolExecutor {
             };
         }
 
-        const fn = BUILTIN_HANDLERS[handler];
+        const fn = getBuiltinToolHandler(handler);
         if (!fn) {
             return {
                 data: null,

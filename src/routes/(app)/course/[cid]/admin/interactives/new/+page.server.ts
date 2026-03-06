@@ -10,6 +10,7 @@ import { AIUtils } from '$lib/server/ai/AIUtils';
 import { auditService, auditAction } from '$lib/server/logging';
 import { generateSlug } from '$lib/utils/slug';
 import { DBAgentActivityUtils, DBAgentToolUtils, DBAgentUIUtils } from '$lib/server/db/agent';
+import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '$lib/server/agent/tools/constants';
 
 function getClientIP(request: Request): string | null {
     return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -33,9 +34,9 @@ export const load = (async ({ locals, params }) => {
     const defaultModel = await AIUtils.getDefaultModel();
 
     // Seed y cargar catálogos para actividades agénticas
-    await DBAgentToolUtils.seedBuiltinTools();
+    await DBAgentToolUtils.seedBuiltinTools(BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT);
     await DBAgentUIUtils.seedBuiltinUIComponents();
-    const activeTools = await DBAgentToolUtils.getActiveToolDefinitions();
+    const activeTools = await DBAgentToolUtils.getActiveToolDefinitions(BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT);
     const activeUIComponents = await DBAgentUIUtils.getAllUIComponents();
     const availableUIComponentKeys = activeUIComponents.map((component) => component.componentKey);
 

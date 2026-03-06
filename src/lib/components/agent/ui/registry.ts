@@ -1,8 +1,8 @@
-import QuizCard from './QuizCard.svelte';
-import FlashcardDeck from './FlashcardDeck.svelte';
-import TimedQuizCard from './TimedQuizCard.svelte';
-import GraphPlotCard from './GraphPlotCard.svelte';
-import SharedImageCard from './SharedImageCard.svelte';
+import QuizCard from './QuizCard/index.svelte';
+import FlashcardDeck from './FlashcardDeck/index.svelte';
+import TimedQuizCard from './TimedQuizCard/index.svelte';
+import GraphPlotCard from './GraphPlotCard/index.svelte';
+import SharedImageCard from './SharedImageCard/index.svelte';
 
 interface UIComponentContext {
 	instanceId: string;

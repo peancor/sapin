@@ -36,6 +36,7 @@ import {
 } from '$lib/server/qdrant/embeddings';
 import { processDocument, processText, type ParsedDocument } from '$lib/server/qdrant/documentProcessor';
 import { resolveRagConfig, type RagConfig } from '$lib/server/rag/config';
+import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '$lib/server/agent/tools/constants';
 
 const RAG_FILE_PATH_PREFIX = '/api/files/';
 const MIN_RAG_CHUNK_SIZE = 100;
@@ -292,13 +293,13 @@ export const load = (async ({ params, locals }) => {
     const defaultModel = await AIUtils.getDefaultModel();
     const ragConfig = resolveRagConfig(agentConfig.ragConfig);
 
-    await DBAgentToolUtils.seedBuiltinTools();
+    await DBAgentToolUtils.seedBuiltinTools(BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT);
     await DBAgentUIUtils.seedBuiltinUIComponents();
-    const activeTools = await DBAgentToolUtils.getActiveToolDefinitions();
+    const activeTools = await DBAgentToolUtils.getActiveToolDefinitions(BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT);
     const activeUIComponents = await DBAgentUIUtils.getAllUIComponents();
     const availableUIComponentKeys = activeUIComponents.map((component) => component.componentKey);
 
-    const enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilid);
+    const enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(ilid, BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT);
     const assignedToolIds = enabledTools.map((t) => t.id);
 
     const files = await db
