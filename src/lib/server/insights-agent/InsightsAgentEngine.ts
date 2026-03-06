@@ -51,6 +51,9 @@ export class InsightsAgentEngine {
 			if (scope.mode === 'students' && scopedInput.studentIds === undefined && scope.studentIds.length > 0) {
 				scopedInput.studentIds = scope.studentIds;
 			}
+			if (scope.mode === 'students' && scopedInput.studentId === undefined && scope.studentIds.length === 1) {
+				scopedInput.studentId = scope.studentIds[0];
+			}
 
 			if (scope.mode === 'sessions' && scopedInput.chatIds === undefined && scope.chatIds.length > 0) {
 				scopedInput.chatIds = scope.chatIds;

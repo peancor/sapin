@@ -3,6 +3,8 @@ import {
 	analyzeActivityDifficultyPackage,
 	calculateExpressionPackage,
 	compareStudentGroupsPackage,
+	draftRemediationPlanPackage,
+	draftTeacherFeedbackPackage,
 	findStuckSessionsPackage,
 	getActivityToolUsageSummaryPackage,
 	getActivityEvidenceOverviewPackage,
@@ -10,6 +12,7 @@ import {
 	getCourseStudentRosterPackage,
 	getLearningProgressTimelinePackage,
 	getStudentProgressPackage,
+	recommendNextActivityPackage,
 	renderFlashcardsPackage,
 	renderGraphPlotPackage,
 	renderQuizPackage,
@@ -17,7 +20,8 @@ import {
 	renderTimedQuizPackage,
 	saveGradePackage,
 	searchCourseContentPackage,
-	sendNotificationPackage
+	sendNotificationPackage,
+	summarizeEvidenceForStudentPackage
 } from './index';
 
 const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
@@ -32,6 +36,10 @@ const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
 	compareStudentGroupsPackage,
 	findStuckSessionsPackage,
 	analyzeActivityDifficultyPackage,
+	summarizeEvidenceForStudentPackage,
+	draftTeacherFeedbackPackage,
+	draftRemediationPlanPackage,
+	recommendNextActivityPackage,
 	saveGradePackage,
 	renderQuizPackage,
 	renderTimedQuizPackage,
