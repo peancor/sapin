@@ -58,6 +58,9 @@ export class InsightsAgentEngine {
 			if (scope.mode === 'sessions' && scopedInput.chatIds === undefined && scope.chatIds.length > 0) {
 				scopedInput.chatIds = scope.chatIds;
 			}
+			if (scope.mode === 'sessions' && scopedInput.chatId === undefined && scope.chatIds.length === 1) {
+				scopedInput.chatId = scope.chatIds[0];
+			}
 
 			if (scopedInput.dateFrom === undefined && scope.dateFrom) {
 				scopedInput.dateFrom = scope.dateFrom;

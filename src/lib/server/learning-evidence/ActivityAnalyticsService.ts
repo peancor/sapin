@@ -35,6 +35,9 @@ interface StudentActivityMetrics {
 	averageLearnerMessageLength: number;
 	attemptsCount: number;
 	timeSpentSeconds: number;
+	scoreRaw: number | null;
+	scoreNormalized: number | null;
+	masteryLevel: number | null;
 	firstActivityAt: string | null;
 	lastActivityAt: string | null;
 	engagementScore: number;
@@ -731,6 +734,9 @@ async function loadActivityData(
 					averageLearnerMessageLength,
 					attemptsCount,
 					timeSpentSeconds,
+					scoreRaw: progress?.scoreRaw ?? null,
+					scoreNormalized: progress?.scoreNormalized ?? null,
+					masteryLevel: progress?.masteryLevel ?? null,
 					firstActivityAt,
 					lastActivityAt,
 					engagementScore,
@@ -750,6 +756,22 @@ async function loadActivityData(
 }
 
 export class ActivityAnalyticsService {
+	static async getActivityStudentProfiles(
+		access: LearningEvidenceAccessContext,
+		query: ActivityAnalyticsQuery
+	) {
+		const data = await loadActivityData(access, query);
+		return {
+			activityId: query.activityId,
+			activityName: data.activity.name,
+			totalStudents: data.students.length,
+			students: data.students.map((student) => ({
+				student: student.student,
+				...student.metrics
+			}))
+		};
+	}
+
 	static async getLearningProgressTimeline(
 		access: LearningEvidenceAccessContext,
 		query: ActivityAnalyticsQuery & {
