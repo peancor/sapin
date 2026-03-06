@@ -4,6 +4,11 @@
 	import AgentChatComponent from '$lib/components/agent/AgentChatComponent.svelte';
 
 	let { data }: { data: PageData } = $props();
+	type ChatComposerApi = {
+		fillComposer: (text: string) => void;
+		sendDraftMessage: (text: string) => void;
+	};
+	type GuidedActionKind = 'outreach' | 'notification';
 
 	let title = $state('');
 	let scopeMode = $state<'cohort' | 'students' | 'sessions'>('cohort');
@@ -23,6 +28,15 @@
 	let maxToolRoundtrips = $state(8);
 	let temperature = $state(0.2);
 	let enabledToolIds = $state<string[]>([]);
+	let chatApi = $state<ChatComposerApi | null>(null);
+	let guidedActionKind = $state<GuidedActionKind>('outreach');
+	let guidedStudentId = $state('');
+	let guidedChannel = $state<'email' | 'in_app'>('email');
+	let guidedTone = $state<'supportive' | 'direct' | 'celebratory'>('supportive');
+	let guidedObjective = $state('');
+	let guidedPriority = $state<'low' | 'normal' | 'high'>('normal');
+	let guidedPurpose = $state<'reminder' | 'encouragement' | 'follow_up'>('follow_up');
+	let guidedFocus = $state('');
 
 	$effect(() => {
 		llmModel = data.config.llmModel ?? data.models[0] ?? '';
@@ -44,6 +58,19 @@
 		data.selectedRun ? data.selectedRun.createdByUserId === data.viewerUserId : false
 	);
 
+	const studentById = $derived(new Map(data.students.map((student) => [student.id, student])));
+
+	const scopedSingleStudentId = $derived.by(() => {
+		const ids = data.selectedRun?.scope.studentIds ?? [];
+		return ids.length === 1 ? ids[0] : '';
+	});
+
+	$effect(() => {
+		if (!guidedStudentId && scopedSingleStudentId) {
+			guidedStudentId = scopedSingleStudentId;
+		}
+	});
+
 	const groupedTools = $derived.by(() => {
 		const groups = new Map<string, typeof data.availableTools>();
 		for (const tool of data.availableTools) {
@@ -57,6 +84,48 @@
 			label: `${tools[0]?.usageDomain ?? 'general'} / ${tools[0]?.category ?? 'otros'}`,
 			tools
 		}));
+	});
+
+	const selectedGuidedStudent = $derived(
+		guidedStudentId ? studentById.get(guidedStudentId) ?? null : null
+	);
+
+	const guidedPrompt = $derived.by(() => {
+		const student = selectedGuidedStudent;
+		if (!student) return '';
+
+		if (guidedActionKind === 'outreach') {
+			const objectiveClause = guidedObjective.trim()
+				? ` Objetivo principal: ${guidedObjective.trim()}.`
+				: '';
+			return `Necesito un borrador de outreach para el estudiante ${student.username} (${student.id}) sobre la actividad actual. Usa la herramienta draft_outreach_message con studentId="${student.id}", channel="${guidedChannel}", tone="${guidedTone}".${objectiveClause} Quiero el rationale resumido y el borrador final listo para revisar, sin enviar nada.`;
+		}
+
+		const focusClause = guidedFocus.trim()
+			? ` Enfoca la notificacion en: ${guidedFocus.trim()}.`
+			: '';
+		return `Necesito un borrador de notificacion in-app para el estudiante ${student.username} (${student.id}) sobre la actividad actual. Usa la herramienta draft_student_notification con studentId="${student.id}", priority="${guidedPriority}", purpose="${guidedPurpose}".${focusClause} Devuelve el borrador breve, la justificacion y cualquier nota de seguridad. No envies nada.`;
+	});
+
+	const selectedRunScopeSummary = $derived.by(() => {
+		if (!data.selectedRun) return [];
+		const scope = data.selectedRun.scope;
+		const chips: string[] = [`modo: ${scope.mode}`];
+		if (scope.studentIds.length > 0) {
+			chips.push(
+				scope.studentIds.length === 1
+					? `estudiante: ${studentById.get(scope.studentIds[0])?.username ?? scope.studentIds[0]}`
+					: `${scope.studentIds.length} estudiantes`
+			);
+		}
+		if (scope.chatIds.length > 0) chips.push(`${scope.chatIds.length} sesiones`);
+		if (scope.dateFrom || scope.dateTo) {
+			chips.push(
+				`${scope.dateFrom ? scope.dateFrom : 'inicio'} - ${scope.dateTo ? scope.dateTo : 'ahora'}`
+			);
+		}
+		if (scope.search) chips.push(`busqueda: ${scope.search}`);
+		return chips;
 	});
 
 	function toggleStudent(studentId: string) {
@@ -142,6 +211,15 @@
 		} finally {
 			isSavingConfig = false;
 		}
+	}
+
+	function useGuidedPrompt(sendNow: boolean) {
+		if (!guidedPrompt || !chatApi) return;
+		if (sendNow) {
+			chatApi.sendDraftMessage(guidedPrompt);
+			return;
+		}
+		chatApi.fillComposer(guidedPrompt);
 	}
 </script>
 
@@ -342,6 +420,15 @@
 							{/if}
 						</div>
 					</div>
+					{#if selectedRunScopeSummary.length > 0}
+						<div class="mt-3 flex flex-wrap gap-2">
+							{#each selectedRunScopeSummary as chip (chip)}
+								<span class="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-300">
+									{chip}
+								</span>
+							{/each}
+						</div>
+					{/if}
 					{#if !selectedRunEditable}
 						<div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
 							Este run fue creado por otro administrador. Puedes revisarlo, pero no continuarlo.
@@ -352,7 +439,11 @@
 				{#if selectedRunEditable}
 					<div class="h-[calc(70vh-92px)]">
 						{#key data.selectedRun.id}
-							<AgentChatComponent initialMessages={data.selectedRun.messages} apiEndpoint={apiEndpoint} />
+							<AgentChatComponent
+								bind:this={chatApi}
+								initialMessages={data.selectedRun.messages}
+								apiEndpoint={apiEndpoint}
+							/>
 						{/key}
 					</div>
 				{:else}
@@ -415,6 +506,152 @@
 							<div class="mt-1 text-base font-semibold text-gray-900 dark:text-white">{data.metrics.earlyWarning.totalAtRisk}</div>
 						</div>
 					</div>
+				</div>
+			</div>
+
+			<div class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+				<div class="flex items-center justify-between gap-3">
+					<h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+						Acciones guiadas
+					</h2>
+					<span class="text-[11px] text-gray-400">borradores seguros</span>
+				</div>
+
+				<div class="mt-4 space-y-4">
+					<div>
+						<label for="guided-action-kind" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de accion</label>
+						<select
+							id="guided-action-kind"
+							bind:value={guidedActionKind}
+							class="block w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+						>
+							<option value="outreach">Borrador de outreach</option>
+							<option value="notification">Borrador de notificacion</option>
+						</select>
+					</div>
+
+					<div>
+						<label for="guided-student" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Estudiante</label>
+						<select
+							id="guided-student"
+							bind:value={guidedStudentId}
+							class="block w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+						>
+							<option value="">Selecciona un estudiante</option>
+							{#each data.students as student (student.id)}
+								<option value={student.id}>{student.username} · {student.email}</option>
+							{/each}
+						</select>
+					</div>
+
+					{#if guidedActionKind === 'outreach'}
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label for="guided-channel" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Canal</label>
+								<select
+									id="guided-channel"
+									bind:value={guidedChannel}
+									class="block w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								>
+									<option value="email">Email</option>
+									<option value="in_app">In-app</option>
+								</select>
+							</div>
+							<div>
+								<label for="guided-tone" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Tono</label>
+								<select
+									id="guided-tone"
+									bind:value={guidedTone}
+									class="block w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								>
+									<option value="supportive">Supportive</option>
+									<option value="direct">Direct</option>
+									<option value="celebratory">Celebratory</option>
+								</select>
+							</div>
+						</div>
+
+						<div>
+							<label for="guided-objective" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Objetivo opcional</label>
+							<textarea
+								id="guided-objective"
+								bind:value={guidedObjective}
+								rows={3}
+								placeholder="p. ej. reactivar al estudiante antes de la semana 4"
+								class="block w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							></textarea>
+						</div>
+					{:else}
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label for="guided-priority" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Prioridad</label>
+								<select
+									id="guided-priority"
+									bind:value={guidedPriority}
+									class="block w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								>
+									<option value="low">Low</option>
+									<option value="normal">Normal</option>
+									<option value="high">High</option>
+								</select>
+							</div>
+							<div>
+								<label for="guided-purpose" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Proposito</label>
+								<select
+									id="guided-purpose"
+									bind:value={guidedPurpose}
+									class="block w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								>
+									<option value="follow_up">Follow-up</option>
+									<option value="reminder">Reminder</option>
+									<option value="encouragement">Encouragement</option>
+								</select>
+							</div>
+						</div>
+
+						<div>
+							<label for="guided-focus" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Enfoque opcional</label>
+							<textarea
+								id="guided-focus"
+								bind:value={guidedFocus}
+								rows={3}
+								placeholder="p. ej. recordar la fecha limite o reforzar el siguiente paso"
+								class="block w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							></textarea>
+						</div>
+					{/if}
+
+					<div class="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-300">
+						<div class="font-medium text-gray-900 dark:text-white">Prompt estructurado</div>
+						<p class="mt-2 whitespace-pre-wrap">{guidedPrompt || 'Selecciona un estudiante para generar la accion guiada.'}</p>
+					</div>
+
+					<div class="flex flex-col gap-2 sm:flex-row">
+						<button
+							class="inline-flex flex-1 items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+							onclick={() => useGuidedPrompt(false)}
+							disabled={!guidedPrompt || !selectedRunEditable || !data.selectedRun}
+						>
+							Rellenar chat
+						</button>
+						<button
+							class="inline-flex flex-1 items-center justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+							onclick={() => useGuidedPrompt(true)}
+							disabled={!guidedPrompt || !selectedRunEditable || !data.selectedRun}
+						>
+							Lanzar en el run
+						</button>
+					</div>
+
+					{#if !data.selectedRun}
+						<p class="text-xs text-amber-600 dark:text-amber-300">
+							Crea o selecciona un run para usar las acciones guiadas.
+						</p>
+					{:else if !selectedRunEditable}
+						<p class="text-xs text-amber-600 dark:text-amber-300">
+							Este run es de solo lectura. Crea uno nuevo si quieres lanzar un borrador desde aqui.
+						</p>
+					{/if}
 				</div>
 			</div>
 

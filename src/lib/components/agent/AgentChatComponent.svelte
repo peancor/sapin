@@ -80,8 +80,7 @@
         }
     }
 
-    function sendMessage() {
-        const text = messageInput.trim();
+    function startUserMessage(text: string) {
         if (!text || isLoading) return;
 
         errorMessage = '';
@@ -118,6 +117,22 @@
         url.searchParams.set('message', text);
 
         startStream(url.toString(), assistantMsgId);
+    }
+
+    function sendMessage() {
+        startUserMessage(messageInput.trim());
+    }
+
+    export function fillComposer(text: string) {
+        messageInput = text;
+        setTimeout(() => {
+            autoResize();
+            textarea?.focus();
+        }, 0);
+    }
+
+    export function sendDraftMessage(text: string) {
+        startUserMessage(text.trim());
     }
 
     // ─── SSE stream (reusable for initial send + HITL resume) ───

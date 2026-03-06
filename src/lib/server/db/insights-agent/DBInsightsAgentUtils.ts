@@ -21,6 +21,8 @@ const DEFAULT_TOOL_NAMES = [
 	'summarize_evidence_for_student',
 	'draft_teacher_feedback',
 	'draft_remediation_plan',
+	'draft_outreach_message',
+	'draft_student_notification',
 	'recommend_next_activity',
 	'forecast_completion_risk',
 	'cluster_interaction_patterns',
