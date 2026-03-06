@@ -8,3 +8,6 @@ export const BUILTIN_TOOL_USAGE_DOMAINS = [
 
 export type BuiltinToolUsageDomain = (typeof BUILTIN_TOOL_USAGE_DOMAINS)[number];
 
+export function isBuiltinToolUsageDomain(value: string): value is BuiltinToolUsageDomain {
+	return BUILTIN_TOOL_USAGE_DOMAINS.includes(value as BuiltinToolUsageDomain);
+}

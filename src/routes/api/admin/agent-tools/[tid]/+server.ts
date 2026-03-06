@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { DBAgentToolUtils } from '$lib/server/db/agent';
 import { ROLE_LEVELS } from '$lib/server/roles';
-import { BUILTIN_TOOL_USAGE_DOMAINS } from '$lib/server/agent/tools/constants';
+import { isBuiltinToolUsageDomain } from '$lib/server/agent/tools/constants';
 
 function adminGuard(locals: App.Locals): Response | null {
     if (!locals.user) return new Response('Unauthorized', { status: 401 });
@@ -44,7 +44,7 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 			}
 
 			const requestedDomain = body.usageDomain.trim();
-			if (!BUILTIN_TOOL_USAGE_DOMAINS.includes(requestedDomain)) {
+			if (!isBuiltinToolUsageDomain(requestedDomain)) {
 				return json({ error: 'usageDomain no válido' }, { status: 400 });
 			}
 			updates.usageDomain = requestedDomain;

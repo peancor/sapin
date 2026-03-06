@@ -2,7 +2,11 @@ import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { DBAgentToolUtils } from '$lib/server/db/agent';
 import { ROLE_LEVELS } from '$lib/server/roles';
-import { BUILTIN_TOOL_USAGE_DOMAINS, BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '$lib/server/agent/tools/constants';
+import {
+	BUILTIN_TOOL_USAGE_DOMAINS,
+	BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT,
+	isBuiltinToolUsageDomain
+} from '$lib/server/agent/tools/constants';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
     if (!locals.user) error(401, 'No autenticado');
@@ -12,7 +16,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const usageDomain =
 		requestedUsageDomain === 'all' ? undefined : requestedUsageDomain ?? BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT;
 
-	if (usageDomain !== undefined && !BUILTIN_TOOL_USAGE_DOMAINS.includes(usageDomain)) {
+	if (usageDomain !== undefined && !isBuiltinToolUsageDomain(usageDomain)) {
 		error(400, `usageDomain no válido: ${usageDomain}`);
 	}
 

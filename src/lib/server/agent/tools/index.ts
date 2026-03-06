@@ -1,4 +1,7 @@
 export { calculateExpressionPackage } from './calculateExpression';
+export { getActivityEvidenceOverviewPackage } from './getActivityEvidenceOverview';
+export { getActivityTranscriptsPackage } from './getActivityTranscripts';
+export { getCourseStudentRosterPackage } from './getCourseStudentRoster';
 export { getStudentProgressPackage } from './getStudentProgress';
 export { renderFlashcardsPackage } from './renderFlashcards';
 export { renderGraphPlotPackage } from './renderGraphPlot';
@@ -8,4 +11,3 @@ export { renderTimedQuizPackage } from './renderTimedQuiz';
 export { saveGradePackage } from './saveGrade';
 export { searchCourseContentPackage } from './searchCourseContent';
 export { sendNotificationPackage } from './sendNotification';
-

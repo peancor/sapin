@@ -1,11 +1,12 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import DBChatUtils from '$lib/server/db/DBChatUtils';
 import { InsightsUtils } from '$lib/server/ai/InsightsUtils';
 import { AIUtils } from '$lib/server/ai/AIUtils';
-import type { ProcessedChatData, ReportOptions } from '$lib/types/insights';
-import { db, CourseRoleUtils } from '$lib/server/db';
-import * as table from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import type { ReportOptions } from '$lib/types/insights';
+import { LearningEvidenceService } from '$lib/server/learning-evidence';
+import {
+	toInsightsActivityContext,
+	toInsightsProcessedChats
+} from '$lib/server/learning-evidence/insights';
 
 export const POST: RequestHandler = async ({ request, params, locals }) => {
 	try {
@@ -21,81 +22,29 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 
 		// Obtener opciones del cuerpo de la solicitud
 		const options: ReportOptions = await request.json();
+		const access = { actorUserId: user.id, actorHighestRoleLevel: user.highestRoleLevel };
+		const selectedStudentIds =
+			options.studentIds && options.studentIds.length > 0 && options.analysisMode !== 'cohort'
+				? options.studentIds
+				: undefined;
 
-		// 1. Obtener datos de la actividad interactiva
-		// bypassStatusCheck: true porque esta API es para admins/staff
-		const interactiveChat = await DBChatUtils.loadInteractiveChatFromInteractiveId(ilid, { bypassStatusCheck: true });
+		const overview = await LearningEvidenceService.getActivityEvidenceOverview(
+			access,
+			ilid,
+			selectedStudentIds
+		);
+		const activityContext = toInsightsActivityContext(overview);
+		const courseId = overview.activity.courseId;
 
-		// Obtener el ID del curso a través de courseInteractiveLearning (el id del chat ES el interactiveLearningId)
-		const courseInteractive = await db
-			.select()
-			.from(table.courseInteractiveLearning)
-			.where(
-				eq(
-					table.courseInteractiveLearning.interactiveLearningId,
-					interactiveChat.interactive_learning_chat.id
-				)
-			)
-			.limit(1);
-
-		if (!courseInteractive[0]) {
+		if (!courseId) {
 			throw new Error('No se encontró el curso asociado a esta actividad');
 		}
 
-		const courseId = courseInteractive[0].courseId;
-
-		// Verificar que el usuario tiene permisos sobre este curso
-		const hasPermission = await CourseRoleUtils.userHasCoursePermission(
-			user.id,
-			courseId,
-			'viewAnalytics'
-		);
-		if (!hasPermission && user.highestRoleLevel < 90) {
-			return new Response('No tienes permisos para ver insights de esta actividad', { status: 403 });
-		}
-
-		const courseUsers = await CourseRoleUtils.getCourseUsers(courseId);
-		const enrolledStudents = courseUsers.filter(u => u.role === 'student');
-		const enrolledStudentIds = new Set(enrolledStudents.map((student) => student.userId));
-
-		// 2. Obtener todas las conversaciones de estudiantes para esta actividad
-		const chatResults = await DBChatUtils.getAllChatInstancesFromInteractiveId(
-			interactiveChat.interactive_learning_chat.id,
-			{}, // Sin filtros
-			undefined, // Ordenación predeterminada
-			undefined // Sin paginación - obtener todos
-		);
-
-		// Filtrar solo chats de estudiantes enrolados
-		let filteredChats = chatResults.chats.filter((chat) => enrolledStudentIds.has(chat.user.id));
-
-		// Si hay studentIds especificados y el modo no es cohort, filtrar por ellos
-		if (options.studentIds && options.studentIds.length > 0 && options.analysisMode !== 'cohort') {
-			const selectedStudentIds = new Set(options.studentIds);
-			filteredChats = filteredChats.filter((chat) => selectedStudentIds.has(chat.user.id));
-		}
-
-		// 3. Preparar el contexto para el analisis AI
-		const activityContext = {
-			name: interactiveChat.interactive_learning.name,
-			description: interactiveChat.interactive_learning.description,
-			systemPrompt: interactiveChat.interactive_learning_chat.systemPrompt,
-			llmRole: interactiveChat.interactive_learning_chat.llmRole,
-			llmInstructions: interactiveChat.interactive_learning_chat.llmInstructions,
-			llmContext: interactiveChat.interactive_learning_chat.llmContext
-		};
-
-		// 4. Preparar datos de chat de estudiantes
-		const chats: ProcessedChatData[] = filteredChats.map((chat) => ({
-			studentUsername: chat.user.username || chat.user.email || 'Anónimo',
-			studentId: chat.user.id,
-			createdAt: new Date(chat.chat.createdAt).toISOString(),
-			messages: chat.messages.map((msg) => ({
-				type: msg.type,
-				content: msg.content,
-				createdAt: new Date(msg.createdAt).toISOString()
-			}))
-		}));
+		const sessions = await LearningEvidenceService.getActivityTranscripts(access, {
+			activityId: ilid,
+			studentIds: selectedStudentIds
+		});
+		const chats = toInsightsProcessedChats(sessions);
 
 		// 5. Crear prompt para el análisis
 		const prompt = InsightsUtils.generateChatAnalysisPrompt(activityContext, chats, options);
@@ -111,7 +60,7 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 			selectedModel,
 			user.id,
 			courseId,
-			interactiveChat.interactive_learning_chat.id
+			ilid
 		);
 
 		if (!quotaCheck.allowed) {
@@ -125,7 +74,7 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 			const streamText = await AIUtils.streamTextFromPrompt(prompt, selectedModel, {
 				userId: user.id,
 				courseId,
-				interactiveLearningId: interactiveChat.interactive_learning_chat.id
+				interactiveLearningId: ilid
 			});
 
 			readableStream = new ReadableStream({

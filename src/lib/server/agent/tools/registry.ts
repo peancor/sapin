@@ -1,6 +1,9 @@
 import type { BuiltinToolHandler, BuiltinToolPackage, ToolManifest } from './types';
 import {
 	calculateExpressionPackage,
+	getActivityEvidenceOverviewPackage,
+	getActivityTranscriptsPackage,
+	getCourseStudentRosterPackage,
 	getStudentProgressPackage,
 	renderFlashcardsPackage,
 	renderGraphPlotPackage,
@@ -16,6 +19,9 @@ const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
 	searchCourseContentPackage,
 	getStudentProgressPackage,
 	calculateExpressionPackage,
+	getCourseStudentRosterPackage,
+	getActivityEvidenceOverviewPackage,
+	getActivityTranscriptsPackage,
 	saveGradePackage,
 	renderQuizPackage,
 	renderTimedQuizPackage,
@@ -52,4 +58,3 @@ export function getBuiltinToolManifestsByDomain(usageDomain: string): ToolManife
 export function getAllBuiltinToolManifests(): ToolManifest[] {
 	return BUILTIN_TOOL_MANIFESTS;
 }
-

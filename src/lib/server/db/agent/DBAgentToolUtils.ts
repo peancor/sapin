@@ -5,45 +5,52 @@ import { nanoid } from 'nanoid';
 import { getBuiltinToolManifestsByDomain, getAllBuiltinToolManifests } from '$lib/server/agent/tools/registry';
 import {
 	BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT,
-	BUILTIN_TOOL_USAGE_DOMAIN_INSIGHTS
+	BUILTIN_TOOL_USAGE_DOMAIN_INSIGHTS,
+	type BuiltinToolUsageDomain
 } from '$lib/server/agent/tools/constants';
 import type { ToolManifest } from '$lib/server/agent/tools/types';
 
 export default class DBAgentToolUtils {
 	// ─── Catálogo Global de Herramientas (Admin) ───
-	static async getAllToolDefinitions(usageDomain?: string) {
-		let query = db
-			.select()
-			.from(schema.agentToolDefinition)
-			.orderBy(asc(schema.agentToolDefinition.category), asc(schema.agentToolDefinition.name));
-
+	static async getAllToolDefinitions(usageDomain?: BuiltinToolUsageDomain) {
 		if (usageDomain !== undefined) {
 			const usageClause = or(
 				eq(schema.agentToolDefinition.usageDomain, usageDomain),
 				isNull(schema.agentToolDefinition.usageDomain)
 			);
-			query = query.where(usageClause);
+
+			return await db
+				.select()
+				.from(schema.agentToolDefinition)
+				.where(usageClause)
+				.orderBy(asc(schema.agentToolDefinition.category), asc(schema.agentToolDefinition.name));
 		}
 
-		return await query;
+		return await db
+			.select()
+			.from(schema.agentToolDefinition)
+			.orderBy(asc(schema.agentToolDefinition.category), asc(schema.agentToolDefinition.name));
 	}
 
-	static async getActiveToolDefinitions(usageDomain?: string) {
-		let query = db
+	static async getActiveToolDefinitions(usageDomain?: BuiltinToolUsageDomain) {
+		if (usageDomain !== undefined) {
+			const usageClause = or(
+				eq(schema.agentToolDefinition.usageDomain, usageDomain),
+				isNull(schema.agentToolDefinition.usageDomain)
+			);
+
+			return await db
+				.select()
+				.from(schema.agentToolDefinition)
+				.where(and(eq(schema.agentToolDefinition.isActive, true), usageClause))
+				.orderBy(asc(schema.agentToolDefinition.category), asc(schema.agentToolDefinition.name));
+		}
+
+		return await db
 			.select()
 			.from(schema.agentToolDefinition)
 			.where(eq(schema.agentToolDefinition.isActive, true))
 			.orderBy(asc(schema.agentToolDefinition.category), asc(schema.agentToolDefinition.name));
-
-		if (usageDomain !== undefined) {
-			const usageClause = or(
-				eq(schema.agentToolDefinition.usageDomain, usageDomain),
-				isNull(schema.agentToolDefinition.usageDomain)
-			);
-			query = query.where(usageClause);
-		}
-
-		return await query;
 	}
 
 	static async getToolDefinitionById(id: string) {
@@ -112,7 +119,9 @@ export default class DBAgentToolUtils {
 
 	// ─── Seed de herramientas builtin ───
 
-	static async seedBuiltinTools(usageDomain: string = BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT) {
+	static async seedBuiltinTools(
+		usageDomain: BuiltinToolUsageDomain | string = BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
+	) {
 		const toolManifests =
 			usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT || usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_INSIGHTS
 				? getBuiltinToolManifestsByDomain(usageDomain)

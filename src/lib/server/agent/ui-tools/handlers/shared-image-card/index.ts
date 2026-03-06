@@ -1,5 +1,5 @@
 import { DBAgentSharedResourceUtils } from '$lib/server/db/agent';
-import type { UIRendererHandler } from '../types';
+import type { UIRendererHandler } from '../../types';
 
 export const sharedImageCardHandler: UIRendererHandler = {
 	componentKey: 'SharedImageCard',

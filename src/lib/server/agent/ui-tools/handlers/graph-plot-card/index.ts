@@ -1,5 +1,5 @@
 import { graphPlotPropsSchema } from '$lib/components/charts/jsxgraph/schema';
-import type { UIRendererHandler } from '../types';
+import type { UIRendererHandler } from '../../types';
 
 export const graphPlotCardHandler: UIRendererHandler = {
 	componentKey: 'GraphPlotCard',

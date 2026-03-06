@@ -2,7 +2,10 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { DBAgentToolUtils } from '$lib/server/db/agent';
 import { ROLE_LEVELS } from '$lib/server/roles';
-import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT, BUILTIN_TOOL_USAGE_DOMAINS } from '$lib/server/agent/tools/constants';
+import {
+	BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT,
+	isBuiltinToolUsageDomain
+} from '$lib/server/agent/tools/constants';
 
 // GET /api/admin/agent-tools — listar todas las herramientas
 export const GET: RequestHandler = async ({ locals, url }) => {
@@ -15,7 +18,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const usageDomain =
 			requestedDomain === 'all' ? undefined : (requestedDomain ?? BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT);
 
-		if (usageDomain !== undefined && !BUILTIN_TOOL_USAGE_DOMAINS.includes(usageDomain)) {
+		if (usageDomain !== undefined && !isBuiltinToolUsageDomain(usageDomain)) {
 			return json({ error: 'usageDomain no válido' }, { status: 400 });
 		}
 
@@ -70,7 +73,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
         const requestedDomain =
 			typeof usageDomain === 'string' && usageDomain.trim().length > 0 ? usageDomain.trim() : undefined;
 
-		if (requestedDomain !== undefined && !BUILTIN_TOOL_USAGE_DOMAINS.includes(requestedDomain)) {
+		if (requestedDomain !== undefined && !isBuiltinToolUsageDomain(requestedDomain)) {
 			return json({ error: 'usageDomain no válido' }, { status: 400 });
 		}
 

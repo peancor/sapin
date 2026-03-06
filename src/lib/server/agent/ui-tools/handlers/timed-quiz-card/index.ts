@@ -1,4 +1,4 @@
-import type { UIRendererHandler } from '../types';
+import type { UIRendererHandler } from '../../types';
 
 export const timedQuizCardHandler: UIRendererHandler = {
 	componentKey: 'TimedQuizCard',
