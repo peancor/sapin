@@ -81,7 +81,7 @@
 			: []),
 		{
 			id: 'agentic-insights',
-			label: 'Insights agénticos',
+			label: 'Asistente de analisis',
 			href: resolve(`/course/${cid}/admin/interactives/${ilid}/agentic-insights`),
 			icon: Sparkles
 		}

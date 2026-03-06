@@ -30,8 +30,7 @@ export const load = (async ({ parent, params, url, locals }) => {
 	const config = await DBInsightsAgentUtils.getConfigDTO(ilid);
 	const runs = await DBInsightsAgentUtils.listRunsForActivity(ilid);
 	const selectedRunId = url.searchParams.get('run');
-	const selectedRunSummary =
-		(selectedRunId ? runs.find((run) => run.id === selectedRunId) : null) ?? runs[0] ?? null;
+	const selectedRunSummary = selectedRunId ? runs.find((run) => run.id === selectedRunId) ?? null : null;
 
 	const selectedRun = selectedRunSummary
 		? {
