@@ -429,6 +429,48 @@ export default class DBAgentUIUtils {
 				version: '1.0.0'
 			},
 			{
+				name: 'driving_psychotech_test',
+				displayName: 'Psicotecnico de Conduccion',
+				description:
+					'Componente inmersivo para pruebas psicotecnicas de conduccion. Incluye coordinacion bimanual, anticipacion temporal y reaccion/frenado.',
+				category: 'evaluation',
+				componentKey: 'DrivingPsychotechTest',
+				propsSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						title: { type: 'string' },
+						testType: {
+							type: 'string',
+							enum: ['bimanual_coordination', 'time_to_contact', 'multiple_reaction_braking']
+						},
+						difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+						instructions: { type: 'string' },
+						practiceDurationSec: { type: 'number' },
+						durationSec: { type: 'number' },
+						practiceTrials: { type: 'number' },
+						mainTrials: { type: 'number' },
+						responseMode: { type: 'string', enum: ['brake_only', 'selective'] }
+					}
+				}),
+				responseSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						testType: {
+							type: 'string',
+							enum: ['bimanual_coordination', 'time_to_contact', 'multiple_reaction_braking']
+						},
+						difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+						summary: { type: 'object' },
+						trialLog: { type: 'array', items: { type: 'object' } },
+						segmentLog: { type: 'array', items: { type: 'object' } },
+						score: { type: 'number' },
+						completed: { type: 'boolean' }
+					}
+				}),
+				isSystem: true,
+				version: '1.0.0'
+			},
+			{
 				name: 'flashcard_deck',
 				displayName: 'Mazo de Flashcards',
 				description: 'Tarjetas de estudio interactivas para memorizar conceptos y definiciones.',

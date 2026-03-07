@@ -1,5 +1,7 @@
 import AttentionControlTest from './AttentionControlTest/index.svelte';
 import AttentionControlTestLauncher from './AttentionControlTest/Launcher.svelte';
+import DrivingPsychotechTest from './DrivingPsychotechTest/index.svelte';
+import DrivingPsychotechTestLauncher from './DrivingPsychotechTest/Launcher.svelte';
 import ExecutiveFlexibilityTest from './ExecutiveFlexibilityTest/index.svelte';
 import ExecutiveFlexibilityTestLauncher from './ExecutiveFlexibilityTest/Launcher.svelte';
  import FlashcardDeck from './FlashcardDeck/index.svelte';
@@ -212,6 +214,40 @@ function buildExecutiveFlexibilityProps(ctx: UIComponentContext) {
 	};
 }
 
+function buildDrivingPsychotechProps(ctx: UIComponentContext) {
+	return {
+		instanceId: ctx.instanceId,
+		title: asString(ctx.props.title),
+		testType:
+			ctx.props.testType === 'bimanual_coordination' ||
+			ctx.props.testType === 'time_to_contact' ||
+			ctx.props.testType === 'multiple_reaction_braking'
+				? ctx.props.testType
+				: undefined,
+		difficulty:
+			ctx.props.difficulty === 'easy' ||
+			ctx.props.difficulty === 'medium' ||
+			ctx.props.difficulty === 'hard'
+				? ctx.props.difficulty
+				: undefined,
+		instructions: asString(ctx.props.instructions),
+		practiceDurationSec: asNumber(ctx.props.practiceDurationSec),
+		durationSec: asNumber(ctx.props.durationSec),
+		practiceTrials: asNumber(ctx.props.practiceTrials),
+		mainTrials: asNumber(ctx.props.mainTrials),
+		responseMode:
+			ctx.props.responseMode === 'brake_only' || ctx.props.responseMode === 'selective'
+				? ctx.props.responseMode
+				: undefined,
+		interactive: ctx.interactive,
+		initialUserResponse: ctx.initialUserResponse,
+		apiBase: ctx.apiBase,
+		onRespond: (score?: number) => ctx.onRespond?.(score),
+		onPersistedResponse: (payload: Record<string, unknown>) => ctx.onResponsePersisted?.(payload),
+		onImmersiveStateChange: (state: ImmersiveUIState) => ctx.onImmersiveStateChange?.(state)
+	};
+}
+
 interface InlineUIComponentRegistryEntry {
 	renderStyle: 'inline';
 	component: unknown;
@@ -301,6 +337,14 @@ const uiComponentRegistry = {
 		immersiveComponent: ExecutiveFlexibilityTest,
 		buildProps: (ctx: UIComponentContext) => ({
 			...buildExecutiveFlexibilityProps(ctx)
+		})
+	},
+	DrivingPsychotechTest: {
+		renderStyle: 'immersive',
+		launcherComponent: DrivingPsychotechTestLauncher,
+		immersiveComponent: DrivingPsychotechTest,
+		buildProps: (ctx: UIComponentContext) => ({
+			...buildDrivingPsychotechProps(ctx)
 		})
 	},
 	GraphPlotCard: {

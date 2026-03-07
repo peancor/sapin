@@ -1,4 +1,5 @@
 import { attentionControlTestHandler } from './handlers/attention-control-test';
+import { drivingPsychotechTestHandler } from './handlers/driving-psychotech-test';
 import { executiveFlexibilityTestHandler } from './handlers/executive-flexibility-test';
 import { graphPlotCardHandler } from './handlers/graph-plot-card';
 import { immersiveTimedQuizHandler } from './handlers/immersive-timed-quiz';
@@ -15,6 +16,7 @@ const UI_RENDERER_HANDLER_REGISTRY: Record<string, UIRendererHandler> = {
 	[timedQuizCardHandler.componentKey]: timedQuizCardHandler,
 	[immersiveTimedQuizHandler.componentKey]: immersiveTimedQuizHandler,
 	[attentionControlTestHandler.componentKey]: attentionControlTestHandler,
+	[drivingPsychotechTestHandler.componentKey]: drivingPsychotechTestHandler,
 	[executiveFlexibilityTestHandler.componentKey]: executiveFlexibilityTestHandler,
 	[flashcardDeckHandler.componentKey]: flashcardDeckHandler,
 	[graphPlotCardHandler.componentKey]: graphPlotCardHandler,

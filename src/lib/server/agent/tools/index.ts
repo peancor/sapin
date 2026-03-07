@@ -17,6 +17,7 @@ export { getLearningProgressTimelinePackage } from './getLearningProgressTimelin
 export { getStudentProgressPackage } from './getStudentProgress';
 export { recommendNextActivityPackage } from './recommendNextActivity';
 export { renderAttentionControlTestPackage } from './renderAttentionControlTest';
+export { renderDrivingPsychotechTestPackage } from './renderDrivingPsychotechTest';
 export { renderExecutiveFlexibilityTestPackage } from './renderExecutiveFlexibilityTest';
 export { renderFlashcardsPackage } from './renderFlashcards';
 export { renderGraphPlotPackage } from './renderGraphPlot';
