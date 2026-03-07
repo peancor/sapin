@@ -1,12 +1,18 @@
-import FlashcardDeck from './FlashcardDeck/index.svelte';
-import GraphPlotCard from './GraphPlotCard/index.svelte';
-import ImmersiveTimedQuiz from './ImmersiveTimedQuiz/index.svelte';
-import ImmersiveTimedQuizLauncher from './ImmersiveTimedQuiz/Launcher.svelte';
-import QuizCard from './QuizCard/index.svelte';
-import SharedImageCard from './SharedImageCard/index.svelte';
-import SustainedAttentionTest from './SustainedAttentionTest/index.svelte';
-import SustainedAttentionTestLauncher from './SustainedAttentionTest/Launcher.svelte';
-import TimedQuizCard from './TimedQuizCard/index.svelte';
+import AttentionControlTest from './AttentionControlTest/index.svelte';
+import AttentionControlTestLauncher from './AttentionControlTest/Launcher.svelte';
+import ExecutiveFlexibilityTest from './ExecutiveFlexibilityTest/index.svelte';
+import ExecutiveFlexibilityTestLauncher from './ExecutiveFlexibilityTest/Launcher.svelte';
+ import FlashcardDeck from './FlashcardDeck/index.svelte';
+ import GraphPlotCard from './GraphPlotCard/index.svelte';
+ import ImmersiveTimedQuiz from './ImmersiveTimedQuiz/index.svelte';
+ import ImmersiveTimedQuizLauncher from './ImmersiveTimedQuiz/Launcher.svelte';
+ import QuizCard from './QuizCard/index.svelte';
+ import SharedImageCard from './SharedImageCard/index.svelte';
+ import SustainedAttentionTest from './SustainedAttentionTest/index.svelte';
+ import SustainedAttentionTestLauncher from './SustainedAttentionTest/Launcher.svelte';
+ import TimedQuizCard from './TimedQuizCard/index.svelte';
+import WorkingMemoryTest from './WorkingMemoryTest/index.svelte';
+import WorkingMemoryTestLauncher from './WorkingMemoryTest/Launcher.svelte';
 
 interface UIComponentContext {
 	instanceId: string;
@@ -127,6 +133,85 @@ function buildSustainedAttentionProps(ctx: UIComponentContext) {
 	};
 }
 
+function buildAttentionControlProps(ctx: UIComponentContext) {
+	return {
+		instanceId: ctx.instanceId,
+		title: asString(ctx.props.title),
+		testType:
+			ctx.props.testType === 'go_no_go' ||
+			ctx.props.testType === 'stroop' ||
+			ctx.props.testType === 'flanker' ||
+			ctx.props.testType === 'sdmt'
+				? ctx.props.testType
+				: undefined,
+		difficulty:
+			ctx.props.difficulty === 'easy' ||
+			ctx.props.difficulty === 'medium' ||
+			ctx.props.difficulty === 'hard'
+				? ctx.props.difficulty
+				: undefined,
+		instructions: asString(ctx.props.instructions),
+		practiceTrials: asNumber(ctx.props.practiceTrials),
+		mainTrials: asNumber(ctx.props.mainTrials),
+		goStimulus: asString(ctx.props.goStimulus),
+		noGoStimulus: asString(ctx.props.noGoStimulus),
+		interactive: ctx.interactive,
+		initialUserResponse: ctx.initialUserResponse,
+		apiBase: ctx.apiBase,
+		onRespond: (score: number) => ctx.onRespond?.(score),
+		onPersistedResponse: (payload: Record<string, unknown>) => ctx.onResponsePersisted?.(payload),
+		onImmersiveStateChange: (state: ImmersiveUIState) => ctx.onImmersiveStateChange?.(state)
+	};
+}
+
+function buildWorkingMemoryProps(ctx: UIComponentContext) {
+	return {
+		instanceId: ctx.instanceId,
+		title: asString(ctx.props.title),
+		testType: ctx.props.testType === 'digit_span' ? ctx.props.testType : undefined,
+		mode:
+			ctx.props.mode === 'forward' ||
+			ctx.props.mode === 'backward' ||
+			ctx.props.mode === 'both'
+				? ctx.props.mode
+				: undefined,
+		difficulty:
+			ctx.props.difficulty === 'easy' ||
+			ctx.props.difficulty === 'medium' ||
+			ctx.props.difficulty === 'hard'
+				? ctx.props.difficulty
+				: undefined,
+		instructions: asString(ctx.props.instructions),
+		startLength: asNumber(ctx.props.startLength),
+		maxLength: asNumber(ctx.props.maxLength),
+		trialsPerLength: asNumber(ctx.props.trialsPerLength),
+		interactive: ctx.interactive,
+		initialUserResponse: ctx.initialUserResponse,
+		apiBase: ctx.apiBase,
+		onRespond: (score: number) => ctx.onRespond?.(score),
+		onPersistedResponse: (payload: Record<string, unknown>) => ctx.onResponsePersisted?.(payload),
+		onImmersiveStateChange: (state: ImmersiveUIState) => ctx.onImmersiveStateChange?.(state)
+	};
+}
+
+function buildExecutiveFlexibilityProps(ctx: UIComponentContext) {
+	return {
+		instanceId: ctx.instanceId,
+		title: asString(ctx.props.title),
+		testType:
+			ctx.props.testType === 'trail_making' || ctx.props.testType === 'wcst'
+				? ctx.props.testType
+				: undefined,
+		instructions: asString(ctx.props.instructions),
+		interactive: ctx.interactive,
+		initialUserResponse: ctx.initialUserResponse,
+		apiBase: ctx.apiBase,
+		onRespond: (score?: number) => ctx.onRespond?.(score),
+		onPersistedResponse: (payload: Record<string, unknown>) => ctx.onResponsePersisted?.(payload),
+		onImmersiveStateChange: (state: ImmersiveUIState) => ctx.onImmersiveStateChange?.(state)
+	};
+}
+
 interface InlineUIComponentRegistryEntry {
 	renderStyle: 'inline';
 	component: unknown;
@@ -192,6 +277,30 @@ const uiComponentRegistry = {
 		immersiveComponent: SustainedAttentionTest,
 		buildProps: (ctx: UIComponentContext) => ({
 			...buildSustainedAttentionProps(ctx)
+		})
+	},
+	AttentionControlTest: {
+		renderStyle: 'immersive',
+		launcherComponent: AttentionControlTestLauncher,
+		immersiveComponent: AttentionControlTest,
+		buildProps: (ctx: UIComponentContext) => ({
+			...buildAttentionControlProps(ctx)
+		})
+	},
+	WorkingMemoryTest: {
+		renderStyle: 'immersive',
+		launcherComponent: WorkingMemoryTestLauncher,
+		immersiveComponent: WorkingMemoryTest,
+		buildProps: (ctx: UIComponentContext) => ({
+			...buildWorkingMemoryProps(ctx)
+		})
+	},
+	ExecutiveFlexibilityTest: {
+		renderStyle: 'immersive',
+		launcherComponent: ExecutiveFlexibilityTestLauncher,
+		immersiveComponent: ExecutiveFlexibilityTest,
+		buildProps: (ctx: UIComponentContext) => ({
+			...buildExecutiveFlexibilityProps(ctx)
 		})
 	},
 	GraphPlotCard: {

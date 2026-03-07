@@ -332,6 +332,103 @@ export default class DBAgentUIUtils {
 				version: '1.0.0'
 			},
 			{
+				name: 'attention_control_test',
+				displayName: 'Test de Atencion y Control',
+				description:
+					'Componente inmersivo para pruebas de atencion, inhibicion y control. Incluye Go/No-Go, Stroop y Flanker.',
+				category: 'evaluation',
+				componentKey: 'AttentionControlTest',
+				propsSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						title: { type: 'string' },
+						testType: {
+							type: 'string',
+							enum: ['go_no_go', 'stroop', 'flanker', 'sdmt']
+						},
+						difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+						instructions: { type: 'string' },
+						practiceTrials: { type: 'number' },
+						mainTrials: { type: 'number' },
+						goStimulus: { type: 'string' },
+						noGoStimulus: { type: 'string' }
+					}
+				}),
+				responseSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						testType: {
+							type: 'string',
+							enum: ['go_no_go', 'stroop', 'flanker', 'sdmt']
+						},
+						difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+						summary: { type: 'object' },
+						trialLog: { type: 'array', items: { type: 'object' } },
+						score: { type: 'number' },
+						completed: { type: 'boolean' }
+					}
+				}),
+				isSystem: true,
+				version: '1.0.0'
+			},
+			{
+				name: 'working_memory_test',
+				displayName: 'Test de Memoria de Trabajo',
+				description:
+					'Componente inmersivo para pruebas de memoria de trabajo. La primera variante es Digit Span.',
+				category: 'evaluation',
+				componentKey: 'WorkingMemoryTest',
+				propsSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						title: { type: 'string' },
+						testType: { type: 'string', enum: ['digit_span'] },
+						mode: { type: 'string', enum: ['forward', 'backward', 'both'] },
+						difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+						instructions: { type: 'string' },
+						startLength: { type: 'number' },
+						maxLength: { type: 'number' },
+						trialsPerLength: { type: 'number' }
+					}
+				}),
+				responseSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						testType: { type: 'string', enum: ['digit_span'] },
+						difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+						mode: { type: 'string', enum: ['forward', 'backward', 'both'] },
+						summary: { type: 'object' },
+						trialLog: { type: 'array', items: { type: 'object' } },
+						score: { type: 'number' },
+						completed: { type: 'boolean' }
+					}
+				}),
+				isSystem: true,
+				version: '1.0.0'
+			},
+			{
+				name: 'executive_flexibility_test',
+				displayName: 'Test de Flexibilidad Ejecutiva',
+				description:
+					'Componente inmersivo placeholder para la familia de funcion ejecutiva y flexibilidad cognitiva.',
+				category: 'evaluation',
+				componentKey: 'ExecutiveFlexibilityTest',
+				propsSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						title: { type: 'string' },
+						testType: { type: 'string', enum: ['trail_making', 'wcst'] },
+						instructions: { type: 'string' }
+					}
+				}),
+				responseSchema: JSON.stringify({
+					type: 'object',
+					properties: {}
+				}),
+				isSystem: true,
+				version: '1.0.0'
+			},
+			{
 				name: 'flashcard_deck',
 				displayName: 'Mazo de Flashcards',
 				description: 'Tarjetas de estudio interactivas para memorizar conceptos y definiciones.',

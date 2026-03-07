@@ -18,6 +18,8 @@ import {
 	getLearningProgressTimelinePackage,
 	getStudentProgressPackage,
 	recommendNextActivityPackage,
+	renderAttentionControlTestPackage,
+	renderExecutiveFlexibilityTestPackage,
 	renderFlashcardsPackage,
 	renderGraphPlotPackage,
 	renderImmersiveTimedQuizPackage,
@@ -25,6 +27,7 @@ import {
 	renderSharedImagePackage,
 	renderSustainedAttentionTestPackage,
 	renderTimedQuizPackage,
+	renderWorkingMemoryTestPackage,
 	rubricEvaluateResponsePackage,
 	saveGradePackage,
 	searchCourseContentPackage,
@@ -60,8 +63,11 @@ const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
 	renderFlashcardsPackage,
 	renderGraphPlotPackage,
 	renderImmersiveTimedQuizPackage,
+	renderAttentionControlTestPackage,
+	renderExecutiveFlexibilityTestPackage,
 	renderSharedImagePackage,
 	renderSustainedAttentionTestPackage,
+	renderWorkingMemoryTestPackage,
 	sendNotificationPackage
 ];
 
