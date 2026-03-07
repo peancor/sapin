@@ -20,8 +20,10 @@ import {
 	recommendNextActivityPackage,
 	renderFlashcardsPackage,
 	renderGraphPlotPackage,
+	renderImmersiveTimedQuizPackage,
 	renderQuizPackage,
 	renderSharedImagePackage,
+	renderSustainedAttentionTestPackage,
 	renderTimedQuizPackage,
 	rubricEvaluateResponsePackage,
 	saveGradePackage,
@@ -57,7 +59,9 @@ const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
 	renderTimedQuizPackage,
 	renderFlashcardsPackage,
 	renderGraphPlotPackage,
+	renderImmersiveTimedQuizPackage,
 	renderSharedImagePackage,
+	renderSustainedAttentionTestPackage,
 	sendNotificationPackage
 ];
 

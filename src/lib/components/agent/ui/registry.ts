@@ -1,8 +1,12 @@
-import QuizCard from './QuizCard/index.svelte';
 import FlashcardDeck from './FlashcardDeck/index.svelte';
-import TimedQuizCard from './TimedQuizCard/index.svelte';
 import GraphPlotCard from './GraphPlotCard/index.svelte';
+import ImmersiveTimedQuiz from './ImmersiveTimedQuiz/index.svelte';
+import ImmersiveTimedQuizLauncher from './ImmersiveTimedQuiz/Launcher.svelte';
+import QuizCard from './QuizCard/index.svelte';
 import SharedImageCard from './SharedImageCard/index.svelte';
+import SustainedAttentionTest from './SustainedAttentionTest/index.svelte';
+import SustainedAttentionTestLauncher from './SustainedAttentionTest/Launcher.svelte';
+import TimedQuizCard from './TimedQuizCard/index.svelte';
 
 interface UIComponentContext {
 	instanceId: string;
@@ -11,6 +15,13 @@ interface UIComponentContext {
 	initialUserResponse?: Record<string, unknown>;
 	apiBase: string;
 	onRespond?: (score?: number) => void;
+	onResponsePersisted?: (payload: Record<string, unknown>) => void;
+	onImmersiveStateChange?: (state: ImmersiveUIState) => void;
+}
+
+export interface ImmersiveUIState {
+	canCloseSafely: boolean;
+	closePrompt?: string;
 }
 
 interface QuizQuestion {
@@ -65,8 +76,77 @@ function asFlashcards(value: unknown): Flashcard[] {
 		.filter((card) => card.front.length > 0 && card.back.length > 0);
 }
 
+function buildTimedQuizProps(ctx: UIComponentContext) {
+	return {
+		instanceId: ctx.instanceId,
+		title: asString(ctx.props.title),
+		difficulty:
+			ctx.props.difficulty === 'easy' ||
+			ctx.props.difficulty === 'medium' ||
+			ctx.props.difficulty === 'hard'
+				? ctx.props.difficulty
+				: undefined,
+		timerByDifficultySec:
+			typeof ctx.props.timerByDifficultySec === 'object' &&
+			ctx.props.timerByDifficultySec !== null
+				? (ctx.props.timerByDifficultySec as { easy?: number; medium?: number; hard?: number })
+				: undefined,
+		autoAdvanceDelayMs: asNumber(ctx.props.autoAdvanceDelayMs),
+		questions: asQuizQuestions(ctx.props.questions),
+		interactive: ctx.interactive,
+		initialUserResponse: ctx.initialUserResponse,
+		apiBase: ctx.apiBase,
+		onRespond: (score: number) => ctx.onRespond?.(score),
+		onPersistedResponse: (payload: Record<string, unknown>) => ctx.onResponsePersisted?.(payload),
+		onImmersiveStateChange: (state: ImmersiveUIState) => ctx.onImmersiveStateChange?.(state)
+	};
+}
+
+function buildSustainedAttentionProps(ctx: UIComponentContext) {
+	return {
+		instanceId: ctx.instanceId,
+		title: asString(ctx.props.title),
+		testType: ctx.props.testType === 'go_no_go' ? ctx.props.testType : undefined,
+		difficulty:
+			ctx.props.difficulty === 'easy' ||
+			ctx.props.difficulty === 'medium' ||
+			ctx.props.difficulty === 'hard'
+				? ctx.props.difficulty
+				: undefined,
+		instructions: asString(ctx.props.instructions),
+		practiceTrials: asNumber(ctx.props.practiceTrials),
+		mainTrials: asNumber(ctx.props.mainTrials),
+		goStimulus: asString(ctx.props.goStimulus),
+		noGoStimulus: asString(ctx.props.noGoStimulus),
+		interactive: ctx.interactive,
+		initialUserResponse: ctx.initialUserResponse,
+		apiBase: ctx.apiBase,
+		onRespond: (score: number) => ctx.onRespond?.(score),
+		onPersistedResponse: (payload: Record<string, unknown>) => ctx.onResponsePersisted?.(payload),
+		onImmersiveStateChange: (state: ImmersiveUIState) => ctx.onImmersiveStateChange?.(state)
+	};
+}
+
+interface InlineUIComponentRegistryEntry {
+	renderStyle: 'inline';
+	component: unknown;
+	buildProps: (ctx: UIComponentContext) => Record<string, unknown>;
+}
+
+interface ImmersiveUIComponentRegistryEntry {
+	renderStyle: 'immersive';
+	launcherComponent: unknown;
+	immersiveComponent: unknown;
+	buildProps: (ctx: UIComponentContext) => Record<string, unknown>;
+}
+
+export type UIComponentRegistryEntry =
+	| InlineUIComponentRegistryEntry
+	| ImmersiveUIComponentRegistryEntry;
+
 const uiComponentRegistry = {
 	QuizCard: {
+		renderStyle: 'inline',
 		component: QuizCard,
 		buildProps: (ctx: UIComponentContext) => ({
 			instanceId: ctx.instanceId,
@@ -79,6 +159,7 @@ const uiComponentRegistry = {
 		})
 	},
 	FlashcardDeck: {
+		renderStyle: 'inline',
 		component: FlashcardDeck,
 		buildProps: (ctx: UIComponentContext) => ({
 			instanceId: ctx.instanceId,
@@ -91,30 +172,30 @@ const uiComponentRegistry = {
 		})
 	},
 	TimedQuizCard: {
+		renderStyle: 'inline',
 		component: TimedQuizCard,
 		buildProps: (ctx: UIComponentContext) => ({
-			instanceId: ctx.instanceId,
-			title: asString(ctx.props.title),
-			difficulty:
-				ctx.props.difficulty === 'easy' ||
-				ctx.props.difficulty === 'medium' ||
-				ctx.props.difficulty === 'hard'
-					? ctx.props.difficulty
-					: undefined,
-			timerByDifficultySec:
-				typeof ctx.props.timerByDifficultySec === 'object' &&
-				ctx.props.timerByDifficultySec !== null
-					? (ctx.props.timerByDifficultySec as { easy?: number; medium?: number; hard?: number })
-					: undefined,
-			autoAdvanceDelayMs: asNumber(ctx.props.autoAdvanceDelayMs),
-			questions: asQuizQuestions(ctx.props.questions),
-			interactive: ctx.interactive,
-			initialUserResponse: ctx.initialUserResponse,
-			apiBase: ctx.apiBase,
-			onRespond: (score: number) => ctx.onRespond?.(score)
+			...buildTimedQuizProps(ctx)
+		})
+	},
+	ImmersiveTimedQuiz: {
+		renderStyle: 'immersive',
+		launcherComponent: ImmersiveTimedQuizLauncher,
+		immersiveComponent: ImmersiveTimedQuiz,
+		buildProps: (ctx: UIComponentContext) => ({
+			...buildTimedQuizProps(ctx)
+		})
+	},
+	SustainedAttentionTest: {
+		renderStyle: 'immersive',
+		launcherComponent: SustainedAttentionTestLauncher,
+		immersiveComponent: SustainedAttentionTest,
+		buildProps: (ctx: UIComponentContext) => ({
+			...buildSustainedAttentionProps(ctx)
 		})
 	},
 	GraphPlotCard: {
+		renderStyle: 'inline',
 		component: GraphPlotCard,
 		buildProps: (ctx: UIComponentContext) => ({
 			instanceId: ctx.instanceId,
@@ -131,6 +212,7 @@ const uiComponentRegistry = {
 		})
 	},
 	SharedImageCard: {
+		renderStyle: 'inline',
 		component: SharedImageCard,
 		buildProps: (ctx: UIComponentContext) => ({
 			instanceId: ctx.instanceId,
@@ -146,12 +228,15 @@ const uiComponentRegistry = {
 			onRespond: () => ctx.onRespond?.()
 		})
 	}
-} as const;
-
-export type UIComponentRegistryEntry =
-	(typeof uiComponentRegistry)[keyof typeof uiComponentRegistry];
+} satisfies Record<string, UIComponentRegistryEntry>;
 
 export function getUIComponentRegistryEntry(componentKey: string): UIComponentRegistryEntry | null {
 	const key = componentKey as keyof typeof uiComponentRegistry;
 	return uiComponentRegistry[key] ?? null;
+}
+
+export function isImmersiveUIComponentEntry(
+	entry: UIComponentRegistryEntry | null
+): entry is ImmersiveUIComponentRegistryEntry {
+	return entry?.renderStyle === 'immersive';
 }

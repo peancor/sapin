@@ -1,10 +1,11 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
-    import 'katex/dist/katex.min.css';
-    import type { AgentStreamPart, AgentDisplayMessage, AgentDisplayPart } from '$lib/types/agent';
-    import { renderMarkdownMath } from '$lib/utils';
-    import HumanInTheLoopModal from './HumanInTheLoopModal.svelte';
-    import UIComponentRenderer from './UIComponentRenderer.svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import 'katex/dist/katex.min.css';
+	import type { AgentStreamPart, AgentDisplayMessage, AgentDisplayPart } from '$lib/types/agent';
+	import { renderMarkdownMath } from '$lib/utils';
+	import HumanInTheLoopModal from './HumanInTheLoopModal.svelte';
+	import ImmersiveToolOverlay from './ImmersiveToolOverlay.svelte';
+	import UIComponentRenderer from './UIComponentRenderer.svelte';
 
     interface Props {
         initialMessages?: AgentDisplayMessage[];
@@ -21,7 +22,16 @@
     let isLoading = $state(false);
     let isAtBottom = $state(true);
     let userHasScrolled = $state(false);
-    let errorMessage = $state('');
+	let errorMessage = $state('');
+	let uiResponseOverrides = $state<Record<string, Record<string, unknown>>>({});
+
+	type UIComponentDisplayPart = Extract<AgentDisplayPart, { kind: 'ui-component' }>;
+	type ActiveImmersiveUI = UIComponentDisplayPart & { assistantMessageId: string };
+	let activeImmersiveUI = $state<ActiveImmersiveUI | null>(null);
+	let immersiveCanCloseSafely = $state(true);
+	let immersiveClosePrompt = $state(
+		'Si sales ahora se perdera el progreso no enviado. ¿Quieres cerrar?'
+	);
 
     let chatContainer: HTMLDivElement | undefined = $state();
     let textarea: HTMLTextAreaElement | undefined = $state();
@@ -37,7 +47,38 @@
     let hitlConfirmationMessage = $state('');
 
     // Base URL for the confirm-tool endpoint (strip trailing /ask)
-    const apiBaseForHitl = $derived(apiEndpoint.replace(/\/ask$/, ''));
+	const apiBaseForHitl = $derived(apiEndpoint.replace(/\/ask$/, ''));
+
+	function getEffectiveUserResponse(part: UIComponentDisplayPart): Record<string, unknown> | undefined {
+		return uiResponseOverrides[part.instanceId] ?? part.userResponse;
+	}
+
+	function openImmersiveUI(part: UIComponentDisplayPart, assistantMessageId: string) {
+		activeImmersiveUI = { ...part, assistantMessageId };
+		immersiveCanCloseSafely = true;
+		immersiveClosePrompt = 'Si sales ahora se perdera el progreso no enviado. ¿Quieres cerrar?';
+	}
+
+	function closeImmersiveUI() {
+		activeImmersiveUI = null;
+		immersiveCanCloseSafely = true;
+	}
+
+	function handleUIResponsePersisted(instanceId: string, payload: Record<string, unknown>) {
+		uiResponseOverrides = {
+			...uiResponseOverrides,
+			[instanceId]: payload
+		};
+	}
+
+	function handleImmersiveStateChange(state: {
+		canCloseSafely: boolean;
+		closePrompt?: string;
+	}) {
+		immersiveCanCloseSafely = state.canCloseSafely;
+		immersiveClosePrompt =
+			state.closePrompt ?? 'Si sales ahora se perdera el progreso no enviado. ¿Quieres cerrar?';
+	}
 
     function renderMarkdown(content: string): string {
         try {
@@ -449,14 +490,17 @@
                             </div>
 
                         {:else if part.kind === 'ui-component'}
+                            {@const effectiveUserResponse = getEffectiveUserResponse(part)}
                             <UIComponentRenderer
                                 instanceId={part.instanceId}
                                 componentKey={part.componentKey}
                                 props={part.props}
-                                interactive={part.interactive}
-                                initialUserResponse={part.userResponse}
+                                interactive={!effectiveUserResponse && part.interactive}
+                                initialUserResponse={effectiveUserResponse}
                                 apiBase={apiBaseForHitl}
                                 onRespond={() => handleUIComponentRespond(msg.id)}
+                                onResponsePersisted={(payload) => handleUIResponsePersisted(part.instanceId, payload)}
+                                onOpenImmersive={() => openImmersiveUI(part, msg.id)}
                             />
                         {/if}
                     {/each}
@@ -495,6 +539,30 @@
         onReject={handleHitlReject}
         onError={(msg) => console.error('HITL error:', msg)}
     />
+
+    {#if activeImmersiveUI}
+        <ImmersiveToolOverlay
+            open={true}
+            title={typeof activeImmersiveUI.props.title === 'string' ? activeImmersiveUI.props.title : activeImmersiveUI.componentKey}
+            subtitle="La actividad se ejecuta en una vista inmersiva. El chat queda intacto debajo."
+            canCloseSafely={immersiveCanCloseSafely}
+            closePrompt={immersiveClosePrompt}
+            onclose={closeImmersiveUI}
+        >
+            <UIComponentRenderer
+                instanceId={activeImmersiveUI.instanceId}
+                componentKey={activeImmersiveUI.componentKey}
+                props={activeImmersiveUI.props}
+                interactive={!getEffectiveUserResponse(activeImmersiveUI) && activeImmersiveUI.interactive}
+                initialUserResponse={getEffectiveUserResponse(activeImmersiveUI)}
+                apiBase={apiBaseForHitl}
+                renderMode="immersive"
+                onRespond={() => handleUIComponentRespond(activeImmersiveUI!.assistantMessageId)}
+                onResponsePersisted={(payload) => handleUIResponsePersisted(activeImmersiveUI!.instanceId, payload)}
+                onImmersiveStateChange={handleImmersiveStateChange}
+            />
+        </ImmersiveToolOverlay>
+    {/if}
 
     <!-- Input -->
     <div class="border-t border-gray-200 dark:border-gray-700 p-4">

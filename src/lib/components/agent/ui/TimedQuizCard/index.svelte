@@ -2,6 +2,7 @@
 	import { onDestroy, onMount } from 'svelte';
 	import 'katex/dist/katex.min.css';
 	import { renderMarkdownMath } from '$lib/utils';
+	import { submitUIResponse } from '../shared/ui-response';
 
 	type Difficulty = 'easy' | 'medium' | 'hard';
 	type FeedbackState = 'correct' | 'incorrect' | 'timeout' | null;
@@ -49,6 +50,7 @@
 		initialUserResponse?: Record<string, unknown>;
 		apiBase: string;
 		onRespond?: (score: number) => void;
+		onPersistedResponse?: (payload: Record<string, unknown>) => void;
 	}
 
 	const DEFAULT_TIMERS: Record<Difficulty, number> = {
@@ -72,7 +74,8 @@
 		interactive: initialInteractive,
 		initialUserResponse,
 		apiBase,
-		onRespond
+		onRespond,
+		onPersistedResponse
 	}: Props = $props();
 
 	function resolveDifficulty(value: unknown): Difficulty {
@@ -369,30 +372,25 @@
 	async function persistPayload(payload: TimedQuizPayload) {
 		isSubmitting = true;
 		submitError = '';
-		try {
-			const res = await fetch(`${apiBase}/ui-response`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					instanceId,
-					componentKey: 'TimedQuizCard',
-					payload
-				})
-			});
 
-			if (!res.ok) {
-				submitError = 'No se pudo guardar tu resultado. Reintenta el envio.';
-				return;
-			}
+		const result = await submitUIResponse({
+			apiBase,
+			instanceId,
+			componentKey: 'TimedQuizCard',
+			payload
+		});
 
-			submitted = true;
-			interactive = false;
-			onRespond?.(payload.score);
-		} catch {
-			submitError = 'No se pudo guardar tu resultado. Reintenta el envio.';
-		} finally {
+		if (!result.ok) {
+			submitError = result.errorMessage ?? 'No se pudo guardar tu resultado. Reintenta el envio.';
 			isSubmitting = false;
+			return;
 		}
+
+		submitted = true;
+		interactive = false;
+		onPersistedResponse?.(payload as unknown as Record<string, unknown>);
+		onRespond?.(payload.score);
+		isSubmitting = false;
 	}
 
 	async function advanceOrComplete() {

@@ -224,6 +224,114 @@ export default class DBAgentUIUtils {
 				version: '1.0.0'
 			},
 			{
+				name: 'immersive_timed_quiz',
+				displayName: 'Quiz Contrarreloj Inmersivo',
+				description:
+					'Componente inmersivo fullscreen para quizzes contrarreloj con estilo arcade.',
+				category: 'evaluation',
+				componentKey: 'ImmersiveTimedQuiz',
+				propsSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						title: { type: 'string', description: 'Titulo del quiz' },
+						difficulty: {
+							type: 'string',
+							enum: ['easy', 'medium', 'hard'],
+							description: 'Nivel de dificultad del quiz'
+						},
+						timerByDifficultySec: {
+							type: 'object',
+							properties: {
+								easy: { type: 'number' },
+								medium: { type: 'number' },
+								hard: { type: 'number' }
+							}
+						},
+						autoAdvanceDelayMs: { type: 'number' },
+						questions: {
+							type: 'array',
+							items: {
+								type: 'object',
+								properties: {
+									question: { type: 'string' },
+									options: { type: 'array', items: { type: 'string' } },
+									correctIndex: { type: 'integer' },
+									explanation: { type: 'string' }
+								},
+								required: ['question', 'options', 'correctIndex']
+							}
+						}
+					},
+					required: ['questions']
+				}),
+				responseSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						answers: { type: 'array', items: { type: 'integer' } },
+						difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+						timePerQuestionSec: { type: 'number' },
+						questionResults: {
+							type: 'array',
+							items: {
+								type: 'object',
+								properties: {
+									selectedIndex: { type: 'integer' },
+									correctIndex: { type: 'integer' },
+									isCorrect: { type: 'boolean' },
+									timedOut: { type: 'boolean' },
+									responseMs: { type: ['number', 'null'] }
+								}
+							}
+						},
+						correctCount: { type: 'integer' },
+						timeoutCount: { type: 'integer' },
+						score: { type: 'number' },
+						completed: { type: 'boolean' }
+					}
+				}),
+				isSystem: true,
+				version: '1.0.0'
+			},
+			{
+				name: 'sustained_attention_test',
+				displayName: 'Test de Atencion Sostenida',
+				description:
+					'Componente inmersivo para test cognitivos de atencion sostenida, empezando por Go/No-Go.',
+				category: 'evaluation',
+				componentKey: 'SustainedAttentionTest',
+				propsSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						title: { type: 'string' },
+						testType: { type: 'string', enum: ['go_no_go'] },
+						difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+						instructions: { type: 'string' },
+						practiceTrials: { type: 'number' },
+						mainTrials: { type: 'number' },
+						goStimulus: { type: 'string' },
+						noGoStimulus: { type: 'string' }
+					}
+				}),
+				responseSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						testType: { type: 'string', enum: ['go_no_go'] },
+						difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+						totalTrials: { type: 'integer' },
+						goTrials: { type: 'integer' },
+						noGoTrials: { type: 'integer' },
+						hits: { type: 'integer' },
+						commissionErrors: { type: 'integer' },
+						omissionErrors: { type: 'integer' },
+						meanReactionMs: { type: ['number', 'null'] },
+						score: { type: 'number' },
+						completed: { type: 'boolean' }
+					}
+				}),
+				isSystem: true,
+				version: '1.0.0'
+			},
+			{
 				name: 'flashcard_deck',
 				displayName: 'Mazo de Flashcards',
 				description: 'Tarjetas de estudio interactivas para memorizar conceptos y definiciones.',
