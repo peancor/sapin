@@ -61,9 +61,15 @@
 		deleteModal = true;
 	}
 
-	async function copyActivityLink(id: string) {
+	function getStudentRunUrl(interactive: { id: string; type: string }): string {
+		return interactive.type === 'agent'
+			? `/student/run-agent/${interactive.id}`
+			: `/student/run-chat/${interactive.id}`;
+	}
+
+	async function copyActivityLink(interactive: { id: string; type: string }) {
 		try {
-			const link = `${window.location.origin}/student/run-chat/${id}`;
+			const link = `${window.location.origin}${getStudentRunUrl(interactive)}`;
 			await navigator.clipboard.writeText(link);
 			showNotification(
 				'Enlace copiado. Añade ?externalid=ID_ALUMNO para identificar estudiantes',
@@ -330,7 +336,7 @@
 								<DropdownItem href="./{interactive.id}/students">
 									<Users class="mr-2 inline h-4 w-4" /> Ver estudiantes
 								</DropdownItem>
-								<DropdownItem onclick={() => copyActivityLink(interactive.id)}>
+								<DropdownItem onclick={() => copyActivityLink(interactive)}>
 									<Link class="mr-2 inline h-4 w-4" /> Copiar enlace
 								</DropdownItem>
 								<DropdownItem onclick={() => exportActivity(interactive.id, interactive.name)}>
@@ -443,7 +449,7 @@
 									</a>
 									<button
 										type="button"
-										onclick={() => copyActivityLink(interactive.id)}
+										onclick={() => copyActivityLink(interactive)}
 										class="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-600"
 										title="Copiar enlace"
 									>
