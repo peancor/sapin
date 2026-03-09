@@ -195,6 +195,7 @@
                 eventSource?.close();
                 eventSource = null;
                 isLoading = false;
+                setTimeout(() => textarea?.focus(), 0);
                 return;
             }
 
@@ -310,6 +311,7 @@
                     case 'done': {
                         isLoading = false;
                         onComplete?.();
+                        setTimeout(() => textarea?.focus(), 0);
                         break;
                     }
 
