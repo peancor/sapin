@@ -14,30 +14,8 @@ import { DBInsightsAgentUtils } from '$lib/server/db/insights-agent';
 import type { InsightsAgentRunScope } from '$lib/types/insightsAgent';
 
 export class InsightsAgentEngine {
-	private static buildMessagesFromHistory(context: AgentContext, userMessage: string): ModelMessage[] {
-		return [
-			...context.messageHistory.map((message): ModelMessage => {
-				if (message.role === 'tool') {
-					return {
-						role: 'tool',
-						content: [
-							{
-								type: 'tool-result',
-								toolCallId: message.toolCallId ?? '',
-								toolName: message.toolName ?? '',
-								output: { type: 'text', value: message.content ?? '' }
-							}
-						]
-					};
-				}
-
-				return {
-					role: message.role,
-					content: message.content
-				} as ModelMessage;
-			}),
-			{ role: 'user', content: userMessage }
-		];
+	private static async buildMessagesFromDB(chatId: string): Promise<ModelMessage[]> {
+		return DBAgentMessageUtils.getAgentMessagesAsModelMessages(chatId);
 	}
 
 	private static buildTools(
@@ -207,7 +185,7 @@ export class InsightsAgentEngine {
 			yield { type: 'status', status: 'thinking' };
 
 			const result = await agent.stream({
-				messages: this.buildMessagesFromHistory(context, userMessage)
+				messages: await this.buildMessagesFromDB(context.chatId)
 			});
 
 			for await (const part of AgentStreamProcessor.process(

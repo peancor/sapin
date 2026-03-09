@@ -25,30 +25,12 @@ export class AgentEngine {
 		);
 	}
 
-	private static buildMessagesFromHistory(
-		context: AgentContext,
-		userMessage: string
-	): ModelMessage[] {
-		return [
-			...context.messageHistory.map((m): ModelMessage => {
-				if (m.role === 'tool') {
-					return {
-						role: 'tool',
-						content: [
-							{
-								type: 'tool-result',
-								toolCallId: m.toolCallId ?? '',
-								toolName: m.toolName ?? '',
-								output: { type: 'text', value: m.content ?? '' }
-							}
-						]
-					};
-				}
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				return { role: m.role, content: m.content } as any as ModelMessage;
-			}),
-			{ role: 'user', content: userMessage }
-		];
+	/**
+	 * Builds the full message history from DB, including tool-call parts on assistant messages.
+	 * The user message must already be saved to DB before calling this method.
+	 */
+	private static async buildMessagesFromDB(chatId: string): Promise<ModelMessage[]> {
+		return DBAgentMessageUtils.getAgentMessagesAsModelMessages(chatId);
 	}
 
 	private static getRuntimeTools(context: AgentContext): ToolDefinitionResolved[] {
@@ -247,7 +229,7 @@ export class AgentEngine {
 
 		yield { type: 'status', status: 'thinking' };
 
-		const messages = this.buildMessagesFromHistory(context, userMessage);
+		const messages = await this.buildMessagesFromDB(context.chatId);
 
 		let model;
 		try {
