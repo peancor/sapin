@@ -418,15 +418,60 @@
 
 						<div class="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto]">
 							<div class="rounded-[28px] border border-slate-200/80 bg-slate-50/80 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/50">
-								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-									Apertura de la sesion
-								</p>
-								<p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
-									{session.previewText || 'Sin contenido textual util registrado.'}
-								</p>
+								{#if session.finalization?.payload.summary}
+									<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+										Resumen de finalización
+									</p>
+									<p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
+										{session.finalization.payload.summary}
+									</p>
 
-								{#if session.latestText}
-									<div class="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
+									{#if session.finalization.payload.feedback}
+										<div class="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
+											<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+												Feedback final
+											</p>
+											<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+												{session.finalization.payload.feedback}
+											</p>
+										</div>
+									{/if}
+
+									{#if session.finalization.payload.result || session.finalization.payload.score !== undefined}
+										<div class="mt-4 grid gap-3 sm:grid-cols-2">
+											{#if session.finalization.payload.result}
+												<div class="rounded-2xl bg-white/80 px-4 py-3 dark:bg-slate-900/70">
+													<p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+														Resultado
+													</p>
+													<p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-100">
+														{session.finalization.payload.result}
+													</p>
+												</div>
+											{/if}
+
+											{#if session.finalization.payload.score !== undefined}
+												<div class="rounded-2xl bg-white/80 px-4 py-3 dark:bg-slate-900/70">
+													<p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+														Score
+													</p>
+													<p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-100">
+														{Math.round(session.finalization.payload.score * 100)}%
+													</p>
+												</div>
+											{/if}
+										</div>
+									{/if}
+								{:else}
+									<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+										Apertura de la sesion
+									</p>
+									<p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
+										{session.previewText || 'Sin contenido textual util registrado.'}
+									</p>
+
+									{#if session.latestText}
+										<div class="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
 										<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 											Ultimo contenido util
 										</p>
@@ -434,6 +479,7 @@
 											{session.latestText}
 										</p>
 									</div>
+									{/if}
 								{/if}
 							</div>
 
