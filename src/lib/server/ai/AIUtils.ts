@@ -510,10 +510,10 @@ export class AIUtils {
         const userName = user.username || user.email;
         const chatViewLink = `${getPublicAppUrl()}/agent-chat/${interactiveLearning.id}/c/${chat.id}`;
         const courseLine =
-            courseNames.length > 0 ? `\nðŸ“š Curso: ${courseNames[0]}` : '\nðŸ“š Curso: Sin curso asociado';
+            courseNames.length > 0 ? `\n📚 Curso: ${courseNames[0]}` : '\n📚 Curso: Sin curso asociado';
 
         notifier.notify(
-            `ðŸ¤– Nuevo chat de agente finalizado\nðŸ§© Actividad: ${interactiveLearning.name}${courseLine}\nðŸ‘¤ Usuario: ${userName}\n\nðŸ”— Ver chat: ${chatViewLink}`
+            `🤖 Nuevo chat de agente finalizado\n🧩 Actividad: ${interactiveLearning.name}${courseLine}\n👤 Usuario: ${userName}\n\n🔗 Ver chat: ${chatViewLink}`
         );
     }
 
