@@ -14,6 +14,22 @@
         onComplete?: () => void;
     }
 
+	interface MessageMetrics {
+		keystrokeCount: number;
+		pasteCount: number;
+		charCount: number;
+		wordCount: number;
+		timeSpentSeconds: number;
+		editCount: number;
+		deleteCount: number;
+		startTimestamp: number;
+		deviceInfo: {
+			isMobile: boolean;
+			userAgent: string;
+			screenSize: string;
+		};
+	}
+
     let { initialMessages = [], apiEndpoint, user, onComplete }: Props = $props();
 
     // ─── Estado ───
@@ -36,6 +52,7 @@
     let chatContainer: HTMLDivElement | undefined = $state();
     let textarea: HTMLTextAreaElement | undefined = $state();
     let eventSource: EventSource | null = null;
+	let messageMetrics = $state<MessageMetrics>(createMessageMetrics());
 
     // ─── HITL state ───
     let hitlOpen = $state(false);
@@ -48,6 +65,53 @@
 
     // Base URL for the confirm-tool endpoint (strip trailing /ask)
 	const apiBaseForHitl = $derived(apiEndpoint.replace(/\/ask$/, ''));
+
+	function detectMobileDevice(): boolean {
+		if (typeof window === 'undefined') return false;
+		return (
+			window.innerWidth <= 768 ||
+			/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+		);
+	}
+
+	function createMessageMetrics(): MessageMetrics {
+		return {
+			keystrokeCount: 0,
+			pasteCount: 0,
+			charCount: 0,
+			wordCount: 0,
+			timeSpentSeconds: 0,
+			editCount: 0,
+			deleteCount: 0,
+			startTimestamp: Date.now(),
+			deviceInfo: {
+				isMobile: typeof window !== 'undefined' ? detectMobileDevice() : false,
+				userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+				screenSize:
+					typeof window !== 'undefined'
+						? `${window.innerWidth}x${window.innerHeight}`
+						: ''
+			}
+		};
+	}
+
+	function resetMessageMetrics() {
+		messageMetrics = createMessageMetrics();
+	}
+
+	function updateTextMetrics() {
+		messageMetrics.charCount = messageInput.length;
+		messageMetrics.wordCount = messageInput.trim() ? messageInput.trim().split(/\s+/).length : 0;
+	}
+
+	function buildSerializedMessageMetrics(): string {
+		updateTextMetrics();
+		messageMetrics.timeSpentSeconds = Math.max(
+			0,
+			Math.floor((Date.now() - messageMetrics.startTimestamp) / 1000)
+		);
+		return JSON.stringify(messageMetrics);
+	}
 
 	function getEffectiveUserResponse(part: UIComponentDisplayPart): Record<string, unknown> | undefined {
 		return uiResponseOverrides[part.instanceId] ?? part.userResponse;
@@ -118,10 +182,33 @@
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendMessage();
+			return;
         }
+
+		messageMetrics.keystrokeCount += 1;
+		if (e.key === 'Backspace' || e.key === 'Delete') {
+			messageMetrics.deleteCount += 1;
+		}
     }
 
-    function startUserMessage(text: string) {
+	function handleInput() {
+		messageMetrics.editCount += 1;
+		autoResize();
+		updateTextMetrics();
+	}
+
+	function handlePaste() {
+		messageMetrics.pasteCount += 1;
+		messageMetrics.editCount += 1;
+		setTimeout(updateTextMetrics, 0);
+	}
+
+	function handleCut() {
+		messageMetrics.editCount += 1;
+		setTimeout(updateTextMetrics, 0);
+	}
+
+    function startUserMessage(text: string, metadata?: string) {
         if (!text || isLoading) return;
 
         errorMessage = '';
@@ -156,12 +243,20 @@
         // Abrir SSE
         const url = new URL(apiEndpoint, window.location.origin);
         url.searchParams.set('message', text);
+		if (metadata) {
+			url.searchParams.set('metadata', metadata);
+		}
 
         startStream(url.toString(), assistantMsgId);
     }
 
     function sendMessage() {
-        startUserMessage(messageInput.trim());
+		const text = messageInput.trim();
+		if (!text) return;
+
+		const metadata = buildSerializedMessageMetrics();
+		resetMessageMetrics();
+        startUserMessage(text, metadata);
     }
 
     export function fillComposer(text: string) {
@@ -403,6 +498,7 @@
 
     // ─── Lifecycle ───
     onMount(() => {
+		resetMessageMetrics();
         scrollToBottom(true);
         chatContainer?.addEventListener('scroll', handleScroll);
 
@@ -437,7 +533,7 @@
                             ? 'bg-blue-600 text-white'
                             : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 shadow-sm'}"
                 >
-                    {#each msg.parts as part}
+                    {#each msg.parts as part, index (`${msg.id}-${index}`)}
                         {#if part.kind === 'text' && part.content}
                             <div
                                 class="prose prose-sm max-w-none
@@ -573,7 +669,9 @@
                 bind:this={textarea}
                 bind:value={messageInput}
                 onkeydown={handleKeydown}
-                oninput={autoResize}
+                oninput={handleInput}
+				onpaste={handlePaste}
+				oncut={handleCut}
                 disabled={isLoading}
                 placeholder="Escribe un mensaje..."
                 rows={1}

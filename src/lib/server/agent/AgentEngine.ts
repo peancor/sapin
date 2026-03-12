@@ -172,7 +172,8 @@ export class AgentEngine {
 
 	static async *executeLoop(
 		context: AgentContext,
-		userMessage: string
+		userMessage: string,
+		userMessageMetadata?: string
 	): AsyncGenerator<AgentStreamPart> {
 		const startTime = Date.now();
 		const config = context.activityConfig;
@@ -224,7 +225,8 @@ export class AgentEngine {
 			chatId: context.chatId,
 			role: 'user',
 			textContent: userMessage,
-			sequenceOrder: 0
+			sequenceOrder: 0,
+			metadata: userMessageMetadata
 		});
 
 		yield { type: 'status', status: 'thinking' };

@@ -1,28 +1,9 @@
 import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
-import { and, asc, count, desc, eq, inArray, like, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, like, sql } from 'drizzle-orm';
 import { db, CourseInteractiveAuthUtils } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
-import { uiComponentRequiresResponse } from '$lib/utils/agentUI';
-
-type SessionStatus = 'completed' | 'pending' | 'attention';
-
-function isInternalTriggerMessage(content: string | null): boolean {
-	return !!content && /^\[\[.*\]\]$/s.test(content.trim());
-}
-
-function cleanPreviewText(content: string | null | undefined): string | undefined {
-	if (!content) return undefined;
-
-	const cleaned = content.replace(/\s+/g, ' ').trim();
-	return cleaned.length > 0 ? cleaned : undefined;
-}
-
-function truncateText(content: string | undefined, maxLength = 180): string | undefined {
-	if (!content) return undefined;
-	if (content.length <= maxLength) return content;
-	return `${content.slice(0, maxLength - 1).trimEnd()}...`;
-}
+import { AgentSessionAnalyticsService } from '$lib/server/agent';
 
 export const load = (async ({ params, url, locals }) => {
 	if (!locals.user) throw redirect(303, '/login');
@@ -52,6 +33,12 @@ export const load = (async ({ params, url, locals }) => {
 	const pageSize = Math.max(1, parseInt(url.searchParams.get('pageSize') || '10'));
 	const searchTerm = url.searchParams.get('search') || undefined;
 	const sortDirection = (url.searchParams.get('sortDirection') || 'desc') as 'asc' | 'desc';
+	const studentMessagesFilter =
+		url.searchParams.get('studentMessages') === 'without'
+			? 'without'
+			: url.searchParams.get('studentMessages') === 'with'
+				? 'with'
+				: 'all';
 	const startDateStr = url.searchParams.get('startDate');
 	const endDateStr = url.searchParams.get('endDate');
 	const startDate = startDateStr ? new Date(startDateStr) : undefined;
@@ -64,17 +51,7 @@ export const load = (async ({ params, url, locals }) => {
 		...(endDate ? [sql`${schema.chat.createdAt} <= ${endDate.getTime() / 1000}`] : [])
 	];
 
-	const [{ total }] = await db
-		.select({ total: count(schema.userInteractiveLearningChat.id) })
-		.from(schema.userInteractiveLearningChat)
-		.innerJoin(schema.user, eq(schema.user.id, schema.userInteractiveLearningChat.userId))
-		.innerJoin(schema.chat, eq(schema.chat.id, schema.userInteractiveLearningChat.chatId))
-		.where(and(...conditions));
-
-	const offset = (page - 1) * pageSize;
-	const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-	const sessions = await db
+	const allSessions = await db
 		.select({
 			sessionId: schema.userInteractiveLearningChat.id,
 			chatId: schema.userInteractiveLearningChat.chatId,
@@ -82,6 +59,7 @@ export const load = (async ({ params, url, locals }) => {
 			sessionCreatedAt: schema.userInteractiveLearningChat.createdAt,
 			chatCreatedAt: schema.chat.createdAt,
 			chatUpdatedAt: schema.chat.updatedAt,
+			chatMetadata: schema.chat.metadata,
 			username: schema.user.username,
 			email: schema.user.email,
 			image: schema.user.image,
@@ -91,30 +69,27 @@ export const load = (async ({ params, url, locals }) => {
 		.innerJoin(schema.user, eq(schema.user.id, schema.userInteractiveLearningChat.userId))
 		.innerJoin(schema.chat, eq(schema.chat.id, schema.userInteractiveLearningChat.chatId))
 		.where(and(...conditions))
-		.orderBy(sortDirection === 'asc' ? asc(schema.chat.createdAt) : desc(schema.chat.createdAt))
-		.limit(pageSize)
-		.offset(offset);
+		.orderBy(sortDirection === 'asc' ? asc(schema.chat.createdAt) : desc(schema.chat.createdAt));
 
-	if (sessions.length === 0) {
+	if (allSessions.length === 0) {
 		return {
 			interactive: interactiveRecord,
 			sessions: [],
-			pagination: { totalCount: total, totalPages, currentPage: page, pageSize },
-			filters: { search: searchTerm, startDate: startDateStr, endDate: endDateStr },
+			pagination: { totalCount: 0, totalPages: 1, currentPage: 1, pageSize },
+			filters: {
+				search: searchTerm,
+				startDate: startDateStr,
+				endDate: endDateStr,
+				studentMessages: studentMessagesFilter
+			},
 			sorting: { direction: sortDirection }
 		};
 	}
 
-	const chatIds = sessions.map((session) => session.chatId);
+	const chatIds = allSessions.map((session) => session.chatId);
 
 	const messages = await db
-		.select({
-			id: schema.agentMessage.id,
-			chatId: schema.agentMessage.chatId,
-			role: schema.agentMessage.role,
-			textContent: schema.agentMessage.textContent,
-			createdAt: schema.agentMessage.createdAt
-		})
+		.select()
 		.from(schema.agentMessage)
 		.where(inArray(schema.agentMessage.chatId, chatIds))
 		.orderBy(asc(schema.agentMessage.createdAt), asc(schema.agentMessage.sequenceOrder));
@@ -127,8 +102,10 @@ export const load = (async ({ params, url, locals }) => {
 		assistantMessageIds.length > 0
 			? await db
 					.select({
+						id: schema.agentToolCall.id,
 						messageId: schema.agentToolCall.messageId,
-						status: schema.agentToolCall.status
+						status: schema.agentToolCall.status,
+						result: schema.agentToolCall.result
 					})
 					.from(schema.agentToolCall)
 					.where(inArray(schema.agentToolCall.messageId, assistantMessageIds))
@@ -138,6 +115,7 @@ export const load = (async ({ params, url, locals }) => {
 		assistantMessageIds.length > 0
 			? await db
 					.select({
+						id: schema.agentUIInstance.id,
 						messageId: schema.agentUIInstance.messageId,
 						userResponse: schema.agentUIInstance.userResponse,
 						componentKey: schema.agentUIComponent.componentKey
@@ -150,111 +128,60 @@ export const load = (async ({ params, url, locals }) => {
 					.where(inArray(schema.agentUIInstance.messageId, assistantMessageIds))
 			: [];
 
-	const messageById = new Map(messages.map((message) => [message.id, message]));
-	const messagesByChatId = new Map<string, typeof messages>();
-	for (const message of messages) {
-		const bucket = messagesByChatId.get(message.chatId) ?? [];
-		bucket.push(message);
-		messagesByChatId.set(message.chatId, bucket);
-	}
+	const summaries = AgentSessionAnalyticsService.summarizeSessions({
+		chats: allSessions.map((session) => ({
+			id: session.chatId,
+			metadata: session.chatMetadata,
+			createdAt: session.chatCreatedAt,
+			updatedAt: session.chatUpdatedAt
+		})),
+		messages,
+		toolCalls,
+		uiInstances
+	});
 
-	const toolCallsByChatId = new Map<string, typeof toolCalls>();
-	for (const toolCall of toolCalls) {
-		const message = messageById.get(toolCall.messageId);
-		if (!message) continue;
+	const computedSessions = allSessions.flatMap((session) => {
+			const summary = summaries.get(session.chatId);
+			if (!summary) return [];
 
-		const bucket = toolCallsByChatId.get(message.chatId) ?? [];
-		bucket.push(toolCall);
-		toolCallsByChatId.set(message.chatId, bucket);
-	}
-
-	const uiInstancesByChatId = new Map<string, typeof uiInstances>();
-	for (const uiInstance of uiInstances) {
-		const message = messageById.get(uiInstance.messageId);
-		if (!message) continue;
-
-		const bucket = uiInstancesByChatId.get(message.chatId) ?? [];
-		bucket.push(uiInstance);
-		uiInstancesByChatId.set(message.chatId, bucket);
-	}
-
-	const enrichedSessions = sessions.map((session) => {
-		const sessionMessages = messagesByChatId.get(session.chatId) ?? [];
-		const sessionToolCalls = toolCallsByChatId.get(session.chatId) ?? [];
-		const sessionUiInstances = uiInstancesByChatId.get(session.chatId) ?? [];
-
-		const meaningfulMessages = sessionMessages.filter((message) => {
-			if (message.role !== 'user' && message.role !== 'assistant') return false;
-			if (message.role === 'user' && isInternalTriggerMessage(message.textContent)) return false;
-			return !!cleanPreviewText(message.textContent);
+			return [
+				{
+				...session,
+				previewText: summary.previewText,
+				latestText: summary.latestText,
+				status: summary.status,
+				hasStudentMessages: summary.hasStudentMessages,
+				lastActivityAt: summary.lastActivityAt,
+				finalization: summary.finalization,
+				stats: summary.stats,
+				globalStats: summary.globalStats
+				}
+			];
 		});
 
-		const firstUsefulText = truncateText(cleanPreviewText(meaningfulMessages[0]?.textContent));
-		const lastUsefulText = truncateText(
-			cleanPreviewText(meaningfulMessages[meaningfulMessages.length - 1]?.textContent)
-		);
-		const previewText =
-			firstUsefulText ??
-			(sessionUiInstances[0] ? `Componente ${sessionUiInstances[0].componentKey}` : undefined);
-		const latestText =
-			lastUsefulText && lastUsefulText !== previewText ? lastUsefulText : undefined;
+	const filteredSessions = computedSessions
+		.filter((session) => {
+			if (studentMessagesFilter === 'with') return session.hasStudentMessages;
+			if (studentMessagesFilter === 'without') return !session.hasStudentMessages;
+			return true;
+		});
 
-		const userMessages = sessionMessages.filter(
-			(message) =>
-				message.role === 'user' && !isInternalTriggerMessage(message.textContent)
-		).length;
-		const assistantMessages = sessionMessages.filter(
-			(message) => message.role === 'assistant'
-		).length;
-		const failedToolCalls = sessionToolCalls.filter(
-			(toolCall) => toolCall.status === 'failed' || toolCall.status === 'rejected'
-		).length;
-		const pendingToolCalls = sessionToolCalls.filter((toolCall) =>
-			['pending', 'awaiting_confirmation', 'awaiting_ui_response', 'executing'].includes(
-				toolCall.status
-			)
-		).length;
-		const actionableUiInstances = sessionUiInstances.filter((uiInstance) =>
-			uiComponentRequiresResponse(uiInstance.componentKey)
-		);
-		const respondedUiComponents = sessionUiInstances.filter(
-			(uiInstance) =>
-				!uiComponentRequiresResponse(uiInstance.componentKey) || !!uiInstance.userResponse
-		).length;
-		const pendingUiComponents = actionableUiInstances.filter(
-			(uiInstance) => !uiInstance.userResponse
-		).length;
-
-		let status: SessionStatus = 'completed';
-		if (failedToolCalls > 0) {
-			status = 'attention';
-		} else if (pendingToolCalls > 0 || pendingUiComponents > 0) {
-			status = 'pending';
-		}
-
-		return {
-			...session,
-			previewText,
-			latestText,
-			status,
-			lastActivityAt: session.chatUpdatedAt ?? session.chatCreatedAt,
-			stats: {
-				userMessages,
-				assistantMessages,
-				totalToolCalls: sessionToolCalls.length,
-				failedToolCalls,
-				pendingToolCalls,
-				totalUiComponents: sessionUiInstances.length,
-				respondedUiComponents
-			}
-		};
-	});
+	const totalCount = filteredSessions.length;
+	const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+	const currentPage = Math.min(page, totalPages);
+	const offset = (currentPage - 1) * pageSize;
+	const paginatedSessions = filteredSessions.slice(offset, offset + pageSize);
 
 	return {
 		interactive: interactiveRecord,
-		sessions: enrichedSessions,
-		pagination: { totalCount: total, totalPages, currentPage: page, pageSize },
-		filters: { search: searchTerm, startDate: startDateStr, endDate: endDateStr },
+		sessions: paginatedSessions,
+		pagination: { totalCount, totalPages, currentPage, pageSize },
+		filters: {
+			search: searchTerm,
+			startDate: startDateStr,
+			endDate: endDateStr,
+			studentMessages: studentMessagesFilter
+		},
 		sorting: { direction: sortDirection }
 	};
 }) satisfies PageServerLoad;

@@ -51,6 +51,7 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
 	}
 
 	const userMessage = url.searchParams.get('message');
+	const userMessageMetadata = url.searchParams.get('metadata') || undefined;
 	const isResume = url.searchParams.get('resume') === 'true';
 	const { ilcid, cid } = params;
 	const usageDomain = BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT;
@@ -165,7 +166,7 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
 					// Elegir entre loop normal o resume post-HITL
 					const generator = isResume
 						? AgentEngine.resumeFromToolCall(context)
-						: AgentEngine.executeLoop(context, finalUserMessage);
+						: AgentEngine.executeLoop(context, finalUserMessage, userMessageMetadata);
 
 					for await (const part of generator) {
 						const data = JSON.stringify(part);

@@ -1,44 +1,52 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ArrowLeft, Bot, Clock3, LayoutTemplate, User } from 'lucide-svelte';
+	import {
+		ArrowLeft,
+		BarChart3,
+		Bot,
+		Clock3,
+		FileCheck2,
+		User
+	} from 'lucide-svelte';
 	import AgentTranscriptReadOnly from '$lib/components/agent/AgentTranscriptReadOnly.svelte';
 	import { formatDate } from '$lib/helpers/dateUtils';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+	let showStatsSummary = $state(false);
 
-	const summary = $derived.by(() => {
-		let userMessages = 0;
-		let assistantMessages = 0;
-		let toolCalls = 0;
-		let respondedUiComponents = 0;
-		let pendingUiComponents = 0;
+	function formatTime(seconds: number): string {
+		if (seconds < 60) return `${seconds} segundos`;
+		const minutes = Math.floor(seconds / 60);
+		const remainingSeconds = seconds % 60;
+		return `${minutes} min ${remainingSeconds} seg`;
+	}
 
-		for (const message of data.messages) {
-			if (message.role === 'user') userMessages += 1;
-			if (message.role === 'assistant') assistantMessages += 1;
+	function formatNumber(value: number): string {
+		return value.toLocaleString();
+	}
 
-			for (const part of message.parts) {
-				if (part.kind === 'tool-call') toolCalls += 1;
-				if (part.kind === 'ui-component') {
-					if (part.userResponse) {
-						respondedUiComponents += 1;
-					} else {
-						pendingUiComponents += 1;
-					}
-				}
-			}
+	function statusLabel(status: string): string {
+		switch (status) {
+			case 'completed':
+				return 'Finalizada';
+			case 'attention':
+				return 'Con incidencias';
+			default:
+				return 'En curso';
 		}
+	}
 
-		return {
-			userMessages,
-			assistantMessages,
-			toolCalls,
-			respondedUiComponents,
-			pendingUiComponents
-		};
-	});
-
+	function statusClasses(status: string): string {
+		switch (status) {
+			case 'completed':
+				return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300';
+			case 'attention':
+				return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300';
+			default:
+				return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300';
+		}
+	}
 </script>
 
 <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.12),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.1),_transparent_24%),linear-gradient(180deg,_#f8fafc_0%,_#eef2f7_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.12),_transparent_25%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.1),_transparent_22%),linear-gradient(180deg,_#020617_0%,_#111827_100%)]">
@@ -66,16 +74,23 @@
 	</div>
 
 	<div class="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
-		<section class="grid gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,0.95fr)]">
+		<section class="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.95fr)]">
 			<div class="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/90 shadow-sm dark:border-slate-800 dark:bg-slate-900/88">
 				<div class="border-b border-slate-200/80 px-5 py-5 dark:border-slate-800">
 					<div class="flex flex-wrap items-center gap-2">
-						<span class="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+						<span class="rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">
 							Agente
 						</span>
-						<span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-							Solo lectura
+						<span
+							class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${statusClasses(data.sessionSummary.status)}`}
+						>
+							{statusLabel(data.sessionSummary.status)}
 						</span>
+						{#if !data.sessionSummary.hasStudentMessages}
+							<span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+								Sin mensajes del alumno
+							</span>
+						{/if}
 					</div>
 
 					{#if data.activity.description}
@@ -83,49 +98,167 @@
 							{data.activity.description}
 						</p>
 					{/if}
+
+					<div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+						<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+							<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+								Mensajes visibles
+							</p>
+							<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+								{data.sessionSummary.stats.totalMessages}
+							</p>
+						</div>
+						<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+							<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+								Tool calls
+							</p>
+							<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+								{data.sessionSummary.stats.totalToolCalls}
+							</p>
+						</div>
+						<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+							<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+								Componentes UI
+							</p>
+							<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+								{data.sessionSummary.stats.totalUiComponents}
+							</p>
+						</div>
+						<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+							<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+								Tiempo total
+							</p>
+							<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+								{formatTime(data.sessionSummary.globalStats.totalTimeSpentSeconds)}
+							</p>
+						</div>
+					</div>
 				</div>
 
-				<div class="grid gap-3 px-5 py-5 sm:grid-cols-2 xl:grid-cols-5">
-					<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-						<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-							Mensajes alumno
-						</p>
-						<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-							{summary.userMessages}
-						</p>
-					</div>
-					<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-						<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-							Mensajes agente
-						</p>
-						<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-							{summary.assistantMessages}
-						</p>
-					</div>
-					<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-						<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-							Tool calls
-						</p>
-						<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-							{summary.toolCalls}
-						</p>
-					</div>
-					<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-						<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-							UI respondida
-						</p>
-						<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-							{summary.respondedUiComponents}
-						</p>
-					</div>
-					<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-						<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-							UI pendiente
-						</p>
-						<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-							{summary.pendingUiComponents}
-						</p>
-					</div>
+				<div class="px-5 py-5">
+					<button
+						type="button"
+						class="flex w-full items-center justify-between rounded-3xl border border-slate-200/80 bg-slate-50/90 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-200 dark:hover:bg-slate-950"
+						onclick={() => (showStatsSummary = !showStatsSummary)}
+					>
+						<span class="inline-flex items-center gap-2">
+							<BarChart3 class="h-4 w-4" />
+							Resumen de estadísticas de interacción
+						</span>
+						<span class="text-xs">{showStatsSummary ? '▲' : '▼'}</span>
+					</button>
+
+					{#if showStatsSummary}
+						<div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+							<div class="rounded-[26px] bg-slate-100/90 p-4 dark:bg-slate-800/80">
+								<h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">Mensajes</h3>
+								<div class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+									<div class="flex justify-between">
+										<span>Total visibles</span>
+										<span class="font-medium">{data.sessionSummary.globalStats.totalMessages}</span>
+									</div>
+									<div class="flex justify-between">
+										<span>Alumno</span>
+										<span class="font-medium">{data.sessionSummary.globalStats.totalUserMessages}</span>
+									</div>
+									<div class="flex justify-between">
+										<span>Agente</span>
+										<span class="font-medium">{data.sessionSummary.globalStats.totalAssistantMessages}</span>
+									</div>
+									<div class="flex justify-between">
+										<span>Componentes UI</span>
+										<span class="font-medium">{data.sessionSummary.globalStats.totalUiComponents}</span>
+									</div>
+								</div>
+							</div>
+
+							<div class="rounded-[26px] bg-slate-100/90 p-4 dark:bg-slate-800/80">
+								<h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">
+									Comportamiento de escritura
+								</h3>
+								<div class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+									<div class="flex justify-between">
+										<span>Total pulsaciones</span>
+										<span class="font-medium">
+											{formatNumber(data.sessionSummary.globalStats.totalKeystrokeCount)}
+										</span>
+									</div>
+									<div class="flex justify-between">
+										<span>Total pegados</span>
+										<span class="font-medium">{data.sessionSummary.globalStats.totalPasteCount}</span>
+									</div>
+									<div class="flex justify-between">
+										<span>Promedio caracteres</span>
+										<span class="font-medium">{data.sessionSummary.globalStats.averageCharCount}</span>
+									</div>
+									<div class="flex justify-between">
+										<span>Promedio palabras</span>
+										<span class="font-medium">{data.sessionSummary.globalStats.averageWordCount}</span>
+									</div>
+								</div>
+							</div>
+
+							<div class="rounded-[26px] bg-slate-100/90 p-4 dark:bg-slate-800/80">
+								<h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">
+									Tiempos y dispositivos
+								</h3>
+								<div class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+									<div class="flex justify-between">
+										<span>Tiempo total</span>
+										<span class="font-medium">
+											{formatTime(data.sessionSummary.globalStats.totalTimeSpentSeconds)}
+										</span>
+									</div>
+									<div class="flex justify-between">
+										<span>Tiempo medio</span>
+										<span class="font-medium">
+											{formatTime(data.sessionSummary.globalStats.averageTimeSpentSeconds)}
+										</span>
+									</div>
+									<div class="flex justify-between">
+										<span>Uso móvil</span>
+										<span class="font-medium">{data.sessionSummary.globalStats.mobileUsage}%</span>
+									</div>
+									<div class="flex justify-between">
+										<span>Uso escritorio</span>
+										<span class="font-medium">{data.sessionSummary.globalStats.desktopUsage}%</span>
+									</div>
+								</div>
+							</div>
+
+							<div class="rounded-[26px] bg-slate-100/90 p-4 dark:bg-slate-800/80">
+								<h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">
+									Finalización
+								</h3>
+								<div class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+									<div class="flex justify-between">
+										<span>Estado</span>
+										<span class="font-medium">{statusLabel(data.sessionSummary.status)}</span>
+									</div>
+									<div class="flex justify-between gap-3">
+										<span>Ejecutada</span>
+										<span class="text-right font-medium">
+											{data.sessionSummary.finalization
+												? formatDate(new Date(data.sessionSummary.finalization.executedAt))
+												: 'No'}
+										</span>
+									</div>
+									<div class="flex justify-between">
+										<span>Resultado</span>
+										<span class="font-medium">
+											{data.sessionSummary.finalization?.payload.result ?? 'Sin resultado'}
+										</span>
+									</div>
+									<div class="flex justify-between">
+										<span>Incidencias</span>
+										<span class="font-medium">
+											{data.sessionSummary.stats.failedToolCalls + data.sessionSummary.stats.pendingToolCalls}
+										</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					{/if}
 				</div>
 			</div>
 
@@ -172,19 +305,17 @@
 					<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
 						<p class="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
 							<Bot class="h-4 w-4" />
-							Ultima actualizacion
+							Ultima actualización
 						</p>
 						<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{formatDate(data.updatedAt)}</p>
 					</div>
 					<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
 						<p class="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-							<LayoutTemplate class="h-4 w-4" />
-							Componentes UI
+							<FileCheck2 class="h-4 w-4" />
+							Finalización
 						</p>
 						<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
-							{summary.respondedUiComponents > 0
-								? `${summary.respondedUiComponents} respondidos`
-								: 'Sin respuestas UI completadas'}
+							{data.sessionSummary.finalization?.payload.summary || 'La herramienta de finalización aún no se ha ejecutado.'}
 						</p>
 					</div>
 				</div>
@@ -193,14 +324,17 @@
 
 		<section class="overflow-hidden rounded-[32px] border border-slate-200/80 bg-white/92 shadow-sm dark:border-slate-800 dark:bg-slate-900/88">
 			<div class="border-b border-slate-200/80 px-5 py-4 dark:border-slate-800">
-				<h2 class="text-lg font-semibold text-slate-900 dark:text-white">Transcript de la sesion</h2>
+				<h2 class="text-lg font-semibold text-slate-900 dark:text-white">Transcript de la sesión</h2>
 				<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
-					Conversacion, llamadas a herramientas y componentes UI en modo de revision.
+					Conversación, llamadas a herramientas y componentes UI en modo de revisión.
 				</p>
 			</div>
 
 			<div class="px-4 py-5 sm:px-5">
-				<AgentTranscriptReadOnly messages={data.messages} />
+				<AgentTranscriptReadOnly
+					messages={data.messages}
+					messageMetricsById={data.sessionSummary.messageMetricsById}
+				/>
 			</div>
 		</section>
 	</div>

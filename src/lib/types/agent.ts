@@ -182,6 +182,77 @@ export interface AgentDisplayMessage {
 	createdAt: Date;
 }
 
+export interface AgentUserMessageMetrics {
+	keystrokeCount: number;
+	pasteCount: number;
+	charCount: number;
+	wordCount: number;
+	timeSpentSeconds: number;
+	editCount: number;
+	deleteCount: number;
+	startTimestamp: number;
+	deviceInfo: {
+		isMobile: boolean;
+		userAgent: string;
+		screenSize: string;
+	};
+}
+
+export interface AgentSessionFinalization {
+	executedAt: string;
+	handler: 'mark_complete_and_notify' | 'mark_complete_only' | 'notify_only';
+	toolCallId: string;
+	toolName: string;
+	assistantMessageId: string;
+	payload: {
+		summary: string;
+		result?: 'completed' | 'passed' | 'failed';
+		score?: number;
+		feedback?: string;
+	};
+	finalizationConfig: Record<string, unknown> | null;
+}
+
+export interface AgentSessionGlobalStats {
+	totalMessages: number;
+	totalUserMessages: number;
+	totalAssistantMessages: number;
+	totalToolCalls: number;
+	totalUiComponents: number;
+	totalKeystrokeCount: number;
+	totalPasteCount: number;
+	totalTimeSpentSeconds: number;
+	averageCharCount: number;
+	averageWordCount: number;
+	averageTimeSpentSeconds: number;
+	mobileUsage: number;
+	desktopUsage: number;
+	messagesWithMetrics: number;
+}
+
+export interface AgentSessionStats {
+	totalMessages: number;
+	userMessages: number;
+	assistantMessages: number;
+	totalToolCalls: number;
+	failedToolCalls: number;
+	pendingToolCalls: number;
+	totalUiComponents: number;
+	respondedUiComponents: number;
+}
+
+export interface AgentSessionSummary {
+	status: 'completed' | 'pending' | 'attention';
+	hasStudentMessages: boolean;
+	previewText?: string;
+	latestText?: string;
+	lastActivityAt: Date;
+	finalization: AgentSessionFinalization | null;
+	stats: AgentSessionStats;
+	globalStats: AgentSessionGlobalStats;
+	messageMetricsById: Record<string, AgentUserMessageMetrics>;
+}
+
 export type AgentDisplayPart =
 	| { kind: 'text'; content: string }
 	| {

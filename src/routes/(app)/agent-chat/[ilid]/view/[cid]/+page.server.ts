@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 import { db, InteractiveChatAuthUtils } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
-import { AgentTranscriptService } from '$lib/server/agent';
+import { AgentSessionAnalyticsService, AgentTranscriptService } from '$lib/server/agent';
 
 export const load = (async ({ params, locals }) => {
 	const currentUser = locals.user;
@@ -57,10 +57,12 @@ export const load = (async ({ params, locals }) => {
 
 	const courseIds = await InteractiveChatAuthUtils.getInteractiveLearningCourses(ilid);
 	const messages = await AgentTranscriptService.getDisplayMessages(cid);
+	const sessionSummary = await AgentSessionAnalyticsService.getSessionAnalytics(cid);
 
 	return {
 		chatId: cid,
 		messages,
+		sessionSummary,
 		student: {
 			id: studentData.id,
 			username: studentData.username || 'Unknown',

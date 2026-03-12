@@ -25,6 +25,7 @@
 	let searchTerm = $state(page.data.filters?.search || '');
 	let startDate = $state(page.data.filters?.startDate || '');
 	let endDate = $state(page.data.filters?.endDate || '');
+	let studentMessagesFilter = $state(page.data.filters?.studentMessages || 'all');
 	let sortDirection = $state(page.data.sorting?.direction || 'desc');
 	let showFilters = $state(false);
 	let isLoading = $state(false);
@@ -33,6 +34,7 @@
 		searchTerm = page.data.filters?.search || '';
 		startDate = page.data.filters?.startDate || '';
 		endDate = page.data.filters?.endDate || '';
+		studentMessagesFilter = page.data.filters?.studentMessages || 'all';
 		sortDirection = page.data.sorting?.direction || 'desc';
 		isLoading = false;
 	});
@@ -77,6 +79,12 @@
 			params.delete('endDate');
 		}
 
+		if (studentMessagesFilter !== 'all') {
+			params.set('studentMessages', studentMessagesFilter);
+		} else {
+			params.delete('studentMessages');
+		}
+
 		params.set('sortDirection', sortDirection);
 		params.set('page', '1');
 
@@ -89,6 +97,7 @@
 		searchTerm = '';
 		startDate = '';
 		endDate = '';
+		studentMessagesFilter = 'all';
 		sortDirection = 'desc';
 		updateFilters();
 	}
@@ -129,10 +138,17 @@
 			case 'attention':
 				return 'Con incidencias';
 			case 'pending':
-				return 'Pendiente';
+				return 'En curso';
 			default:
-				return 'Completada';
+				return 'Finalizada';
 		}
+	}
+
+	function formatTime(seconds: number): string {
+		if (seconds < 60) return `${seconds} s`;
+		const minutes = Math.floor(seconds / 60);
+		const remainingSeconds = seconds % 60;
+		return `${minutes} min ${remainingSeconds} s`;
 	}
 </script>
 
@@ -220,7 +236,7 @@
 			</div>
 
 			{#if showFilters}
-				<div class="mt-4 grid gap-4 rounded-[26px] border border-slate-200/80 bg-slate-50/90 p-4 dark:border-slate-800 dark:bg-slate-950/60 md:grid-cols-[1fr_1fr_auto]">
+				<div class="mt-4 grid gap-4 rounded-[26px] border border-slate-200/80 bg-slate-50/90 p-4 dark:border-slate-800 dark:bg-slate-950/60 md:grid-cols-2 xl:grid-cols-[1fr_1fr_280px_auto]">
 					<label class="block">
 						<span class="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
 							<CalendarRange class="h-4 w-4" />
@@ -243,6 +259,21 @@
 							type="date"
 							class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-sky-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-sky-700"
 						/>
+					</label>
+
+					<label class="block">
+						<span class="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+							<Bot class="h-4 w-4" />
+							Mensajes del alumno
+						</span>
+						<select
+							bind:value={studentMessagesFilter}
+							class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-sky-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-sky-700"
+						>
+							<option value="all">Todas las sesiones</option>
+							<option value="with">Con mensajes del alumno</option>
+							<option value="without">Sin mensajes del alumno</option>
+						</select>
 					</label>
 
 					<div class="flex items-end">
@@ -369,18 +400,18 @@
 							</div>
 							<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
 								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-									UI resuelta
+									Componentes UI
 								</p>
 								<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-									{session.stats.respondedUiComponents}/{session.stats.totalUiComponents}
+									{session.stats.totalUiComponents}
 								</p>
 							</div>
 							<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
 								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-									Incidencias
+									Tiempo total
 								</p>
 								<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-									{session.stats.failedToolCalls + session.stats.pendingToolCalls}
+									{formatTime(session.globalStats.totalTimeSpentSeconds)}
 								</p>
 							</div>
 						</div>
@@ -407,6 +438,13 @@
 							</div>
 
 							<div class="flex flex-wrap content-start gap-2 xl:w-56">
+								{#if session.finalization}
+									<span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-300">
+										<Bot class="h-3.5 w-3.5" />
+										Finalizada
+									</span>
+								{/if}
+
 								{#if session.stats.failedToolCalls > 0}
 									<span class="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-300">
 										<TriangleAlert class="h-3.5 w-3.5" />
@@ -421,10 +459,17 @@
 									</span>
 								{/if}
 
-								{#if session.stats.totalUiComponents > session.stats.respondedUiComponents}
+								{#if !session.hasStudentMessages}
+									<span class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300">
+										<Bot class="h-3.5 w-3.5" />
+										Sin mensajes del alumno
+									</span>
+								{/if}
+
+								{#if session.globalStats.totalPasteCount > 0}
 									<span class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300">
 										<Bot class="h-3.5 w-3.5" />
-										UI sin responder
+										{session.globalStats.totalPasteCount} pegados
 									</span>
 								{/if}
 							</div>
