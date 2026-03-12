@@ -1,30 +1,27 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { SvelteSet } from 'svelte/reactivity';
-	import type { PageData } from './$types';
-	import { Avatar, Badge, Button, Input, Pagination } from 'flowbite-svelte';
+	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
+	import { Avatar, Pagination } from 'flowbite-svelte';
 	import {
+		ArrowDown,
 		ArrowLeft,
 		ArrowUp,
-		ArrowDown,
 		Bot,
-		User,
-		Wrench,
+		CalendarRange,
 		ChevronDown,
 		ChevronUp,
 		Filter,
 		RefreshCw,
-		Search as SearchIcon,
-		XCircle,
-		Clock
+		Search,
+		TriangleAlert,
+		Wrench
 	} from 'lucide-svelte';
 	import { formatDate } from '$lib/helpers/dateUtils';
-	import { marked } from 'marked';
+	import type { PageProps } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	let { data }: PageProps = $props();
 
-	// Filters state — initialise from page.data so the values update on navigation
 	let searchTerm = $state(page.data.filters?.search || '');
 	let startDate = $state(page.data.filters?.startDate || '');
 	let endDate = $state(page.data.filters?.endDate || '');
@@ -32,43 +29,60 @@
 	let showFilters = $state(false);
 	let isLoading = $state(false);
 
-	// Expanded sessions tracking — SvelteSet for proper Svelte 5 reactivity
-	let expandedSessions = new SvelteSet<string>();
+	$effect(() => {
+		searchTerm = page.data.filters?.search || '';
+		startDate = page.data.filters?.startDate || '';
+		endDate = page.data.filters?.endDate || '';
+		sortDirection = page.data.sorting?.direction || 'desc';
+		isLoading = false;
+	});
 
-	function toggleSession(sessionId: string) {
-		if (expandedSessions.has(sessionId)) {
-			expandedSessions.delete(sessionId);
-		} else {
-			expandedSessions.add(sessionId);
-		}
-	}
-
-	// Pagination
-	let paginationPages = $derived(
-		Array.from({ length: data.pagination.totalPages }, (_, i) => {
-			const p = i + 1;
-			const qs = new URLSearchParams(page.url.search);
-			qs.set('page', String(p));
-			return { name: String(p), href: `?${qs.toString()}`, active: p === data.pagination.currentPage };
+	const paginationPages = $derived(
+		Array.from({ length: data.pagination.totalPages }, (_, index) => {
+			const nextPage = index + 1;
+			const params = new URLSearchParams(page.url.search);
+			params.set('page', String(nextPage));
+			return {
+				name: String(nextPage),
+				href: `?${params.toString()}`,
+				active: nextPage === data.pagination.currentPage
+			};
 		})
 	);
 
-	function navigateToPage(p: number) {
-		isLoading = true;
-		const qs = new URLSearchParams(page.url.search);
-		qs.set('page', String(p));
-		goto(`?${qs.toString()}`, { replaceState: true });
-	}
+	const startItem = $derived((data.pagination.currentPage - 1) * data.pagination.pageSize + 1);
+	const endItem = $derived(
+		Math.min(startItem + data.sessions.length - 1, data.pagination.totalCount)
+	);
 
 	function updateFilters() {
 		isLoading = true;
-		const qs = new URLSearchParams(page.url.search);
-		if (searchTerm) { qs.set('search', searchTerm); } else { qs.delete('search'); }
-		if (startDate) { qs.set('startDate', startDate); } else { qs.delete('startDate'); }
-		if (endDate) { qs.set('endDate', endDate); } else { qs.delete('endDate'); }
-		qs.set('sortDirection', sortDirection);
-		qs.set('page', '1');
-		goto(`?${qs.toString()}`, { replaceState: true });
+
+		const params = new URLSearchParams(page.url.search);
+		if (searchTerm) {
+			params.set('search', searchTerm);
+		} else {
+			params.delete('search');
+		}
+
+		if (startDate) {
+			params.set('startDate', startDate);
+		} else {
+			params.delete('startDate');
+		}
+
+		if (endDate) {
+			params.set('endDate', endDate);
+		} else {
+			params.delete('endDate');
+		}
+
+		params.set('sortDirection', sortDirection);
+		params.set('page', '1');
+
+		const targetUrl = new URL(page.url);
+		targetUrl.search = params.toString();
+		goto(targetUrl, { replaceState: true });
 	}
 
 	function resetFilters() {
@@ -79,373 +93,353 @@
 		updateFilters();
 	}
 
-	function toggleSort() {
+	function toggleSortDirection() {
 		sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
 		updateFilters();
 	}
 
-	$effect(() => {
-		if (page.url.searchParams.toString()) isLoading = false;
-	});
+	function navigateToPage(nextPage: number) {
+		if (nextPage < 1 || nextPage > data.pagination.totalPages) return;
+		isLoading = true;
+		const params = new URLSearchParams(page.url.search);
+		params.set('page', String(nextPage));
+		const targetUrl = new URL(page.url);
+		targetUrl.search = params.toString();
+		goto(targetUrl, { replaceState: true });
+	}
 
-	// Tool call status helpers
-	type BadgeColor = 'green' | 'red' | 'orange' | 'yellow' | 'gray';
-	function toolStatusColor(status: string): BadgeColor {
+	function handleSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		updateFilters();
+	}
+
+	function statusBadgeClasses(status: string): string {
 		switch (status) {
-			case 'completed': return 'green';
-			case 'failed': return 'red';
-			case 'rejected': return 'orange';
-			case 'awaiting_confirmation': return 'yellow';
-			case 'awaiting_ui_response': return 'yellow';
-			default: return 'gray';
+			case 'attention':
+				return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300';
+			case 'pending':
+				return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300';
+			default:
+				return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300';
 		}
 	}
 
-	function toolStatusLabel(status: string): string {
+	function statusLabel(status: string): string {
 		switch (status) {
-			case 'completed': return 'Completada';
-			case 'failed': return 'Fallida';
-			case 'rejected': return 'Rechazada';
-			case 'awaiting_confirmation': return 'Pendiente';
-			case 'awaiting_ui_response': return 'Esperando respuesta UI';
-			case 'executing': return 'Ejecutando';
-			default: return status;
+			case 'attention':
+				return 'Con incidencias';
+			case 'pending':
+				return 'Pendiente';
+			default:
+				return 'Completada';
 		}
 	}
-
-	function formatJson(raw: string | null | undefined): string {
-		if (!raw) return '';
-		try {
-			return JSON.stringify(JSON.parse(raw), null, 2);
-		} catch {
-			return raw;
-		}
-	}
-
-	function renderMarkdown(text: string | null | undefined): string {
-		if (!text) return '';
-		return marked(text) as string;
-	}
-
-	// Pagination range for display
-	let startItem = $derived((data.pagination.currentPage - 1) * data.pagination.pageSize + 1);
-	let endItem = $derived(
-		Math.min(startItem + data.sessions.length - 1, data.pagination.totalCount)
-	);
 </script>
 
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-	<!-- Sticky header -->
-	<div class="sticky top-0 z-10 bg-white shadow-sm dark:bg-gray-800">
-		<div class="container mx-auto max-w-screen-xl px-4">
-			<div class="flex items-center gap-4 py-4">
-				<a
-					href="/course/{page.params.cid}/admin/interactives/{page.params.ilid}"
-					class="-ml-2 rounded-lg p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
-					title="Volver a la actividad"
-				>
-					<ArrowLeft size={20} class="text-gray-500 dark:text-gray-400" />
-				</a>
-				<div class="min-w-0 flex-1">
-					<h1 class="truncate text-lg font-semibold text-gray-900 dark:text-white">
-						Revisión de sesiones: {data.interactive.name}
-					</h1>
-				</div>
+<div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.08),_transparent_24%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.1),_transparent_22%),linear-gradient(180deg,_#f8fafc_0%,_#eef2f7_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.09),_transparent_24%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_22%),linear-gradient(180deg,_#020617_0%,_#111827_100%)]">
+	<div class="sticky top-0 z-20 border-b border-white/70 bg-white/85 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/85">
+		<div class="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6">
+			<a
+				href={resolve(`/course/${page.params.cid}/admin/interactives/${page.params.ilid}`)}
+				class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition-colors hover:border-sky-300 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-sky-700 dark:hover:text-sky-200"
+				aria-label="Volver a la actividad"
+			>
+				<ArrowLeft class="h-4 w-4" />
+			</a>
+
+			<div class="min-w-0 flex-1">
+				<p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-700 dark:text-sky-300">
+					Revision de sesiones
+				</p>
+				<h1 class="truncate text-lg font-semibold text-slate-900 dark:text-white sm:text-xl">
+					{data.interactive.name}
+				</h1>
 			</div>
 		</div>
 	</div>
 
-	<div class="container mx-auto max-w-screen-xl space-y-6 px-4 py-6">
-
-		<!-- Toolbar -->
-		<div class="rounded-lg bg-white p-5 shadow dark:bg-gray-800">
-			<div class="flex flex-col gap-4 md:flex-row">
-				<!-- Search -->
-				<div class="flex-1">
-					<form onsubmit={(e) => { e.preventDefault(); updateFilters(); }}>
-						<div class="relative flex items-center">
-							<Input
-								placeholder="Buscar por nombre de estudiante..."
-								bind:value={searchTerm}
-								class="w-full pr-10"
-							/>
-							<button
-								type="submit"
-								class="absolute right-0 flex h-full items-center justify-center rounded-r-lg bg-blue-600 px-3 text-white hover:bg-blue-700"
-							>
-								<SearchIcon class="h-4 w-4" />
-							</button>
-						</div>
-					</form>
-				</div>
-
-				<!-- Controls -->
-				<div class="flex flex-wrap items-center gap-2">
-					<Button
-						color={showFilters ? 'light' : 'blue'}
-						size="sm"
-						onclick={() => (showFilters = !showFilters)}
-						class="flex h-10 items-center"
-					>
-						<Filter class="mr-2 h-4 w-4" />
-						{showFilters ? 'Ocultar filtros' : 'Filtros de fecha'}
-					</Button>
-
-					<div class="flex h-10 items-center rounded-lg bg-gray-50 px-3 dark:bg-gray-700">
-						<span class="mr-2 text-sm text-gray-600 dark:text-gray-400">Ordenar:</span>
-						<Button color="light" size="sm" onclick={toggleSort}>
-							{#if sortDirection === 'asc'}
-								<ArrowUp class="mr-1 h-4 w-4" /> Más antiguo
-							{:else}
-								<ArrowDown class="mr-1 h-4 w-4" /> Más reciente
-							{/if}
-						</Button>
+	<div class="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
+		<section class="rounded-[30px] border border-slate-200/80 bg-white/92 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/88">
+			<div class="flex flex-col gap-4 lg:flex-row lg:items-center">
+				<form class="flex-1" onsubmit={handleSubmit}>
+					<div class="relative">
+						<input
+							bind:value={searchTerm}
+							type="search"
+							placeholder="Buscar por nombre de estudiante..."
+							class="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-12 text-sm text-slate-900 shadow-sm outline-none transition focus:border-sky-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-sky-700"
+						/>
+						<Search class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+						<button
+							type="submit"
+							class="absolute right-1.5 top-1.5 inline-flex h-9 items-center justify-center rounded-xl bg-sky-600 px-3 text-white transition-colors hover:bg-sky-700"
+						>
+							Buscar
+						</button>
 					</div>
+				</form>
 
-					<Button color="red" size="sm" onclick={resetFilters} class="flex h-10 items-center">
-						<RefreshCw class="mr-2 h-4 w-4" />
+				<div class="flex flex-wrap items-center gap-2">
+					<button
+						type="button"
+						onclick={() => (showFilters = !showFilters)}
+						class="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:border-sky-300 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-sky-700 dark:hover:text-sky-200"
+					>
+						<Filter class="h-4 w-4" />
+						Filtros
+						{#if showFilters}
+							<ChevronUp class="h-4 w-4" />
+						{:else}
+							<ChevronDown class="h-4 w-4" />
+						{/if}
+					</button>
+
+					<button
+						type="button"
+						onclick={toggleSortDirection}
+						class="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:border-sky-300 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-sky-700 dark:hover:text-sky-200"
+					>
+						{#if sortDirection === 'asc'}
+							<ArrowUp class="h-4 w-4" />
+							Más antiguas primero
+						{:else}
+							<ArrowDown class="h-4 w-4" />
+							Más recientes primero
+						{/if}
+					</button>
+
+					<button
+						type="button"
+						onclick={resetFilters}
+						class="inline-flex h-11 items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300 dark:hover:bg-rose-950/35"
+					>
+						<RefreshCw class="h-4 w-4" />
 						Restablecer
-					</Button>
+					</button>
 				</div>
 			</div>
 
-			<!-- Date filters -->
 			{#if showFilters}
-				<div class="mt-4 rounded-lg border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700">
-					<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-						<div>
-							<label for="startDate" class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">
-								Fecha de inicio
-							</label>
-							<Input id="startDate" type="date" bind:value={startDate} class="w-full" />
-						</div>
-						<div>
-							<label for="endDate" class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">
-								Fecha de fin
-							</label>
-							<Input id="endDate" type="date" bind:value={endDate} class="w-full" />
-						</div>
-						<div class="flex items-end">
-							<Button color="blue" onclick={updateFilters} class="h-10 w-full">
-								<Filter class="mr-2 h-4 w-4" />
-								Aplicar
-							</Button>
-						</div>
+				<div class="mt-4 grid gap-4 rounded-[26px] border border-slate-200/80 bg-slate-50/90 p-4 dark:border-slate-800 dark:bg-slate-950/60 md:grid-cols-[1fr_1fr_auto]">
+					<label class="block">
+						<span class="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+							<CalendarRange class="h-4 w-4" />
+							Fecha de inicio
+						</span>
+						<input
+							bind:value={startDate}
+							type="date"
+							class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-sky-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-sky-700"
+						/>
+					</label>
+
+					<label class="block">
+						<span class="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+							<CalendarRange class="h-4 w-4" />
+							Fecha de fin
+						</span>
+						<input
+							bind:value={endDate}
+							type="date"
+							class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-sky-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-sky-700"
+						/>
+					</label>
+
+					<div class="flex items-end">
+						<button
+							type="button"
+							onclick={updateFilters}
+							class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 text-sm font-medium text-white transition-colors hover:bg-sky-700 md:w-auto"
+						>
+							<Filter class="h-4 w-4" />
+							Aplicar
+						</button>
 					</div>
 				</div>
 			{/if}
-		</div>
+		</section>
 
-		<!-- Results summary -->
-		<div class="flex items-center justify-between rounded-lg bg-white p-3 shadow dark:bg-gray-800">
-			<p class="text-sm text-gray-600 dark:text-gray-400">
+		<section class="flex flex-col gap-3 rounded-[28px] border border-slate-200/80 bg-white/92 px-5 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/88 sm:flex-row sm:items-center sm:justify-between">
+			<p class="text-sm text-slate-600 dark:text-slate-300">
 				{#if data.pagination.totalCount === 0}
-					No hay sesiones registradas
+					No hay sesiones registradas para esta actividad.
 				{:else}
-					Mostrando {startItem}–{endItem} de {data.pagination.totalCount} sesiones
-					{#if data.filters?.search}(filtradas por "{data.filters.search}"){/if}
+					Mostrando {startItem}-{endItem} de {data.pagination.totalCount} sesiones
+					{#if data.filters?.search}
+						para "{data.filters.search}"
+					{/if}
 				{/if}
 			</p>
-			<span class="text-sm text-gray-500 dark:text-gray-400">
-				Página {data.pagination.currentPage} / {data.pagination.totalPages}
-			</span>
-		</div>
+			<p class="text-sm text-slate-500 dark:text-slate-400">
+				Página {data.pagination.currentPage} de {data.pagination.totalPages}
+			</p>
+		</section>
 
-		<!-- Sessions -->
 		{#if isLoading}
 			<div class="space-y-4">
-				{#each [1, 2, 3] as i (i)}
-					<div class="h-24 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-700"></div>
+				{#each [1, 2, 3] as skeleton (skeleton)}
+					<div class="h-52 animate-pulse rounded-[28px] bg-slate-200/70 dark:bg-slate-800/80"></div>
 				{/each}
 			</div>
 		{:else if data.sessions.length === 0}
-			<div class="rounded-xl bg-white p-10 text-center shadow dark:bg-gray-800">
-				<Bot class="mx-auto mb-4 h-12 w-12 text-gray-300 dark:text-gray-600" />
-				<p class="text-gray-500 dark:text-gray-400">No hay sesiones para esta actividad aún.</p>
-			</div>
+			<section class="rounded-[30px] border border-slate-200/80 bg-white/92 px-6 py-16 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/88">
+				<div class="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+					<Bot class="h-8 w-8" />
+				</div>
+				<h2 class="mt-4 text-lg font-semibold text-slate-900 dark:text-white">
+					Aún no hay sesiones que revisar
+				</h2>
+				<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
+					Cuando los estudiantes interactúen con el agente, aparecerán aquí con sus métricas de resumen.
+				</p>
+			</section>
 		{:else}
 			<div class="space-y-4">
 				{#each data.sessions as session (session.sessionId)}
-					{@const isExpanded = expandedSessions.has(session.sessionId)}
-					<div class="overflow-hidden rounded-xl bg-white shadow transition-shadow hover:shadow-md dark:bg-gray-800">
-						<!-- Session header (clickable) -->
-						<button
-							class="flex w-full items-start gap-4 p-4 text-left"
-							onclick={() => toggleSession(session.sessionId)}
-						>
-							<Avatar
-								src={session.image || '/images/default_avatar.png'}
-								cornerStyle="rounded"
-								size="md"
-								class="hidden shrink-0 sm:block"
-							/>
-							<div class="min-w-0 flex-1">
-								<div class="mb-1.5 flex flex-wrap items-center gap-2">
-									<span class="font-semibold text-gray-900 dark:text-white">
-										{session.username ?? 'Usuario'}
-									</span>
-									{#if session.alias}
-										<span class="text-sm italic text-gray-500 dark:text-gray-400">({session.alias})</span>
-									{/if}
-									{#if session.email}
-										<span class="hidden text-sm text-gray-400 sm:inline">{session.email}</span>
-									{/if}
-								</div>
-								<div class="mb-2 flex flex-wrap items-center gap-2">
-									<Badge color="blue" class="text-xs">
-										<User class="mr-1 h-3 w-3" />
-										{session.stats.userMessages} mensajes
-									</Badge>
-									<Badge color="gray" class="text-xs">
-										<Bot class="mr-1 h-3 w-3" />
-										{session.stats.assistantMessages} resp. agente
-									</Badge>
-									{#if session.stats.totalToolCalls > 0}
-										<Badge color="purple" class="text-xs">
-											<Wrench class="mr-1 h-3 w-3" />
-											{session.stats.totalToolCalls} llamadas a herramienta
-										</Badge>
-									{/if}
-									<span class="text-xs text-gray-400 dark:text-gray-500">
-										{#if session.chatCreatedAt}
-											{formatDate(session.chatCreatedAt)}
-										{/if}
-									</span>
-								</div>
-								{#if !isExpanded && session.messages.length > 0}
-									{@const firstUserMsg = session.messages.find(m => m.role === 'user')}
-									{#if firstUserMsg?.textContent}
-										<p class="line-clamp-2 text-sm text-gray-500 dark:text-gray-400">
-											{firstUserMsg.textContent}
-										</p>
-									{/if}
-								{/if}
-							</div>
-							<div class="shrink-0 self-start p-1">
-								{#if isExpanded}
-									<ChevronUp class="h-5 w-5 text-gray-400" />
-								{:else}
-									<ChevronDown class="h-5 w-5 text-gray-400" />
-								{/if}
-							</div>
-						</button>
+					<article class="rounded-[32px] border border-slate-200/80 bg-white/95 p-5 shadow-sm transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900/90">
+						<div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+							<div class="flex min-w-0 gap-4">
+								<Avatar
+									src={session.image || '/images/default_avatar.png'}
+									cornerStyle="rounded"
+									size="lg"
+									class="mt-1 hidden shrink-0 sm:block"
+								/>
 
-						<!-- Expanded messages -->
-						{#if isExpanded}
-							<div class="border-t border-gray-100 px-4 pb-4 pt-2 dark:border-gray-700">
-								{#if session.messages.length === 0}
-									<p class="py-4 text-center text-sm text-gray-400">Sin mensajes en esta sesión.</p>
-								{:else}
-									<div class="space-y-3">
-										{#each session.messages as msg (msg.id)}
-											{#if msg.role === 'system'}
-												<!-- Skip system messages silently, they're configuration noise -->
-											{:else if msg.role === 'user'}
-												<div class="flex items-start gap-3">
-													<div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50">
-														<User class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-													</div>
-													<div class="min-w-0 flex-1 rounded-lg bg-blue-50 px-3 py-2 dark:bg-blue-900/20">
-														<p class="mb-1 text-xs font-semibold text-blue-600 dark:text-blue-400">Estudiante</p>
-														<div class="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200">
-															{@html renderMarkdown(msg.textContent)}
-														</div>
-													</div>
-												</div>
-											{:else if msg.role === 'assistant'}
-												<div class="flex items-start gap-3">
-													<div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/50">
-														<Bot class="h-4 w-4 text-green-600 dark:text-green-400" />
-													</div>
-													<div class="min-w-0 flex-1">
-														{#if msg.textContent}
-															<div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-700/40">
-																<p class="mb-1 text-xs font-semibold text-green-600 dark:text-green-400">Agente</p>
-																<div class="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200">
-																	{@html renderMarkdown(msg.textContent)}
-																</div>
-															</div>
-														{/if}
-														<!-- Tool calls embedded in this assistant turn -->
-														{#if msg.toolCalls && msg.toolCalls.length > 0}
-															<div class="mt-1 space-y-1">
-																{#each msg.toolCalls as tc (tc.id)}
-																	<details class="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/10">
-																		<summary class="flex cursor-pointer items-center gap-2 px-3 py-2">
-																			<Wrench class="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-																			<span class="text-xs font-medium text-amber-700 dark:text-amber-300">
-																				{tc.toolDisplayName ?? tc.toolName}
-																			</span>
-																			<Badge color={toolStatusColor(tc.status)} class="ml-auto text-xs">
-																				{toolStatusLabel(tc.status)}
-																			</Badge>
-																			{#if tc.durationMs}
-																				<span class="text-xs text-gray-400">
-																					<Clock class="inline h-3 w-3 mr-0.5" />
-																					{tc.durationMs}ms
-																				</span>
-																			{/if}
-																		</summary>
-																		<div class="border-t border-amber-200 px-3 py-2 dark:border-amber-800/50">
-																			{#if tc.arguments && tc.arguments !== '{}'}
-																				<p class="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">Argumentos</p>
-																				<pre class="overflow-x-auto rounded bg-gray-100 p-2 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300">{formatJson(tc.arguments)}</pre>
-																			{/if}
-																			{#if tc.result}
-																				<p class="mb-1 mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">Resultado</p>
-																				<pre class="overflow-x-auto rounded bg-gray-100 p-2 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300">{formatJson(tc.result)}</pre>
-																			{/if}
-																			{#if tc.errorMessage}
-																				<p class="mt-2 flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
-																					<XCircle class="h-3 w-3" />
-																					{tc.errorMessage}
-																				</p>
-																			{/if}
-																		</div>
-																	</details>
-																{/each}
-															</div>
-														{/if}
-													</div>
-												</div>
-											{:else if msg.role === 'tool'}
-												<!-- Tool results are already shown inline in the assistant turn above; skip standalone tool-role messages -->
-											{/if}
-										{/each}
+								<div class="min-w-0 flex-1">
+									<div class="flex flex-wrap items-center gap-2">
+										<h2 class="text-lg font-semibold text-slate-900 dark:text-white">
+											{session.username ?? 'Usuario'}
+										</h2>
+										{#if session.alias}
+											<span class="text-sm italic text-slate-500 dark:text-slate-400">
+												({session.alias})
+											</span>
+										{/if}
+										<span
+											class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusBadgeClasses(session.status)}`}
+										>
+											{statusLabel(session.status)}
+										</span>
+									</div>
+
+									<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
+										{#if session.email}
+											<span class="break-all">{session.email}</span>
+										{/if}
+										<span>
+											Ultima actividad: {formatDate(session.lastActivityAt ?? session.chatCreatedAt)}
+										</span>
+									</div>
+								</div>
+							</div>
+
+							<a
+								href={resolve(`/agent-chat/${page.params.ilid}/view/${session.chatId}`)}
+								class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+							>
+								Ver actividad
+							</a>
+						</div>
+
+						<div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+							<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+									Mensajes alumno
+								</p>
+								<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+									{session.stats.userMessages}
+								</p>
+							</div>
+							<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+									Mensajes agente
+								</p>
+								<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+									{session.stats.assistantMessages}
+								</p>
+							</div>
+							<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+									Tool calls
+								</p>
+								<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+									{session.stats.totalToolCalls}
+								</p>
+							</div>
+							<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+									UI resuelta
+								</p>
+								<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+									{session.stats.respondedUiComponents}/{session.stats.totalUiComponents}
+								</p>
+							</div>
+							<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+									Incidencias
+								</p>
+								<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+									{session.stats.failedToolCalls + session.stats.pendingToolCalls}
+								</p>
+							</div>
+						</div>
+
+						<div class="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto]">
+							<div class="rounded-[28px] border border-slate-200/80 bg-slate-50/80 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/50">
+								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+									Apertura de la sesion
+								</p>
+								<p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
+									{session.previewText || 'Sin contenido textual util registrado.'}
+								</p>
+
+								{#if session.latestText}
+									<div class="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
+										<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+											Ultimo contenido util
+										</p>
+										<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+											{session.latestText}
+										</p>
 									</div>
 								{/if}
-								<div class="mt-3 flex justify-end">
-									<button
-										class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-										onclick={() => toggleSession(session.sessionId)}
-									>
-										<ChevronUp class="h-4 w-4" />
-										Contraer
-									</button>
-								</div>
 							</div>
-						{/if}
-					</div>
+
+							<div class="flex flex-wrap content-start gap-2 xl:w-56">
+								{#if session.stats.failedToolCalls > 0}
+									<span class="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-300">
+										<TriangleAlert class="h-3.5 w-3.5" />
+										{session.stats.failedToolCalls} fallidas
+									</span>
+								{/if}
+
+								{#if session.stats.pendingToolCalls > 0}
+									<span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300">
+										<Wrench class="h-3.5 w-3.5" />
+										{session.stats.pendingToolCalls} pendientes
+									</span>
+								{/if}
+
+								{#if session.stats.totalUiComponents > session.stats.respondedUiComponents}
+									<span class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300">
+										<Bot class="h-3.5 w-3.5" />
+										UI sin responder
+									</span>
+								{/if}
+							</div>
+						</div>
+					</article>
 				{/each}
 			</div>
 
-			<!-- Pagination -->
 			{#if data.pagination.totalPages > 1}
-				<div class="mt-4 flex justify-center">
+				<div class="mt-6 flex justify-center">
 					<Pagination
 						pages={paginationPages}
 						previous={() => navigateToPage(data.pagination.currentPage - 1)}
 						next={() => navigateToPage(data.pagination.currentPage + 1)}
-					>
-						{#snippet prevContent()}
-							<span class="sr-only">Anterior</span>
-							<ChevronUp class="h-5 w-5 -rotate-90" />
-						{/snippet}
-						{#snippet nextContent()}
-							<span class="sr-only">Siguiente</span>
-							<ChevronDown class="h-5 w-5 -rotate-90" />
-						{/snippet}
-					</Pagination>
+					/>
 				</div>
 			{/if}
 		{/if}
