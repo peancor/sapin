@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -21,13 +20,16 @@
 		Wrench
 	} from 'lucide-svelte';
 	import { formatDate } from '$lib/helpers/dateUtils';
+	import {
+		getStoredAgentReviewViewMode,
+		parseAgentReviewViewMode,
+		setStoredAgentReviewViewMode,
+		type AgentReviewViewMode
+	} from '$lib/utils';
 	import { renderMarkdownMath } from '$lib/utils';
 	import type { PageProps } from './$types';
 
 	type ReviewSession = PageProps['data']['sessions'][number];
-	type ReviewViewMode = 'comfortable' | 'compact' | 'mini';
-
-	const REVIEW_VIEW_MODE_STORAGE_KEY = 'agent-review:view-mode';
 
 	let { data }: PageProps = $props();
 
@@ -36,8 +38,8 @@
 	let endDate = $state(page.data.filters?.endDate || '');
 	let studentMessagesFilter = $state(page.data.filters?.studentMessages || 'all');
 	let sortDirection = $state(page.data.sorting?.direction || 'desc');
-	let viewMode = $state<ReviewViewMode>(
-		parseReviewViewMode(page.url.searchParams.get('view')) ?? 'comfortable'
+	let viewMode = $state<AgentReviewViewMode>(
+		parseAgentReviewViewMode(page.url.searchParams.get('view')) ?? 'comfortable'
 	);
 	let hasAppliedStoredViewPreference = $state(false);
 	let showFilters = $state(false);
@@ -53,27 +55,24 @@
 	});
 
 	$effect(() => {
-		const urlViewMode = parseReviewViewMode(page.url.searchParams.get('view'));
+		const urlViewMode = parseAgentReviewViewMode(page.url.searchParams.get('view'));
 
 		if (urlViewMode) {
 			viewMode = urlViewMode;
-			if (browser) {
-				window.localStorage.setItem(REVIEW_VIEW_MODE_STORAGE_KEY, urlViewMode);
-				hasAppliedStoredViewPreference = true;
-			}
+			setStoredAgentReviewViewMode(urlViewMode);
+			hasAppliedStoredViewPreference = true;
 			return;
 		}
 
-		if (!browser) {
+		const storedViewMode = getStoredAgentReviewViewMode();
+
+		if (storedViewMode === null && typeof window === 'undefined') {
 			viewMode = 'comfortable';
 			return;
 		}
 
 		if (!hasAppliedStoredViewPreference) {
 			hasAppliedStoredViewPreference = true;
-			const storedViewMode = parseReviewViewMode(
-				window.localStorage.getItem(REVIEW_VIEW_MODE_STORAGE_KEY)
-			);
 
 			if (storedViewMode && storedViewMode !== 'comfortable') {
 				viewMode = storedViewMode;
@@ -85,7 +84,7 @@
 		}
 
 		viewMode = 'comfortable';
-		window.localStorage.setItem(REVIEW_VIEW_MODE_STORAGE_KEY, 'comfortable');
+		setStoredAgentReviewViewMode('comfortable');
 	});
 
 	const paginationPages = $derived(
@@ -105,17 +104,6 @@
 	const endItem = $derived(
 		Math.min(startItem + data.sessions.length - 1, data.pagination.totalCount)
 	);
-
-	function parseReviewViewMode(value: string | null | undefined): ReviewViewMode | null {
-		switch (value) {
-			case 'compact':
-			case 'mini':
-			case 'comfortable':
-				return value;
-			default:
-				return null;
-		}
-	}
 
 	function gotoCurrentPage(params: URLSearchParams, options: { noScroll?: boolean } = {}) {
 		const query = params.toString();
@@ -221,14 +209,12 @@
 		return renderMarkdownMath(content, { stripAgentMarkers: true });
 	}
 
-	function setViewMode(nextMode: ReviewViewMode) {
+	function setViewMode(nextMode: AgentReviewViewMode) {
 		if (viewMode === nextMode) return;
 
 		viewMode = nextMode;
 		hasAppliedStoredViewPreference = true;
-		if (browser) {
-			window.localStorage.setItem(REVIEW_VIEW_MODE_STORAGE_KEY, nextMode);
-		}
+		setStoredAgentReviewViewMode(nextMode);
 		const params = new URLSearchParams(page.url.search);
 
 		if (nextMode === 'comfortable') {
