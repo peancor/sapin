@@ -508,7 +508,7 @@ export class AIUtils {
         const courseNames = await this.getCourseNamesByInteractiveLearningId(interactiveLearning.id);
 
         const userName = user.username || user.email;
-        const chatViewLink = `${getPublicAppUrl()}/agent-chat/${interactiveLearning.id}/c/${chat.id}`;
+        const chatViewLink = `${getPublicAppUrl()}/agent-chat/${interactiveLearning.id}/view/${chat.id}`;
         const courseLine =
             courseNames.length > 0 ? `\n📚 Curso: ${courseNames[0]}` : '\n📚 Curso: Sin curso asociado';
 
