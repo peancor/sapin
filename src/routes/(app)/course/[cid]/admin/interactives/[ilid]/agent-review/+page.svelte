@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -12,6 +13,8 @@
 		ChevronDown,
 		ChevronUp,
 		Filter,
+		LayoutGrid,
+		List,
 		RefreshCw,
 		Search,
 		TriangleAlert,
@@ -21,6 +24,11 @@
 	import { renderMarkdownMath } from '$lib/utils';
 	import type { PageProps } from './$types';
 
+	type ReviewSession = PageProps['data']['sessions'][number];
+	type ReviewViewMode = 'comfortable' | 'compact' | 'mini';
+
+	const REVIEW_VIEW_MODE_STORAGE_KEY = 'agent-review:view-mode';
+
 	let { data }: PageProps = $props();
 
 	let searchTerm = $state(page.data.filters?.search || '');
@@ -28,6 +36,10 @@
 	let endDate = $state(page.data.filters?.endDate || '');
 	let studentMessagesFilter = $state(page.data.filters?.studentMessages || 'all');
 	let sortDirection = $state(page.data.sorting?.direction || 'desc');
+	let viewMode = $state<ReviewViewMode>(
+		parseReviewViewMode(page.url.searchParams.get('view')) ?? 'comfortable'
+	);
+	let hasAppliedStoredViewPreference = $state(false);
 	let showFilters = $state(false);
 	let isLoading = $state(false);
 
@@ -38,6 +50,42 @@
 		studentMessagesFilter = page.data.filters?.studentMessages || 'all';
 		sortDirection = page.data.sorting?.direction || 'desc';
 		isLoading = false;
+	});
+
+	$effect(() => {
+		const urlViewMode = parseReviewViewMode(page.url.searchParams.get('view'));
+
+		if (urlViewMode) {
+			viewMode = urlViewMode;
+			if (browser) {
+				window.localStorage.setItem(REVIEW_VIEW_MODE_STORAGE_KEY, urlViewMode);
+				hasAppliedStoredViewPreference = true;
+			}
+			return;
+		}
+
+		if (!browser) {
+			viewMode = 'comfortable';
+			return;
+		}
+
+		if (!hasAppliedStoredViewPreference) {
+			hasAppliedStoredViewPreference = true;
+			const storedViewMode = parseReviewViewMode(
+				window.localStorage.getItem(REVIEW_VIEW_MODE_STORAGE_KEY)
+			);
+
+			if (storedViewMode && storedViewMode !== 'comfortable') {
+				viewMode = storedViewMode;
+				const params = new URLSearchParams(page.url.search);
+				params.set('view', storedViewMode);
+				gotoCurrentPage(params, { noScroll: true });
+				return;
+			}
+		}
+
+		viewMode = 'comfortable';
+		window.localStorage.setItem(REVIEW_VIEW_MODE_STORAGE_KEY, 'comfortable');
 	});
 
 	const paginationPages = $derived(
@@ -57,6 +105,28 @@
 	const endItem = $derived(
 		Math.min(startItem + data.sessions.length - 1, data.pagination.totalCount)
 	);
+
+	function parseReviewViewMode(value: string | null | undefined): ReviewViewMode | null {
+		switch (value) {
+			case 'compact':
+			case 'mini':
+			case 'comfortable':
+				return value;
+			default:
+				return null;
+		}
+	}
+
+	function gotoCurrentPage(params: URLSearchParams, options: { noScroll?: boolean } = {}) {
+		const query = params.toString();
+		const nextHref = query ? `${page.url.pathname}?${query}` : page.url.pathname;
+
+		goto(nextHref, {
+			replaceState: true,
+			noScroll: options.noScroll ?? false,
+			keepFocus: true
+		});
+	}
 
 	function updateFilters() {
 		isLoading = true;
@@ -88,10 +158,7 @@
 
 		params.set('sortDirection', sortDirection);
 		params.set('page', '1');
-
-		const targetUrl = new URL(page.url);
-		targetUrl.search = params.toString();
-		goto(targetUrl, { replaceState: true });
+		gotoCurrentPage(params);
 	}
 
 	function resetFilters() {
@@ -113,9 +180,7 @@
 		isLoading = true;
 		const params = new URLSearchParams(page.url.search);
 		params.set('page', String(nextPage));
-		const targetUrl = new URL(page.url);
-		targetUrl.search = params.toString();
-		goto(targetUrl, { replaceState: true });
+		gotoCurrentPage(params);
 	}
 
 	function handleSubmit(event: SubmitEvent) {
@@ -154,6 +219,38 @@
 
 	function renderRichText(content: string): string {
 		return renderMarkdownMath(content, { stripAgentMarkers: true });
+	}
+
+	function setViewMode(nextMode: ReviewViewMode) {
+		if (viewMode === nextMode) return;
+
+		viewMode = nextMode;
+		hasAppliedStoredViewPreference = true;
+		if (browser) {
+			window.localStorage.setItem(REVIEW_VIEW_MODE_STORAGE_KEY, nextMode);
+		}
+		const params = new URLSearchParams(page.url.search);
+
+		if (nextMode === 'comfortable') {
+			params.delete('view');
+		} else {
+			params.set('view', nextMode);
+		}
+
+		gotoCurrentPage(params, { noScroll: true });
+	}
+
+	function getSessionSummaryLabel(session: ReviewSession): string {
+		return session.finalization?.payload.summary ? 'Resumen final' : 'Contenido clave';
+	}
+
+	function getSessionSummaryText(session: ReviewSession): string {
+		return (
+			session.finalization?.payload.summary ||
+			session.latestText ||
+			session.previewText ||
+			'Sin contenido textual util registrado.'
+		);
 	}
 </script>
 
@@ -201,6 +298,51 @@
 				</form>
 
 				<div class="flex flex-wrap items-center gap-2">
+					<div
+						class="inline-flex h-11 items-center rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+						role="group"
+						aria-label="Modo de visualización"
+					>
+						<button
+							type="button"
+							class={`inline-flex h-9 items-center gap-2 rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+								viewMode === 'comfortable'
+									? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+									: 'text-slate-600 hover:text-sky-700 dark:text-slate-300 dark:hover:text-sky-200'
+							}`}
+							aria-pressed={viewMode === 'comfortable'}
+							onclick={() => setViewMode('comfortable')}
+						>
+							<LayoutGrid class="h-4 w-4" />
+							Tarjetas
+						</button>
+						<button
+							type="button"
+							class={`inline-flex h-9 items-center gap-2 rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+								viewMode === 'compact'
+									? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+									: 'text-slate-600 hover:text-sky-700 dark:text-slate-300 dark:hover:text-sky-200'
+							}`}
+							aria-pressed={viewMode === 'compact'}
+							onclick={() => setViewMode('compact')}
+						>
+							<List class="h-4 w-4" />
+							Compacto
+						</button>
+						<button
+							type="button"
+							class={`inline-flex h-9 items-center gap-2 rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+								viewMode === 'mini'
+									? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+									: 'text-slate-600 hover:text-sky-700 dark:text-slate-300 dark:hover:text-sky-200'
+							}`}
+							aria-pressed={viewMode === 'mini'}
+							onclick={() => setViewMode('mini')}
+						>
+							Mini
+						</button>
+					</div>
+
 					<button
 						type="button"
 						onclick={() => (showFilters = !showFilters)}
@@ -333,200 +475,400 @@
 			<div class="space-y-4">
 				{#each data.sessions as session (session.sessionId)}
 					<article class="rounded-[32px] border border-slate-200/80 bg-white/95 p-5 shadow-sm transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900/90">
-						<div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-							<div class="flex min-w-0 gap-4">
-								<Avatar
-									src={session.image || '/images/default_avatar.png'}
-									cornerStyle="rounded"
-									size="lg"
-									class="mt-1 hidden shrink-0 sm:block"
-								/>
+						{#if viewMode === 'mini'}
+							<div class="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.5fr)_auto] lg:items-center">
+								<div class="min-w-0">
+									<div class="flex min-w-0 items-start gap-4">
+										<Avatar
+											src={session.image || '/images/default_avatar.png'}
+											cornerStyle="rounded"
+											size="md"
+											class="mt-0.5 hidden shrink-0 sm:block"
+										/>
 
-								<div class="min-w-0 flex-1">
-									<div class="flex flex-wrap items-center gap-2">
-										<h2 class="text-lg font-semibold text-slate-900 dark:text-white">
-											{session.username ?? 'Usuario'}
-										</h2>
-										{#if session.alias}
-											<span class="text-sm italic text-slate-500 dark:text-slate-400">
-												({session.alias})
+										<div class="min-w-0 flex-1">
+											<div class="flex flex-wrap items-center gap-2">
+												<h2 class="truncate text-base font-semibold text-slate-900 dark:text-white">
+													{session.username ?? 'Usuario'}
+												</h2>
+												{#if session.alias}
+													<span class="truncate text-sm italic text-slate-500 dark:text-slate-400">
+														({session.alias})
+													</span>
+												{/if}
+												<span
+													class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusBadgeClasses(session.status)}`}
+												>
+													{statusLabel(session.status)}
+												</span>
+											</div>
+
+											<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
+												{#if session.email}
+													<span class="break-all">{session.email}</span>
+												{/if}
+												<span>
+													Ultima actividad: {formatDate(session.lastActivityAt ?? session.chatCreatedAt)}
+												</span>
+												{#if !session.hasStudentMessages}
+													<span>Sin mensajes del alumno</span>
+												{/if}
+											</div>
+
+											<p class="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+												{getSessionSummaryLabel(session)}
+											</p>
+											<div class="prose prose-sm mt-1 max-w-none break-words text-slate-700 line-clamp-2 dark:prose-invert dark:text-slate-200 [&_p]:my-0 [&_ul]:my-1">
+												{@html renderRichText(getSessionSummaryText(session))}
+											</div>
+										</div>
+									</div>
+								</div>
+
+								<div class="flex flex-wrap items-center gap-3 lg:justify-end">
+									<div class="text-right">
+										<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+											Tiempo total
+										</p>
+										<p class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+											{formatTime(session.globalStats.totalTimeSpentSeconds)}
+										</p>
+									</div>
+
+									<a
+										href={resolve(`/agent-chat/${page.params.ilid}/view/${session.chatId}`)}
+										class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 dark:focus-visible:ring-offset-slate-900"
+									>
+										Ver actividad
+									</a>
+								</div>
+							</div>
+						{:else if viewMode === 'compact'}
+							<div class="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.95fr)_auto] xl:items-start">
+								<div class="min-w-0">
+									<div class="flex min-w-0 gap-4">
+										<Avatar
+											src={session.image || '/images/default_avatar.png'}
+											cornerStyle="rounded"
+											size="md"
+											class="mt-0.5 hidden shrink-0 sm:block"
+										/>
+
+										<div class="min-w-0 flex-1">
+											<div class="flex flex-wrap items-center gap-2">
+												<h2 class="min-w-0 truncate text-base font-semibold text-slate-900 dark:text-white">
+													{session.username ?? 'Usuario'}
+												</h2>
+												{#if session.alias}
+													<span class="truncate text-sm italic text-slate-500 dark:text-slate-400">
+														({session.alias})
+													</span>
+												{/if}
+												<span
+													class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusBadgeClasses(session.status)}`}
+												>
+													{statusLabel(session.status)}
+												</span>
+											</div>
+
+											<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
+												{#if session.email}
+													<span class="break-all">{session.email}</span>
+												{/if}
+												<span>
+													Ultima actividad: {formatDate(session.lastActivityAt ?? session.chatCreatedAt)}
+												</span>
+											</div>
+
+											<div class="mt-3 flex flex-wrap gap-2">
+												{#if session.finalization}
+													<span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-300">
+														<Bot class="h-3.5 w-3.5" />
+														Finalizada
+													</span>
+												{/if}
+
+												{#if session.stats.failedToolCalls > 0}
+													<span class="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-300">
+														<TriangleAlert class="h-3.5 w-3.5" />
+														{session.stats.failedToolCalls} fallidas
+													</span>
+												{/if}
+
+												{#if session.stats.pendingToolCalls > 0}
+													<span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300">
+														<Wrench class="h-3.5 w-3.5" />
+														{session.stats.pendingToolCalls} pendientes
+													</span>
+												{/if}
+
+												{#if !session.hasStudentMessages}
+													<span class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300">
+														<Bot class="h-3.5 w-3.5" />
+														Sin mensajes del alumno
+													</span>
+												{/if}
+											</div>
+
+											<div class="mt-4 rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/50">
+												<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+													{getSessionSummaryLabel(session)}
+												</p>
+												<div class="prose prose-sm mt-2 max-h-24 max-w-none overflow-hidden break-words text-slate-700 dark:prose-invert dark:text-slate-200 [&_p]:my-0 [&_ul]:my-1">
+													{@html renderRichText(getSessionSummaryText(session))}
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+
+								<div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-2">
+									<div class="rounded-2xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+										<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+											Mensajes alumno
+										</p>
+										<p class="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+											{session.stats.userMessages}
+										</p>
+									</div>
+									<div class="rounded-2xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+										<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+											Tool calls
+										</p>
+										<p class="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+											{session.stats.totalToolCalls}
+										</p>
+									</div>
+									<div class="rounded-2xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+										<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+											Componentes UI
+										</p>
+										<p class="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+											{session.stats.totalUiComponents}
+										</p>
+									</div>
+									<div class="rounded-2xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+										<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+											Tiempo total
+										</p>
+										<p class="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+											{formatTime(session.globalStats.totalTimeSpentSeconds)}
+										</p>
+									</div>
+								</div>
+
+								<div class="flex flex-col gap-2 xl:items-end">
+									<a
+										href={resolve(`/agent-chat/${page.params.ilid}/view/${session.chatId}`)}
+										class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 dark:focus-visible:ring-offset-slate-900"
+									>
+										Ver actividad
+									</a>
+
+									{#if session.globalStats.totalPasteCount > 0}
+										<span class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300">
+											<Bot class="h-3.5 w-3.5" />
+											{session.globalStats.totalPasteCount} pegados
+										</span>
+									{/if}
+								</div>
+							</div>
+						{:else}
+							<div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+								<div class="flex min-w-0 gap-4">
+									<Avatar
+										src={session.image || '/images/default_avatar.png'}
+										cornerStyle="rounded"
+										size="lg"
+										class="mt-1 hidden shrink-0 sm:block"
+									/>
+
+									<div class="min-w-0 flex-1">
+										<div class="flex flex-wrap items-center gap-2">
+											<h2 class="text-lg font-semibold text-slate-900 dark:text-white">
+												{session.username ?? 'Usuario'}
+											</h2>
+											{#if session.alias}
+												<span class="text-sm italic text-slate-500 dark:text-slate-400">
+													({session.alias})
+												</span>
+											{/if}
+											<span
+												class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusBadgeClasses(session.status)}`}
+											>
+												{statusLabel(session.status)}
 											</span>
-										{/if}
-										<span
-											class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusBadgeClasses(session.status)}`}
-										>
-											{statusLabel(session.status)}
-										</span>
-									</div>
+										</div>
 
-									<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
-										{#if session.email}
-											<span class="break-all">{session.email}</span>
-										{/if}
-										<span>
-											Ultima actividad: {formatDate(session.lastActivityAt ?? session.chatCreatedAt)}
-										</span>
+										<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
+											{#if session.email}
+												<span class="break-all">{session.email}</span>
+											{/if}
+											<span>
+												Ultima actividad: {formatDate(session.lastActivityAt ?? session.chatCreatedAt)}
+											</span>
+										</div>
 									</div>
+								</div>
+
+								<a
+									href={resolve(`/agent-chat/${page.params.ilid}/view/${session.chatId}`)}
+									class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 dark:focus-visible:ring-offset-slate-900"
+								>
+									Ver actividad
+								</a>
+							</div>
+
+							<div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+								<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+									<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+										Mensajes alumno
+									</p>
+									<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+										{session.stats.userMessages}
+									</p>
+								</div>
+								<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+									<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+										Mensajes agente
+									</p>
+									<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+										{session.stats.assistantMessages}
+									</p>
+								</div>
+								<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+									<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+										Tool calls
+									</p>
+									<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+										{session.stats.totalToolCalls}
+									</p>
+								</div>
+								<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+									<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+										Componentes UI
+									</p>
+									<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+										{session.stats.totalUiComponents}
+									</p>
+								</div>
+								<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
+									<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+										Tiempo total
+									</p>
+									<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+										{formatTime(session.globalStats.totalTimeSpentSeconds)}
+									</p>
 								</div>
 							</div>
 
-							<a
-								href={resolve(`/agent-chat/${page.params.ilid}/view/${session.chatId}`)}
-								class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
-							>
-								Ver actividad
-							</a>
-						</div>
-
-						<div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-							<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-									Mensajes alumno
-								</p>
-								<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-									{session.stats.userMessages}
-								</p>
-							</div>
-							<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-									Mensajes agente
-								</p>
-								<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-									{session.stats.assistantMessages}
-								</p>
-							</div>
-							<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-									Tool calls
-								</p>
-								<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-									{session.stats.totalToolCalls}
-								</p>
-							</div>
-							<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-									Componentes UI
-								</p>
-								<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-									{session.stats.totalUiComponents}
-								</p>
-							</div>
-							<div class="rounded-3xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-									Tiempo total
-								</p>
-								<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-									{formatTime(session.globalStats.totalTimeSpentSeconds)}
-								</p>
-							</div>
-						</div>
-
-						<div class="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto]">
-							<div class="rounded-[28px] border border-slate-200/80 bg-slate-50/80 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/50">
-								{#if session.finalization?.payload.summary}
-									<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-										Resumen de finalización
-									</p>
-									<div class="prose prose-sm mt-2 max-w-none break-words text-slate-700 dark:prose-invert dark:text-slate-200">
-										{@html renderRichText(session.finalization.payload.summary)}
-									</div>
-
-									{#if session.finalization.payload.feedback}
-										<div class="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
-											<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-												Feedback final
-											</p>
-											<div class="prose prose-sm mt-2 max-w-none break-words text-slate-600 dark:prose-invert dark:text-slate-300">
-												{@html renderRichText(session.finalization.payload.feedback)}
-											</div>
+							<div class="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto]">
+								<div class="rounded-[28px] border border-slate-200/80 bg-slate-50/80 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/50">
+									{#if session.finalization?.payload.summary}
+										<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+											Resumen de finalización
+										</p>
+										<div class="prose prose-sm mt-2 max-w-none break-words text-slate-700 dark:prose-invert dark:text-slate-200">
+											{@html renderRichText(session.finalization.payload.summary)}
 										</div>
-									{/if}
 
-									{#if session.finalization.payload.result || session.finalization.payload.score !== undefined}
-										<div class="mt-4 grid gap-3 sm:grid-cols-2">
-											{#if session.finalization.payload.result}
-												<div class="rounded-2xl bg-white/80 px-4 py-3 dark:bg-slate-900/70">
-													<p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-														Resultado
-													</p>
-													<div class="prose prose-sm mt-1 max-w-none break-words font-medium text-slate-800 dark:prose-invert dark:text-slate-100">
-														{@html renderRichText(session.finalization.payload.result)}
+										{#if session.finalization.payload.feedback}
+											<div class="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
+												<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+													Feedback final
+												</p>
+												<div class="prose prose-sm mt-2 max-w-none break-words text-slate-600 dark:prose-invert dark:text-slate-300">
+													{@html renderRichText(session.finalization.payload.feedback)}
+												</div>
+											</div>
+										{/if}
+
+										{#if session.finalization.payload.result || session.finalization.payload.score !== undefined}
+											<div class="mt-4 grid gap-3 sm:grid-cols-2">
+												{#if session.finalization.payload.result}
+													<div class="rounded-2xl bg-white/80 px-4 py-3 dark:bg-slate-900/70">
+														<p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+															Resultado
+														</p>
+														<div class="prose prose-sm mt-1 max-w-none break-words font-medium text-slate-800 dark:prose-invert dark:text-slate-100">
+															{@html renderRichText(session.finalization.payload.result)}
+														</div>
 													</div>
-												</div>
-											{/if}
+												{/if}
 
-											{#if session.finalization.payload.score !== undefined}
-												<div class="rounded-2xl bg-white/80 px-4 py-3 dark:bg-slate-900/70">
-													<p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-														Score
-													</p>
-													<p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-100">
-														{Math.round(session.finalization.payload.score * 100)}%
-													</p>
-												</div>
-											{/if}
-										</div>
-									{/if}
-								{:else}
-									<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-										Apertura de la sesion
-									</p>
-									<div class="prose prose-sm mt-2 max-w-none break-words text-slate-700 dark:prose-invert dark:text-slate-200">
-										{@html renderRichText(
-											session.previewText || 'Sin contenido textual util registrado.'
-										)}
-									</div>
-
-									{#if session.latestText}
-										<div class="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
-											<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-												Ultimo contenido util
-											</p>
-											<div class="prose prose-sm mt-2 max-w-none break-words text-slate-600 dark:prose-invert dark:text-slate-300">
-												{@html renderRichText(session.latestText)}
+												{#if session.finalization.payload.score !== undefined}
+													<div class="rounded-2xl bg-white/80 px-4 py-3 dark:bg-slate-900/70">
+														<p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+															Score
+														</p>
+														<p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-100">
+															{Math.round(session.finalization.payload.score * 100)}%
+														</p>
+													</div>
+												{/if}
 											</div>
+										{/if}
+									{:else}
+										<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+											Apertura de la sesion
+										</p>
+										<div class="prose prose-sm mt-2 max-w-none break-words text-slate-700 dark:prose-invert dark:text-slate-200">
+											{@html renderRichText(
+												session.previewText || 'Sin contenido textual util registrado.'
+											)}
 										</div>
+
+										{#if session.latestText}
+											<div class="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
+												<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+													Ultimo contenido util
+												</p>
+												<div class="prose prose-sm mt-2 max-w-none break-words text-slate-600 dark:prose-invert dark:text-slate-300">
+													{@html renderRichText(session.latestText)}
+												</div>
+											</div>
+										{/if}
 									{/if}
-								{/if}
+								</div>
+
+								<div class="flex flex-wrap content-start gap-2 xl:w-56">
+									{#if session.finalization}
+										<span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-300">
+											<Bot class="h-3.5 w-3.5" />
+											Finalizada
+										</span>
+									{/if}
+
+									{#if session.stats.failedToolCalls > 0}
+										<span class="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-300">
+											<TriangleAlert class="h-3.5 w-3.5" />
+											{session.stats.failedToolCalls} fallidas
+										</span>
+									{/if}
+
+									{#if session.stats.pendingToolCalls > 0}
+										<span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300">
+											<Wrench class="h-3.5 w-3.5" />
+											{session.stats.pendingToolCalls} pendientes
+										</span>
+									{/if}
+
+									{#if !session.hasStudentMessages}
+										<span class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300">
+											<Bot class="h-3.5 w-3.5" />
+											Sin mensajes del alumno
+										</span>
+									{/if}
+
+									{#if session.globalStats.totalPasteCount > 0}
+										<span class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300">
+											<Bot class="h-3.5 w-3.5" />
+											{session.globalStats.totalPasteCount} pegados
+										</span>
+									{/if}
+								</div>
 							</div>
-
-							<div class="flex flex-wrap content-start gap-2 xl:w-56">
-								{#if session.finalization}
-									<span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-300">
-										<Bot class="h-3.5 w-3.5" />
-										Finalizada
-									</span>
-								{/if}
-
-								{#if session.stats.failedToolCalls > 0}
-									<span class="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-300">
-										<TriangleAlert class="h-3.5 w-3.5" />
-										{session.stats.failedToolCalls} fallidas
-									</span>
-								{/if}
-
-								{#if session.stats.pendingToolCalls > 0}
-									<span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300">
-										<Wrench class="h-3.5 w-3.5" />
-										{session.stats.pendingToolCalls} pendientes
-									</span>
-								{/if}
-
-								{#if !session.hasStudentMessages}
-									<span class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300">
-										<Bot class="h-3.5 w-3.5" />
-										Sin mensajes del alumno
-									</span>
-								{/if}
-
-								{#if session.globalStats.totalPasteCount > 0}
-									<span class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300">
-										<Bot class="h-3.5 w-3.5" />
-										{session.globalStats.totalPasteCount} pegados
-									</span>
-								{/if}
-							</div>
-						</div>
+						{/if}
 					</article>
 				{/each}
 			</div>
