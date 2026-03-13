@@ -18,6 +18,7 @@
 		Wrench
 	} from 'lucide-svelte';
 	import { formatDate } from '$lib/helpers/dateUtils';
+	import { renderMarkdownMath } from '$lib/utils';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -149,6 +150,10 @@
 		const minutes = Math.floor(seconds / 60);
 		const remainingSeconds = seconds % 60;
 		return `${minutes} min ${remainingSeconds} s`;
+	}
+
+	function renderRichText(content: string): string {
+		return renderMarkdownMath(content, { stripAgentMarkers: true });
 	}
 </script>
 
@@ -422,18 +427,18 @@
 									<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 										Resumen de finalización
 									</p>
-									<p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
-										{session.finalization.payload.summary}
-									</p>
+									<div class="prose prose-sm mt-2 max-w-none break-words text-slate-700 dark:prose-invert dark:text-slate-200">
+										{@html renderRichText(session.finalization.payload.summary)}
+									</div>
 
 									{#if session.finalization.payload.feedback}
 										<div class="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
 											<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 												Feedback final
 											</p>
-											<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-												{session.finalization.payload.feedback}
-											</p>
+											<div class="prose prose-sm mt-2 max-w-none break-words text-slate-600 dark:prose-invert dark:text-slate-300">
+												{@html renderRichText(session.finalization.payload.feedback)}
+											</div>
 										</div>
 									{/if}
 
@@ -444,9 +449,9 @@
 													<p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
 														Resultado
 													</p>
-													<p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-100">
-														{session.finalization.payload.result}
-													</p>
+													<div class="prose prose-sm mt-1 max-w-none break-words font-medium text-slate-800 dark:prose-invert dark:text-slate-100">
+														{@html renderRichText(session.finalization.payload.result)}
+													</div>
 												</div>
 											{/if}
 
@@ -466,19 +471,21 @@
 									<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 										Apertura de la sesion
 									</p>
-									<p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
-										{session.previewText || 'Sin contenido textual util registrado.'}
-									</p>
+									<div class="prose prose-sm mt-2 max-w-none break-words text-slate-700 dark:prose-invert dark:text-slate-200">
+										{@html renderRichText(
+											session.previewText || 'Sin contenido textual util registrado.'
+										)}
+									</div>
 
 									{#if session.latestText}
 										<div class="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
-										<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-											Ultimo contenido util
-										</p>
-										<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-											{session.latestText}
-										</p>
-									</div>
+											<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+												Ultimo contenido util
+											</p>
+											<div class="prose prose-sm mt-2 max-w-none break-words text-slate-600 dark:prose-invert dark:text-slate-300">
+												{@html renderRichText(session.latestText)}
+											</div>
+										</div>
 									{/if}
 								{/if}
 							</div>
