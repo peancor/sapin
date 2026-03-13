@@ -7,6 +7,12 @@ export interface LearningEvidenceStudentRef {
 	alias?: string;
 }
 
+export type LearningEvidenceProgressStatus =
+	| 'not_started'
+	| 'in_progress'
+	| 'completed'
+	| 'abandoned';
+
 export interface LearningEvidenceRosterEntry extends LearningEvidenceStudentRef {
 	role: string;
 	level: number;
@@ -99,6 +105,7 @@ export interface LearningEvidenceTranscriptSession {
 }
 
 export interface LearningEvidenceStudentSummary extends LearningEvidenceStudentRef {
+	progressStatus: LearningEvidenceProgressStatus;
 	sessionCount: number;
 	totalMessages: number;
 	learnerMessageCount: number;
@@ -106,8 +113,12 @@ export interface LearningEvidenceStudentSummary extends LearningEvidenceStudentR
 	toolCallCount: number;
 	uiResponseCount: number;
 	averageLearnerMessageLength: number;
+	startedAt: string | null;
 	firstActivityAt: string | null;
 	lastActivityAt: string | null;
+	completedAt: string | null;
+	attemptsCount: number;
+	timeSpentSeconds: number;
 }
 
 export interface LearningEvidenceOverview {

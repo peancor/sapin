@@ -7,6 +7,7 @@ import DBChatUtils from '$lib/server/db/DBChatUtils';
 import { DBAgentActivityUtils, DBAgentAnalyticsUtils } from '$lib/server/db/agent';
 import { ACTIVITY_COMPLETION_MIN_MESSAGES } from '$lib/constants';
 import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '$lib/server/agent/tools/constants';
+import { LearningEvidenceService } from '$lib/server/learning-evidence';
 
 export const load = (async ({ params, locals }) => {
 	// Verificación de seguridad (defensa en profundidad)
@@ -46,6 +47,25 @@ export const load = (async ({ params, locals }) => {
 			ilid,
 			BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
 		);
+		const overview = await LearningEvidenceService.getActivityEvidenceOverview(
+			{
+				actorUserId: locals.user.id,
+				actorHighestRoleLevel: locals.user.highestRoleLevel
+			},
+			ilid
+		);
+		const studentsCompleted = overview.studentSummaries.filter(
+			(summary) => summary.progressStatus === 'completed'
+		).length;
+		const studentsWithActivity = overview.studentsWithEvidenceCount;
+		const totalChats = overview.totalSessions;
+		const totalMessages = overview.totalMessages;
+		const completionRate =
+			totalStudents > 0 ? Math.round((studentsCompleted / totalStudents) * 100) : 0;
+		const participationRate =
+			totalStudents > 0 ? Math.round((studentsWithActivity / totalStudents) * 100) : 0;
+		const averageMessagesPerChat =
+			totalChats > 0 ? Math.round(totalMessages / totalChats) : 0;
 
 		return {
 			interactive,
@@ -55,14 +75,14 @@ export const load = (async ({ params, locals }) => {
 			enabledTools,
 			stats: {
 				totalStudents,
-				studentsWithActivity: agentStats.sessions,
-				studentsCompleted: 0,
-				totalChats: agentStats.sessions,
-				totalMessages: agentStats.messages,
-				participationRate: totalStudents > 0 ? Math.round((agentStats.sessions / totalStudents) * 100) : 0,
-				completionRate: 0,
-				averageMessagesPerChat: agentStats.sessions > 0 ? Math.round(agentStats.messages / agentStats.sessions) : 0,
-				lastActivityDate: null,
+				studentsWithActivity,
+				studentsCompleted,
+				totalChats,
+				totalMessages,
+				participationRate,
+				completionRate,
+				averageMessagesPerChat,
+				lastActivityDate: overview.lastActivityAt,
 				requiresMinMessages: ACTIVITY_COMPLETION_MIN_MESSAGES
 			}
 		};

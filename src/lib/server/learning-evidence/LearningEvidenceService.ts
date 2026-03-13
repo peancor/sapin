@@ -34,6 +34,22 @@ function toIsoString(value: Date | string | number | null | undefined): string |
 	return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function getEarliestIso(values: Array<string | null | undefined>): string | null {
+	return values.reduce<string | null>((earliest, value) => {
+		if (!value) return earliest;
+		if (!earliest) return value;
+		return new Date(value) < new Date(earliest) ? value : earliest;
+	}, null);
+}
+
+function getLatestIso(values: Array<string | null | undefined>): string | null {
+	return values.reduce<string | null>((latest, value) => {
+		if (!value) return latest;
+		if (!latest) return value;
+		return new Date(value) > new Date(latest) ? value : latest;
+	}, null);
+}
+
 function normalizeChatRole(value: string): LearningEvidenceMessageRole {
 	const normalized = value.trim().toLowerCase();
 	if (normalized === 'system') return 'system';
@@ -651,6 +667,21 @@ export class LearningEvidenceService {
 		const roster = courseId ? await this.getCourseStudentRoster(access, courseId, studentIds) : [];
 		const transcripts = await provider.getTranscripts({ activityId, studentIds });
 		const transcriptsByStudent = new Map<string, LearningEvidenceTranscriptSession[]>();
+		const rosterStudentIds = roster.map((student) => student.userId);
+		const progressRows =
+			courseId && rosterStudentIds.length > 0
+				? await db
+						.select()
+						.from(schema.learningActivityProgress)
+						.where(
+							and(
+								eq(schema.learningActivityProgress.courseId, courseId),
+								eq(schema.learningActivityProgress.activityId, activityId),
+								inArray(schema.learningActivityProgress.userId, rosterStudentIds)
+							)
+						)
+				: [];
+		const progressByStudent = new Map(progressRows.map((row) => [row.userId, row]));
 
 		for (const transcript of transcripts) {
 			const current = transcriptsByStudent.get(transcript.student.userId) ?? [];
@@ -660,20 +691,29 @@ export class LearningEvidenceService {
 
 		const studentSummaries: LearningEvidenceStudentSummary[] = roster.map((student) => {
 			const sessions = transcriptsByStudent.get(student.userId) ?? [];
+			const progress = progressByStudent.get(student.userId);
 			const messages = sessions.flatMap((session) => session.messages);
 			const learnerMessages = messages.filter((message) => message.role === 'user');
 			const learnerTextLength = learnerMessages.reduce(
 				(sum, message) => sum + message.displayText.length,
 				0
 			);
-			const firstActivityAt = sessions[0]?.sessionStartedAt ?? null;
-			const lastActivityAt = sessions.reduce<string | null>((latest, session) => {
-				if (!latest) return session.sessionUpdatedAt;
-				return new Date(session.sessionUpdatedAt) > new Date(latest) ? session.sessionUpdatedAt : latest;
-			}, null);
+			const startedAt = toIsoString(progress?.startedAt);
+			const completedAt = toIsoString(progress?.completedAt);
+			const firstActivityAt = getEarliestIso([
+				...sessions.map((session) => session.sessionStartedAt),
+				startedAt
+			]);
+			const lastActivityAt = getLatestIso([
+				...sessions.map((session) => session.sessionUpdatedAt),
+				toIsoString(progress?.lastInteractionAt),
+				completedAt
+			]);
+			const progressStatus = progress?.status ?? (sessions.length > 0 ? 'in_progress' : 'not_started');
 
 			return {
 				...student,
+				progressStatus,
 				sessionCount: sessions.length,
 				totalMessages: messages.length,
 				learnerMessageCount: learnerMessages.length,
@@ -682,12 +722,18 @@ export class LearningEvidenceService {
 				uiResponseCount: sessions.reduce((sum, session) => sum + session.uiResponseCount, 0),
 				averageLearnerMessageLength:
 					learnerMessages.length > 0 ? Math.round(learnerTextLength / learnerMessages.length) : 0,
+				startedAt,
 				firstActivityAt,
-				lastActivityAt
+				lastActivityAt,
+				completedAt,
+				attemptsCount: progress?.attemptsCount ?? sessions.length,
+				timeSpentSeconds: progress?.timeSpentSeconds ?? 0
 			};
 		});
 
-		const activeSummaries = studentSummaries.filter((summary) => summary.sessionCount > 0);
+		const activeSummaries = studentSummaries.filter(
+			(summary) => summary.progressStatus !== 'not_started'
+		);
 		const lastActivityAt = activeSummaries.reduce<string | null>((latest, summary) => {
 			if (!summary.lastActivityAt) return latest;
 			if (!latest) return summary.lastActivityAt;

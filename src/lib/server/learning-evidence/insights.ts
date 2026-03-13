@@ -14,8 +14,20 @@ import type {
 	LearningEvidenceTranscriptSession
 } from '$lib/types/learningEvidence';
 
+function hasStudentActivity(summary: LearningEvidenceStudentSummary): boolean {
+	return (
+		summary.progressStatus !== 'not_started' ||
+		summary.sessionCount > 0 ||
+		summary.learnerMessageCount > 0 ||
+		summary.uiResponseCount > 0
+	);
+}
+
 function calculateStudentMetrics(summary: LearningEvidenceStudentSummary): StudentMetrics {
-	if (summary.sessionCount === 0 || summary.learnerMessageCount === 0) {
+	const hasActivity = hasStudentActivity(summary);
+	const interactionCount = summary.learnerMessageCount + summary.uiResponseCount;
+
+	if (!hasActivity) {
 		return {
 			totalMessages: 0,
 			completionStatus: 'not_started',
@@ -28,12 +40,14 @@ function calculateStudentMetrics(summary: LearningEvidenceStudentSummary): Stude
 	}
 
 	let completionStatus: StudentMetrics['completionStatus'] = 'in_progress';
-	if (summary.learnerMessageCount >= 5) {
+	if (summary.progressStatus === 'completed') {
 		completionStatus = 'completed';
+	} else if (summary.progressStatus === 'not_started') {
+		completionStatus = 'not_started';
 	}
 
 	let engagementScore = 0;
-	engagementScore += Math.min(summary.learnerMessageCount * 10, 40);
+	engagementScore += Math.min(interactionCount * 10, 40);
 	engagementScore += Math.min(summary.averageLearnerMessageLength / 10, 30);
 	if (summary.lastActivityAt) {
 		const daysSinceActivity =
@@ -43,13 +57,15 @@ function calculateStudentMetrics(summary: LearningEvidenceStudentSummary): Stude
 	engagementScore = Math.min(Math.round(engagementScore), 100);
 
 	let riskLevel: RiskLevel = 'low';
-	if (engagementScore < 30 || summary.learnerMessageCount === 0) {
+	if (completionStatus === 'completed') {
+		riskLevel = 'low';
+	} else if (engagementScore < 30 || interactionCount === 0) {
 		riskLevel = 'high';
-	} else if (engagementScore < 60 || summary.learnerMessageCount < 3) {
+	} else if (engagementScore < 60 || interactionCount < 3) {
 		riskLevel = 'medium';
 	}
 
-	if (summary.lastActivityAt) {
+	if (completionStatus !== 'completed' && summary.lastActivityAt) {
 		const daysSinceActivity =
 			(Date.now() - new Date(summary.lastActivityAt).getTime()) / (1000 * 60 * 60 * 24);
 		if (daysSinceActivity > 7) {
@@ -60,13 +76,13 @@ function calculateStudentMetrics(summary: LearningEvidenceStudentSummary): Stude
 	}
 
 	return {
-		totalMessages: summary.learnerMessageCount,
+		totalMessages: interactionCount,
 		completionStatus,
 		lastActivityAt: summary.lastActivityAt,
 		riskLevel,
 		engagementScore,
 		avgMessageLength: summary.averageLearnerMessageLength,
-		responseCount: summary.learnerMessageCount
+		responseCount: interactionCount
 	};
 }
 
@@ -96,8 +112,9 @@ function buildRiskFactors(
 	metrics: StudentMetrics
 ): RiskFactor[] {
 	const factors: RiskFactor[] = [];
+	const interactionCount = summary.learnerMessageCount + summary.uiResponseCount;
 
-	if (summary.learnerMessageCount === 0) {
+	if (interactionCount === 0) {
 		factors.push({
 			type: 'no_activity',
 			description: 'Sin actividad registrada',
@@ -138,7 +155,7 @@ function buildRiskFactors(
 		});
 	}
 
-	if (summary.learnerMessageCount < 3) {
+	if (metrics.completionStatus !== 'completed') {
 		factors.push({
 			type: 'incomplete',
 			description: 'Actividad no completada',
@@ -215,7 +232,7 @@ export function toInsightsConsolidatedMetrics(
 		};
 	});
 
-	const activeStudents = students.filter((student) => student.summary.learnerMessageCount > 0);
+	const activeStudents = students.filter((student) => hasStudentActivity(student.summary));
 	const overallScore =
 		activeStudents.length > 0
 			? Math.round(
@@ -228,7 +245,11 @@ export function toInsightsConsolidatedMetrics(
 
 	const messageFrequency =
 		activeStudents.length > 0
-			? students.reduce((sum, student) => sum + student.summary.learnerMessageCount, 0) /
+			? students.reduce(
+					(sum, student) =>
+						sum + student.summary.learnerMessageCount + student.summary.uiResponseCount,
+					0
+				) /
 				activeStudents.length
 			: 0;
 
