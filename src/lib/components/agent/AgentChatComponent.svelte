@@ -30,6 +30,14 @@
 		};
 	}
 
+	interface PendingRevisionContext {
+		previousValue: string;
+		inputType: string | null;
+		hadSelection: boolean;
+	}
+
+	const REVISION_BURST_WINDOW_MS = 2500;
+
     let { initialMessages = [], apiEndpoint, user, onComplete }: Props = $props();
 
     // ─── Estado ───
@@ -51,8 +59,11 @@
 
     let chatContainer: HTMLDivElement | undefined = $state();
     let textarea: HTMLTextAreaElement | undefined = $state();
-    let eventSource: EventSource | null = null;
+	let eventSource: EventSource | null = null;
 	let messageMetrics = $state<MessageMetrics>(createMessageMetrics());
+	let pendingRevisionContext: PendingRevisionContext | null = null;
+	let previousDraftValue = '';
+	let lastRevisionAt = 0;
 
     // ─── HITL state ───
     let hitlOpen = $state(false);
@@ -97,11 +108,68 @@
 
 	function resetMessageMetrics() {
 		messageMetrics = createMessageMetrics();
+		pendingRevisionContext = null;
+		previousDraftValue = '';
+		lastRevisionAt = 0;
 	}
 
 	function updateTextMetrics() {
 		messageMetrics.charCount = messageInput.length;
 		messageMetrics.wordCount = messageInput.trim() ? messageInput.trim().split(/\s+/).length : 0;
+	}
+
+	function queueRevisionContext(event: InputEvent) {
+		pendingRevisionContext = {
+			previousValue: messageInput,
+			inputType: event.inputType ?? null,
+			hadSelection:
+				textarea !== undefined &&
+				textarea.selectionStart !== null &&
+				textarea.selectionEnd !== null &&
+				textarea.selectionStart !== textarea.selectionEnd
+		};
+	}
+
+	function maybeCountDraftRevision(nextValue: string) {
+		const context = pendingRevisionContext ?? {
+			previousValue: previousDraftValue,
+			inputType: null,
+			hadSelection: false
+		};
+		const previousValue = context.previousValue;
+		const inputType = context.inputType ?? '';
+
+		if (!previousValue) {
+			previousDraftValue = nextValue;
+			pendingRevisionContext = null;
+			return;
+		}
+
+		const insertedAtEnd = nextValue.length > previousValue.length && nextValue.startsWith(previousValue);
+		const removedFromEnd =
+			nextValue.length < previousValue.length && previousValue.startsWith(nextValue);
+		const isPaste = inputType === 'insertFromPaste';
+		const isUndoRedo = inputType === 'historyUndo' || inputType === 'historyRedo';
+		const isDelete = inputType.startsWith('delete') || removedFromEnd;
+		const isInternalRewrite = !insertedAtEnd && !removedFromEnd && nextValue !== previousValue;
+
+		const isRevisionCandidate =
+			isUndoRedo ||
+			context.hadSelection ||
+			(isPaste && previousValue.length > 0) ||
+			(isDelete && previousValue.length > 0) ||
+			isInternalRewrite;
+
+		if (isRevisionCandidate) {
+			const now = Date.now();
+			if (now - lastRevisionAt > REVISION_BURST_WINDOW_MS) {
+				messageMetrics.editCount += 1;
+				lastRevisionAt = now;
+			}
+		}
+
+		previousDraftValue = nextValue;
+		pendingRevisionContext = null;
 	}
 
 	function buildSerializedMessageMetrics(): string {
@@ -192,20 +260,17 @@
     }
 
 	function handleInput() {
-		messageMetrics.editCount += 1;
+		maybeCountDraftRevision(messageInput);
 		autoResize();
 		updateTextMetrics();
 	}
 
 	function handlePaste() {
 		messageMetrics.pasteCount += 1;
-		messageMetrics.editCount += 1;
-		setTimeout(updateTextMetrics, 0);
 	}
 
 	function handleCut() {
-		messageMetrics.editCount += 1;
-		setTimeout(updateTextMetrics, 0);
+		// The resulting input event will decide whether this was a real draft revision.
 	}
 
     function startUserMessage(text: string, metadata?: string) {
@@ -250,7 +315,7 @@
         startStream(url.toString(), assistantMsgId);
     }
 
-    function sendMessage() {
+     function sendMessage() {
 		const text = messageInput.trim();
 		if (!text) return;
 
@@ -668,6 +733,7 @@
             <textarea
                 bind:this={textarea}
                 bind:value={messageInput}
+                onbeforeinput={queueRevisionContext}
                 onkeydown={handleKeydown}
                 oninput={handleInput}
 				onpaste={handlePaste}

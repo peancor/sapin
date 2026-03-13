@@ -339,7 +339,7 @@
 												<div class="rounded-2xl bg-white/70 px-3 py-3 dark:bg-slate-900/60">
 													<p class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
 														<PencilLine class="h-3.5 w-3.5" />
-														Ediciones
+														Revisiones
 													</p>
 													<p class="mt-1 font-semibold text-slate-900 dark:text-slate-100">
 														{metrics.editCount}
