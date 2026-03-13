@@ -1,11 +1,11 @@
 import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '../constants';
 import type { ToolManifest } from '../types';
 
-export const getStudentActivityMemoryContextManifest: ToolManifest = {
-	name: 'get_student_activity_memory_context',
-	displayName: '[LEGACY] Recuperar recuerdos por actividad',
+export const getStudentCourseMemoryContextManifest: ToolManifest = {
+	name: 'get_student_course_memory_context',
+	displayName: 'Recuperar recuerdos del estudiante del curso',
 	description:
-		'Herramienta legacy. Recupera recuerdos privados del estudiante actual solo dentro de esta actividad concreta. No se recomienda para nuevas actividades; usa la memoria alumno+curso.',
+		'Recupera recuerdos privados del estudiante actual dentro del curso actual, compartidos entre actividades del mismo curso. No puede consultar otros alumnos ni otros cursos.',
 	category: 'data',
 	parametersSchema: {
 		type: 'object',
@@ -57,7 +57,7 @@ export const getStudentActivityMemoryContextManifest: ToolManifest = {
 		required: ['items', 'ignoredScopeFields', 'resultCount']
 	},
 	executorType: 'builtin',
-	executorConfig: { handler: 'getStudentActivityMemoryContext' },
+	executorConfig: { handler: 'getStudentCourseMemoryContext' },
 	requiresConfirmation: false,
 	riskLevel: 'low',
 	isSystem: true,

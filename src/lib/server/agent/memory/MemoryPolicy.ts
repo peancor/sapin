@@ -1,5 +1,10 @@
 import type { AgentContext } from '$lib/types/agent';
-import { MEMORY_READ_TOOL_NAME, MEMORY_SCOPE_RESERVED_INPUT_KEYS, MEMORY_WRITE_TOOL_NAME } from './constants';
+import {
+	ALL_MEMORY_READ_TOOL_NAMES,
+	ALL_MEMORY_WRITE_TOOL_NAMES,
+	MEMORY_READ_TOOL_NAME,
+	MEMORY_SCOPE_RESERVED_INPUT_KEYS
+} from './constants';
 import { MemorySchemaRegistry } from './MemorySchemaRegistry';
 
 export class MemoryPolicy {
@@ -26,6 +31,8 @@ export class MemoryPolicy {
 	}
 
 	static isMemoryTool(toolName: string): boolean {
-		return toolName === MEMORY_READ_TOOL_NAME || toolName === MEMORY_WRITE_TOOL_NAME;
+		return [...ALL_MEMORY_READ_TOOL_NAMES, ...ALL_MEMORY_WRITE_TOOL_NAMES].includes(
+			toolName as (typeof ALL_MEMORY_READ_TOOL_NAMES)[number]
+		);
 	}
 }

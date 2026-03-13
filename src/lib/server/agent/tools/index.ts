@@ -13,6 +13,7 @@ export { getActivityToolUsageSummaryPackage } from './getActivityToolUsageSummar
 export { getActivityEvidenceOverviewPackage } from './getActivityEvidenceOverview';
 export { getActivityTranscriptsPackage } from './getActivityTranscripts';
 export { getCourseStudentRosterPackage } from './getCourseStudentRoster';
+export { getStudentCourseMemoryContextPackage } from './getStudentCourseMemoryContext';
 export { getLearningProgressTimelinePackage } from './getLearningProgressTimeline';
 export { getStudentActivityMemoryContextPackage } from './getStudentActivityMemoryContext';
 export { getStudentProgressPackage } from './getStudentProgress';
@@ -32,5 +33,6 @@ export { rubricEvaluateResponsePackage } from './rubricEvaluateResponse';
 export { saveGradePackage } from './saveGrade';
 export { searchCourseContentPackage } from './searchCourseContent';
 export { sendNotificationPackage } from './sendNotification';
+export { storeStudentCourseMemoryPackage } from './storeStudentCourseMemory';
 export { storeStudentActivityMemoryPackage } from './storeStudentActivityMemory';
 export { summarizeEvidenceForStudentPackage } from './summarizeEvidenceForStudent';

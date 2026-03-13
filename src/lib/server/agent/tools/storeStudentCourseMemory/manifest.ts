@@ -1,11 +1,11 @@
 import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '../constants';
 import type { ToolManifest } from '../types';
 
-export const storeStudentActivityMemoryManifest: ToolManifest = {
-	name: 'store_student_activity_memory',
-	displayName: '[LEGACY] Guardar recuerdo por actividad',
+export const storeStudentCourseMemoryManifest: ToolManifest = {
+	name: 'store_student_course_memory',
+	displayName: 'Guardar recuerdo del estudiante del curso',
 	description:
-		'Herramienta legacy. Guarda un recuerdo privado del estudiante solo para esta actividad concreta. No se recomienda para nuevas actividades; usa la memoria alumno+curso. memoryType debe ser "student_preference" o "activity_episode". Si usas "student_preference", el payload debe incluir preferenceKind, value, confidence y evidence. Si usas "activity_episode", el payload debe incluir episodeKind, summary, confidence y evidence. El backend normaliza variantes razonables de preferenceKind y episodeKind al conjunto canónico. evidence debe ser preferiblemente un array, aunque el backend puede normalizar un valor único.',
+		'Guarda un recuerdo privado del estudiante actual en el curso actual, reutilizable entre actividades del mismo curso. memoryType debe ser "student_preference" o "activity_episode". Si usas "student_preference", el payload debe incluir preferenceKind, value, confidence y evidence. Si usas "activity_episode", el payload debe incluir episodeKind, summary, confidence y evidence. El backend normaliza variantes razonables de preferenceKind y episodeKind al conjunto canónico. evidence debe ser preferiblemente un array, aunque el backend puede normalizar un valor único.',
 	category: 'data',
 	parametersSchema: {
 		type: 'object',
@@ -56,7 +56,7 @@ export const storeStudentActivityMemoryManifest: ToolManifest = {
 		required: ['stored', 'status']
 	},
 	executorType: 'builtin',
-	executorConfig: { handler: 'storeStudentActivityMemory' },
+	executorConfig: { handler: 'storeStudentCourseMemory' },
 	requiresConfirmation: false,
 	riskLevel: 'low',
 	isSystem: true,

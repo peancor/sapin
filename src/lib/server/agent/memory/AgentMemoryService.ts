@@ -4,7 +4,13 @@ import { DBAgentMemoryUtils } from '$lib/server/db/agent';
 import { MemoryPolicy } from './MemoryPolicy';
 import { MemoryScopeResolver } from './MemoryScopeResolver';
 import { MemorySchemaRegistry } from './MemorySchemaRegistry';
-import { MEMORY_PROMPT_PREFETCH_LIMIT, MEMORY_READ_TOOL_NAME, MEMORY_WRITE_TOOL_NAME } from './constants';
+import {
+	LEGACY_MEMORY_READ_TOOL_NAME,
+	LEGACY_MEMORY_WRITE_TOOL_NAME,
+	MEMORY_PROMPT_PREFETCH_LIMIT,
+	MEMORY_READ_TOOL_NAME,
+	MEMORY_WRITE_TOOL_NAME
+} from './constants';
 
 function clamp(value: number | undefined, min: number, max: number, fallback: number): number {
 	if (typeof value !== 'number' || Number.isNaN(value)) return fallback;
@@ -127,6 +133,29 @@ export class AgentMemoryService {
 	static async getStudentActivityMemoryContext(input: MemoryQueryInput, context: AgentContext) {
 		const { items, ignoredScopeFields } = await this.queryScopedMemories({
 			context,
+			toolName: LEGACY_MEMORY_READ_TOOL_NAME,
+			input,
+			operation: 'read'
+		});
+
+		return {
+			items: items.map(toToolItem),
+			ignoredScopeFields,
+			resultCount: items.length
+		};
+	}
+
+	static async getStudentCourseMemoryContext(input: MemoryQueryInput, context: AgentContext) {
+		if (!context.courseId) {
+			return {
+				items: [],
+				ignoredScopeFields: [],
+				resultCount: 0
+			};
+		}
+
+		const { items, ignoredScopeFields } = await this.queryScopedMemories({
+			context,
 			toolName: MEMORY_READ_TOOL_NAME,
 			input,
 			operation: 'read'
@@ -140,6 +169,141 @@ export class AgentMemoryService {
 	}
 
 	static async storeStudentActivityMemory(input: MemoryWriteInput, context: AgentContext) {
+		const scope = MemoryScopeResolver.resolve(context, LEGACY_MEMORY_WRITE_TOOL_NAME);
+		const { sanitizedInput, ignoredScopeFields } = MemoryPolicy.sanitizeInput(
+			input as unknown as Record<string, unknown>
+		);
+		const memoryType =
+			typeof sanitizedInput.memoryType === 'string' ? sanitizedInput.memoryType.trim() : '';
+		const allowedTypes = MemoryPolicy.getWritableMemoryTypes(LEGACY_MEMORY_WRITE_TOOL_NAME);
+
+		if (!allowedTypes.includes(memoryType as never)) {
+			await DBAgentMemoryUtils.logAccessEvent({
+				actorUserId: context.userId,
+				toolName: LEGACY_MEMORY_WRITE_TOOL_NAME,
+				operation: 'write',
+				outcome: 'forbidden_memory_type',
+				scopeKey: scope.scopeKey,
+				resultCount: 0,
+				details: { ignoredScopeFields, memoryType }
+			});
+
+			return {
+				stored: false,
+				status: 'rejected' as const,
+				reason: `Tipo de memoria no permitido para esta herramienta: ${memoryType || '(vacío)'}.`
+			};
+		}
+
+		const parsed = MemorySchemaRegistry.parsePayload(memoryType, sanitizedInput.payload);
+		if (!parsed.ok) {
+			await DBAgentMemoryUtils.logAccessEvent({
+				actorUserId: context.userId,
+				toolName: LEGACY_MEMORY_WRITE_TOOL_NAME,
+				operation: 'write',
+				outcome: 'validation_failed',
+				scopeKey: scope.scopeKey,
+				resultCount: 0,
+				details: { ignoredScopeFields, memoryType, error: parsed.error }
+			});
+
+			return {
+				stored: false,
+				status: 'rejected' as const,
+				reason: parsed.error
+			};
+		}
+
+		const summary =
+			typeof sanitizedInput.summary === 'string' && sanitizedInput.summary.trim().length > 0
+				? sanitizedInput.summary.trim().slice(0, 500)
+				: null;
+		if (!summary) {
+			await DBAgentMemoryUtils.logAccessEvent({
+				actorUserId: context.userId,
+				toolName: LEGACY_MEMORY_WRITE_TOOL_NAME,
+				operation: 'write',
+				outcome: 'validation_failed',
+				scopeKey: scope.scopeKey,
+				resultCount: 0,
+				details: { ignoredScopeFields, memoryType, error: 'summary is required' }
+			});
+
+			return {
+				stored: false,
+				status: 'rejected' as const,
+				reason: 'La memoria requiere un summary no vacío.'
+			};
+		}
+
+		const confidence = MemorySchemaRegistry.extractConfidence(memoryType, parsed.payload);
+		const shouldReject =
+			confidence !== null &&
+			typeof parsed.definition.minConfidenceToStore === 'number' &&
+			confidence < parsed.definition.minConfidenceToStore;
+		const occurredAt = parseOccurredAt(
+			typeof sanitizedInput.occurredAt === 'string' ? sanitizedInput.occurredAt : undefined
+		);
+		const dedupeKey =
+			typeof sanitizedInput.dedupeKey === 'string' && sanitizedInput.dedupeKey.trim().length > 0
+				? sanitizedInput.dedupeKey.trim().slice(0, 200)
+				: undefined;
+		const tags = normalizeStringArray(sanitizedInput.tags).slice(0, 12);
+		const importance =
+			typeof sanitizedInput.importance === 'number'
+				? clamp(sanitizedInput.importance, 1, 5, 3)
+				: 3;
+
+		const record = await DBAgentMemoryUtils.saveMemory({
+			scopeType: scope.scopeType,
+			scopeKey: scope.scopeKey,
+			privacyClass: scope.privacyClass,
+			courseId: scope.courseId,
+			activityId: scope.activityId,
+			subjectUserId: scope.subjectUserId,
+			createdByUserId: scope.createdByUserId,
+			sourceKind: 'agent',
+			memoryType,
+			status: shouldReject ? 'rejected' : 'active',
+			importance,
+			dedupeKey,
+			summary,
+			tags,
+			payload: parsed.payload,
+			occurredAt,
+			expiresAt: MemorySchemaRegistry.computeExpiry(memoryType, occurredAt ?? new Date())
+		});
+
+		await DBAgentMemoryUtils.logAccessEvent({
+			memoryId: record.id,
+			actorUserId: context.userId,
+			toolName: LEGACY_MEMORY_WRITE_TOOL_NAME,
+			operation: 'write',
+			outcome: ignoredScopeFields.length > 0 ? 'ignored_scope_fields' : shouldReject ? 'rejected' : 'allowed',
+			scopeKey: scope.scopeKey,
+			resultCount: shouldReject ? 0 : 1,
+			details: { ignoredScopeFields, memoryType, confidence }
+		});
+
+		return {
+			stored: !shouldReject,
+			status: shouldReject ? ('rejected' as const) : ('active' as const),
+			reason: shouldReject
+				? 'La memoria fue registrada como rechazada por baja confianza.'
+				: undefined,
+			item: toToolItem(record)
+		};
+	}
+
+	static async storeStudentCourseMemory(input: MemoryWriteInput, context: AgentContext) {
+		if (!context.courseId) {
+			return {
+				stored: false,
+				status: 'rejected' as const,
+				reason: 'La memoria por alumno+curso requiere que la actividad pertenezca a un curso.'
+			};
+		}
+
 		const scope = MemoryScopeResolver.resolve(context, MEMORY_WRITE_TOOL_NAME);
 		const { sanitizedInput, ignoredScopeFields } = MemoryPolicy.sanitizeInput(
 			input as unknown as Record<string, unknown>
@@ -230,7 +394,7 @@ export class AgentMemoryService {
 			scopeKey: scope.scopeKey,
 			privacyClass: scope.privacyClass,
 			courseId: scope.courseId,
-			activityId: scope.activityId,
+			activityId: context.activityId,
 			subjectUserId: scope.subjectUserId,
 			createdByUserId: scope.createdByUserId,
 			sourceKind: 'agent',
@@ -253,7 +417,7 @@ export class AgentMemoryService {
 			outcome: ignoredScopeFields.length > 0 ? 'ignored_scope_fields' : shouldReject ? 'rejected' : 'allowed',
 			scopeKey: scope.scopeKey,
 			resultCount: shouldReject ? 0 : 1,
-			details: { ignoredScopeFields, memoryType, confidence }
+			details: { ignoredScopeFields, memoryType, confidence, originActivityId: context.activityId }
 		});
 
 		return {
@@ -268,6 +432,9 @@ export class AgentMemoryService {
 
 	static async buildPromptMemoryContext(context: AgentContext, goal: string): Promise<string | null> {
 		if (!MemoryPolicy.isPromptPrefetchEnabled(context)) {
+			return null;
+		}
+		if (!context.courseId) {
 			return null;
 		}
 

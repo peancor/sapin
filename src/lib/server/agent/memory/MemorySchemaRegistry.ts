@@ -1,11 +1,102 @@
 import { z } from 'zod';
 import type { MemoryType } from '$lib/types/agentMemory';
-import { MEMORY_READ_TOOL_NAME, MEMORY_WRITE_TOOL_NAME } from './constants';
+import {
+	LEGACY_MEMORY_READ_TOOL_NAME,
+	LEGACY_MEMORY_WRITE_TOOL_NAME,
+	MEMORY_READ_TOOL_NAME,
+	MEMORY_WRITE_TOOL_NAME
+} from './constants';
 
 function wrapArrayValue(value: unknown) {
 	if (Array.isArray(value)) return value;
 	if (value === undefined || value === null) return value;
 	return [value];
+}
+
+function normalizeKey(value: string) {
+	return value
+		.trim()
+		.toLowerCase()
+		.replace(/[\s-]+/g, '_');
+}
+
+function normalizePreferenceKind(value: unknown) {
+	if (typeof value !== 'string') return value;
+
+	const normalized = normalizeKey(value);
+	const aliases: Record<string, 'pace' | 'format' | 'difficulty' | 'support'> = {
+		pace: 'pace',
+		pacing: 'pace',
+		speed: 'pace',
+		tempo: 'pace',
+		study_pace: 'pace',
+		learning_pace: 'pace',
+		format: 'format',
+		modality: 'format',
+		style: 'format',
+		presentation: 'format',
+		content_format: 'format',
+		explanation_format: 'format',
+		difficulty: 'difficulty',
+		difficulty_level: 'difficulty',
+		challenge: 'difficulty',
+		complexity: 'difficulty',
+		level: 'difficulty',
+		support: 'support',
+		help: 'support',
+		hint: 'support',
+		scaffolding: 'support',
+		guidance: 'support'
+	};
+
+	return aliases[normalized] ?? value;
+}
+
+function normalizeEpisodeKind(value: unknown) {
+	if (typeof value !== 'string') return value;
+
+	const normalized = normalizeKey(value);
+	const aliases: Record<string, 'success' | 'misconception' | 'friction' | 'behavior'> = {
+		success: 'success',
+		achievement: 'success',
+		progress: 'success',
+		completion: 'success',
+		completed: 'success',
+		passed: 'success',
+		correct: 'success',
+		solved: 'success',
+		mastered: 'success',
+		quiz_session: 'success',
+		quiz_completed: 'success',
+		practice_success: 'success',
+		misconception: 'misconception',
+		misunderstanding: 'misconception',
+		confusion: 'misconception',
+		confused: 'misconception',
+		mistake: 'misconception',
+		error: 'misconception',
+		incorrect: 'misconception',
+		wrong_answer: 'misconception',
+		wrong: 'misconception',
+		friction: 'friction',
+		struggle: 'friction',
+		obstacle: 'friction',
+		blocked: 'friction',
+		stuck: 'friction',
+		hesitation: 'friction',
+		timeout: 'friction',
+		dropoff: 'friction',
+		difficulty: 'friction',
+		behavior: 'behavior',
+		engagement: 'behavior',
+		attention: 'behavior',
+		motivation: 'behavior',
+		participation: 'behavior',
+		persistence: 'behavior',
+		habit: 'behavior'
+	};
+
+	return aliases[normalized] ?? value;
 }
 
 const evidenceSchema = z.object({
@@ -45,14 +136,20 @@ const genericEvidenceArraySchema = z.preprocess((value) => {
 }, z.array(evidenceSchema).min(1));
 
 const studentPreferenceMemorySchema = z.object({
-	preferenceKind: z.enum(['pace', 'format', 'difficulty', 'support']),
+	preferenceKind: z.preprocess(
+		normalizePreferenceKind,
+		z.enum(['pace', 'format', 'difficulty', 'support'])
+	),
 	value: z.string().min(1).max(200),
 	confidence: z.number().min(0).max(1),
 	evidence: studentEvidenceArraySchema
 });
 
 const activityEpisodeMemorySchema = z.object({
-	episodeKind: z.enum(['success', 'misconception', 'friction', 'behavior']),
+	episodeKind: z.preprocess(
+		normalizeEpisodeKind,
+		z.enum(['success', 'misconception', 'friction', 'behavior'])
+	),
 	summary: z.string().min(1).max(500),
 	recommendedFollowUp: z.string().max(500).optional(),
 	confidence: z.number().min(0).max(1),
@@ -78,16 +175,16 @@ const MEMORY_DEFINITIONS: Record<MemoryType, MemorySchemaDefinition> = {
 	student_preference: {
 		type: 'student_preference',
 		payloadSchema: studentPreferenceMemorySchema,
-		allowedReaderTools: [MEMORY_READ_TOOL_NAME],
-		allowedWriterTools: [MEMORY_WRITE_TOOL_NAME],
+		allowedReaderTools: [MEMORY_READ_TOOL_NAME, LEGACY_MEMORY_READ_TOOL_NAME],
+		allowedWriterTools: [MEMORY_WRITE_TOOL_NAME, LEGACY_MEMORY_WRITE_TOOL_NAME],
 		defaultRetentionDays: 365,
 		minConfidenceToStore: 0.4
 	},
 	activity_episode: {
 		type: 'activity_episode',
 		payloadSchema: activityEpisodeMemorySchema,
-		allowedReaderTools: [MEMORY_READ_TOOL_NAME],
-		allowedWriterTools: [MEMORY_WRITE_TOOL_NAME],
+		allowedReaderTools: [MEMORY_READ_TOOL_NAME, LEGACY_MEMORY_READ_TOOL_NAME],
+		allowedWriterTools: [MEMORY_WRITE_TOOL_NAME, LEGACY_MEMORY_WRITE_TOOL_NAME],
 		defaultRetentionDays: 180,
 		minConfidenceToStore: 0.4
 	},

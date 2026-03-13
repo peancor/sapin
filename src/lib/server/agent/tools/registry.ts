@@ -15,6 +15,7 @@ import {
 	getActivityEvidenceOverviewPackage,
 	getActivityTranscriptsPackage,
 	getCourseStudentRosterPackage,
+	getStudentCourseMemoryContextPackage,
 	getLearningProgressTimelinePackage,
 	getStudentActivityMemoryContextPackage,
 	getStudentProgressPackage,
@@ -34,6 +35,7 @@ import {
 	saveGradePackage,
 	searchCourseContentPackage,
 	sendNotificationPackage,
+	storeStudentCourseMemoryPackage,
 	storeStudentActivityMemoryPackage,
 	summarizeEvidenceForStudentPackage
 } from './index';
@@ -47,6 +49,7 @@ const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
 	getActivityTranscriptsPackage,
 	getLearningProgressTimelinePackage,
 	getActivityToolUsageSummaryPackage,
+	getStudentCourseMemoryContextPackage,
 	getStudentActivityMemoryContextPackage,
 	compareStudentGroupsPackage,
 	findStuckSessionsPackage,
@@ -74,6 +77,7 @@ const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
 	renderSustainedAttentionTestPackage,
 	renderWorkingMemoryTestPackage,
 	sendNotificationPackage,
+	storeStudentCourseMemoryPackage,
 	storeStudentActivityMemoryPackage
 ];
 
