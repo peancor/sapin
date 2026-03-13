@@ -510,6 +510,7 @@
 												<span>
 													Ultima actividad: {formatDate(session.lastActivityAt ?? session.chatCreatedAt)}
 												</span>
+												<span>{session.stats.totalMessages} mensajes</span>
 												{#if !session.hasStudentMessages}
 													<span>Sin mensajes del alumno</span>
 												{/if}
