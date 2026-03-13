@@ -14,6 +14,7 @@ export { getActivityEvidenceOverviewPackage } from './getActivityEvidenceOvervie
 export { getActivityTranscriptsPackage } from './getActivityTranscripts';
 export { getCourseStudentRosterPackage } from './getCourseStudentRoster';
 export { getLearningProgressTimelinePackage } from './getLearningProgressTimeline';
+export { getStudentActivityMemoryContextPackage } from './getStudentActivityMemoryContext';
 export { getStudentProgressPackage } from './getStudentProgress';
 export { recommendNextActivityPackage } from './recommendNextActivity';
 export { renderAttentionControlTestPackage } from './renderAttentionControlTest';
@@ -31,4 +32,5 @@ export { rubricEvaluateResponsePackage } from './rubricEvaluateResponse';
 export { saveGradePackage } from './saveGrade';
 export { searchCourseContentPackage } from './searchCourseContent';
 export { sendNotificationPackage } from './sendNotification';
+export { storeStudentActivityMemoryPackage } from './storeStudentActivityMemory';
 export { summarizeEvidenceForStudentPackage } from './summarizeEvidenceForStudent';

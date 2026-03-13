@@ -11,6 +11,8 @@ export class AgentPromptBuilder {
 
 {context}
 
+{memory_section}
+
 ## Herramientas disponibles
 
 Tienes acceso a las siguientes herramientas para ayudar al estudiante:
@@ -33,7 +35,8 @@ Tienes acceso a las siguientes herramientas para ayudar al estudiante:
     static buildSystemPrompt(
         config: AgentActivityConfig,
         tools: ToolDefinitionResolved[],
-        ragContext?: string | null
+        ragContext?: string | null,
+        memoryContext?: string | null
     ): string {
         const role = config.llmRole || 'Asistente educativo especializado';
         const instructions =
@@ -53,6 +56,7 @@ Tienes acceso a las siguientes herramientas para ayudar al estudiante:
                       .join('\n\n')
                 : 'No hay herramientas especiales disponibles en esta actividad.';
 
+        const memorySection = memoryContext ? `${memoryContext}\n` : '';
         const ragSection = ragContext
             ? `## Contexto del material del curso\n\nUtiliza la siguiente informacion de los documentos del curso como referencia prioritaria:\n\n[[CONTEXTO_RAG]]\n${ragContext}\n[[FIN_CONTEXTO_RAG]]`
             : '';
@@ -67,6 +71,7 @@ Tienes acceso a las siguientes herramientas para ayudar al estudiante:
             .replace(/{role}/g, role)
             .replace(/{instructions}/g, instructions)
             .replace(/{context}/g, context)
+            .replace(/{memory_section}/g, memorySection)
             .replace(/{tools_section}/g, toolsSection)
             .replace(/{finalization_instruction}/g, finalizationInstruction)
             .replace(/{rag_section}/g, ragSection);

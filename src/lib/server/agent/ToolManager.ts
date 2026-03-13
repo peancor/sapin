@@ -55,7 +55,10 @@ function jsonSchemaToZod(schema: JsonSchemaProperty): z.ZodTypeAny {
         }
 
         case 'object': {
-            if (!schema.properties) return z.object({});
+            if (!schema.properties) {
+                const emptyObject = z.object({}).passthrough();
+                return schema.description ? emptyObject.describe(schema.description) : emptyObject;
+            }
             const shape: Record<string, z.ZodTypeAny> = {};
             for (const [key, prop] of Object.entries(schema.properties)) {
                 shape[key] = jsonSchemaToZod(prop);
@@ -65,7 +68,8 @@ function jsonSchemaToZod(schema: JsonSchemaProperty): z.ZodTypeAny {
             for (const [key, zodType] of Object.entries(shape)) {
                 partialShape[key] = required.has(key) ? zodType : zodType.optional();
             }
-            return z.object(partialShape);
+            const objectSchema = z.object(partialShape).passthrough();
+            return schema.description ? objectSchema.describe(schema.description) : objectSchema;
         }
 
         case 'array': {

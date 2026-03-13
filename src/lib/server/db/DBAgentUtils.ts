@@ -6,6 +6,7 @@ export {
     DBAgentToolUtils,
     DBAgentUIUtils,
     DBAgentMessageUtils,
-    DBAgentAnalyticsUtils
+    DBAgentAnalyticsUtils,
+    DBAgentMemoryUtils
 } from './agent';
 

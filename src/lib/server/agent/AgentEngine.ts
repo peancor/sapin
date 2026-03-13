@@ -9,6 +9,7 @@ import { ToolExecutor } from './ToolExecutor';
 import { AgentPromptBuilder } from './AgentPromptBuilder';
 import { AgentFinalizationService } from './AgentFinalizationService';
 import { AgentUIRendererService } from './AgentUIRendererService';
+import { AgentMemoryService } from './memory';
 import {
 	AgentStreamProcessor,
 	type FinalizeSentinel,
@@ -204,6 +205,7 @@ export class AgentEngine {
 		}
 
 		let ragContext: string | null = null;
+		let memoryContext: string | null = null;
 		if (config.ragEnabled && config.ragCollectionName) {
 			try {
 				const ragResult = await RagService.getRagContext(
@@ -218,8 +220,19 @@ export class AgentEngine {
 			}
 		}
 
+		try {
+			memoryContext = await AgentMemoryService.buildPromptMemoryContext(context, userMessage);
+		} catch {
+			// Continue without memory context.
+		}
+
 		const runtimeTools = this.getRuntimeTools(context);
-		const systemPrompt = AgentPromptBuilder.buildSystemPrompt(config, runtimeTools, ragContext);
+		const systemPrompt = AgentPromptBuilder.buildSystemPrompt(
+			config,
+			runtimeTools,
+			ragContext,
+			memoryContext
+		);
 
 		await DBAgentMessageUtils.saveAgentMessage({
 			chatId: context.chatId,
