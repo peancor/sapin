@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { AlertTriangle, ArrowLeft, ArrowRight, Bot, Brain, CalendarClock, Cpu, Database, MessageSquareText, Sparkles, Wrench } from 'lucide-svelte';
+	import { AlertTriangle, ArrowLeft, ArrowRight, Bot, Brain, CalendarClock, Cpu, Database, Fingerprint, MessageSquareText, Radar, Settings2, Sparkles, Wrench } from 'lucide-svelte';
 	import RawSections from '$lib/components/activity-debugger/RawSections.svelte';
 	import type { PageData } from './$types';
 
@@ -10,10 +10,11 @@
 	const tabs = [
 		{ id: 'sessions', label: 'Sesiones' },
 		{ id: 'config', label: 'Configuracion' },
+		{ id: 'capture', label: 'Captura exacta' },
 		{ id: 'usage', label: 'Uso IA' },
 		{ id: 'raw', label: 'Raw' }
 	] as const;
-	const activityBaseHref = resolve(`/admin/activity-debugger/activities/${data.detail.activityId}`);
+	let activityBaseHref = $derived(resolve(`/admin/activity-debugger/activities/${data.detail.activityId}`));
 
 	function formatDate(value: string | null): string {
 		if (!value) return 'Sin actividad';
@@ -32,6 +33,10 @@
 			currency: 'USD',
 			maximumFractionDigits: value < 1 ? 4 : 2
 		}).format(value);
+	}
+
+	function formatNumber(value: number | null | undefined): string {
+		return (value ?? 0).toLocaleString('es-ES');
 	}
 
 	function tabHref(tabId: string): string {
@@ -73,6 +78,23 @@
 		}
 	}
 
+	function focusBadgeClasses(active: boolean): string {
+		return active
+			? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300'
+			: 'border-slate-200 bg-white/70 text-slate-600 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300';
+	}
+
+	function roundStatusClasses(status: string): string {
+		switch (status) {
+			case 'error':
+				return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-300';
+			case 'pending':
+				return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300';
+			default:
+				return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-300';
+		}
+	}
+
 	function getUsageLogs() {
 		const usageSection = data.detail.rawSections.find((section) => section.id === 'usage');
 		return Array.isArray(usageSection?.data) ? usageSection.data : [];
@@ -107,9 +129,50 @@
 						<span class="rounded-full border border-fuchsia-200 px-2.5 py-1 text-fuchsia-700 dark:border-fuchsia-900/60 dark:text-fuchsia-300">Sistema / Sin curso</span>
 					{/if}
 				</div>
+				<div class="mt-4 flex flex-wrap items-center gap-2 text-xs">
+					<span class={`rounded-full border px-2.5 py-1 font-semibold uppercase tracking-[0.14em] ${focusBadgeClasses(data.detail.captureConfig.enabled)}`}>
+						Captura global {data.detail.captureConfig.enabled ? 'activa' : 'apagada'}
+					</span>
+					<span class={`rounded-full border px-2.5 py-1 font-semibold uppercase tracking-[0.14em] ${focusBadgeClasses(!!data.detail.activityCaptureFocus?.enabled && !data.detail.activityCaptureFocus.isExpired)}`}>
+						Foco actividad {data.detail.activityCaptureFocus?.enabled && !data.detail.activityCaptureFocus.isExpired ? 'activo' : 'inactivo'}
+					</span>
+					{#if data.detail.activityCaptureFocus?.reason}
+						<span class="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600 dark:border-slate-700 dark:text-slate-300">
+							{data.detail.activityCaptureFocus.reason}
+						</span>
+					{/if}
+				</div>
 			</div>
 
-			<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+			<div class="space-y-3">
+				<div class="flex flex-wrap justify-end gap-2">
+					<a
+						href={resolve('/admin/activity-debugger/settings')}
+						class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-sky-300 hover:text-sky-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300 dark:hover:border-sky-800 dark:hover:text-sky-300"
+					>
+						<Settings2 class="h-4 w-4" />
+						Settings captura
+					</a>
+					<form method="POST" action="?/toggleActivityCaptureFocus">
+						<input type="hidden" name="enable" value={data.detail.activityCaptureFocus?.enabled && !data.detail.activityCaptureFocus.isExpired ? 'false' : 'true'} />
+						<input type="hidden" name="reason" value="Activado rapidamente desde la vista de actividad" />
+						<button
+							type="submit"
+							class={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold transition-colors ${
+								data.detail.activityCaptureFocus?.enabled && !data.detail.activityCaptureFocus.isExpired
+									? 'border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300'
+									: 'bg-slate-900 text-white dark:bg-sky-500 dark:text-slate-950'
+							}`}
+						>
+							<Radar class="h-4 w-4" />
+							{data.detail.activityCaptureFocus?.enabled && !data.detail.activityCaptureFocus.isExpired
+								? 'Desactivar foco'
+								: 'Activar foco'}
+						</button>
+					</form>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
 				<div class="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/70">
 					<p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Modelo</p>
 					<p class="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{data.detail.modelName || 'Sin modelo'}</p>
@@ -125,6 +188,7 @@
 				<div class="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/70">
 					<p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Coste</p>
 					<p class="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{formatCurrency(data.detail.usage.totalEstimatedCost)}</p>
+				</div>
 				</div>
 			</div>
 		</div>
@@ -298,6 +362,123 @@
 					</div>
 				</div>
 			</div>
+		</section>
+	{:else if data.tab === 'capture'}
+		<section class="space-y-5 rounded-[2rem] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-950/60">
+			<div class="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
+				<div class="space-y-4">
+					<div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+						<div class="flex items-center gap-2">
+							<Radar class="h-4 w-4 text-slate-400" />
+							<h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Estado de captura</h2>
+						</div>
+						<div class="mt-4 space-y-3 text-sm text-slate-700 dark:text-slate-300">
+							<div class="flex items-center justify-between gap-3"><span>Global</span><span class="font-semibold text-slate-900 dark:text-white">{data.detail.captureConfig.enabled ? 'Activada' : 'Apagada'}</span></div>
+							<div class="flex items-center justify-between gap-3"><span>Modo</span><span class="font-semibold text-slate-900 dark:text-white">{data.detail.captureConfig.mode}</span></div>
+							<div class="flex items-center justify-between gap-3"><span>Payload</span><span class="font-semibold text-slate-900 dark:text-white">{data.detail.captureConfig.payloadSource}</span></div>
+							<div class="flex items-center justify-between gap-3"><span>Retención</span><span class="font-semibold text-slate-900 dark:text-white">{data.detail.captureConfig.retentionDays} días</span></div>
+							<div class="flex items-center justify-between gap-3"><span>Rondas capturadas</span><span class="font-semibold text-slate-900 dark:text-white">{data.detail.requestRounds.length}</span></div>
+						</div>
+					</div>
+
+					<div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+						<div class="flex items-center gap-2">
+							<Fingerprint class="h-4 w-4 text-slate-400" />
+							<h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Foco de actividad</h2>
+						</div>
+						<p class="mt-4 text-sm text-slate-700 dark:text-slate-300">
+							{#if data.detail.activityCaptureFocus?.enabled && !data.detail.activityCaptureFocus.isExpired}
+								Activo desde {formatDate(data.detail.activityCaptureFocus.createdAt)} por {data.detail.activityCaptureFocus.createdByLabel || 'Sistema'}.
+							{:else}
+								No hay foco activo en esta actividad.
+							{/if}
+						</p>
+						{#if data.detail.activityCaptureFocus?.reason}
+							<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{data.detail.activityCaptureFocus.reason}</p>
+						{/if}
+						{#if data.detail.activityCaptureFocus?.expiresAt}
+							<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Expira {formatDate(data.detail.activityCaptureFocus.expiresAt)}</p>
+						{/if}
+					</div>
+				</div>
+
+				<div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+					<div class="flex items-center gap-2">
+						<Database class="h-4 w-4 text-slate-400" />
+						<h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Lectura operativa</h2>
+					</div>
+					<p class="mt-4 text-sm text-slate-700 dark:text-slate-300">
+						Aquí ves solo rondas realmente capturadas. Si el switch global está apagado o no había foco activo en el momento de la llamada, no existe reconstrucción histórica exacta.
+					</p>
+					<div class="mt-4 grid gap-3 sm:grid-cols-2">
+						<div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-950/70">
+							<p class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Cache hits</p>
+							<p class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{data.detail.requestRounds.filter((round) => round.hasCacheHit).length}</p>
+						</div>
+						<div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-950/70">
+							<p class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Con RAG</p>
+							<p class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{data.detail.requestRounds.filter((round) => round.ragContextUsed).length}</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			{#if data.detail.requestRounds.length === 0}
+				<div class="rounded-[1.6rem] border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
+					Todavía no hay rondas forenses capturadas para esta actividad.
+				</div>
+			{:else}
+				<div class="overflow-x-auto">
+					<table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+						<thead class="bg-slate-50/80 dark:bg-slate-900/80">
+							<tr class="text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+								<th class="px-4 py-3">Inicio</th>
+								<th class="px-4 py-3">Sesión</th>
+								<th class="px-4 py-3">Tipo</th>
+								<th class="px-4 py-3">Modelo</th>
+								<th class="px-4 py-3">Hashes</th>
+								<th class="px-4 py-3">Uso</th>
+								<th class="px-4 py-3">Cache</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+							{#each data.detail.requestRounds as round (round.id)}
+								<tr class="align-top">
+									<td class="px-4 py-4 text-xs text-slate-600 dark:text-slate-300">{formatDate(round.startedAt)}</td>
+									<td class="px-4 py-4">
+										{#if round.chatId}
+											<a href={sessionLink(round.chatId)} class="text-sm font-semibold text-sky-700 hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200">{round.chatId}</a>
+										{:else}
+											<span class="text-sm text-slate-500 dark:text-slate-400">Sin sesión</span>
+										{/if}
+									</td>
+									<td class="px-4 py-4">
+										<div class="flex flex-wrap gap-2">
+											<span class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${roundStatusClasses(round.status)}`}>{round.status}</span>
+											<span class="rounded-full border border-slate-200 px-2.5 py-1 text-[11px] uppercase tracking-[0.14em] text-slate-600 dark:border-slate-700 dark:text-slate-300">{round.roundType}</span>
+										</div>
+									</td>
+									<td class="px-4 py-4 text-sm text-slate-700 dark:text-slate-300">{round.modelName || 'Sin modelo'}</td>
+									<td class="px-4 py-4 text-xs text-slate-600 dark:text-slate-300">
+										<p>system {round.comparison.sameSystemPromptHash === null ? 'n/a' : round.comparison.sameSystemPromptHash ? 'same' : 'diff'}</p>
+										<p>messages {round.comparison.sameMessagesHash === null ? 'n/a' : round.comparison.sameMessagesHash ? 'same' : 'diff'}</p>
+										<p>rag {round.comparison.sameRagContextHash === null ? 'n/a' : round.comparison.sameRagContextHash ? 'same' : 'diff'}</p>
+									</td>
+									<td class="px-4 py-4 text-xs text-slate-600 dark:text-slate-300">
+										<p>{formatNumber(round.inputTokens)} in / {formatNumber(round.outputTokens)} out</p>
+										<p>{formatNumber(round.totalTokens)} total</p>
+										<p>{round.durationMs ?? 'N/A'} ms</p>
+									</td>
+									<td class="px-4 py-4 text-xs text-slate-600 dark:text-slate-300">
+										<p>{round.cachedInputTokens ? `${formatNumber(round.cachedInputTokens)} cached` : 'Sin cache hit'}</p>
+										<p>{round.reasoningTokens ? `${formatNumber(round.reasoningTokens)} reasoning` : 'Sin reasoning'}</p>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
 		</section>
 	{:else if data.tab === 'usage'}
 		<section class="space-y-5 rounded-[2rem] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-950/60">

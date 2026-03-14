@@ -45,6 +45,81 @@ export interface ActivityDebuggerCourseOption {
 	activityCount: number;
 }
 
+export interface ActivityDebuggerCaptureConfig {
+	enabled: boolean;
+	mode: 'focus_only';
+	payloadSource: 'app_exact';
+	payloadLevel: 'full';
+	retentionDays: number;
+}
+
+export interface ActivityDebuggerCaptureFocus {
+	id: string;
+	targetType: 'activity' | 'session';
+	targetId: string;
+	enabled: boolean;
+	reason: string | null;
+	expiresAt: string | null;
+	createdBy: string | null;
+	createdByLabel: string | null;
+	createdAt: string;
+	updatedAt: string;
+	isExpired: boolean;
+}
+
+export interface ActivityDebuggerRequestRoundComparison {
+	previousRoundId: string | null;
+	sameRequestHash: boolean | null;
+	sameSystemPromptHash: boolean | null;
+	sameMessagesHash: boolean | null;
+	sameRagContextHash: boolean | null;
+	sameMemoryContextHash: boolean | null;
+	sameToolsHash: boolean | null;
+}
+
+export interface ActivityDebuggerRequestRound {
+	id: string;
+	interactiveLearningId: string | null;
+	chatId: string | null;
+	modelName: string | null;
+	roundType: 'chat' | 'agent' | 'agent_resume';
+	status: 'pending' | 'success' | 'error';
+	startedAt: string;
+	finishedAt: string | null;
+	durationMs: number | null;
+	messageCount: number;
+	toolCount: number;
+	ragEnabled: boolean;
+	ragContextUsed: boolean;
+	memoryContextUsed: boolean;
+	resumed: boolean;
+	inputTokens: number;
+	outputTokens: number;
+	totalTokens: number;
+	cachedInputTokens: number | null;
+	reasoningTokens: number | null;
+	errorMessage: string | null;
+	usageLogId: string | null;
+	requestHash: string | null;
+	systemPromptHash: string | null;
+	messagesHash: string | null;
+	ragContextHash: string | null;
+	memoryContextHash: string | null;
+	toolsHash: string | null;
+	hasCacheHit: boolean;
+	comparison: ActivityDebuggerRequestRoundComparison;
+	systemPromptExact: string | null;
+	messagesExact: unknown;
+	toolsExact: unknown;
+	requestOptions: unknown;
+	ragContextExact: string | null;
+	ragSources: unknown;
+	memoryContextExact: string | null;
+	requestPayload: unknown;
+	responseSummary: unknown;
+	providerUsage: unknown;
+}
+
 export interface ActivityDebuggerActivitySummary {
 	activityId: string;
 	activityName: string;
@@ -181,6 +256,9 @@ export interface ActivityDebuggerActivityDetail {
 	}>;
 	prompts: ActivityDebuggerPromptSnapshot;
 	usage: ActivityDebuggerUsageSummary;
+	captureConfig: ActivityDebuggerCaptureConfig;
+	activityCaptureFocus: ActivityDebuggerCaptureFocus | null;
+	requestRounds: ActivityDebuggerRequestRound[];
 	sessions: ActivityDebuggerSessionSummary[];
 	rawSections: ActivityDebuggerRawSection[];
 }
@@ -203,6 +281,9 @@ export interface ActivityDebuggerSessionDetail {
 		metadata: unknown;
 	};
 	prompts: ActivityDebuggerPromptSnapshot;
+	captureConfig: ActivityDebuggerCaptureConfig;
+	activityCaptureFocus: ActivityDebuggerCaptureFocus | null;
+	sessionCaptureFocus: ActivityDebuggerCaptureFocus | null;
 	usage: ActivityDebuggerUsageSummary & {
 		logs: Array<{
 			id: string;
@@ -218,6 +299,7 @@ export interface ActivityDebuggerSessionDetail {
 			metadata: unknown;
 		}>;
 	};
+	requestRounds: ActivityDebuggerRequestRound[];
 	timeline: ActivityDebuggerTimelineEvent[];
 	rawSections: ActivityDebuggerRawSection[];
 }

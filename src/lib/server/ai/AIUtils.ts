@@ -10,6 +10,7 @@ import { UsageTracker } from './services/UsageTracker';
 import { SystemPromptBuilder } from './services/SystemPromptBuilder';
 import { RagService, type RagContextOptions } from './services/RagService';
 import { resolveRagConfig } from '$lib/server/rag/config';
+import { AIRequestCaptureService } from './AIRequestCaptureService';
 
 export class AIUtils {
 	private static async logFailureUsage(params: {
@@ -85,6 +86,7 @@ export class AIUtils {
 		courseId?: string;
 		interactiveLearningId?: string;
 		chatId?: string;
+		requestRoundId?: string;
 		operation: 'chat' | 'completion' | 'image' | 'embedding';
 		inputTokens: number;
 		outputTokens: number;
@@ -423,14 +425,15 @@ export class AIUtils {
         userId?: string
     ) {
         const { model, temperature, chatConfig, modelName } = await this.getModelFromInteractiveLearningChat(ilcid);
-        const ragConfig = resolveRagConfig(chatConfig.ragConfig);
+		const ragConfig = resolveRagConfig(chatConfig.ragConfig);
 
         // Obtener el courseId asociado al interactiveLearning (el id del chat ES el interactiveLearningId)
         const courseId = await this.getCourseIdByInteractiveLearningId(chatConfig.id);
 
-        // Obtener contexto RAG si está habilitado
-        let ragContext: string | null = null;
-        if (chatConfig.ragEnabled && chatConfig.ragCollectionName) {
+		// Obtener contexto RAG si está habilitado
+		let ragContext: string | null = null;
+		let ragSources: Array<{ source: string; score: number }> = [];
+		if (chatConfig.ragEnabled && chatConfig.ragCollectionName) {
             console.log(`[RAG] Fetching context for chat ${ilcid} from collection ${chatConfig.ragCollectionName}`);
             
             const ragResult = await this.getRagContext(
@@ -447,12 +450,13 @@ export class AIUtils {
                 }
             );
 
-            if (ragResult) {
-                ragContext = ragResult.context;
-                console.log(`[RAG] Found ${ragResult.sources.length} relevant sources`);
-            } else {
-                console.log(`[RAG] No relevant context found`);
-            }
+			if (ragResult) {
+				ragContext = ragResult.context;
+				ragSources = ragResult.sources;
+				console.log(`[RAG] Found ${ragResult.sources.length} relevant sources`);
+			} else {
+				console.log(`[RAG] No relevant context found`);
+			}
         }
 
         const systemPrompt = this.buildSystemPrompt(
@@ -491,45 +495,141 @@ export class AIUtils {
             throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
         }
 
-        const startTime = Date.now();
+		const startTime = Date.now();
+		let requestRoundId: string | null = null;
 
-        return streamText({
-            model,
-            messages,
-            temperature,
-            onFinish: async (finishResult) => {
-                const durationMs = Date.now() - startTime;
+		try {
+			requestRoundId = await AIRequestCaptureService.startRound({
+				interactiveLearningId: chatConfig.id,
+				chatId: cid,
+				userId,
+				courseId,
+				modelName,
+				roundType: 'chat',
+				systemPromptExact: systemPrompt,
+				messagesExact: messages,
+				requestOptions: {
+					temperature
+				},
+				ragContextExact: ragContext,
+				ragSources,
+				requestPayload: {
+					modelName,
+					messages,
+					temperature
+				},
+				messageCount: messages.length,
+				ragEnabled: !!chatConfig.ragEnabled,
+				ragContextUsed: ragContext !== null,
+				startedAt: new Date(startTime)
+			});
+		} catch (error) {
+			console.error('[AIUtils] Failed to start request capture round:', error);
+		}
 
-                // Registrar uso - AI SDK usa inputTokens/outputTokens
-                const usage = finishResult.usage;
-                const inputTokens = usage?.inputTokens ?? 0;
-                const outputTokens = usage?.outputTokens ?? 0;
-                
-                // Metadata con campos adicionales de uso
-                const metadata: Record<string, unknown> = {
-                    totalTokens: usage?.totalTokens,
-                    reasoningTokens: usage?.reasoningTokens,
-                    cachedInputTokens: usage?.cachedInputTokens,
-                    ragEnabled: chatConfig.ragEnabled,
-                    ragContextUsed: ragContext !== null
-                };
+		try {
+			return streamText({
+				model,
+				messages,
+				temperature,
+				onFinish: async (finishResult) => {
+					const durationMs = Date.now() - startTime;
 
-                await this.logUsage({
-                    modelName,
-                    userId,
-                    courseId,
-                    interactiveLearningId: chatConfig.id, // El id del chat ES el interactiveLearningId
-                    chatId: cid,
-                    operation: 'chat',
-                    inputTokens,
-                    outputTokens,
-                    durationMs,
-                    success: true,
-                    metadata
-                });
-            }
-        });
-    }
+					// Registrar uso - AI SDK usa inputTokens/outputTokens
+					const usage = finishResult.usage;
+					const inputTokens = usage?.inputTokens ?? 0;
+					const outputTokens = usage?.outputTokens ?? 0;
+					
+					// Metadata con campos adicionales de uso
+					const metadata: Record<string, unknown> = {
+						totalTokens: usage?.totalTokens,
+						reasoningTokens: usage?.reasoningTokens,
+						cachedInputTokens: usage?.cachedInputTokens,
+						ragEnabled: chatConfig.ragEnabled,
+						ragContextUsed: ragContext !== null
+					};
+
+					let usageLogId: string | null = null;
+					try {
+						const usageLog = await this.logUsage({
+							modelName,
+							userId,
+							courseId,
+							interactiveLearningId: chatConfig.id, // El id del chat ES el interactiveLearningId
+							chatId: cid,
+							requestRoundId: requestRoundId ?? undefined,
+							operation: 'chat',
+							inputTokens,
+							outputTokens,
+							durationMs,
+							success: true,
+							metadata
+						});
+						usageLogId = usageLog?.id ?? null;
+					} finally {
+						if (requestRoundId) {
+							try {
+								await AIRequestCaptureService.finishRound({
+									roundId: requestRoundId,
+									status: 'success',
+									usageLogId,
+									responseSummary: {
+										finishReason: finishResult.finishReason,
+										rawFinishReason: finishResult.rawFinishReason,
+										text: finishResult.text,
+										warnings: finishResult.warnings,
+										request: finishResult.request,
+										response: finishResult.response,
+										providerMetadata: finishResult.providerMetadata,
+										steps: finishResult.steps.map((step) => ({
+											finishReason: step.finishReason,
+											rawFinishReason: step.rawFinishReason,
+											usage: step.usage,
+											warnings: step.warnings,
+											request: step.request,
+											response: step.response,
+											providerMetadata: step.providerMetadata,
+											toolCalls: step.toolCalls,
+											toolResults: step.toolResults
+										}))
+									},
+									providerUsage: {
+										usage,
+										totalUsage: finishResult.totalUsage
+									},
+									inputTokens,
+									outputTokens,
+									cachedInputTokens: usage?.cachedInputTokens,
+									reasoningTokens: usage?.reasoningTokens,
+									durationMs,
+									finishedAt: new Date()
+								});
+							} catch (captureError) {
+								console.error('[AIUtils] Failed to finish request capture round:', captureError);
+							}
+						}
+					}
+				}
+			});
+		} catch (error) {
+			if (requestRoundId) {
+				try {
+					await AIRequestCaptureService.failRound(
+						requestRoundId,
+						error instanceof Error ? error.message : 'Error al iniciar streamText',
+						{
+							durationMs: Date.now() - startTime,
+							finishedAt: new Date()
+						}
+					);
+				} catch (captureError) {
+					console.error('[AIUtils] Failed to fail request capture round:', captureError);
+				}
+			}
+
+			throw error;
+		}
+	}
 
     public static async notifyEndOfChat(chatId: string, ilcid: string, userId: string) {
         const [chat] = await db.select().from(table.chat).where(eq(table.chat.id, chatId));

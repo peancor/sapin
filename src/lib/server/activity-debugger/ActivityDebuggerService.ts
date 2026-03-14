@@ -7,13 +7,17 @@ import { AgentPromptBuilder } from '$lib/server/agent/AgentPromptBuilder';
 import { AgentSessionAnalyticsService } from '$lib/server/agent/AgentSessionAnalyticsService';
 import { DBAgentActivityUtils } from '$lib/server/db/agent';
 import { AIUtils } from '$lib/server/ai/AIUtils';
+import { AIRequestCaptureService } from '$lib/server/ai/AIRequestCaptureService';
 import type { AgentActivityConfig } from '$lib/types/agent';
 import type {
 	ActivityDebuggerActivityDetail,
 	ActivityDebuggerActivitySummary,
+	ActivityDebuggerCaptureConfig,
+	ActivityDebuggerCaptureFocus,
 	ActivityDebuggerCourseOption,
 	ActivityDebuggerFilters,
 	ActivityDebuggerPromptSnapshot,
+	ActivityDebuggerRequestRound,
 	ActivityDebuggerRawSection,
 	ActivityDebuggerSessionDetail,
 	ActivityDebuggerSessionFilters,
@@ -35,6 +39,7 @@ type UsageLogRow = typeof schema.aiUsageLog.$inferSelect & {
 	modelName: string | null;
 	modelDisplayName: string | null;
 };
+type RequestRoundRow = typeof schema.aiRequestRound.$inferSelect;
 
 function toIsoString(value: Date | string | number | null | undefined): string | null {
 	if (!value) return null;
@@ -107,6 +112,103 @@ function summarizeUsage(logs: UsageLogRow[]): ActivityDebuggerUsageSummary {
 		totalEstimatedCost: logs.reduce((sum, log) => sum + (log.estimatedCost ?? 0), 0),
 		averageDurationMs: Math.round(totalDuration / logs.length),
 		lastModelName: logs.at(-1)?.modelDisplayName ?? logs.at(-1)?.modelName ?? null
+	};
+}
+
+function toCaptureConfig(
+	config: Awaited<ReturnType<typeof AIRequestCaptureService.getConfig>>
+): ActivityDebuggerCaptureConfig {
+	return {
+		enabled: config.enabled,
+		mode: config.mode,
+		payloadSource: config.payloadSource,
+		payloadLevel: config.payloadLevel,
+		retentionDays: config.retentionDays
+	};
+}
+
+function toCaptureFocus(
+	focus: Awaited<ReturnType<typeof AIRequestCaptureService.getFocus>>
+): ActivityDebuggerCaptureFocus | null {
+	if (!focus) return null;
+
+	const now = Date.now();
+
+	return {
+		id: focus.id,
+		targetType: focus.targetType,
+		targetId: focus.targetId,
+		enabled: focus.enabled,
+		reason: focus.reason,
+		expiresAt: toIsoString(focus.expiresAt),
+		createdBy: focus.createdBy,
+		createdByLabel: focus.createdByName ?? focus.createdByEmail ?? focus.createdBy,
+		createdAt: toIsoString(focus.createdAt) ?? new Date().toISOString(),
+		updatedAt: toIsoString(focus.updatedAt) ?? new Date().toISOString(),
+		isExpired: !!focus.expiresAt && new Date(focus.expiresAt).getTime() < now
+	};
+}
+
+function toRequestRound(row: RequestRoundRow, previous: RequestRoundRow | null): ActivityDebuggerRequestRound {
+	return {
+		id: row.id,
+		interactiveLearningId: row.interactiveLearningId ?? null,
+		chatId: row.chatId ?? null,
+		modelName: row.modelName ?? null,
+		roundType: row.roundType,
+		status: row.status,
+		startedAt: toIsoString(row.startedAt) ?? new Date().toISOString(),
+		finishedAt: toIsoString(row.finishedAt),
+		durationMs: row.durationMs ?? null,
+		messageCount: row.messageCount,
+		toolCount: row.toolCount,
+		ragEnabled: row.ragEnabled,
+		ragContextUsed: row.ragContextUsed,
+		memoryContextUsed: row.memoryContextUsed,
+		resumed: row.resumed,
+		inputTokens: row.inputTokens,
+		outputTokens: row.outputTokens,
+		totalTokens: row.inputTokens + row.outputTokens,
+		cachedInputTokens: row.cachedInputTokens ?? null,
+		reasoningTokens: row.reasoningTokens ?? null,
+		errorMessage: row.errorMessage ?? null,
+		usageLogId: row.usageLogId ?? null,
+		requestHash: row.requestHash ?? null,
+		systemPromptHash: row.systemPromptHash ?? null,
+		messagesHash: row.messagesHash ?? null,
+		ragContextHash: row.ragContextHash ?? null,
+		memoryContextHash: row.memoryContextHash ?? null,
+		toolsHash: row.toolsHash ?? null,
+		hasCacheHit: (row.cachedInputTokens ?? 0) > 0,
+		comparison: {
+			previousRoundId: previous?.id ?? null,
+			sameRequestHash:
+				previous && row.requestHash ? previous.requestHash === row.requestHash : null,
+			sameSystemPromptHash:
+				previous && row.systemPromptHash
+					? previous.systemPromptHash === row.systemPromptHash
+					: null,
+			sameMessagesHash:
+				previous && row.messagesHash ? previous.messagesHash === row.messagesHash : null,
+			sameRagContextHash:
+				previous && row.ragContextHash ? previous.ragContextHash === row.ragContextHash : null,
+			sameMemoryContextHash:
+				previous && row.memoryContextHash
+					? previous.memoryContextHash === row.memoryContextHash
+					: null,
+			sameToolsHash:
+				previous && row.toolsHash ? previous.toolsHash === row.toolsHash : null
+		},
+		systemPromptExact: row.systemPromptExact ?? null,
+		messagesExact: parseJsonValue(row.messagesExactJson),
+		toolsExact: parseJsonValue(row.toolsExactJson),
+		requestOptions: parseJsonValue(row.requestOptionsJson),
+		ragContextExact: row.ragContextExact ?? null,
+		ragSources: parseJsonValue(row.ragSourcesJson),
+		memoryContextExact: row.memoryContextExact ?? null,
+		requestPayload: parseJsonValue(row.requestPayloadJson),
+		responseSummary: parseJsonValue(row.responseSummaryJson),
+		providerUsage: parseJsonValue(row.providerUsageJson)
 	};
 }
 
@@ -212,6 +314,7 @@ export class ActivityDebuggerService {
 				courseId: schema.aiUsageLog.courseId,
 				interactiveLearningId: schema.aiUsageLog.interactiveLearningId,
 				chatId: schema.aiUsageLog.chatId,
+				requestRoundId: schema.aiUsageLog.requestRoundId,
 				operation: schema.aiUsageLog.operation,
 				inputTokens: schema.aiUsageLog.inputTokens,
 				outputTokens: schema.aiUsageLog.outputTokens,
@@ -231,6 +334,29 @@ export class ActivityDebuggerService {
 			.orderBy(asc(schema.aiUsageLog.createdAt));
 
 		return rows;
+	}
+
+	private static async getRequestRounds(options: {
+		activityId: string;
+		chatId?: string;
+		limit?: number;
+	}): Promise<ActivityDebuggerRequestRound[]> {
+		const rows = await AIRequestCaptureService.listRounds({
+			interactiveLearningId: options.activityId,
+			chatId: options.chatId,
+			limit: options.limit ?? 100
+		});
+
+		const ordered = rows
+			.slice()
+			.sort(
+				(left, right) =>
+					new Date(left.startedAt).getTime() - new Date(right.startedAt).getTime()
+			);
+
+		return ordered
+			.map((row, index) => toRequestRound(row, ordered[index - 1] ?? null))
+			.reverse();
 	}
 
 	private static async getPromptSnapshot(
@@ -753,7 +879,8 @@ export class ActivityDebuggerService {
 		filters: ActivityDebuggerSessionFilters = {}
 	): Promise<ActivityDebuggerActivityDetail> {
 		const activity = await this.getActivityRecord(activityId);
-		const [course, config, prompts, usageLogs, sessions] = await Promise.all([
+		const [course, config, prompts, usageLogs, sessions, captureConfig, activityCaptureFocus, requestRounds] =
+			await Promise.all([
 			this.getCourseRelation(activityId),
 			this.getActivityConfig(activity),
 			this.getPromptSnapshot(activity),
@@ -762,7 +889,10 @@ export class ActivityDebuggerService {
 				safeDateFromFilter(filters.dateFrom),
 				safeDateFromFilter(filters.dateTo, true)
 			),
-			this.getSessionSummaries(access, activity, filters)
+			this.getSessionSummaries(access, activity, filters),
+			AIRequestCaptureService.getConfig(),
+			AIRequestCaptureService.getFocus('activity', activityId),
+			this.getRequestRounds({ activityId, limit: 120 })
 		]);
 
 		if (!config) throw error(404, 'Configuracion de actividad no encontrada');
@@ -799,6 +929,11 @@ export class ActivityDebuggerService {
 				id: 'usage',
 				label: 'ai_usage_log',
 				data: usageLogs
+			},
+			{
+				id: 'request-rounds',
+				label: 'ai_request_round',
+				data: requestRounds
 			}
 		];
 
@@ -826,6 +961,9 @@ export class ActivityDebuggerService {
 			uiComponents: [],
 			prompts,
 			usage: summarizeUsage(usageLogs),
+			captureConfig: toCaptureConfig(captureConfig),
+			activityCaptureFocus: toCaptureFocus(activityCaptureFocus),
+			requestRounds,
 			sessions,
 			rawSections
 		};
@@ -867,7 +1005,8 @@ export class ActivityDebuggerService {
 			},
 			relatedIds: {
 				chatId: log.chatId,
-				modelId: log.modelId
+				modelId: log.modelId,
+				requestRoundId: log.requestRoundId ?? null
 			}
 		}));
 	}
@@ -881,6 +1020,10 @@ export class ActivityDebuggerService {
 		const activityDetail = await this.getActivityDetail(access, activity.id);
 		const chatInstance = await DBChatUtils.loadChatInstanceFromChatId(chatId);
 		const usageLogs = (await this.getUsageLogsForActivity(activity.id)).filter((log) => log.chatId === chatId);
+		const [sessionCaptureFocus, requestRounds] = await Promise.all([
+			AIRequestCaptureService.getFocus('session', chatId),
+			this.getRequestRounds({ activityId: activity.id, chatId, limit: 120 })
+		]);
 		const sessionSummary =
 			activityDetail.sessions.find((session) => session.chatId === chatId) ??
 			(await this.getChatSessionSummaries(access, activity)).find((session) => session.chatId === chatId);
@@ -974,6 +1117,9 @@ export class ActivityDebuggerService {
 				metadata: parseJsonValue(chatInstance.chat.metadata)
 			},
 			prompts: activityDetail.prompts,
+			captureConfig: activityDetail.captureConfig,
+			activityCaptureFocus: activityDetail.activityCaptureFocus,
+			sessionCaptureFocus: toCaptureFocus(sessionCaptureFocus),
 			usage: {
 				...summarizeUsage(usageLogs),
 				logs: usageLogs.map((log) => ({
@@ -990,11 +1136,13 @@ export class ActivityDebuggerService {
 					metadata: parseJsonValue(log.metadata)
 				}))
 			},
+			requestRounds,
 			timeline: sortedTimeline,
 			rawSections: [
 				...activityDetail.rawSections,
 				{ id: 'chat', label: 'chat', data: chatInstance.chat },
 				{ id: 'messages', label: 'message', data: chatInstance.messages },
+				{ id: 'request-rounds-session', label: 'ai_request_round', data: requestRounds },
 				{
 					id: 'chat-metadata',
 					label: 'chat.metadata',
@@ -1091,6 +1239,10 @@ export class ActivityDebuggerService {
 						.orderBy(asc(schema.agentUIInstance.createdAt))
 				: [];
 		const usageLogs = (await this.getUsageLogsForActivity(activity.id)).filter((log) => log.chatId === chatId);
+		const [sessionCaptureFocus, requestRounds] = await Promise.all([
+			AIRequestCaptureService.getFocus('session', chatId),
+			this.getRequestRounds({ activityId: activity.id, chatId, limit: 120 })
+		]);
 
 		const toolCallsByMessageId = new Map<string, typeof toolCalls>();
 		for (const toolCall of toolCalls) {
@@ -1295,6 +1447,9 @@ export class ActivityDebuggerService {
 				metadata: parseJsonValue(relation.chat.metadata)
 			},
 			prompts: activityDetail.prompts,
+			captureConfig: activityDetail.captureConfig,
+			activityCaptureFocus: activityDetail.activityCaptureFocus,
+			sessionCaptureFocus: toCaptureFocus(sessionCaptureFocus),
 			usage: {
 				...summarizeUsage(usageLogs),
 				logs: usageLogs.map((log) => ({
@@ -1311,6 +1466,7 @@ export class ActivityDebuggerService {
 					metadata: parseJsonValue(log.metadata)
 				}))
 			},
+			requestRounds,
 			timeline: sortedTimeline,
 			rawSections: [
 				...activityDetail.rawSections,
@@ -1318,6 +1474,7 @@ export class ActivityDebuggerService {
 				{ id: 'agent_message', label: 'agent_message', data: messages },
 				{ id: 'agent_tool_call', label: 'agent_tool_call', data: toolCalls },
 				{ id: 'agent_ui_instance', label: 'agent_ui_instance', data: uiInstances },
+				{ id: 'request-rounds-session', label: 'ai_request_round', data: requestRounds },
 				{
 					id: 'chat-metadata',
 					label: 'chat.metadata',

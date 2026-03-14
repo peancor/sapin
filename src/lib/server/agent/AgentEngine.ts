@@ -10,6 +10,7 @@ import { AgentPromptBuilder } from './AgentPromptBuilder';
 import { AgentFinalizationService } from './AgentFinalizationService';
 import { AgentUIRendererService } from './AgentUIRendererService';
 import { AgentMemoryService } from './memory';
+import { AIRequestCaptureService } from '$lib/server/ai/AIRequestCaptureService';
 import {
 	AgentStreamProcessor,
 	type FinalizeSentinel,
@@ -218,6 +219,60 @@ export class AgentEngine {
 		});
 	}
 
+	private static async startCaptureRound(params: {
+		context: AgentContext;
+		modelName: string;
+		roundType: 'agent' | 'agent_resume';
+		startTime: number;
+		systemPrompt: string;
+		messages: ModelMessage[];
+		runtimeTools: ToolDefinitionResolved[];
+		toolChoice: 'auto' | 'required' | 'none';
+		ragContext?: string | null;
+		memoryContext?: string | null;
+	}) {
+		return AIRequestCaptureService.startRound({
+			interactiveLearningId: params.context.activityId,
+			chatId: params.context.chatId,
+			userId: params.context.userId,
+			courseId: params.context.courseId,
+			modelName: params.modelName,
+			roundType: params.roundType,
+			systemPromptExact: params.systemPrompt,
+			messagesExact: params.messages,
+			toolsExact: params.runtimeTools,
+			requestOptions: {
+				toolChoice: params.toolChoice,
+				stopWhen: {
+					maxToolRoundtrips: params.context.activityConfig.maxToolRoundtrips
+				},
+				temperature: params.context.activityConfig.temperature ?? 0.7,
+				maxOutputTokens: params.context.activityConfig.maxTokens ?? 2000
+			},
+			ragContextExact: params.ragContext ?? null,
+			memoryContextExact: params.memoryContext ?? null,
+			requestPayload: {
+				modelName: params.modelName,
+				system: params.systemPrompt,
+				messages: params.messages,
+				tools: params.runtimeTools,
+				toolChoice: params.toolChoice,
+				stopWhen: {
+					maxToolRoundtrips: params.context.activityConfig.maxToolRoundtrips
+				},
+				temperature: params.context.activityConfig.temperature ?? 0.7,
+				maxOutputTokens: params.context.activityConfig.maxTokens ?? 2000
+			},
+			messageCount: params.messages.length,
+			toolCount: params.runtimeTools.length,
+			ragEnabled: !!params.context.activityConfig.ragEnabled,
+			ragContextUsed: !!params.ragContext,
+			memoryContextUsed: !!params.memoryContext,
+			resumed: params.roundType === 'agent_resume',
+			startedAt: new Date(params.startTime)
+		});
+	}
+
 	static async *executeLoop(
 		context: AgentContext,
 		userMessage: string,
@@ -340,11 +395,29 @@ export class AgentEngine {
 			finalizationPayload: null,
 			streamError: null
 		};
+		let requestRoundId: string | null = null;
 
 		try {
 			const tools = this.buildTools(context, assistantMsgId, runtimeTools);
 			const useTools = Object.keys(tools).length > 0 ? tools : undefined;
 			const toolChoice = useTools ? this.resolveToolChoice(context, runtimeTools) : undefined;
+
+			try {
+				requestRoundId = await this.startCaptureRound({
+					context,
+					modelName,
+					roundType: 'agent',
+					startTime,
+					systemPrompt,
+					messages,
+					runtimeTools,
+					toolChoice: toolChoice ?? 'none',
+					ragContext,
+					memoryContext
+				});
+			} catch (captureError) {
+				console.error('[AgentEngine] Failed to start request capture round:', captureError);
+			}
 
 			const result = streamText({
 				model,
@@ -357,16 +430,19 @@ export class AgentEngine {
 				maxOutputTokens: config.maxTokens ?? 2000,
 				onFinish: async (finishResult) => {
 					const durationMs = Date.now() - startTime;
+					const usage = finishResult.usage;
+					let usageLogId: string | null = null;
 					try {
-						await UsageTracker.logUsage({
+						const usageLog = await UsageTracker.logUsage({
 							modelName,
 							userId: context.userId,
 							courseId: context.courseId,
 							interactiveLearningId: context.activityId,
 							chatId: context.chatId,
+							requestRoundId: requestRoundId ?? undefined,
 							operation: 'chat',
-							inputTokens: finishResult.usage?.inputTokens ?? 0,
-							outputTokens: finishResult.usage?.outputTokens ?? 0,
+							inputTokens: usage?.inputTokens ?? 0,
+							outputTokens: usage?.outputTokens ?? 0,
 							durationMs,
 							success: !accumulated.streamError,
 							errorMessage: accumulated.streamError ?? undefined,
@@ -374,11 +450,59 @@ export class AgentEngine {
 								toolCallsCount: accumulated.toolCallsCount,
 								ragEnabled: config.ragEnabled,
 								agentMode: true,
+								ragContextUsed: !!ragContext,
+								memoryContextUsed: !!memoryContext,
+								reasoningTokens: usage?.reasoningTokens,
+								cachedInputTokens: usage?.cachedInputTokens,
 								streamError: accumulated.streamError ?? undefined
 							}
 						});
+						usageLogId = usageLog?.id ?? null;
 					} catch {
 						// Usage log failures must not interrupt the stream.
+					} finally {
+						if (requestRoundId) {
+							try {
+								await AIRequestCaptureService.finishRound({
+									roundId: requestRoundId,
+									status: accumulated.streamError ? 'error' : 'success',
+									usageLogId,
+									responseSummary: {
+										finishReason: finishResult.finishReason,
+										rawFinishReason: finishResult.rawFinishReason,
+										text: finishResult.text,
+										warnings: finishResult.warnings,
+										request: finishResult.request,
+										response: finishResult.response,
+										providerMetadata: finishResult.providerMetadata,
+										steps: finishResult.steps.map((step) => ({
+											finishReason: step.finishReason,
+											rawFinishReason: step.rawFinishReason,
+											usage: step.usage,
+											warnings: step.warnings,
+											request: step.request,
+											response: step.response,
+											providerMetadata: step.providerMetadata,
+											toolCalls: step.toolCalls,
+											toolResults: step.toolResults
+										}))
+									},
+									providerUsage: {
+										usage,
+										totalUsage: finishResult.totalUsage
+									},
+									inputTokens: usage?.inputTokens ?? 0,
+									outputTokens: usage?.outputTokens ?? 0,
+									cachedInputTokens: usage?.cachedInputTokens,
+									reasoningTokens: usage?.reasoningTokens,
+									durationMs,
+									errorMessage: accumulated.streamError ?? null,
+									finishedAt: new Date()
+								});
+							} catch {
+								// Forensic logging must not interrupt the stream.
+							}
+						}
 					}
 				}
 			});
@@ -426,6 +550,20 @@ export class AgentEngine {
 				};
 			}
 		} catch (error) {
+			if (typeof requestRoundId === 'string') {
+				try {
+					await AIRequestCaptureService.failRound(
+						requestRoundId,
+						error instanceof Error ? error.message : 'Error inesperado en el motor agentico',
+						{
+							durationMs: Date.now() - startTime,
+							finishedAt: new Date()
+						}
+					);
+				} catch (captureError) {
+					console.error('[AgentEngine] Failed to fail request capture round:', captureError);
+				}
+			}
 			await this.logFailureUsage({
 				modelName,
 				context,
@@ -513,6 +651,7 @@ export class AgentEngine {
 			finalizationPayload: null,
 			streamError: null
 		};
+		let requestRoundId: string | null = null;
 
 		yield { type: 'status', status: 'thinking' };
 
@@ -520,6 +659,23 @@ export class AgentEngine {
 			const tools = this.buildTools(context, assistantMsgId, runtimeTools);
 			const useTools = Object.keys(tools).length > 0 ? tools : undefined;
 			const toolChoice = useTools ? this.resolveToolChoice(context, runtimeTools) : undefined;
+
+			try {
+				requestRoundId = await this.startCaptureRound({
+					context,
+					modelName,
+					roundType: 'agent_resume',
+					startTime,
+					systemPrompt,
+					messages,
+					runtimeTools,
+					toolChoice: toolChoice ?? 'none',
+					ragContext: null,
+					memoryContext
+				});
+			} catch (captureError) {
+				console.error('[AgentEngine] Failed to start request capture round on resume:', captureError);
+			}
 
 			const result = streamText({
 				model,
@@ -532,16 +688,19 @@ export class AgentEngine {
 				maxOutputTokens: config.maxTokens ?? 2000,
 				onFinish: async (finishResult) => {
 					const durationMs = Date.now() - startTime;
+					const usage = finishResult.usage;
+					let usageLogId: string | null = null;
 					try {
-						await UsageTracker.logUsage({
+						const usageLog = await UsageTracker.logUsage({
 							modelName,
 							userId: context.userId,
 							courseId: context.courseId,
 							interactiveLearningId: context.activityId,
 							chatId: context.chatId,
+							requestRoundId: requestRoundId ?? undefined,
 							operation: 'chat',
-							inputTokens: finishResult.usage?.inputTokens ?? 0,
-							outputTokens: finishResult.usage?.outputTokens ?? 0,
+							inputTokens: usage?.inputTokens ?? 0,
+							outputTokens: usage?.outputTokens ?? 0,
 							durationMs,
 							success: !accumulated.streamError,
 							errorMessage: accumulated.streamError ?? undefined,
@@ -549,11 +708,58 @@ export class AgentEngine {
 								toolCallsCount: accumulated.toolCallsCount,
 								agentMode: true,
 								resumed: true,
+								memoryContextUsed: !!memoryContext,
+								reasoningTokens: usage?.reasoningTokens,
+								cachedInputTokens: usage?.cachedInputTokens,
 								streamError: accumulated.streamError ?? undefined
 							}
 						});
+						usageLogId = usageLog?.id ?? null;
 					} catch {
 						// Usage log failures must not interrupt the stream.
+					} finally {
+						if (requestRoundId) {
+							try {
+								await AIRequestCaptureService.finishRound({
+									roundId: requestRoundId,
+									status: accumulated.streamError ? 'error' : 'success',
+									usageLogId,
+									responseSummary: {
+										finishReason: finishResult.finishReason,
+										rawFinishReason: finishResult.rawFinishReason,
+										text: finishResult.text,
+										warnings: finishResult.warnings,
+										request: finishResult.request,
+										response: finishResult.response,
+										providerMetadata: finishResult.providerMetadata,
+										steps: finishResult.steps.map((step) => ({
+											finishReason: step.finishReason,
+											rawFinishReason: step.rawFinishReason,
+											usage: step.usage,
+											warnings: step.warnings,
+											request: step.request,
+											response: step.response,
+											providerMetadata: step.providerMetadata,
+											toolCalls: step.toolCalls,
+											toolResults: step.toolResults
+										}))
+									},
+									providerUsage: {
+										usage,
+										totalUsage: finishResult.totalUsage
+									},
+									inputTokens: usage?.inputTokens ?? 0,
+									outputTokens: usage?.outputTokens ?? 0,
+									cachedInputTokens: usage?.cachedInputTokens,
+									reasoningTokens: usage?.reasoningTokens,
+									durationMs,
+									errorMessage: accumulated.streamError ?? null,
+									finishedAt: new Date()
+								});
+							} catch {
+								// Forensic logging must not interrupt the stream.
+							}
+						}
 					}
 				}
 			});
@@ -601,6 +807,20 @@ export class AgentEngine {
 				};
 			}
 		} catch (error) {
+			if (typeof requestRoundId === 'string') {
+				try {
+					await AIRequestCaptureService.failRound(
+						requestRoundId,
+						error instanceof Error ? error.message : 'Error en la continuacion del agente',
+						{
+							durationMs: Date.now() - startTime,
+							finishedAt: new Date()
+						}
+					);
+				} catch (captureError) {
+					console.error('[AgentEngine] Failed to fail request capture round on resume:', captureError);
+				}
+			}
 			await this.logFailureUsage({
 				modelName,
 				context,

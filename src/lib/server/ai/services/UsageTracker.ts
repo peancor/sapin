@@ -20,6 +20,7 @@ export class UsageTracker {
 		courseId?: string;
 		interactiveLearningId?: string;
 		chatId?: string;
+		requestRoundId?: string;
 		operation: 'chat' | 'completion' | 'image' | 'embedding';
 		inputTokens: number;
 		outputTokens: number;
@@ -37,6 +38,7 @@ export class UsageTracker {
 			courseId: params.courseId,
 			interactiveLearningId: params.interactiveLearningId,
 			chatId: params.chatId,
+			requestRoundId: params.requestRoundId,
 			operation: params.operation,
 			inputTokens: params.inputTokens,
 			outputTokens: params.outputTokens,
