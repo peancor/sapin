@@ -160,31 +160,6 @@ function buildPromptSections(params: {
 }
 
 export class AgentMemoryService {
-	static async executeScopedMemoryAction(
-		_toolName?: string,
-		input?: { action?: 'read' | 'write' },
-		_context?: AgentContext
-	): Promise<{
-		action: 'read' | 'write';
-		ignoredScopeFields: string[];
-		ignoredActionFields: string[];
-		stored?: boolean;
-		status?: 'rejected';
-		reason?: string;
-		items?: [];
-		resultCount?: number;
-	}> {
-		return {
-			action: input?.action === 'read' ? 'read' : 'write',
-			ignoredScopeFields: [],
-			ignoredActionFields: [],
-			stored: false,
-			status: 'rejected',
-			reason:
-				'La memoria tipada anterior ha sido retirada. Usa las nuevas tools de canvas de lectura y actualización.'
-		};
-	}
-
 	static getEnabledCanvasScopes(context: AgentContext): CanvasScopeStatus[] {
 		const enabledToolNames = new Set(context.enabledTools.map((tool) => tool.name));
 		const scopes: CanvasScopeStatus[] = [];
