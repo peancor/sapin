@@ -14,6 +14,36 @@ import { DBInsightsAgentUtils } from '$lib/server/db/insights-agent';
 import type { InsightsAgentRunScope } from '$lib/types/insightsAgent';
 
 export class InsightsAgentEngine {
+	private static async logFailureUsage(params: {
+		modelName: string;
+		context: AgentContext;
+		startTime: number;
+		errorMessage: string;
+		metadata?: Record<string, unknown>;
+	}) {
+		try {
+			await UsageTracker.logUsage({
+				modelName: params.modelName,
+				userId: params.context.userId,
+				courseId: params.context.courseId,
+				interactiveLearningId: params.context.activityId,
+				chatId: params.context.chatId,
+				operation: 'chat',
+				inputTokens: 0,
+				outputTokens: 0,
+				durationMs: Date.now() - params.startTime,
+				success: false,
+				errorMessage: params.errorMessage,
+				metadata: {
+					insightsAgent: true,
+					...params.metadata
+				}
+			});
+		} catch {
+			// Usage log failures must not block the insights agent.
+		}
+	}
+
 	private static async buildMessagesFromDB(chatId: string): Promise<ModelMessage[]> {
 		return DBAgentMessageUtils.getAgentMessagesAsModelMessages(chatId);
 	}
@@ -97,7 +127,11 @@ export class InsightsAgentEngine {
 			inputTokens: usage?.inputTokens ?? 0,
 			outputTokens: usage?.outputTokens ?? 0,
 			durationMs: Date.now() - params.startTime,
-			success: true,
+			success: !(params.usageMetadata.streamError as string | null | undefined),
+			errorMessage:
+				typeof params.usageMetadata.streamError === 'string'
+					? params.usageMetadata.streamError
+					: undefined,
 			metadata: params.usageMetadata
 		});
 		await DBInsightsAgentUtils.touchRun(params.runId, { status: 'completed' });
@@ -126,6 +160,15 @@ export class InsightsAgentEngine {
 			context.activityId
 		);
 		if (!quotaCheck.allowed) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				startTime,
+				errorMessage: quotaCheck.reason ?? 'Cuota de uso alcanzada.',
+				metadata: {
+					phase: 'quota_check'
+				}
+			});
 			yield {
 				type: 'error',
 				code: 'QUOTA_EXCEEDED',
@@ -137,7 +180,17 @@ export class InsightsAgentEngine {
 		let model;
 		try {
 			model = await ModelResolver.buildChatModel(modelName);
-		} catch {
+		} catch (error) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				startTime,
+				errorMessage:
+					error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
+				metadata: {
+					phase: 'model_build'
+				}
+			});
 			yield {
 				type: 'error',
 				code: 'MODEL_ERROR',
@@ -178,7 +231,8 @@ export class InsightsAgentEngine {
 			hitlTriggered: false,
 			uiWaitTriggered: false,
 			finalizationTriggered: false,
-			finalizationPayload: null
+			finalizationPayload: null,
+			streamError: null
 		};
 
 		try {
@@ -210,7 +264,8 @@ export class InsightsAgentEngine {
 					context,
 					usageMetadata: {
 						toolCallsCount: accumulated.toolCallsCount,
-						insightsAgent: true
+						insightsAgent: true,
+						streamError: accumulated.streamError ?? undefined
 					},
 					startTime
 				});
@@ -234,6 +289,17 @@ export class InsightsAgentEngine {
 				await DBInsightsAgentUtils.touchRun(runId, { status: 'paused' });
 			}
 		} catch (error) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				startTime,
+				errorMessage:
+					error instanceof Error ? error.message : 'Error inesperado en el agente de insights',
+				metadata: {
+					phase: 'execute_loop',
+					toolCallsCount: accumulated.toolCallsCount
+				}
+			});
 			await DBInsightsAgentUtils.touchRun(runId, { status: 'failed' });
 			yield {
 				type: 'error',
@@ -261,7 +327,18 @@ export class InsightsAgentEngine {
 		let model;
 		try {
 			model = await ModelResolver.buildChatModel(modelName);
-		} catch {
+		} catch (error) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				startTime,
+				errorMessage:
+					error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
+				metadata: {
+					phase: 'resume_model_build',
+					resumed: true
+				}
+			});
 			yield {
 				type: 'error',
 				code: 'MODEL_ERROR',
@@ -304,7 +381,8 @@ export class InsightsAgentEngine {
 			hitlTriggered: false,
 			uiWaitTriggered: false,
 			finalizationTriggered: false,
-			finalizationPayload: null
+			finalizationPayload: null,
+			streamError: null
 		};
 
 		try {
@@ -335,7 +413,8 @@ export class InsightsAgentEngine {
 					usageMetadata: {
 						toolCallsCount: accumulated.toolCallsCount,
 						insightsAgent: true,
-						resumed: true
+						resumed: true,
+						streamError: accumulated.streamError ?? undefined
 					},
 					startTime
 				});
@@ -359,6 +438,18 @@ export class InsightsAgentEngine {
 				await DBInsightsAgentUtils.touchRun(runId, { status: 'paused' });
 			}
 		} catch (error) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				startTime,
+				errorMessage:
+					error instanceof Error ? error.message : 'Error al reanudar el agente de insights',
+				metadata: {
+					phase: 'resume_loop',
+					resumed: true,
+					toolCallsCount: accumulated.toolCallsCount
+				}
+			});
 			await DBInsightsAgentUtils.touchRun(runId, { status: 'failed' });
 			yield {
 				type: 'error',

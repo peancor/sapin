@@ -20,6 +20,36 @@ import {
 export class AgentEngine {
 	private static readonly DEFAULT_FINALIZATION_TOOL_NAME = 'finalize_activity';
 
+	private static async logFailureUsage(params: {
+		modelName: string;
+		context: AgentContext;
+		startTime: number;
+		errorMessage: string;
+		metadata?: Record<string, unknown>;
+	}) {
+		try {
+			await UsageTracker.logUsage({
+				modelName: params.modelName,
+				userId: params.context.userId,
+				courseId: params.context.courseId,
+				interactiveLearningId: params.context.activityId,
+				chatId: params.context.chatId,
+				operation: 'chat',
+				inputTokens: 0,
+				outputTokens: 0,
+				durationMs: Date.now() - params.startTime,
+				success: false,
+				errorMessage: params.errorMessage,
+				metadata: {
+					agentMode: true,
+					...params.metadata
+				}
+			});
+		} catch {
+			// Usage log failures must not block the agent.
+		}
+	}
+
 	private static getFinalizationToolName(context: AgentContext): string {
 		return (
 			context.activityConfig.finalizationToolName?.trim() || this.DEFAULT_FINALIZATION_TOOL_NAME
@@ -196,6 +226,15 @@ export class AgentEngine {
 			context.activityId
 		);
 		if (!quotaCheck.allowed) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				startTime,
+				errorMessage: quotaCheck.reason ?? 'Cuota de uso alcanzada.',
+				metadata: {
+					phase: 'quota_check'
+				}
+			});
 			yield {
 				type: 'error',
 				code: 'QUOTA_EXCEEDED',
@@ -249,7 +288,17 @@ export class AgentEngine {
 		let model;
 		try {
 			model = await ModelResolver.buildChatModel(modelName);
-		} catch {
+		} catch (error) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				startTime,
+				errorMessage:
+					error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
+				metadata: {
+					phase: 'model_build'
+				}
+			});
 			yield {
 				type: 'error',
 				code: 'MODEL_ERROR',
@@ -271,7 +320,8 @@ export class AgentEngine {
 			hitlTriggered: false,
 			uiWaitTriggered: false,
 			finalizationTriggered: false,
-			finalizationPayload: null
+			finalizationPayload: null,
+			streamError: null
 		};
 
 		try {
@@ -301,11 +351,13 @@ export class AgentEngine {
 							inputTokens: finishResult.usage?.inputTokens ?? 0,
 							outputTokens: finishResult.usage?.outputTokens ?? 0,
 							durationMs,
-							success: true,
+							success: !accumulated.streamError,
+							errorMessage: accumulated.streamError ?? undefined,
 							metadata: {
 								toolCallsCount: accumulated.toolCallsCount,
 								ragEnabled: config.ragEnabled,
-								agentMode: true
+								agentMode: true,
+								streamError: accumulated.streamError ?? undefined
 							}
 						});
 					} catch {
@@ -357,6 +409,16 @@ export class AgentEngine {
 				};
 			}
 		} catch (error) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				startTime,
+				errorMessage: error instanceof Error ? error.message : 'Error inesperado en el motor agentico',
+				metadata: {
+					phase: 'execute_loop',
+					toolCallsCount: accumulated.toolCallsCount
+				}
+			});
 			yield {
 				type: 'error',
 				code: 'ENGINE_ERROR',
@@ -391,7 +453,18 @@ export class AgentEngine {
 		let model;
 		try {
 			model = await ModelResolver.buildChatModel(modelName);
-		} catch {
+		} catch (error) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				startTime,
+				errorMessage:
+					error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
+				metadata: {
+					phase: 'resume_model_build',
+					resumed: true
+				}
+			});
 			yield {
 				type: 'error',
 				code: 'MODEL_ERROR',
@@ -413,7 +486,8 @@ export class AgentEngine {
 			hitlTriggered: false,
 			uiWaitTriggered: false,
 			finalizationTriggered: false,
-			finalizationPayload: null
+			finalizationPayload: null,
+			streamError: null
 		};
 
 		yield { type: 'status', status: 'thinking' };
@@ -445,11 +519,13 @@ export class AgentEngine {
 							inputTokens: finishResult.usage?.inputTokens ?? 0,
 							outputTokens: finishResult.usage?.outputTokens ?? 0,
 							durationMs,
-							success: true,
+							success: !accumulated.streamError,
+							errorMessage: accumulated.streamError ?? undefined,
 							metadata: {
 								toolCallsCount: accumulated.toolCallsCount,
 								agentMode: true,
-								resumed: true
+								resumed: true,
+								streamError: accumulated.streamError ?? undefined
 							}
 						});
 					} catch {
@@ -501,6 +577,17 @@ export class AgentEngine {
 				};
 			}
 		} catch (error) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				startTime,
+				errorMessage: error instanceof Error ? error.message : 'Error en la continuacion del agente',
+				metadata: {
+					phase: 'resume_loop',
+					resumed: true,
+					toolCallsCount: accumulated.toolCallsCount
+				}
+			});
 			yield {
 				type: 'error',
 				code: 'ENGINE_ERROR',

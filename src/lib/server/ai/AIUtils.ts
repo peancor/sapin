@@ -12,6 +12,34 @@ import { RagService, type RagContextOptions } from './services/RagService';
 import { resolveRagConfig } from '$lib/server/rag/config';
 
 export class AIUtils {
+	private static async logFailureUsage(params: {
+		modelName: string;
+		context?: { userId?: string; courseId?: string; interactiveLearningId?: string; chatId?: string };
+		operation: 'chat' | 'completion' | 'image' | 'embedding';
+		startTime: number;
+		errorMessage: string;
+		metadata?: Record<string, unknown>;
+	}) {
+		try {
+			await this.logUsage({
+				modelName: params.modelName,
+				userId: params.context?.userId,
+				courseId: params.context?.courseId,
+				interactiveLearningId: params.context?.interactiveLearningId,
+				chatId: params.context?.chatId,
+				operation: params.operation,
+				inputTokens: 0,
+				outputTokens: 0,
+				durationMs: Date.now() - params.startTime,
+				success: false,
+				errorMessage: params.errorMessage,
+				metadata: params.metadata
+			});
+		} catch {
+			// Logging should never block AI flows.
+		}
+	}
+
 	public static async getSetting(key: string, defaultValue: string = ''): Promise<string> {
 		const result = await db.select().from(table.appSetting).where(eq(table.appSetting.key, key));
 		return result[0]?.value ?? defaultValue;
@@ -81,6 +109,7 @@ export class AIUtils {
         modelName: string,
         context?: { userId?: string; courseId?: string; interactiveLearningId?: string; chatId?: string }
     ) {
+        const startTime = Date.now();
         // Verificar cuota antes de proceder
         const quotaCheck = await this.checkQuota(
             modelName, 
@@ -90,11 +119,31 @@ export class AIUtils {
         );
         
         if (!quotaCheck.allowed) {
+            await this.logFailureUsage({
+                modelName,
+                context,
+                operation: 'chat',
+                startTime,
+                errorMessage: `Cuota excedida: ${quotaCheck.reason}`,
+                metadata: { phase: 'quota_check' }
+            });
             throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
         }
 
-        const model = await this.buildChatModel(modelName);
-        const startTime = Date.now();
+        let model;
+        try {
+            model = await this.buildChatModel(modelName);
+        } catch (error) {
+            await this.logFailureUsage({
+                modelName,
+                context,
+                operation: 'chat',
+                startTime,
+                errorMessage: error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
+                metadata: { phase: 'model_build' }
+            });
+            throw error;
+        }
 
         const result = streamText({
             model,
@@ -144,6 +193,7 @@ export class AIUtils {
         modelName: string,
         context?: { userId?: string; courseId?: string; interactiveLearningId?: string }
     ) {
+        const startTime = Date.now();
         // Verificar cuota
         const quotaCheck = await this.checkQuota(
             modelName, 
@@ -153,11 +203,31 @@ export class AIUtils {
         );
         
         if (!quotaCheck.allowed) {
+            await this.logFailureUsage({
+                modelName,
+                context,
+                operation: 'completion',
+                startTime,
+                errorMessage: `Cuota excedida: ${quotaCheck.reason}`,
+                metadata: { phase: 'quota_check' }
+            });
             throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
         }
 
-        const model = await this.buildChatModel(modelName);
-        const startTime = Date.now();
+        let model;
+        try {
+            model = await this.buildChatModel(modelName);
+        } catch (error) {
+            await this.logFailureUsage({
+                modelName,
+                context,
+                operation: 'completion',
+                startTime,
+                errorMessage: error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
+                metadata: { phase: 'model_build' }
+            });
+            throw error;
+        }
 
         try {
             const result = await generateText({

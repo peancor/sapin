@@ -1,5 +1,6 @@
 import type { AgentContext, AgentStreamPart, ToolDefinitionResolved } from '$lib/types/agent';
 import { DBAgentMessageUtils } from '$lib/server/db/agent';
+import { auditAction, auditService, auditSeverity, aiLogger } from '$lib/server/logging';
 import type { FinalizeActivityPayload } from './AgentFinalizationService';
 import type { UISentinel } from './AgentUIRendererService';
 
@@ -27,6 +28,7 @@ export interface StreamAccumulator {
 	uiWaitTriggered: boolean;
 	finalizationTriggered: boolean;
 	finalizationPayload: FinalizeActivityPayload | null;
+	streamError: string | null;
 }
 
 function isUISentinel(value: unknown): value is UISentinel {
@@ -56,6 +58,137 @@ function isFinalizeSentinel(value: unknown): value is FinalizeSentinel {
 	);
 }
 
+function truncateAuditValue(value: unknown, depth: number = 0): unknown {
+	if (depth > 2) return '[truncated]';
+	if (typeof value === 'string') {
+		return value.length > 300 ? `${value.slice(0, 297)}...` : value;
+	}
+	if (Array.isArray(value)) {
+		return value.slice(0, 6).map((item) => truncateAuditValue(item, depth + 1));
+	}
+	if (value && typeof value === 'object') {
+		return Object.fromEntries(
+			Object.entries(value)
+				.slice(0, 10)
+				.map(([key, nested]) => [key, truncateAuditValue(nested, depth + 1)])
+		);
+	}
+	return value;
+}
+
+function getErrorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+function isDuplicateToolCallIdError(error: unknown): boolean {
+	return /UNIQUE constraint failed: agent_tool_call\.id/i.test(getErrorMessage(error));
+}
+
+async function persistToolCallStart(params: {
+	context: AgentContext;
+	assistantMsgId: string;
+	toolCallId: string;
+	toolName: string;
+	toolDefinitionId?: string;
+	toolInput: Record<string, unknown>;
+}) {
+	const serializedArgs = JSON.stringify(params.toolInput);
+
+	try {
+		await DBAgentMessageUtils.saveToolCall({
+			id: params.toolCallId,
+			messageId: params.assistantMsgId,
+			toolName: params.toolName,
+			toolDefinitionId: params.toolDefinitionId,
+			arguments: serializedArgs,
+			status: 'executing'
+		});
+		return;
+	} catch (error) {
+		const errorMessage = getErrorMessage(error);
+
+		if (isDuplicateToolCallIdError(error)) {
+			const existing = await DBAgentMessageUtils.getToolCall(params.toolCallId);
+
+			await auditService.log({
+				action: auditAction.AGENT_TOOL_CALL_DUPLICATE,
+				userId: params.context.userId,
+				targetType: 'agent_tool_call',
+				targetId: params.toolCallId,
+				severity: auditSeverity.WARNING,
+				details: {
+					chatId: params.context.chatId,
+					courseId: params.context.courseId ?? null,
+					activityId: params.context.activityId,
+					assistantMessageId: params.assistantMsgId,
+					existingMessageId: existing?.messageId ?? null,
+					existingStatus: existing?.status ?? null,
+					toolName: params.toolName,
+					errorMessage,
+					arguments: truncateAuditValue(params.toolInput)
+				}
+			});
+
+			aiLogger.warn(
+				{
+					toolCallId: params.toolCallId,
+					chatId: params.context.chatId,
+					activityId: params.context.activityId,
+					assistantMessageId: params.assistantMsgId,
+					existingMessageId: existing?.messageId ?? null,
+					toolName: params.toolName,
+					errorMessage
+				},
+				'Duplicate agent tool call id detected; reusing existing record'
+			);
+
+			await DBAgentMessageUtils.updateToolCall(params.toolCallId, {
+				messageId: params.assistantMsgId,
+				toolName: params.toolName,
+				toolDefinitionId: params.toolDefinitionId,
+				arguments: serializedArgs,
+				status: 'executing',
+				errorMessage: null,
+				rejectionReason: null,
+				result: null
+			});
+
+			return;
+		}
+
+		await auditService.log({
+			action: auditAction.AGENT_TOOL_CALL_PERSIST_FAILED,
+			userId: params.context.userId,
+			targetType: 'agent_tool_call',
+			targetId: params.toolCallId,
+			severity: auditSeverity.ERROR,
+			details: {
+				chatId: params.context.chatId,
+				courseId: params.context.courseId ?? null,
+				activityId: params.context.activityId,
+				assistantMessageId: params.assistantMsgId,
+				toolName: params.toolName,
+				errorMessage,
+				arguments: truncateAuditValue(params.toolInput)
+			}
+		});
+
+		aiLogger.error(
+			{
+				err: error,
+				toolCallId: params.toolCallId,
+				chatId: params.context.chatId,
+				activityId: params.context.activityId,
+				assistantMessageId: params.assistantMsgId,
+				toolName: params.toolName
+			},
+			'Failed to persist agent tool call'
+		);
+
+		throw error;
+	}
+}
+
 export class AgentStreamProcessor {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	static async *process(
@@ -78,13 +211,13 @@ export class AgentStreamProcessor {
 					const toolCallId = event.toolCallId;
 					const toolInput = event.input as Record<string, unknown>;
 
-					await DBAgentMessageUtils.saveToolCall({
-						id: toolCallId,
-						messageId: assistantMsgId,
+					await persistToolCallStart({
+						context,
+						assistantMsgId,
+						toolCallId,
 						toolName: event.toolName,
 						toolDefinitionId: toolDef?.id?.startsWith('__') ? undefined : toolDef?.id,
-						arguments: JSON.stringify(toolInput),
-						status: 'executing'
+						toolInput
 					});
 
 					yield {
@@ -252,11 +385,12 @@ export class AgentStreamProcessor {
 				}
 
 				case 'error':
+					accumulated.streamError =
+						event.error instanceof Error ? event.error.message : 'Error en el stream del agente';
 					yield {
 						type: 'error',
 						code: 'STREAM_ERROR',
-						message:
-							event.error instanceof Error ? event.error.message : 'Error en el stream del agente'
+						message: accumulated.streamError ?? 'Error en el stream del agente'
 					};
 					break;
 			}
