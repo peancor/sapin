@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "319033b6-b5ab-4254-a4c8-32fd9750a825",
+  "id": "ef046714-6c32-4c1e-819b-d15fc56177b4",
   "prevId": "d256cce0-4bf1-488a-a055-b8795ddc7cf1",
   "tables": {
     "session": {
@@ -6012,6 +6012,20 @@
           "name": "student_id",
           "type": "text",
           "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "visibility": {
+          "name": "visibility",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scope_bindings": {
+          "name": "scope_bindings",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -6086,6 +6100,22 @@
           "name": "agent_memory_canvas_scope_type_idx",
           "columns": [
             "scope_type",
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "agent_memory_canvas_course_idx": {
+          "name": "agent_memory_canvas_course_idx",
+          "columns": [
+            "course_id",
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "agent_memory_canvas_visibility_idx": {
+          "name": "agent_memory_canvas_visibility_idx",
+          "columns": [
+            "visibility",
             "updated_at"
           ],
           "isUnique": false
@@ -6198,6 +6228,20 @@
           "name": "student_id",
           "type": "text",
           "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "visibility": {
+          "name": "visibility",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scope_bindings": {
+          "name": "scope_bindings",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -6280,6 +6324,14 @@
           "name": "agent_memory_canvas_revision_student_idx",
           "columns": [
             "student_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "agent_memory_canvas_revision_course_idx": {
+          "name": "agent_memory_canvas_revision_course_idx",
+          "columns": [
+            "course_id",
             "created_at"
           ],
           "isUnique": false
@@ -6405,6 +6457,20 @@
           "name": "student_id",
           "type": "text",
           "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "visibility": {
+          "name": "visibility",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scope_bindings": {
+          "name": "scope_bindings",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -6480,6 +6546,14 @@
           "name": "agent_memory_canvas_sync_student_idx",
           "columns": [
             "student_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "agent_memory_canvas_sync_course_idx": {
+          "name": "agent_memory_canvas_sync_course_idx",
+          "columns": [
+            "course_id",
             "created_at"
           ],
           "isUnique": false

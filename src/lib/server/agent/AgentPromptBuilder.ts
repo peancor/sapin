@@ -1,8 +1,5 @@
 import type { AgentActivityConfig, ToolDefinitionResolved } from '$lib/types/agent';
-import {
-	STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME,
-	STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME
-} from './memory';
+import { getFinalizationGuardedUpdateToolNames } from './memory';
 
 /**
  * Builds the system prompt for the agent, including tool descriptions
@@ -66,16 +63,9 @@ Tienes acceso a las siguientes herramientas para ayudar al estudiante:
             : '';
         const finalizationToolName = config.finalizationToolName?.trim() || 'finalize_activity';
         const enabledToolNames = new Set(tools.map((tool) => tool.name));
-        const memorySyncInstruction = [
-            enabledToolNames.has(STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME)
-                ? `\`${STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME}\``
-                : null,
-            enabledToolNames.has(STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME)
-                ? `\`${STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME}\``
-                : null
-        ]
-            .filter((toolName): toolName is string => toolName !== null)
-            .join(' y ');
+		const memorySyncInstruction = getFinalizationGuardedUpdateToolNames(enabledToolNames)
+			.map((toolName) => `\`${toolName}\``)
+			.join(' y ');
         const finalizationInstruction = config.finalizationEnabled
             ? memorySyncInstruction
                 ? `Cuando completes completamente el objetivo de la actividad, primero sincroniza la memoria con ${memorySyncInstruction} y solo despues llama la herramienta \`${finalizationToolName}\` una sola vez para cerrar la sesion`

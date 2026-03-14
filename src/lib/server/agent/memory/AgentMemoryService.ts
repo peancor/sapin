@@ -2,10 +2,10 @@ import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import type { AgentContext } from '$lib/types/agent';
 import type {
+	CanvasScopeProfile,
 	MemoryCanvasReadInput,
 	MemoryCanvasReadToolResult,
 	MemoryCanvasScopeResolved,
-	MemoryCanvasScopeType,
 	MemoryCanvasUpdateInput,
 	MemoryCanvasUpdateToolResult
 } from '$lib/types/agentMemory';
@@ -14,14 +14,10 @@ import { ModelResolver } from '$lib/server/ai/services/ModelResolver';
 import { UsageTracker } from '$lib/server/ai/services/UsageTracker';
 import { MemoryScopeResolver } from './MemoryScopeResolver';
 import {
-	ACTIVITY_CANVAS_TOOL_NAMES,
-	ALL_MEMORY_TOOL_NAMES,
-	COURSE_CANVAS_TOOL_NAMES,
-	STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME,
-	STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME,
-	STUDENT_COURSE_CANVAS_READ_TOOL_NAME,
-	STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME
-} from './constants';
+	getAllCanvasScopeProfiles,
+	getAllMemoryToolNames,
+	getCanvasScopeProfileByToolName
+} from './CanvasScopeRegistry';
 
 const canvasUpdateOutputSchema = z.object({
 	status: z.enum(['updated', 'unchanged']),
@@ -30,13 +26,12 @@ const canvasUpdateOutputSchema = z.object({
 });
 
 type CanvasScopeStatus = MemoryCanvasScopeResolved & {
-	readToolName: string;
-	updateToolName: string;
+	profile: CanvasScopeProfile;
 };
 
 type FinalizationBlocker = {
 	dirtyScopes: Array<{
-		scopeType: MemoryCanvasScopeType;
+		scopeType: MemoryCanvasScopeResolved['scopeType'];
 		scopeKey: string;
 		updateToolName: string;
 		reason: string;
@@ -52,65 +47,7 @@ function normalizeOptionalText(value: unknown): string | null {
 }
 
 function isMemoryTool(toolName: string): boolean {
-	return ALL_MEMORY_TOOL_NAMES.includes(toolName as (typeof ALL_MEMORY_TOOL_NAMES)[number]);
-}
-
-function isReadTool(toolName: string): boolean {
-	return (
-		toolName === STUDENT_COURSE_CANVAS_READ_TOOL_NAME ||
-		toolName === STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME
-	);
-}
-
-function getScopeTools(scopeType: MemoryCanvasScopeType) {
-	return scopeType === 'student_course'
-		? {
-				readToolName: STUDENT_COURSE_CANVAS_READ_TOOL_NAME,
-				updateToolName: STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME
-			}
-		: {
-				readToolName: STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME,
-				updateToolName: STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME
-			};
-}
-
-function buildDefaultCanvasTemplate(scopeType: MemoryCanvasScopeType): string {
-	if (scopeType === 'student_course') {
-		return [
-			'# Canvas de memoria del alumno en el curso',
-			'',
-			'## Perfil actual',
-			'- Sin recuerdos consolidados todavía.',
-			'',
-			'## Preferencias y adaptaciones útiles',
-			'- Ninguna observada todavía.',
-			'',
-			'## Fortalezas',
-			'- Ninguna consolidada todavía.',
-			'',
-			'## Dificultades persistentes',
-			'- Ninguna consolidada todavía.',
-			'',
-			'## Seguimiento pendiente',
-			'- Ninguno.'
-		].join('\n');
-	}
-
-	return [
-		'# Canvas de memoria del alumno en la actividad',
-		'',
-		'## Estado actual',
-		'- Sin recuerdos consolidados todavía.',
-		'',
-		'## Bloqueos y dificultades',
-		'- Ninguno consolidado todavía.',
-		'',
-		'## Progresos y evidencias',
-		'- Ninguno consolidado todavía.',
-		'',
-		'## Siguiente mejor paso',
-		'- Continuar observando la interacción.'
-	].join('\n');
+	return getAllMemoryToolNames().includes(toolName);
 }
 
 function formatTimestamp(value: Date): string {
@@ -137,10 +74,7 @@ function buildPromptSections(params: {
 	focus: string | null;
 	reason: string | null;
 }): string {
-	const scopeLabel =
-		params.scope.scopeType === 'student_course'
-			? 'alumno + curso'
-			: 'alumno + actividad';
+	const scopeLabel = params.scope.profile.updateScopeLabel;
 	const focusLine = params.focus ? `Foco sugerido por el agente: ${params.focus}` : 'Foco sugerido: ninguno.';
 	const reasonLine = params.reason
 		? `Motivo de sincronización: ${params.reason}`
@@ -162,28 +96,17 @@ function buildPromptSections(params: {
 export class AgentMemoryService {
 	static getEnabledCanvasScopes(context: AgentContext): CanvasScopeStatus[] {
 		const enabledToolNames = new Set(context.enabledTools.map((tool) => tool.name));
-		const scopes: CanvasScopeStatus[] = [];
-
-		if (
-			COURSE_CANVAS_TOOL_NAMES.some((toolName) => enabledToolNames.has(toolName)) &&
-			context.courseId
-		) {
-			const resolved = MemoryScopeResolver.resolve(context, STUDENT_COURSE_CANVAS_READ_TOOL_NAME);
-			scopes.push({
-				...resolved,
-				...getScopeTools('student_course')
-			});
-		}
-
-		if (ACTIVITY_CANVAS_TOOL_NAMES.some((toolName) => enabledToolNames.has(toolName))) {
-			const resolved = MemoryScopeResolver.resolve(context, STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME);
-			scopes.push({
-				...resolved,
-				...getScopeTools('student_activity')
-			});
-		}
-
-		return scopes;
+		return getAllCanvasScopeProfiles()
+			.filter(
+				(profile) =>
+					(enabledToolNames.has(profile.readToolName) ||
+						enabledToolNames.has(profile.updateToolName)) &&
+					profile.canResolve(context)
+			)
+			.map((profile) => ({
+				...profile.resolve(context),
+				profile
+			}));
 	}
 
 	static isMemoryToolEnabled(context: AgentContext): boolean {
@@ -191,31 +114,33 @@ export class AgentMemoryService {
 	}
 
 	static getFinalizationInstruction(context: AgentContext): string | null {
-		const scopes = this.getEnabledCanvasScopes(context);
+		const scopes = this.getEnabledCanvasScopes(context).filter(
+			(scope) => scope.profile.requiresFinalizationGuard
+		);
 		if (scopes.length === 0) return null;
 
-		const requiredTools = scopes.map((scope) => `\`${scope.updateToolName}\``).join(' y ');
+		const requiredTools = scopes.map((scope) => `\`${scope.profile.updateToolName}\``).join(' y ');
 		return `Antes de llamar a la tool de finalización, sincroniza la memoria con ${requiredTools}, espera un resultado exitoso y solo entonces finaliza.`;
 	}
 
 	static async executeReadTool(
 		toolName: string,
-		input: MemoryCanvasReadInput,
+		_input: MemoryCanvasReadInput,
 		context: AgentContext
 	): Promise<MemoryCanvasReadToolResult> {
-		if (!isMemoryTool(toolName) || !isReadTool(toolName)) {
+		const profile = getCanvasScopeProfileByToolName(toolName);
+		if (!isMemoryTool(toolName) || !profile || toolName !== profile.readToolName) {
 			throw new Error(`Herramienta de lectura de memoria no soportada: ${toolName}`);
 		}
 
 		const scope = MemoryScopeResolver.resolve(context, toolName);
-		if (scope.scopeType === 'student_course' && !context.courseId) {
-			throw new Error('El canvas de curso requiere que la actividad pertenezca a un curso.');
-		}
 		const canvas = await DBAgentMemoryUtils.getCanvasByScope(scope);
 
 		return {
 			scopeType: scope.scopeType,
 			scopeKey: scope.scopeKey,
+			visibility: scope.visibility,
+			scopeBindings: scope.scopeBindings,
 			exists: canvas !== null,
 			content: canvas?.content ?? null,
 			revision: canvas?.revision ?? null,
@@ -229,16 +154,14 @@ export class AgentMemoryService {
 		context: AgentContext,
 		toolCallId?: string
 	): Promise<MemoryCanvasUpdateToolResult> {
-		if (!isMemoryTool(toolName) || isReadTool(toolName)) {
+		const profile = getCanvasScopeProfileByToolName(toolName);
+		if (!isMemoryTool(toolName) || !profile || toolName !== profile.updateToolName) {
 			throw new Error(`Herramienta de actualización de memoria no soportada: ${toolName}`);
 		}
 
 		const scope = MemoryScopeResolver.resolve(context, toolName);
-		if (scope.scopeType === 'student_course' && !context.courseId) {
-			throw new Error('El canvas de curso requiere que la actividad pertenezca a un curso.');
-		}
 		const existingCanvas = await DBAgentMemoryUtils.getCanvasByScope(scope);
-		const currentCanvas = existingCanvas?.content ?? buildDefaultCanvasTemplate(scope.scopeType);
+		const currentCanvas = existingCanvas?.content ?? profile.buildTemplate();
 		const transcript = buildSessionTranscript(await DBAgentMessageUtils.getAgentMessagesRaw(context.chatId));
 		const modelName = context.activityConfig.llmModel || (await ModelResolver.getDefaultModel()) || '';
 
@@ -249,6 +172,8 @@ export class AgentMemoryService {
 				courseId: scope.courseId,
 				activityId: scope.activityId,
 				studentId: scope.studentId,
+				visibility: scope.visibility,
+				scopeBindings: scope.scopeBindings,
 				chatId: context.chatId,
 				toolCallId,
 				status: 'failed',
@@ -261,7 +186,7 @@ export class AgentMemoryService {
 			context,
 			scope: {
 				...scope,
-				...getScopeTools(scope.scopeType)
+				profile
 			},
 			currentCanvas,
 			transcript,
@@ -284,6 +209,8 @@ export class AgentMemoryService {
 				courseId: scope.courseId,
 				activityId: scope.activityId,
 				studentId: scope.studentId,
+				visibility: scope.visibility,
+				scopeBindings: scope.scopeBindings,
 				chatId: context.chatId,
 				toolCallId,
 				modelName,
@@ -294,6 +221,8 @@ export class AgentMemoryService {
 			return {
 				scopeType: scope.scopeType,
 				scopeKey: scope.scopeKey,
+				visibility: scope.visibility,
+				scopeBindings: scope.scopeBindings,
 				status: 'unchanged',
 				stored: false,
 				changed: false,
@@ -320,6 +249,8 @@ export class AgentMemoryService {
 			courseId: savedCanvas.courseId,
 			activityId: savedCanvas.activityId,
 			studentId: savedCanvas.studentId,
+			visibility: savedCanvas.visibility,
+			scopeBindings: savedCanvas.scopeBindings,
 			revision: savedCanvas.revision,
 			content: savedCanvas.content,
 			changeSummary: normalizeOptionalText(update.changeSummary),
@@ -335,6 +266,8 @@ export class AgentMemoryService {
 			courseId: savedCanvas.courseId,
 			activityId: savedCanvas.activityId,
 			studentId: savedCanvas.studentId,
+			visibility: savedCanvas.visibility,
+			scopeBindings: savedCanvas.scopeBindings,
 			chatId: context.chatId,
 			toolCallId,
 			modelName,
@@ -345,6 +278,8 @@ export class AgentMemoryService {
 		return {
 			scopeType: savedCanvas.scopeType,
 			scopeKey: savedCanvas.scopeKey,
+			visibility: savedCanvas.visibility,
+			scopeBindings: savedCanvas.scopeBindings,
 			status: 'updated',
 			stored: true,
 			changed: true,
@@ -367,13 +302,8 @@ export class AgentMemoryService {
 				const canvas = byScopeKey.get(scope.scopeKey);
 				if (!canvas) return null;
 
-				const heading =
-					scope.scopeType === 'student_course'
-						? '## Canvas privado del estudiante en el curso'
-						: '## Canvas privado del estudiante en la actividad';
-
 				return [
-					heading,
+					scope.profile.promptHeading,
 					`Revision: ${canvas.revision}`,
 					canvas.content
 				].join('\n');
@@ -384,7 +314,9 @@ export class AgentMemoryService {
 	}
 
 	static async getFinalizationBlocker(context: AgentContext): Promise<FinalizationBlocker | null> {
-		const scopes = this.getEnabledCanvasScopes(context);
+		const scopes = this.getEnabledCanvasScopes(context).filter(
+			(scope) => scope.profile.requiresFinalizationGuard
+		);
 		if (scopes.length === 0) return null;
 
 		const latestUserMessageAt = await DBAgentMemoryUtils.getLatestUserMessageAt(context.chatId);
@@ -403,11 +335,8 @@ export class AgentMemoryService {
 				dirtyScopes.push({
 					scopeType: scope.scopeType,
 					scopeKey: scope.scopeKey,
-					updateToolName: scope.updateToolName,
-					reason:
-						scope.scopeType === 'student_course'
-							? 'La memoria del curso aún no está sincronizada para esta sesión.'
-							: 'La memoria de la actividad aún no está sincronizada para esta sesión.'
+					updateToolName: scope.profile.updateToolName,
+					reason: `La memoria requerida de ${scope.profile.updateScopeLabel} aún no está sincronizada para esta sesión.`
 				});
 			}
 		}
@@ -524,6 +453,8 @@ export class AgentMemoryService {
 				courseId: params.scope.courseId,
 				activityId: params.scope.activityId,
 				studentId: params.scope.studentId,
+				visibility: params.scope.visibility,
+				scopeBindings: params.scope.scopeBindings,
 				chatId: params.context.chatId,
 				modelName: params.modelName,
 				status: 'failed',

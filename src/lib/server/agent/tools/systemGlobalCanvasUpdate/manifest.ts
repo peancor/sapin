@@ -1,11 +1,11 @@
-import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '../constants';
+import { BUILTIN_TOOL_USAGE_DOMAIN_INTERNAL } from '../constants';
 import type { ToolManifest } from '../types';
 
-export const studentActivityCanvasUpdateManifest: ToolManifest = {
-	name: 'student_activity_canvas_update',
-	displayName: 'Actualizar canvas de la actividad',
+export const systemGlobalCanvasUpdateManifest: ToolManifest = {
+	name: 'system_global_canvas_update',
+	displayName: 'Actualizar canvas global del sistema',
 	description:
-		'Reescribe el canvas privado de memoria del estudiante actual dentro de esta actividad usando el historial real de la sesión y el canvas vigente. Llámala antes de finalizar cuando haya información nueva o confirmes que no hay cambios.',
+		'Reescribe el canvas global del sistema usando el historial real de la sesión y el canvas vigente. Úsala cuando haya información nueva o confirmes que no hay cambios.',
 	category: 'data',
 	parametersSchema: {
 		type: 'object',
@@ -48,10 +48,10 @@ export const studentActivityCanvasUpdateManifest: ToolManifest = {
 		]
 	},
 	executorType: 'builtin',
-	executorConfig: { handler: 'studentActivityCanvasUpdate' },
+	executorConfig: { handler: 'systemGlobalCanvasUpdate' },
 	requiresConfirmation: false,
 	riskLevel: 'low',
 	isSystem: true,
 	version: '2.0.0',
-	usageDomain: BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
+	usageDomain: BUILTIN_TOOL_USAGE_DOMAIN_INTERNAL
 };

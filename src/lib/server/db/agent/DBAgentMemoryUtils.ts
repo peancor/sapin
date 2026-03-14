@@ -7,6 +7,7 @@ import type {
 	AgentMemoryCanvasRevisionRecord,
 	AgentMemoryCanvasSyncEventRecord,
 	MemoryCanvasScopeType,
+	MemoryCanvasVisibility,
 	MemoryCanvasSyncStatus
 } from '$lib/types/agentMemory';
 
@@ -18,7 +19,9 @@ type CanvasScopeParams = {
 type UpsertCanvasParams = CanvasScopeParams & {
 	courseId: string | null;
 	activityId: string | null;
-	studentId: string;
+	studentId: string | null;
+	visibility: MemoryCanvasVisibility;
+	scopeBindings: Record<string, string>;
 	content: string;
 	revision: number;
 	lastSourceChatId?: string | null;
@@ -32,7 +35,9 @@ type CreateRevisionParams = {
 	scopeKey: string;
 	courseId: string | null;
 	activityId: string | null;
-	studentId: string;
+	studentId: string | null;
+	visibility: MemoryCanvasVisibility;
+	scopeBindings: Record<string, string>;
 	revision: number;
 	content: string;
 	changeSummary?: string | null;
@@ -47,7 +52,9 @@ type CreateSyncEventParams = {
 	scopeKey: string;
 	courseId: string | null;
 	activityId: string | null;
-	studentId: string;
+	studentId: string | null;
+	visibility: MemoryCanvasVisibility;
+	scopeBindings: Record<string, string>;
 	chatId?: string | null;
 	toolCallId?: string | null;
 	modelName?: string | null;
@@ -63,7 +70,9 @@ function normalizeCanvasRow(row: typeof schema.agentMemoryCanvas.$inferSelect): 
 		scopeKey: row.scopeKey,
 		courseId: row.courseId ?? null,
 		activityId: row.activityId ?? null,
-		studentId: row.studentId,
+		studentId: row.studentId ?? null,
+		visibility: row.visibility,
+		scopeBindings: row.scopeBindings,
 		content: row.content,
 		revision: row.revision,
 		lastSourceChatId: row.lastSourceChatId ?? null,
@@ -84,7 +93,9 @@ function normalizeRevisionRow(
 		scopeKey: row.scopeKey,
 		courseId: row.courseId ?? null,
 		activityId: row.activityId ?? null,
-		studentId: row.studentId,
+		studentId: row.studentId ?? null,
+		visibility: row.visibility,
+		scopeBindings: row.scopeBindings,
 		revision: row.revision,
 		content: row.content,
 		changeSummary: row.changeSummary ?? null,
@@ -106,7 +117,9 @@ function normalizeSyncEventRow(
 		scopeKey: row.scopeKey,
 		courseId: row.courseId ?? null,
 		activityId: row.activityId ?? null,
-		studentId: row.studentId,
+		studentId: row.studentId ?? null,
+		visibility: row.visibility,
+		scopeBindings: row.scopeBindings,
 		chatId: row.chatId ?? null,
 		toolCallId: row.toolCallId ?? null,
 		modelName: row.modelName ?? null,
@@ -157,6 +170,8 @@ export default class DBAgentMemoryUtils {
 					courseId: params.courseId,
 					activityId: params.activityId,
 					studentId: params.studentId,
+					visibility: params.visibility,
+					scopeBindings: params.scopeBindings,
 					content: params.content,
 					revision: params.revision,
 					lastSourceChatId: params.lastSourceChatId ?? null,
@@ -183,6 +198,8 @@ export default class DBAgentMemoryUtils {
 			courseId: params.courseId,
 			activityId: params.activityId,
 			studentId: params.studentId,
+			visibility: params.visibility,
+			scopeBindings: params.scopeBindings,
 			content: params.content,
 			revision: params.revision,
 			lastSourceChatId: params.lastSourceChatId ?? null,
@@ -215,6 +232,8 @@ export default class DBAgentMemoryUtils {
 			courseId: params.courseId,
 			activityId: params.activityId,
 			studentId: params.studentId,
+			visibility: params.visibility,
+			scopeBindings: params.scopeBindings,
 			revision: params.revision,
 			content: params.content,
 			changeSummary: params.changeSummary ?? null,
@@ -248,6 +267,8 @@ export default class DBAgentMemoryUtils {
 			courseId: params.courseId,
 			activityId: params.activityId,
 			studentId: params.studentId,
+			visibility: params.visibility,
+			scopeBindings: params.scopeBindings,
 			chatId: params.chatId ?? null,
 			toolCallId: params.toolCallId ?? null,
 			modelName: params.modelName ?? null,

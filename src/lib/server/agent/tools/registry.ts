@@ -4,6 +4,8 @@ import {
 	calculateExpressionPackage,
 	clusterInteractionPatternsPackage,
 	compareStudentGroupsPackage,
+	courseSharedCanvasReadPackage,
+	courseSharedCanvasUpdatePackage,
 	draftOutreachMessagePackage,
 	draftRemediationPlanPackage,
 	draftStudentNotificationPackage,
@@ -37,7 +39,9 @@ import {
 	studentActivityCanvasUpdatePackage,
 	studentCourseCanvasReadPackage,
 	studentCourseCanvasUpdatePackage,
-	summarizeEvidenceForStudentPackage
+	summarizeEvidenceForStudentPackage,
+	systemGlobalCanvasReadPackage,
+	systemGlobalCanvasUpdatePackage
 } from './index';
 
 const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
@@ -53,6 +57,10 @@ const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
 	studentCourseCanvasUpdatePackage,
 	studentActivityCanvasReadPackage,
 	studentActivityCanvasUpdatePackage,
+	courseSharedCanvasReadPackage,
+	courseSharedCanvasUpdatePackage,
+	systemGlobalCanvasReadPackage,
+	systemGlobalCanvasUpdatePackage,
 	compareStudentGroupsPackage,
 	findStuckSessionsPackage,
 	analyzeActivityDifficultyPackage,

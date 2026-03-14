@@ -1,11 +1,11 @@
-import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '../constants';
+import { BUILTIN_TOOL_USAGE_DOMAIN_INTERNAL } from '../constants';
 import type { ToolManifest } from '../types';
 
-export const studentCourseCanvasReadManifest: ToolManifest = {
-	name: 'student_course_canvas_read',
-	displayName: 'Leer canvas del curso',
+export const courseSharedCanvasReadManifest: ToolManifest = {
+	name: 'course_shared_canvas_read',
+	displayName: 'Leer canvas compartido del curso',
 	description:
-		'Lee el canvas privado de memoria del estudiante actual en este curso. Devuelve el documento completo actual, sin filtros ni búsqueda semántica.',
+		'Lee el canvas compartido del curso actual. Devuelve el documento completo actual, sin filtros ni búsqueda semántica.',
 	category: 'data',
 	parametersSchema: {
 		type: 'object',
@@ -40,10 +40,10 @@ export const studentCourseCanvasReadManifest: ToolManifest = {
 		]
 	},
 	executorType: 'builtin',
-	executorConfig: { handler: 'studentCourseCanvasRead' },
+	executorConfig: { handler: 'courseSharedCanvasRead' },
 	requiresConfirmation: false,
 	riskLevel: 'low',
 	isSystem: true,
 	version: '2.0.0',
-	usageDomain: BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
+	usageDomain: BUILTIN_TOOL_USAGE_DOMAIN_INTERNAL
 };

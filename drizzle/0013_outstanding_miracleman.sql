@@ -4,7 +4,9 @@ CREATE TABLE `agent_memory_canvas` (
 	`scope_key` text NOT NULL,
 	`course_id` text,
 	`activity_id` text,
-	`student_id` text NOT NULL,
+	`student_id` text,
+	`visibility` text NOT NULL,
+	`scope_bindings` text NOT NULL,
 	`content` text NOT NULL,
 	`revision` integer DEFAULT 1 NOT NULL,
 	`last_source_chat_id` text,
@@ -21,6 +23,8 @@ CREATE TABLE `agent_memory_canvas` (
 CREATE UNIQUE INDEX `agent_memory_canvas_scope_key_idx` ON `agent_memory_canvas` (`scope_key`);--> statement-breakpoint
 CREATE INDEX `agent_memory_canvas_student_idx` ON `agent_memory_canvas` (`student_id`,`updated_at`);--> statement-breakpoint
 CREATE INDEX `agent_memory_canvas_scope_type_idx` ON `agent_memory_canvas` (`scope_type`,`updated_at`);--> statement-breakpoint
+CREATE INDEX `agent_memory_canvas_course_idx` ON `agent_memory_canvas` (`course_id`,`updated_at`);--> statement-breakpoint
+CREATE INDEX `agent_memory_canvas_visibility_idx` ON `agent_memory_canvas` (`visibility`,`updated_at`);--> statement-breakpoint
 CREATE TABLE `agent_memory_canvas_revision` (
 	`id` text PRIMARY KEY NOT NULL,
 	`canvas_id` text NOT NULL,
@@ -28,7 +32,9 @@ CREATE TABLE `agent_memory_canvas_revision` (
 	`scope_key` text NOT NULL,
 	`course_id` text,
 	`activity_id` text,
-	`student_id` text NOT NULL,
+	`student_id` text,
+	`visibility` text NOT NULL,
+	`scope_bindings` text NOT NULL,
 	`revision` integer NOT NULL,
 	`content` text NOT NULL,
 	`change_summary` text,
@@ -47,6 +53,7 @@ CREATE TABLE `agent_memory_canvas_revision` (
 CREATE UNIQUE INDEX `agent_memory_canvas_revision_canvas_revision_idx` ON `agent_memory_canvas_revision` (`canvas_id`,`revision`);--> statement-breakpoint
 CREATE INDEX `agent_memory_canvas_revision_scope_idx` ON `agent_memory_canvas_revision` (`scope_key`,`created_at`);--> statement-breakpoint
 CREATE INDEX `agent_memory_canvas_revision_student_idx` ON `agent_memory_canvas_revision` (`student_id`,`created_at`);--> statement-breakpoint
+CREATE INDEX `agent_memory_canvas_revision_course_idx` ON `agent_memory_canvas_revision` (`course_id`,`created_at`);--> statement-breakpoint
 CREATE TABLE `agent_memory_canvas_sync_event` (
 	`id` text PRIMARY KEY NOT NULL,
 	`canvas_id` text,
@@ -54,7 +61,9 @@ CREATE TABLE `agent_memory_canvas_sync_event` (
 	`scope_key` text NOT NULL,
 	`course_id` text,
 	`activity_id` text,
-	`student_id` text NOT NULL,
+	`student_id` text,
+	`visibility` text NOT NULL,
+	`scope_bindings` text NOT NULL,
 	`chat_id` text,
 	`tool_call_id` text,
 	`model_name` text,
@@ -71,4 +80,5 @@ CREATE TABLE `agent_memory_canvas_sync_event` (
 --> statement-breakpoint
 CREATE INDEX `agent_memory_canvas_sync_scope_idx` ON `agent_memory_canvas_sync_event` (`scope_key`,`chat_id`,`created_at`);--> statement-breakpoint
 CREATE INDEX `agent_memory_canvas_sync_status_idx` ON `agent_memory_canvas_sync_event` (`status`,`created_at`);--> statement-breakpoint
-CREATE INDEX `agent_memory_canvas_sync_student_idx` ON `agent_memory_canvas_sync_event` (`student_id`,`created_at`);
+CREATE INDEX `agent_memory_canvas_sync_student_idx` ON `agent_memory_canvas_sync_event` (`student_id`,`created_at`);--> statement-breakpoint
+CREATE INDEX `agent_memory_canvas_sync_course_idx` ON `agent_memory_canvas_sync_event` (`course_id`,`created_at`);

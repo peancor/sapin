@@ -5,6 +5,11 @@ import * as schema from '../schema';
 import { DBAgentToolUtils } from '../agent';
 import type { ToolDefinitionResolved } from '$lib/types/agent';
 import { ModelResolver } from '$lib/server/ai/services/ModelResolver';
+import {
+	BUILTIN_TOOL_USAGE_DOMAIN_INSIGHTS,
+	BUILTIN_TOOL_USAGE_DOMAIN_INTERNAL
+} from '$lib/server/agent/tools/constants';
+import { getCanvasToolNamePairs } from '$lib/server/agent/memory';
 import type {
 	InsightsAgentConfig,
 	InsightsAgentRunScope,
@@ -31,9 +36,14 @@ const DEFAULT_TOOL_NAMES = [
 	'get_course_student_roster',
 	'get_student_progress',
 	'search_course_content',
-	'compare_student_groups'
+	'compare_student_groups',
+	'course_shared_canvas_read',
+	'course_shared_canvas_update',
+	'system_global_canvas_read',
+	'system_global_canvas_update'
 ];
 const ALLOWED_GENERAL_TOOL_NAMES = ['get_student_progress', 'search_course_content', 'calculate_expression'];
+const MEMORY_TOOL_NAME_PAIRS = getCanvasToolNamePairs();
 
 const DEFAULT_SCOPE: InsightsAgentRunScope = {
 	mode: 'cohort',
@@ -57,6 +67,26 @@ function toIso(value: Date | null | undefined): string | null {
 	return value ? value.toISOString() : null;
 }
 
+function normalizeCanvasToolPairs(
+	enabledTools: ToolDefinitionResolved[],
+	activeTools: ToolDefinitionResolved[]
+): ToolDefinitionResolved[] {
+	const normalized = new Map(enabledTools.map((tool) => [tool.id, tool]));
+	const byName = new Map(activeTools.map((tool) => [tool.name, tool]));
+	const enabledNames = new Set(enabledTools.map((tool) => tool.name));
+
+	for (const [readToolName, updateToolName] of MEMORY_TOOL_NAME_PAIRS) {
+		if (enabledNames.has(readToolName) || enabledNames.has(updateToolName)) {
+			const readTool = byName.get(readToolName);
+			const updateTool = byName.get(updateToolName);
+			if (readTool) normalized.set(readTool.id, readTool);
+			if (updateTool) normalized.set(updateTool.id, updateTool);
+		}
+	}
+
+	return Array.from(normalized.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export default class DBInsightsAgentUtils {
 	static isToolAllowedForInsightsAgent(tool: {
 		name: string;
@@ -64,7 +94,12 @@ export default class DBInsightsAgentUtils {
 		category: string;
 	}) {
 		if (tool.category === 'ui') return false;
-		if (tool.usageDomain === 'insights') return true;
+		if (
+			tool.usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_INSIGHTS ||
+			tool.usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_INTERNAL
+		) {
+			return true;
+		}
 		return ALLOWED_GENERAL_TOOL_NAMES.includes(tool.name);
 	}
 
@@ -164,7 +199,7 @@ export default class DBInsightsAgentUtils {
 			)
 			.orderBy(asc(schema.agentToolDefinition.category), asc(schema.agentToolDefinition.name));
 
-		return rows
+		const enabledTools = rows
 			.filter(({ tool }) => this.isToolAllowedForInsightsAgent(tool))
 			.map(({ tool, activityTool }) => ({
 			id: tool.id,
@@ -184,14 +219,52 @@ export default class DBInsightsAgentUtils {
 				undefined
 			)
 		}));
+
+		const activeTools = (await DBAgentToolUtils.getActiveToolDefinitions())
+			.filter((tool) => this.isToolAllowedForInsightsAgent(tool))
+			.map((tool) => ({
+				id: tool.id,
+				name: tool.name,
+				displayName: tool.displayName,
+				description: tool.description,
+				category: tool.category,
+				parametersSchema: parseJson(tool.parametersSchema, {}),
+				responseSchema: parseJson<Record<string, unknown> | undefined>(tool.responseSchema, undefined),
+				executorType: tool.executorType as 'builtin' | 'http' | 'script',
+				executorConfig: parseJson(tool.executorConfig, {}),
+				requiresConfirmation: tool.requiresConfirmation,
+				riskLevel: tool.riskLevel as 'low' | 'medium' | 'high',
+				usageDomain: tool.usageDomain,
+				configOverride: undefined
+			}));
+
+		return normalizeCanvasToolPairs(enabledTools, activeTools);
 	}
 
 	static async setActivityTools(activityId: string, toolIds: string[]) {
 		const allowedTools = await DBAgentToolUtils.getActiveToolDefinitions();
+		const allowedToolById = new Map(allowedTools.map((tool) => [tool.id, tool]));
 		const allowedToolIds = allowedTools
 			.filter((tool) => this.isToolAllowedForInsightsAgent(tool))
 			.map((tool) => tool.id);
-		const normalizedToolIds = toolIds.filter((toolId) => allowedToolIds.includes(toolId));
+		const normalized = new Set(toolIds.filter((toolId) => allowedToolIds.includes(toolId)));
+		const idByName = new Map(allowedTools.map((tool) => [tool.name, tool.id]));
+		const enabledNames = new Set(
+			Array.from(normalized)
+				.map((toolId) => allowedToolById.get(toolId)?.name)
+				.filter((name): name is string => typeof name === 'string')
+		);
+
+		for (const [readToolName, updateToolName] of MEMORY_TOOL_NAME_PAIRS) {
+			if (enabledNames.has(readToolName) || enabledNames.has(updateToolName)) {
+				const readToolId = idByName.get(readToolName);
+				const updateToolId = idByName.get(updateToolName);
+				if (readToolId && allowedToolIds.includes(readToolId)) normalized.add(readToolId);
+				if (updateToolId && allowedToolIds.includes(updateToolId)) normalized.add(updateToolId);
+			}
+		}
+
+		const normalizedToolIds = Array.from(normalized);
 
 		await db
 			.delete(schema.insightsAgentActivityTool)

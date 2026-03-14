@@ -3,19 +3,17 @@ import { eq, and, desc, isNull, or } from 'drizzle-orm';
 import * as schema from '../schema';
 import { nanoid } from 'nanoid';
 import type { ToolDefinitionResolved } from '$lib/types/agent';
-import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '$lib/server/agent/tools/constants';
+import {
+	BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT,
+	BUILTIN_TOOL_USAGE_DOMAIN_INTERNAL
+} from '$lib/server/agent/tools/constants';
 import DBAgentToolUtils from './DBAgentToolUtils';
 import {
-	STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME,
-	STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME,
-	STUDENT_COURSE_CANVAS_READ_TOOL_NAME,
-	STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME
+	getCanvasToolNamePairs,
+	isCrossDomainAgentChatMemoryTool
 } from '$lib/server/agent/memory';
 
-const MEMORY_TOOL_NAME_PAIRS = [
-	[STUDENT_COURSE_CANVAS_READ_TOOL_NAME, STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME],
-	[STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME, STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME]
-] as const;
+const MEMORY_TOOL_NAME_PAIRS = getCanvasToolNamePairs();
 
 function normalizeCanvasToolPairs(
 	enabledTools: ToolDefinitionResolved[],
@@ -88,6 +86,21 @@ function resolveToolDefinition(
 	} satisfies ToolDefinitionResolved;
 }
 
+function isToolAllowedForActivityUsageDomain(
+	tool: Pick<typeof schema.agentToolDefinition.$inferSelect, 'usageDomain' | 'name'>,
+	usageDomain: string
+): boolean {
+	if (tool.usageDomain === usageDomain || tool.usageDomain === null) {
+		return true;
+	}
+
+	return (
+		usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT &&
+		tool.usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_INTERNAL &&
+		isCrossDomainAgentChatMemoryTool(tool.name)
+	);
+}
+
 export default class DBAgentActivityUtils {
 	// ─── Actividad Agéntica ───
 
@@ -121,11 +134,6 @@ export default class DBAgentActivityUtils {
 		activityId: string,
 		usageDomain: string = BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
 	): Promise<ToolDefinitionResolved[]> {
-		const usageClause = or(
-			eq(schema.agentToolDefinition.usageDomain, usageDomain),
-			isNull(schema.agentToolDefinition.usageDomain)
-		);
-
 		const rows = await db
 			.select({
 				tool: schema.agentToolDefinition,
@@ -140,20 +148,17 @@ export default class DBAgentActivityUtils {
 				and(
 					eq(schema.agentActivityTool.agentActivityId, activityId),
 					eq(schema.agentActivityTool.isEnabled, true),
-					eq(schema.agentToolDefinition.isActive, true),
-					usageClause
+					eq(schema.agentToolDefinition.isActive, true)
 				)
 			);
 
-		const resolvedTools = rows.map((row) =>
-			resolveToolDefinition(row.tool, row.activityTool.configOverride)
-		);
+		const resolvedTools = rows
+			.filter((row) => isToolAllowedForActivityUsageDomain(row.tool, usageDomain))
+			.map((row) => resolveToolDefinition(row.tool, row.activityTool.configOverride));
 
-		const activeTools = (
-			await DBAgentToolUtils.getActiveToolDefinitions(
-				usageDomain as typeof BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
-			)
-		).map((tool) => resolveToolDefinition(tool));
+		const activeTools = (await DBAgentToolUtils.getActiveToolDefinitions()).map((tool) =>
+			resolveToolDefinition(tool)
+		);
 		return normalizeCanvasToolPairs(resolvedTools, activeTools);
 	}
 

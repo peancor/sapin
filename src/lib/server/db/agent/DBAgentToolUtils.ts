@@ -6,6 +6,7 @@ import { getBuiltinToolManifestsByDomain, getAllBuiltinToolManifests } from '$li
 import {
 	BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT,
 	BUILTIN_TOOL_USAGE_DOMAIN_INSIGHTS,
+	BUILTIN_TOOL_USAGE_DOMAIN_INTERNAL,
 	type BuiltinToolUsageDomain
 } from '$lib/server/agent/tools/constants';
 import type { ToolManifest } from '$lib/server/agent/tools/types';
@@ -276,7 +277,8 @@ export default class DBAgentToolUtils {
 	) {
 		if (
 			usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT ||
-			usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_INSIGHTS
+			usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_INSIGHTS ||
+			usageDomain === BUILTIN_TOOL_USAGE_DOMAIN_INTERNAL
 		) {
 			return await this.syncBuiltinTools({ usageDomain, dryRun: false });
 		}

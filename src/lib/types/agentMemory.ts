@@ -1,4 +1,12 @@
-export type MemoryCanvasScopeType = 'student_activity' | 'student_course';
+import type { AgentContext } from '$lib/types/agent';
+
+export type MemoryCanvasScopeType =
+	| 'student_activity'
+	| 'student_course'
+	| 'course_shared'
+	| 'system_global';
+
+export type MemoryCanvasVisibility = 'student_private' | 'course_internal' | 'system_internal';
 
 export type MemoryCanvasSyncStatus = 'updated' | 'unchanged' | 'failed';
 
@@ -7,7 +15,9 @@ export interface MemoryCanvasScopeResolved {
 	scopeKey: string;
 	courseId: string | null;
 	activityId: string | null;
-	studentId: string;
+	studentId: string | null;
+	visibility: MemoryCanvasVisibility;
+	scopeBindings: Record<string, string>;
 }
 
 export interface MemoryCanvasReadInput {
@@ -22,6 +32,8 @@ export interface MemoryCanvasUpdateInput {
 export interface MemoryCanvasReadToolResult {
 	scopeType: MemoryCanvasScopeType;
 	scopeKey: string;
+	visibility: MemoryCanvasVisibility;
+	scopeBindings: Record<string, string>;
 	exists: boolean;
 	content: string | null;
 	revision: number | null;
@@ -31,6 +43,8 @@ export interface MemoryCanvasReadToolResult {
 export interface MemoryCanvasUpdateToolResult {
 	scopeType: MemoryCanvasScopeType;
 	scopeKey: string;
+	visibility: MemoryCanvasVisibility;
+	scopeBindings: Record<string, string>;
 	status: MemoryCanvasSyncStatus;
 	stored: boolean;
 	changed: boolean;
@@ -45,7 +59,9 @@ export interface AgentMemoryCanvasRecord {
 	scopeKey: string;
 	courseId: string | null;
 	activityId: string | null;
-	studentId: string;
+	studentId: string | null;
+	visibility: MemoryCanvasVisibility;
+	scopeBindings: Record<string, string>;
 	content: string;
 	revision: number;
 	lastSourceChatId: string | null;
@@ -62,7 +78,9 @@ export interface AgentMemoryCanvasRevisionRecord {
 	scopeKey: string;
 	courseId: string | null;
 	activityId: string | null;
-	studentId: string;
+	studentId: string | null;
+	visibility: MemoryCanvasVisibility;
+	scopeBindings: Record<string, string>;
 	revision: number;
 	content: string;
 	changeSummary: string | null;
@@ -80,7 +98,9 @@ export interface AgentMemoryCanvasSyncEventRecord {
 	scopeKey: string;
 	courseId: string | null;
 	activityId: string | null;
-	studentId: string;
+	studentId: string | null;
+	visibility: MemoryCanvasVisibility;
+	scopeBindings: Record<string, string>;
 	chatId: string | null;
 	toolCallId: string | null;
 	modelName: string | null;
@@ -88,4 +108,19 @@ export interface AgentMemoryCanvasSyncEventRecord {
 	changeSummary: string | null;
 	errorMessage: string | null;
 	createdAt: Date;
+}
+
+export interface CanvasScopeProfile {
+	id: string;
+	scopeType: MemoryCanvasScopeType;
+	readToolName: string;
+	updateToolName: string;
+	visibility: MemoryCanvasVisibility;
+	usageDomains: string[];
+	promptHeading: string;
+	updateScopeLabel: string;
+	requiresFinalizationGuard: boolean;
+	canResolve(context: AgentContext): boolean;
+	resolve(context: AgentContext): MemoryCanvasScopeResolved;
+	buildTemplate(): string;
 }

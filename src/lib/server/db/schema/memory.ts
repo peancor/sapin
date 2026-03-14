@@ -3,7 +3,11 @@ import { chat } from './chat';
 import { course } from './courses';
 import { interactiveLearning } from './interactive';
 import { user } from './users';
-import type { MemoryCanvasScopeType, MemoryCanvasSyncStatus } from '$lib/types/agentMemory';
+import type {
+	MemoryCanvasScopeType,
+	MemoryCanvasSyncStatus,
+	MemoryCanvasVisibility
+} from '$lib/types/agentMemory';
 
 export const agentMemoryCanvas = sqliteTable(
 	'agent_memory_canvas',
@@ -13,9 +17,11 @@ export const agentMemoryCanvas = sqliteTable(
 		scopeKey: text('scope_key').notNull(),
 		courseId: text('course_id').references(() => course.id, { onDelete: 'set null' }),
 		activityId: text('activity_id').references(() => interactiveLearning.id, { onDelete: 'set null' }),
-		studentId: text('student_id')
-			.notNull()
-			.references(() => user.id, { onDelete: 'cascade' }),
+		studentId: text('student_id').references(() => user.id, { onDelete: 'cascade' }),
+		visibility: text('visibility').$type<MemoryCanvasVisibility>().notNull(),
+		scopeBindings: text('scope_bindings', { mode: 'json' })
+			.$type<Record<string, string>>()
+			.notNull(),
 		content: text('content').notNull(),
 		revision: integer('revision').notNull().default(1),
 		lastSourceChatId: text('last_source_chat_id').references(() => chat.id, { onDelete: 'set null' }),
@@ -27,7 +33,9 @@ export const agentMemoryCanvas = sqliteTable(
 	(table) => [
 		uniqueIndex('agent_memory_canvas_scope_key_idx').on(table.scopeKey),
 		index('agent_memory_canvas_student_idx').on(table.studentId, table.updatedAt),
-		index('agent_memory_canvas_scope_type_idx').on(table.scopeType, table.updatedAt)
+		index('agent_memory_canvas_scope_type_idx').on(table.scopeType, table.updatedAt),
+		index('agent_memory_canvas_course_idx').on(table.courseId, table.updatedAt),
+		index('agent_memory_canvas_visibility_idx').on(table.visibility, table.updatedAt)
 	]
 );
 
@@ -42,9 +50,11 @@ export const agentMemoryCanvasRevision = sqliteTable(
 		scopeKey: text('scope_key').notNull(),
 		courseId: text('course_id').references(() => course.id, { onDelete: 'set null' }),
 		activityId: text('activity_id').references(() => interactiveLearning.id, { onDelete: 'set null' }),
-		studentId: text('student_id')
-			.notNull()
-			.references(() => user.id, { onDelete: 'cascade' }),
+		studentId: text('student_id').references(() => user.id, { onDelete: 'cascade' }),
+		visibility: text('visibility').$type<MemoryCanvasVisibility>().notNull(),
+		scopeBindings: text('scope_bindings', { mode: 'json' })
+			.$type<Record<string, string>>()
+			.notNull(),
 		revision: integer('revision').notNull(),
 		content: text('content').notNull(),
 		changeSummary: text('change_summary'),
@@ -57,7 +67,8 @@ export const agentMemoryCanvasRevision = sqliteTable(
 	(table) => [
 		uniqueIndex('agent_memory_canvas_revision_canvas_revision_idx').on(table.canvasId, table.revision),
 		index('agent_memory_canvas_revision_scope_idx').on(table.scopeKey, table.createdAt),
-		index('agent_memory_canvas_revision_student_idx').on(table.studentId, table.createdAt)
+		index('agent_memory_canvas_revision_student_idx').on(table.studentId, table.createdAt),
+		index('agent_memory_canvas_revision_course_idx').on(table.courseId, table.createdAt)
 	]
 );
 
@@ -70,9 +81,11 @@ export const agentMemoryCanvasSyncEvent = sqliteTable(
 		scopeKey: text('scope_key').notNull(),
 		courseId: text('course_id').references(() => course.id, { onDelete: 'set null' }),
 		activityId: text('activity_id').references(() => interactiveLearning.id, { onDelete: 'set null' }),
-		studentId: text('student_id')
-			.notNull()
-			.references(() => user.id, { onDelete: 'cascade' }),
+		studentId: text('student_id').references(() => user.id, { onDelete: 'cascade' }),
+		visibility: text('visibility').$type<MemoryCanvasVisibility>().notNull(),
+		scopeBindings: text('scope_bindings', { mode: 'json' })
+			.$type<Record<string, string>>()
+			.notNull(),
 		chatId: text('chat_id').references(() => chat.id, { onDelete: 'set null' }),
 		toolCallId: text('tool_call_id'),
 		modelName: text('model_name'),
@@ -84,7 +97,8 @@ export const agentMemoryCanvasSyncEvent = sqliteTable(
 	(table) => [
 		index('agent_memory_canvas_sync_scope_idx').on(table.scopeKey, table.chatId, table.createdAt),
 		index('agent_memory_canvas_sync_status_idx').on(table.status, table.createdAt),
-		index('agent_memory_canvas_sync_student_idx').on(table.studentId, table.createdAt)
+		index('agent_memory_canvas_sync_student_idx').on(table.studentId, table.createdAt),
+		index('agent_memory_canvas_sync_course_idx').on(table.courseId, table.createdAt)
 	]
 );
 

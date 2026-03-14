@@ -25,6 +25,8 @@ export const studentCourseCanvasUpdateManifest: ToolManifest = {
 		properties: {
 			scopeType: { type: 'string' },
 			scopeKey: { type: 'string' },
+			visibility: { type: 'string' },
+			scopeBindings: { type: 'object' },
 			status: { type: 'string' },
 			stored: { type: 'boolean' },
 			changed: { type: 'boolean' },
@@ -32,7 +34,18 @@ export const studentCourseCanvasUpdateManifest: ToolManifest = {
 			revision: { type: ['integer', 'null'] },
 			updatedAt: { type: ['string', 'null'] }
 		},
-		required: ['scopeType', 'scopeKey', 'status', 'stored', 'changed', 'changeSummary', 'revision', 'updatedAt']
+		required: [
+			'scopeType',
+			'scopeKey',
+			'visibility',
+			'scopeBindings',
+			'status',
+			'stored',
+			'changed',
+			'changeSummary',
+			'revision',
+			'updatedAt'
+		]
 	},
 	executorType: 'builtin',
 	executorConfig: { handler: 'studentCourseCanvasUpdate' },

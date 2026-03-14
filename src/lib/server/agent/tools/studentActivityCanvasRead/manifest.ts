@@ -21,12 +21,23 @@ export const studentActivityCanvasReadManifest: ToolManifest = {
 		properties: {
 			scopeType: { type: 'string' },
 			scopeKey: { type: 'string' },
+			visibility: { type: 'string' },
+			scopeBindings: { type: 'object' },
 			exists: { type: 'boolean' },
 			content: { type: ['string', 'null'] },
 			revision: { type: ['integer', 'null'] },
 			updatedAt: { type: ['string', 'null'] }
 		},
-		required: ['scopeType', 'scopeKey', 'exists', 'content', 'revision', 'updatedAt']
+		required: [
+			'scopeType',
+			'scopeKey',
+			'visibility',
+			'scopeBindings',
+			'exists',
+			'content',
+			'revision',
+			'updatedAt'
+		]
 	},
 	executorType: 'builtin',
 	executorConfig: { handler: 'studentActivityCanvasRead' },
