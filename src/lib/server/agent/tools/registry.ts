@@ -33,8 +33,10 @@ import {
 	saveGradePackage,
 	searchCourseContentPackage,
 	sendNotificationPackage,
-	studentActivityMemoryPackage,
-	studentCourseMemoryPackage,
+	studentActivityCanvasReadPackage,
+	studentActivityCanvasUpdatePackage,
+	studentCourseCanvasReadPackage,
+	studentCourseCanvasUpdatePackage,
 	summarizeEvidenceForStudentPackage
 } from './index';
 
@@ -47,8 +49,10 @@ const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
 	getActivityTranscriptsPackage,
 	getLearningProgressTimelinePackage,
 	getActivityToolUsageSummaryPackage,
-	studentCourseMemoryPackage,
-	studentActivityMemoryPackage,
+	studentCourseCanvasReadPackage,
+	studentCourseCanvasUpdatePackage,
+	studentActivityCanvasReadPackage,
+	studentActivityCanvasUpdatePackage,
 	compareStudentGroupsPackage,
 	findStuckSessionsPackage,
 	analyzeActivityDifficultyPackage,

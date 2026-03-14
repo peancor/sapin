@@ -165,7 +165,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	}
 
 	// Ejecutar la herramienta
-	const execResult = await ToolExecutor.execute(toolCall.toolName, toolArgs, context);
+	const execResult = await ToolExecutor.execute(toolCall.toolName, toolArgs, context, toolCallId);
 
 	const resultData = execResult.success ? execResult.data : { error: execResult.errorMessage };
 

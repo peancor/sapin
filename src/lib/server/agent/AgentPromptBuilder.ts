@@ -1,4 +1,8 @@
 import type { AgentActivityConfig, ToolDefinitionResolved } from '$lib/types/agent';
+import {
+	STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME,
+	STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME
+} from './memory';
 
 /**
  * Builds the system prompt for the agent, including tool descriptions
@@ -61,8 +65,21 @@ Tienes acceso a las siguientes herramientas para ayudar al estudiante:
             ? `## Contexto del material del curso\n\nUtiliza la siguiente informacion de los documentos del curso como referencia prioritaria:\n\n[[CONTEXTO_RAG]]\n${ragContext}\n[[FIN_CONTEXTO_RAG]]`
             : '';
         const finalizationToolName = config.finalizationToolName?.trim() || 'finalize_activity';
+        const enabledToolNames = new Set(tools.map((tool) => tool.name));
+        const memorySyncInstruction = [
+            enabledToolNames.has(STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME)
+                ? `\`${STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME}\``
+                : null,
+            enabledToolNames.has(STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME)
+                ? `\`${STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME}\``
+                : null
+        ]
+            .filter((toolName): toolName is string => toolName !== null)
+            .join(' y ');
         const finalizationInstruction = config.finalizationEnabled
-            ? `Cuando completes completamente el objetivo de la actividad, llama la herramienta \`${finalizationToolName}\` una sola vez para cerrar la sesion`
+            ? memorySyncInstruction
+                ? `Cuando completes completamente el objetivo de la actividad, primero sincroniza la memoria con ${memorySyncInstruction} y solo despues llama la herramienta \`${finalizationToolName}\` una sola vez para cerrar la sesion`
+                : `Cuando completes completamente el objetivo de la actividad, llama la herramienta \`${finalizationToolName}\` una sola vez para cerrar la sesion`
             : 'Cierra la sesion de forma natural cuando completes el objetivo';
 
         const prompt = config.systemPrompt || this.BASE_TEMPLATE;

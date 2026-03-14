@@ -43,7 +43,8 @@ export class ToolExecutor {
     static async execute(
         toolName: string,
         args: Record<string, unknown>,
-        context: AgentContext
+        context: AgentContext,
+        toolCallId?: string
     ): Promise<ToolExecutionResult> {
         const start = Date.now();
         const tool = this.findTool(toolName, context.enabledTools);
@@ -59,7 +60,7 @@ export class ToolExecutor {
 
         try {
             if (tool.executorType === 'builtin') {
-                return await this.executeBuiltin(tool, args, context);
+                return await this.executeBuiltin(tool, args, context, toolCallId);
             } else if (tool.executorType === 'http') {
                 return await this.executeHttp(tool, args, context);
             }
@@ -83,7 +84,8 @@ export class ToolExecutor {
     private static async executeBuiltin(
         tool: ToolDefinitionResolved,
         args: Record<string, unknown>,
-        context: AgentContext
+        context: AgentContext,
+        toolCallId?: string
     ): Promise<ToolExecutionResult> {
         const handler = tool.executorConfig.handler as string;
 
@@ -106,7 +108,7 @@ export class ToolExecutor {
             };
         }
 
-        const result = await fn(args, context);
+        const result = await fn(args, context, toolCallId);
 
         return {
             data: result.data,

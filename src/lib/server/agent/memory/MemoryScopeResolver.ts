@@ -1,35 +1,36 @@
 import type { AgentContext } from '$lib/types/agent';
-import type { MemoryScopeResolved } from '$lib/types/agentMemory';
-import { STUDENT_ACTIVITY_MEMORY_TOOL_NAME, STUDENT_COURSE_MEMORY_TOOL_NAME } from './constants';
+import type { MemoryCanvasScopeResolved } from '$lib/types/agentMemory';
+import {
+	ACTIVITY_CANVAS_TOOL_NAMES,
+	COURSE_CANVAS_TOOL_NAMES
+} from './constants';
 
 export class MemoryScopeResolver {
-	static resolve(context: AgentContext, toolName: string): MemoryScopeResolved {
+	static resolve(context: AgentContext, toolName: string): MemoryCanvasScopeResolved {
 		const coursePart = context.courseId ?? 'none';
 
-		if (toolName === STUDENT_COURSE_MEMORY_TOOL_NAME) {
+		if (COURSE_CANVAS_TOOL_NAMES.includes(toolName as (typeof COURSE_CANVAS_TOOL_NAMES)[number])) {
 			return {
 				scopeType: 'student_course',
 				scopeKey: `student:${context.userId}:course:${coursePart}`,
-				privacyClass: 'student_private',
 				courseId: context.courseId ?? null,
-				activityId: context.activityId,
-				subjectUserId: context.userId,
-				createdByUserId: context.userId
+				activityId: context.activityId ?? null,
+				studentId: context.userId
 			};
 		}
 
-		if (toolName !== STUDENT_ACTIVITY_MEMORY_TOOL_NAME) {
+		if (
+			!ACTIVITY_CANVAS_TOOL_NAMES.includes(toolName as (typeof ACTIVITY_CANVAS_TOOL_NAMES)[number])
+		) {
 			throw new Error(`Herramienta de memoria no soportada: ${toolName}`);
 		}
 
 		return {
 			scopeType: 'student_activity',
 			scopeKey: `student:${context.userId}:course:${coursePart}:activity:${context.activityId}`,
-			privacyClass: 'student_private',
 			courseId: context.courseId ?? null,
 			activityId: context.activityId,
-			subjectUserId: context.userId,
-			createdByUserId: context.userId
+			studentId: context.userId
 		};
 	}
 }

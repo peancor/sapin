@@ -101,7 +101,10 @@
 				toastType = 'success';
 			} else {
 				showToast = true;
-				toastMessage = 'Error al guardar los cambios';
+				toastMessage =
+					result.type === 'failure' && result.data && 'message' in result.data
+						? String(result.data.message)
+						: 'Error al guardar los cambios';
 				toastType = 'error';
 			}
 			setTimeout(() => (showToast = false), 3000);

@@ -9,7 +9,7 @@ import {
 } from '$lib/server/db/schema';
 import type { InteractiveLearningStatusType } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { error } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import { AIUtils } from '$lib/server/ai/AIUtils';
 import { auditService, auditAction } from '$lib/server/logging';
 import { DBAgentActivityUtils, DBAgentToolUtils, DBAgentUIUtils } from '$lib/server/db/agent';
@@ -37,6 +37,12 @@ import {
 import { processDocument, processText, type ParsedDocument } from '$lib/server/qdrant/documentProcessor';
 import { resolveRagConfig, type RagConfig } from '$lib/server/rag/config';
 import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '$lib/server/agent/tools/constants';
+import {
+	STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME,
+	STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME,
+	STUDENT_COURSE_CANVAS_READ_TOOL_NAME,
+	STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME
+} from '$lib/server/agent/memory';
 
 const RAG_FILE_PATH_PREFIX = '/api/files/';
 const MIN_RAG_CHUNK_SIZE = 100;
@@ -62,6 +68,11 @@ type RagSyncSummary = {
     processingDocuments: number;
     errorDocuments: number;
 };
+
+const MEMORY_TOOL_NAME_PAIRS = [
+	[STUDENT_COURSE_CANVAS_READ_TOOL_NAME, STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME],
+	[STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME, STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME]
+] as const;
 
 function getClientIP(request: Request): string | null {
     return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -90,6 +101,38 @@ function parseBooleanFormValue(value: FormDataEntryValue | null, fallback: boole
     if (normalized === 'true') return true;
     if (normalized === 'false') return false;
     return fallback;
+}
+
+function normalizeMemoryToolSelection(
+	selectedToolIds: string[],
+	toolById: Map<string, { id: string; name: string }>
+): string[] {
+	const normalized = new Set(selectedToolIds.filter((toolId) => toolById.has(toolId)));
+	const idByName = new Map(Array.from(toolById.values()).map((tool) => [tool.name, tool.id]));
+	const selectedNames = new Set(
+		Array.from(normalized)
+			.map((toolId) => toolById.get(toolId)?.name)
+			.filter((toolName): toolName is string => typeof toolName === 'string')
+	);
+
+	for (const [readToolName, updateToolName] of MEMORY_TOOL_NAME_PAIRS) {
+		if (selectedNames.has(readToolName) || selectedNames.has(updateToolName)) {
+			const readToolId = idByName.get(readToolName);
+			const updateToolId = idByName.get(updateToolName);
+			if (readToolId) normalized.add(readToolId);
+			if (updateToolId) normalized.add(updateToolId);
+		}
+	}
+
+	return Array.from(normalized);
+}
+
+function selectionUsesMemoryTools(selectedToolNames: string[]): boolean {
+	return selectedToolNames.some((toolName) =>
+		MEMORY_TOOL_NAME_PAIRS.some(([readToolName, updateToolName]) =>
+			toolName === readToolName || toolName === updateToolName
+		)
+	);
 }
 
 function logRagProcessingDiagnostics(args: {
@@ -429,6 +472,21 @@ export const actions = {
             if (raw) selectedToolIds = JSON.parse(raw) as string[];
         } catch {
             // ignore malformed data
+        }
+
+        const activeTools = await DBAgentToolUtils.getActiveToolDefinitions(BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT);
+        const toolById = new Map(activeTools.map((tool) => [tool.id, { id: tool.id, name: tool.name }]));
+        selectedToolIds = normalizeMemoryToolSelection(selectedToolIds, toolById);
+        const selectedToolNames = selectedToolIds
+            .map((toolId) => toolById.get(toolId)?.name)
+            .filter((toolName): toolName is string => typeof toolName === 'string');
+        const usesMemoryTools = selectionUsesMemoryTools(selectedToolNames);
+
+        if (usesMemoryTools && (!finalizationEnabled || !requireFinalizationToolCall)) {
+            return fail(400, {
+                message:
+                    'Las actividades con memoria habilitada deben usar finalización explícita y requerir la llamada a la tool de finalización.'
+            });
         }
 
         const now = new Date();

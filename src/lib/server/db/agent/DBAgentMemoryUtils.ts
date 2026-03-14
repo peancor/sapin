@@ -1,243 +1,299 @@
-import { and, desc, eq, gte, gt, inArray, isNull, or } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { db } from '..';
 import * as schema from '../schema';
 import type {
-	AgentMemoryAccessEvent,
-	AgentMemoryRecord,
-	MemoryAccessOperation,
-	MemoryAccessOutcome,
-	MemoryPrivacyClass,
-	MemoryScopeType,
-	MemorySourceKind,
-	MemoryStatus
+	AgentMemoryCanvasRecord,
+	AgentMemoryCanvasRevisionRecord,
+	AgentMemoryCanvasSyncEventRecord,
+	MemoryCanvasScopeType,
+	MemoryCanvasSyncStatus
 } from '$lib/types/agentMemory';
 
-type QueryScopeParams = {
-	scopeType: MemoryScopeType;
+type CanvasScopeParams = {
+	scopeType: MemoryCanvasScopeType;
 	scopeKey: string;
-	privacyClass: MemoryPrivacyClass;
-	memoryTypes?: string[];
-	minImportance?: number;
-	since?: Date;
-	limit: number;
-	tagsAny?: string[];
-	includeRejected?: boolean;
 };
 
-type SaveMemoryParams = {
-	scopeType: MemoryScopeType;
-	scopeKey: string;
-	privacyClass: MemoryPrivacyClass;
+type UpsertCanvasParams = CanvasScopeParams & {
 	courseId: string | null;
 	activityId: string | null;
-	subjectUserId: string | null;
-	createdByUserId: string | null;
-	sourceKind: MemorySourceKind;
-	memoryType: string;
-	status: MemoryStatus;
-	importance: number;
-	dedupeKey?: string | null;
-	summary: string;
-	tags?: string[];
-	payload: unknown;
-	occurredAt?: Date | null;
-	expiresAt?: Date | null;
+	studentId: string;
+	content: string;
+	revision: number;
+	lastSourceChatId?: string | null;
+	lastSourceToolCallId?: string | null;
+	lastModelName?: string | null;
 };
 
-function normalizeMemoryRow(row: typeof schema.agentMemory.$inferSelect): AgentMemoryRecord {
+type CreateRevisionParams = {
+	canvasId: string;
+	scopeType: MemoryCanvasScopeType;
+	scopeKey: string;
+	courseId: string | null;
+	activityId: string | null;
+	studentId: string;
+	revision: number;
+	content: string;
+	changeSummary?: string | null;
+	sourceChatId?: string | null;
+	sourceToolCallId?: string | null;
+	modelName?: string | null;
+};
+
+type CreateSyncEventParams = {
+	canvasId?: string | null;
+	scopeType: MemoryCanvasScopeType;
+	scopeKey: string;
+	courseId: string | null;
+	activityId: string | null;
+	studentId: string;
+	chatId?: string | null;
+	toolCallId?: string | null;
+	modelName?: string | null;
+	status: MemoryCanvasSyncStatus;
+	changeSummary?: string | null;
+	errorMessage?: string | null;
+};
+
+function normalizeCanvasRow(row: typeof schema.agentMemoryCanvas.$inferSelect): AgentMemoryCanvasRecord {
 	return {
 		id: row.id,
 		scopeType: row.scopeType,
 		scopeKey: row.scopeKey,
-		privacyClass: row.privacyClass,
 		courseId: row.courseId ?? null,
 		activityId: row.activityId ?? null,
-		subjectUserId: row.subjectUserId ?? null,
-		createdByUserId: row.createdByUserId ?? null,
-		sourceKind: row.sourceKind,
-		memoryType: row.memoryType,
-		status: row.status,
-		importance: row.importance,
-		dedupeKey: row.dedupeKey ?? null,
-		summary: row.summary,
-		tags: Array.isArray(row.tags) ? row.tags.filter((tag): tag is string => typeof tag === 'string') : [],
-		payload: row.payload,
-		occurredAt: row.occurredAt ?? null,
-		expiresAt: row.expiresAt ?? null,
+		studentId: row.studentId,
+		content: row.content,
+		revision: row.revision,
+		lastSourceChatId: row.lastSourceChatId ?? null,
+		lastSourceToolCallId: row.lastSourceToolCallId ?? null,
+		lastModelName: row.lastModelName ?? null,
 		createdAt: row.createdAt,
 		updatedAt: row.updatedAt
 	};
 }
 
-function matchesTags(rowTags: string[], tagsAny?: string[]): boolean {
-	if (!tagsAny?.length) return true;
-	if (!rowTags.length) return false;
+function normalizeRevisionRow(
+	row: typeof schema.agentMemoryCanvasRevision.$inferSelect
+): AgentMemoryCanvasRevisionRecord {
+	return {
+		id: row.id,
+		canvasId: row.canvasId,
+		scopeType: row.scopeType,
+		scopeKey: row.scopeKey,
+		courseId: row.courseId ?? null,
+		activityId: row.activityId ?? null,
+		studentId: row.studentId,
+		revision: row.revision,
+		content: row.content,
+		changeSummary: row.changeSummary ?? null,
+		sourceEventType: 'sync_update',
+		sourceChatId: row.sourceChatId ?? null,
+		sourceToolCallId: row.sourceToolCallId ?? null,
+		modelName: row.modelName ?? null,
+		createdAt: row.createdAt
+	};
+}
 
-	const normalized = new Set(rowTags.map((tag) => tag.trim().toLowerCase()).filter(Boolean));
-	return tagsAny.some((tag) => normalized.has(tag.trim().toLowerCase()));
+function normalizeSyncEventRow(
+	row: typeof schema.agentMemoryCanvasSyncEvent.$inferSelect
+): AgentMemoryCanvasSyncEventRecord {
+	return {
+		id: row.id,
+		canvasId: row.canvasId ?? null,
+		scopeType: row.scopeType,
+		scopeKey: row.scopeKey,
+		courseId: row.courseId ?? null,
+		activityId: row.activityId ?? null,
+		studentId: row.studentId,
+		chatId: row.chatId ?? null,
+		toolCallId: row.toolCallId ?? null,
+		modelName: row.modelName ?? null,
+		status: row.status,
+		changeSummary: row.changeSummary ?? null,
+		errorMessage: row.errorMessage ?? null,
+		createdAt: row.createdAt
+	};
 }
 
 export default class DBAgentMemoryUtils {
-	static async queryMemoriesByScope(params: QueryScopeParams): Promise<AgentMemoryRecord[]> {
-		const now = new Date();
-		const fetchLimit = params.tagsAny?.length ? Math.max(params.limit * 4, 20) : params.limit;
-		const filters = [
-			eq(schema.agentMemory.scopeType, params.scopeType),
-			eq(schema.agentMemory.scopeKey, params.scopeKey),
-			eq(schema.agentMemory.privacyClass, params.privacyClass),
-			or(isNull(schema.agentMemory.expiresAt), gt(schema.agentMemory.expiresAt, now))
-		];
-
-		if (!params.includeRejected) {
-			filters.push(eq(schema.agentMemory.status, 'active'));
-		}
-
-		if (params.memoryTypes?.length) {
-			filters.push(inArray(schema.agentMemory.memoryType, params.memoryTypes));
-		}
-
-		if (typeof params.minImportance === 'number') {
-			filters.push(gte(schema.agentMemory.importance, params.minImportance));
-		}
-
-		if (params.since) {
-			filters.push(
-				or(
-					gte(schema.agentMemory.occurredAt, params.since),
-					and(isNull(schema.agentMemory.occurredAt), gte(schema.agentMemory.createdAt, params.since))
+	static async getCanvasByScope(
+		params: CanvasScopeParams
+	): Promise<AgentMemoryCanvasRecord | null> {
+		const [row] = await db
+			.select()
+			.from(schema.agentMemoryCanvas)
+			.where(
+				and(
+					eq(schema.agentMemoryCanvas.scopeType, params.scopeType),
+					eq(schema.agentMemoryCanvas.scopeKey, params.scopeKey)
 				)
-			);
-		}
+			)
+			.limit(1);
+
+		return row ? normalizeCanvasRow(row) : null;
+	}
+
+	static async listCanvasesByScopeKeys(scopeKeys: string[]): Promise<AgentMemoryCanvasRecord[]> {
+		if (scopeKeys.length === 0) return [];
 
 		const rows = await db
 			.select()
-			.from(schema.agentMemory)
-			.where(and(...filters))
-			.orderBy(
-				desc(schema.agentMemory.importance),
-				desc(schema.agentMemory.occurredAt),
-				desc(schema.agentMemory.createdAt)
-			)
-			.limit(fetchLimit);
+			.from(schema.agentMemoryCanvas)
+			.where(inArray(schema.agentMemoryCanvas.scopeKey, scopeKeys));
 
-		return rows
-			.map(normalizeMemoryRow)
-			.filter((row) => matchesTags(row.tags, params.tagsAny))
-			.slice(0, params.limit);
+		return rows.map(normalizeCanvasRow);
 	}
 
-	static async saveMemory(params: SaveMemoryParams): Promise<AgentMemoryRecord> {
+	static async upsertCanvas(params: UpsertCanvasParams): Promise<AgentMemoryCanvasRecord> {
 		const now = new Date();
+		const existing = await this.getCanvasByScope(params);
 
-		if (params.dedupeKey) {
-			const existing = await db
+		if (existing) {
+			await db
+				.update(schema.agentMemoryCanvas)
+				.set({
+					courseId: params.courseId,
+					activityId: params.activityId,
+					studentId: params.studentId,
+					content: params.content,
+					revision: params.revision,
+					lastSourceChatId: params.lastSourceChatId ?? null,
+					lastSourceToolCallId: params.lastSourceToolCallId ?? null,
+					lastModelName: params.lastModelName ?? null,
+					updatedAt: now
+				})
+				.where(eq(schema.agentMemoryCanvas.id, existing.id));
+
+			const [updated] = await db
 				.select()
-				.from(schema.agentMemory)
-				.where(
-					and(
-						eq(schema.agentMemory.scopeKey, params.scopeKey),
-						eq(schema.agentMemory.memoryType, params.memoryType),
-						eq(schema.agentMemory.dedupeKey, params.dedupeKey)
-					)
-				)
+				.from(schema.agentMemoryCanvas)
+				.where(eq(schema.agentMemoryCanvas.id, existing.id))
 				.limit(1);
 
-			if (existing[0]) {
-				await db
-					.update(schema.agentMemory)
-					.set({
-						privacyClass: params.privacyClass,
-						courseId: params.courseId,
-						activityId: params.activityId,
-						subjectUserId: params.subjectUserId,
-						createdByUserId: params.createdByUserId,
-						sourceKind: params.sourceKind,
-						status: params.status,
-						importance: params.importance,
-						summary: params.summary,
-						tags: params.tags ?? [],
-						payload: params.payload,
-						occurredAt: params.occurredAt ?? null,
-						expiresAt: params.expiresAt ?? null,
-						updatedAt: now
-					})
-					.where(eq(schema.agentMemory.id, existing[0].id));
-
-				const [updated] = await db
-					.select()
-					.from(schema.agentMemory)
-					.where(eq(schema.agentMemory.id, existing[0].id))
-					.limit(1);
-
-				return normalizeMemoryRow(updated);
-			}
+			return normalizeCanvasRow(updated);
 		}
 
 		const id = nanoid();
-		await db.insert(schema.agentMemory).values({
+		await db.insert(schema.agentMemoryCanvas).values({
 			id,
 			scopeType: params.scopeType,
 			scopeKey: params.scopeKey,
-			privacyClass: params.privacyClass,
 			courseId: params.courseId,
 			activityId: params.activityId,
-			subjectUserId: params.subjectUserId,
-			createdByUserId: params.createdByUserId,
-			sourceKind: params.sourceKind,
-			memoryType: params.memoryType,
-			status: params.status,
-			importance: params.importance,
-			dedupeKey: params.dedupeKey ?? null,
-			summary: params.summary,
-			tags: params.tags ?? [],
-			payload: params.payload,
-			occurredAt: params.occurredAt ?? null,
-			expiresAt: params.expiresAt ?? null,
+			studentId: params.studentId,
+			content: params.content,
+			revision: params.revision,
+			lastSourceChatId: params.lastSourceChatId ?? null,
+			lastSourceToolCallId: params.lastSourceToolCallId ?? null,
+			lastModelName: params.lastModelName ?? null,
 			createdAt: now,
 			updatedAt: now
 		});
 
-		const [created] = await db.select().from(schema.agentMemory).where(eq(schema.agentMemory.id, id)).limit(1);
-		return normalizeMemoryRow(created);
+		const [created] = await db
+			.select()
+			.from(schema.agentMemoryCanvas)
+			.where(eq(schema.agentMemoryCanvas.id, id))
+			.limit(1);
+
+		return normalizeCanvasRow(created);
 	}
 
-	static async logAccessEvent(data: {
-		memoryId?: string | null;
-		actorUserId?: string | null;
-		toolName: string;
-		operation: MemoryAccessOperation;
-		outcome: MemoryAccessOutcome;
-		scopeKey: string;
-		resultCount?: number;
-		details?: Record<string, unknown> | null;
-	}): Promise<AgentMemoryAccessEvent> {
+	static async createCanvasRevision(
+		params: CreateRevisionParams
+	): Promise<AgentMemoryCanvasRevisionRecord> {
 		const id = nanoid();
 		const createdAt = new Date();
-		await db.insert(schema.agentMemoryAccessEvent).values({
+
+		await db.insert(schema.agentMemoryCanvasRevision).values({
 			id,
-			memoryId: data.memoryId ?? null,
-			actorUserId: data.actorUserId ?? null,
-			toolName: data.toolName,
-			operation: data.operation,
-			outcome: data.outcome,
-			scopeKey: data.scopeKey,
-			resultCount: data.resultCount ?? 0,
-			details: data.details ?? null,
+			canvasId: params.canvasId,
+			scopeType: params.scopeType,
+			scopeKey: params.scopeKey,
+			courseId: params.courseId,
+			activityId: params.activityId,
+			studentId: params.studentId,
+			revision: params.revision,
+			content: params.content,
+			changeSummary: params.changeSummary ?? null,
+			sourceEventType: 'sync_update',
+			sourceChatId: params.sourceChatId ?? null,
+			sourceToolCallId: params.sourceToolCallId ?? null,
+			modelName: params.modelName ?? null,
 			createdAt
 		});
 
-		return {
+		const [created] = await db
+			.select()
+			.from(schema.agentMemoryCanvasRevision)
+			.where(eq(schema.agentMemoryCanvasRevision.id, id))
+			.limit(1);
+
+		return normalizeRevisionRow(created);
+	}
+
+	static async createSyncEvent(
+		params: CreateSyncEventParams
+	): Promise<AgentMemoryCanvasSyncEventRecord> {
+		const id = nanoid();
+		const createdAt = new Date();
+
+		await db.insert(schema.agentMemoryCanvasSyncEvent).values({
 			id,
-			memoryId: data.memoryId ?? null,
-			actorUserId: data.actorUserId ?? null,
-			toolName: data.toolName,
-			operation: data.operation,
-			outcome: data.outcome,
-			scopeKey: data.scopeKey,
-			resultCount: data.resultCount ?? 0,
-			details: data.details ?? null,
+			canvasId: params.canvasId ?? null,
+			scopeType: params.scopeType,
+			scopeKey: params.scopeKey,
+			courseId: params.courseId,
+			activityId: params.activityId,
+			studentId: params.studentId,
+			chatId: params.chatId ?? null,
+			toolCallId: params.toolCallId ?? null,
+			modelName: params.modelName ?? null,
+			status: params.status,
+			changeSummary: params.changeSummary ?? null,
+			errorMessage: params.errorMessage ?? null,
 			createdAt
-		};
+		});
+
+		const [created] = await db
+			.select()
+			.from(schema.agentMemoryCanvasSyncEvent)
+			.where(eq(schema.agentMemoryCanvasSyncEvent.id, id))
+			.limit(1);
+
+		return normalizeSyncEventRow(created);
+	}
+
+	static async getLatestSuccessfulSyncEvent(
+		params: CanvasScopeParams & { chatId: string }
+	): Promise<AgentMemoryCanvasSyncEventRecord | null> {
+		const [row] = await db
+			.select()
+			.from(schema.agentMemoryCanvasSyncEvent)
+			.where(
+				and(
+					eq(schema.agentMemoryCanvasSyncEvent.scopeType, params.scopeType),
+					eq(schema.agentMemoryCanvasSyncEvent.scopeKey, params.scopeKey),
+					eq(schema.agentMemoryCanvasSyncEvent.chatId, params.chatId),
+					inArray(schema.agentMemoryCanvasSyncEvent.status, ['updated', 'unchanged'])
+				)
+			)
+			.orderBy(desc(schema.agentMemoryCanvasSyncEvent.createdAt))
+			.limit(1);
+
+		return row ? normalizeSyncEventRow(row) : null;
+	}
+
+	static async getLatestUserMessageAt(chatId: string): Promise<Date | null> {
+		const [row] = await db
+			.select({ createdAt: schema.agentMessage.createdAt })
+			.from(schema.agentMessage)
+			.where(and(eq(schema.agentMessage.chatId, chatId), eq(schema.agentMessage.role, 'user')))
+			.orderBy(desc(schema.agentMessage.createdAt))
+			.limit(1);
+
+		return row?.createdAt ?? null;
 	}
 }

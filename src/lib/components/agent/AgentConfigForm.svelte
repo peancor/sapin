@@ -70,6 +70,9 @@
 	let selectedTools = $derived(tools.filter((tool) => selectedToolIds.includes(tool.id)));
 	let uiRendererBindings = $derived(resolveUIRendererBindings(selectedTools));
 	let availableUIComponentKeySet = $derived(new Set(availableUIComponentKeys));
+	let hasMemoryCanvasTools = $derived(
+		selectedTools.some((tool) => tool.name.includes('_canvas_read') || tool.name.includes('_canvas_update'))
+	);
 
 	let uiRendererDiagnostics = $derived(
 		uiRendererBindings.map((binding) => {
@@ -305,6 +308,11 @@
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
 				Herramientas habilitadas
 			</h3>
+			{#if hasMemoryCanvasTools}
+				<div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200">
+					La memoria por canvas exige finalización explícita y selección por parejas: al guardar, el backend activará automáticamente la tool de lectura y la de actualización de cada scope de memoria.
+				</div>
+			{/if}
 			<div class="space-y-4">
 				{#each Object.entries(toolsByCategory) as [category, categoryTools] (category)}
 					<div>

@@ -30,7 +30,8 @@ export interface ToolManifest {
 
 export type BuiltinToolHandler = (
 	args: any,
-	context: AgentContext
+	context: AgentContext,
+	toolCallId?: string
 ) => Promise<ToolResult>;
 
 export interface BuiltinToolPackage {

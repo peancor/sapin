@@ -4,6 +4,89 @@ import * as schema from '../schema';
 import { nanoid } from 'nanoid';
 import type { ToolDefinitionResolved } from '$lib/types/agent';
 import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '$lib/server/agent/tools/constants';
+import DBAgentToolUtils from './DBAgentToolUtils';
+import {
+	STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME,
+	STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME,
+	STUDENT_COURSE_CANVAS_READ_TOOL_NAME,
+	STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME
+} from '$lib/server/agent/memory';
+
+const MEMORY_TOOL_NAME_PAIRS = [
+	[STUDENT_COURSE_CANVAS_READ_TOOL_NAME, STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME],
+	[STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME, STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME]
+] as const;
+
+function normalizeCanvasToolPairs(
+	enabledTools: ToolDefinitionResolved[],
+	activeTools: ToolDefinitionResolved[]
+): ToolDefinitionResolved[] {
+	const normalized = new Map(enabledTools.map((tool) => [tool.id, tool]));
+	const byName = new Map(activeTools.map((tool) => [tool.name, tool]));
+	const enabledNames = new Set(enabledTools.map((tool) => tool.name));
+
+	for (const [readToolName, updateToolName] of MEMORY_TOOL_NAME_PAIRS) {
+		if (enabledNames.has(readToolName) || enabledNames.has(updateToolName)) {
+			const readTool = byName.get(readToolName);
+			const updateTool = byName.get(updateToolName);
+			if (readTool) normalized.set(readTool.id, readTool);
+			if (updateTool) normalized.set(updateTool.id, updateTool);
+		}
+	}
+
+	return Array.from(normalized.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function resolveToolDefinition(
+	tool: typeof schema.agentToolDefinition.$inferSelect,
+	configOverrideRaw?: string | null
+): ToolDefinitionResolved {
+	let parametersSchema: Record<string, unknown> = {};
+	let responseSchema: Record<string, unknown> | undefined = undefined;
+	let executorConfig: Record<string, unknown> = {};
+	let configOverride: Record<string, unknown> | undefined = undefined;
+
+	try {
+		parametersSchema = JSON.parse(tool.parametersSchema) as Record<string, unknown>;
+	} catch {
+		// Use empty schema as fallback
+	}
+	if (tool.responseSchema) {
+		try {
+			responseSchema = JSON.parse(tool.responseSchema) as Record<string, unknown>;
+		} catch {
+			// ignore
+		}
+	}
+	try {
+		executorConfig = JSON.parse(tool.executorConfig) as Record<string, unknown>;
+	} catch {
+		// ignore
+	}
+	if (configOverrideRaw) {
+		try {
+			configOverride = JSON.parse(configOverrideRaw) as Record<string, unknown>;
+		} catch {
+			// ignore
+		}
+	}
+
+	return {
+		id: tool.id,
+		name: tool.name,
+		displayName: tool.displayName,
+		description: tool.description,
+		category: tool.category,
+		parametersSchema,
+		responseSchema,
+		executorType: tool.executorType as 'builtin' | 'http' | 'script',
+		executorConfig,
+		requiresConfirmation: tool.requiresConfirmation,
+		riskLevel: tool.riskLevel as 'low' | 'medium' | 'high',
+		usageDomain: tool.usageDomain,
+		configOverride
+	} satisfies ToolDefinitionResolved;
+}
 
 export default class DBAgentActivityUtils {
 	// ─── Actividad Agéntica ───
@@ -62,56 +145,16 @@ export default class DBAgentActivityUtils {
 				)
 			);
 
-		return rows.map((row) => {
-			const tool = row.tool;
-			const activityTool = row.activityTool;
+		const resolvedTools = rows.map((row) =>
+			resolveToolDefinition(row.tool, row.activityTool.configOverride)
+		);
 
-			let parametersSchema: Record<string, unknown> = {};
-			let responseSchema: Record<string, unknown> | undefined = undefined;
-			let executorConfig: Record<string, unknown> = {};
-			let configOverride: Record<string, unknown> | undefined = undefined;
-
-			try {
-				parametersSchema = JSON.parse(tool.parametersSchema) as Record<string, unknown>;
-			} catch {
-				// Use empty schema as fallback
-			}
-			if (tool.responseSchema) {
-				try {
-					responseSchema = JSON.parse(tool.responseSchema) as Record<string, unknown>;
-				} catch {
-					// ignore
-				}
-			}
-			try {
-				executorConfig = JSON.parse(tool.executorConfig) as Record<string, unknown>;
-			} catch {
-				// ignore
-			}
-			if (activityTool.configOverride) {
-				try {
-					configOverride = JSON.parse(activityTool.configOverride) as Record<string, unknown>;
-				} catch {
-					// ignore
-				}
-			}
-
-			return {
-				id: tool.id,
-				name: tool.name,
-				displayName: tool.displayName,
-				description: tool.description,
-				category: tool.category,
-				parametersSchema,
-				responseSchema,
-				executorType: tool.executorType as 'builtin' | 'http' | 'script',
-				executorConfig,
-				requiresConfirmation: tool.requiresConfirmation,
-				riskLevel: tool.riskLevel as 'low' | 'medium' | 'high',
-				usageDomain: tool.usageDomain,
-				configOverride
-			} satisfies ToolDefinitionResolved;
-		});
+		const activeTools = (
+			await DBAgentToolUtils.getActiveToolDefinitions(
+				usageDomain as typeof BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
+			)
+		).map((tool) => resolveToolDefinition(tool));
+		return normalizeCanvasToolPairs(resolvedTools, activeTools);
 	}
 
 	static async setActivityTools(activityId: string, toolIds: string[]) {

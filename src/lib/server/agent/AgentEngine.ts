@@ -77,7 +77,12 @@ export class AgentEngine {
 			name: finalizationToolName,
 			displayName: 'Finalizar actividad',
 			description:
-				'Usa esta herramienta cuando el objetivo de la actividad se haya completado para cerrar la sesion.',
+				[
+					'Usa esta herramienta cuando el objetivo de la actividad se haya completado para cerrar la sesion.',
+					AgentMemoryService.getFinalizationInstruction(context)
+				]
+					.filter(Boolean)
+					.join(' '),
 			category: 'evaluation',
 			parametersSchema: {
 				type: 'object',
@@ -142,6 +147,18 @@ export class AgentEngine {
 
 		return ToolManager.buildVercelAITools(runtimeTools, async (toolName, input, toolCallId) => {
 			if (context.activityConfig.finalizationEnabled && toolName === finalizationToolName) {
+				const blocker = await AgentMemoryService.getFinalizationBlocker(context);
+				if (blocker) {
+					return {
+						finalizationBlocked: true,
+						reason:
+							'Antes de finalizar debes sincronizar la memoria pendiente de esta sesión.',
+						dirtyScopes: blocker.dirtyScopes,
+						nextStep:
+							'Llama primero a las herramientas de actualización de memoria indicadas y, cuando terminen con éxito o unchanged, vuelve a finalizar.'
+					};
+				}
+
 				return {
 					__finalize: true,
 					summary:
@@ -196,7 +213,7 @@ export class AgentEngine {
 				} satisfies HitlSentinel;
 			}
 
-			const result = await ToolExecutor.execute(toolName, input, context);
+			const result = await ToolExecutor.execute(toolName, input, context, toolCallId);
 			return result.success ? result.data : { error: result.errorMessage };
 		});
 	}
@@ -260,7 +277,7 @@ export class AgentEngine {
 		}
 
 		try {
-			memoryContext = await AgentMemoryService.buildPromptMemoryContext(context, userMessage);
+			memoryContext = await AgentMemoryService.buildPromptMemoryContext(context);
 		} catch {
 			// Continue without memory context.
 		}
@@ -448,7 +465,14 @@ export class AgentEngine {
 		}
 
 		const runtimeTools = this.getRuntimeTools(context);
-		const systemPrompt = AgentPromptBuilder.buildSystemPrompt(config, runtimeTools, null);
+		let memoryContext: string | null = null;
+		try {
+			memoryContext = await AgentMemoryService.buildPromptMemoryContext(context);
+		} catch {
+			// Continue without memory context.
+		}
+
+		const systemPrompt = AgentPromptBuilder.buildSystemPrompt(config, runtimeTools, null, memoryContext);
 
 		let model;
 		try {
