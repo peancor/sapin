@@ -5,7 +5,7 @@ export const studentActivityMemoryManifest: ToolManifest = {
 	name: 'student_activity_memory',
 	displayName: 'Memoria del estudiante de la actividad',
 	description:
-		'Herramienta unificada para leer o guardar recuerdos privados del estudiante actual solo dentro de esta actividad concreta. action debe ser "read" o "write". Esta memoria no se comparte con otras actividades.',
+		'Herramienta unificada para leer o guardar recuerdos privados del estudiante actual solo dentro de esta actividad concreta. Usa action="read" o action="write". Para guardar basta con summary; tambien puedes enviar memoryType opcional, details, evidence, confidence, tags o payload parcial, y el backend lo normaliza o lo guarda como observacion general si no encaja en un tipo canonico. Esta memoria no se comparte con otras actividades.',
 	category: 'data',
 	parametersSchema: {
 		type: 'object',
@@ -23,8 +23,7 @@ export const studentActivityMemoryManifest: ToolManifest = {
 				type: 'array',
 				description: 'Tipos de memoria a recuperar cuando action="read".',
 				items: {
-					type: 'string',
-					enum: ['student_preference', 'activity_episode']
+					type: 'string'
 				}
 			},
 			tagsAny: {
@@ -51,16 +50,29 @@ export const studentActivityMemoryManifest: ToolManifest = {
 			},
 			memoryType: {
 				type: 'string',
-				description: 'Tipo de memoria a persistir cuando action="write".',
-				enum: ['student_preference', 'activity_episode']
+				description: 'Tipo sugerido de memoria cuando action="write". Es opcional y el backend puede inferirlo o hacer fallback.'
 			},
 			summary: {
 				type: 'string',
-				description: 'Resumen breve y accionable del recuerdo cuando action="write".'
+				description: 'Resumen breve del recuerdo. Es el unico campo realmente necesario para action="write".'
+			},
+			details: {
+				type: 'string',
+				description: 'Detalles opcionales del recuerdo cuando action="write".'
+			},
+			evidence: {
+				description: 'Evidencia opcional. Puede ser string, objeto o array; el backend la normaliza.',
+				type: ['string', 'object', 'array']
+			},
+			confidence: {
+				type: 'number',
+				description: 'Confianza opcional entre 0 y 1. Si falta, el backend no rechaza por ello.',
+				minimum: 0,
+				maximum: 1
 			},
 			payload: {
 				type: 'object',
-				description: 'Carga estructurada segun el tipo de memoria cuando action="write".'
+				description: 'Carga estructurada opcional. Puede ir incompleta; el backend la fusiona con summary/details.'
 			},
 			importance: {
 				type: 'integer',

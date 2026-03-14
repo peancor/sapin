@@ -3,7 +3,7 @@ import { tool as aiTool } from 'ai';
 import type { ToolDefinitionResolved } from '$lib/types/agent';
 
 type JsonSchemaProperty = {
-    type?: string;
+    type?: string | string[];
     description?: string;
     default?: unknown;
     enum?: unknown[];
@@ -17,11 +17,25 @@ type JsonSchemaProperty = {
     required?: string[];
 };
 
+function cloneSchemaWithType(schema: JsonSchemaProperty, type: string): JsonSchemaProperty {
+    return {
+        ...schema,
+        type
+    };
+}
+
 /**
  * Convierte un JSON Schema a un schema Zod para la validación de parámetros.
  */
 function jsonSchemaToZod(schema: JsonSchemaProperty): z.ZodTypeAny {
     const type = schema.type;
+
+    if (Array.isArray(type)) {
+        const variants = type.map((variant) => jsonSchemaToZod(cloneSchemaWithType(schema, variant)));
+        if (variants.length === 0) return z.unknown();
+        if (variants.length === 1) return variants[0];
+        return z.union(variants as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]);
+    }
 
     switch (type) {
         case 'string': {

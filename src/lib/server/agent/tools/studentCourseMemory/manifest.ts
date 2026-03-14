@@ -5,7 +5,7 @@ export const studentCourseMemoryManifest: ToolManifest = {
 	name: 'student_course_memory',
 	displayName: 'Memoria del estudiante del curso',
 	description:
-		'Herramienta unificada para leer o guardar recuerdos privados del estudiante actual dentro del curso actual. action debe ser "read" o "write". Los recuerdos del curso se comparten entre actividades del mismo curso y no pueden acceder a otros alumnos ni a otros cursos.',
+		'Herramienta unificada para leer o guardar recuerdos privados del estudiante actual dentro del curso actual. Usa action="read" o action="write". Para guardar basta con summary; tambien puedes enviar memoryType opcional, details, evidence, confidence, tags o payload parcial, y el backend lo normaliza o lo guarda como observacion general si no encaja en un tipo canonico. Ejemplos: una preferencia de ritmo, un episodio de exito o confusion, o una observacion libre util para futuras actividades del mismo curso. Nunca puede acceder a otros alumnos ni a otros cursos.',
 	category: 'data',
 	parametersSchema: {
 		type: 'object',
@@ -23,8 +23,7 @@ export const studentCourseMemoryManifest: ToolManifest = {
 				type: 'array',
 				description: 'Tipos de memoria a recuperar cuando action="read".',
 				items: {
-					type: 'string',
-					enum: ['student_preference', 'activity_episode']
+					type: 'string'
 				}
 			},
 			tagsAny: {
@@ -51,16 +50,29 @@ export const studentCourseMemoryManifest: ToolManifest = {
 			},
 			memoryType: {
 				type: 'string',
-				description: 'Tipo de memoria a persistir cuando action="write".',
-				enum: ['student_preference', 'activity_episode']
+				description: 'Tipo sugerido de memoria cuando action="write". Es opcional y el backend puede inferirlo o hacer fallback.'
 			},
 			summary: {
 				type: 'string',
-				description: 'Resumen breve y accionable del recuerdo cuando action="write".'
+				description: 'Resumen breve del recuerdo. Es el unico campo realmente necesario para action="write".'
+			},
+			details: {
+				type: 'string',
+				description: 'Detalles opcionales del recuerdo cuando action="write".'
+			},
+			evidence: {
+				description: 'Evidencia opcional. Puede ser string, objeto o array; el backend la normaliza.',
+				type: ['string', 'object', 'array']
+			},
+			confidence: {
+				type: 'number',
+				description: 'Confianza opcional entre 0 y 1. Si falta, el backend no rechaza por ello.',
+				minimum: 0,
+				maximum: 1
 			},
 			payload: {
 				type: 'object',
-				description: 'Carga estructurada segun el tipo de memoria cuando action="write".'
+				description: 'Carga estructurada opcional. Puede ir incompleta; el backend la fusiona con summary/details.'
 			},
 			importance: {
 				type: 'integer',

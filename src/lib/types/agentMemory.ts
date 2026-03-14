@@ -21,7 +21,11 @@ export type MemoryAccessOutcome =
 	| 'ignored_scope_fields'
 	| 'forbidden_memory_type';
 
-export type MemoryType = 'student_preference' | 'activity_episode' | 'course_staff_note';
+export type MemoryType =
+	| 'student_preference'
+	| 'activity_episode'
+	| 'course_staff_note'
+	| 'student_observation';
 
 export interface MemoryScopeResolved {
 	scopeType: MemoryScopeType;
@@ -54,6 +58,9 @@ export interface MemoryWriteInput {
 
 export interface UnifiedMemoryToolInput extends Partial<MemoryQueryInput>, Partial<MemoryWriteInput> {
 	action: MemoryAction;
+	details?: string;
+	evidence?: unknown;
+	confidence?: number;
 }
 
 export interface UnifiedMemoryReadResultItem {

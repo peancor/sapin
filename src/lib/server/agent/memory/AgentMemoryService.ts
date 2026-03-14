@@ -16,7 +16,18 @@ import {
 } from './constants';
 
 const READ_INPUT_KEYS = ['goal', 'memoryTypes', 'tagsAny', 'sinceDays', 'limit', 'minImportance'] as const;
-const WRITE_INPUT_KEYS = ['memoryType', 'summary', 'payload', 'importance', 'occurredAt', 'dedupeKey', 'tags'] as const;
+const WRITE_INPUT_KEYS = [
+	'memoryType',
+	'summary',
+	'details',
+	'evidence',
+	'confidence',
+	'payload',
+	'importance',
+	'occurredAt',
+	'dedupeKey',
+	'tags'
+] as const;
 
 function clamp(value: number | undefined, min: number, max: number, fallback: number): number {
 	if (typeof value !== 'number' || Number.isNaN(value)) return fallback;
@@ -31,13 +42,20 @@ function parseOccurredAt(value?: string): Date | null {
 
 function normalizeStringArray(value: unknown): string[] {
 	if (Array.isArray(value)) {
-		return value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean);
+		return value
+			.filter((item): item is string => typeof item === 'string')
+			.map((item) => item.trim())
+			.filter(Boolean);
 	}
 	if (typeof value === 'string') {
 		const normalized = value.trim();
 		return normalized ? [normalized] : [];
 	}
 	return [];
+}
+
+function normalizeMemoryTypeFilter(value: unknown, allowedTypes: string[]): string[] {
+	return normalizeStringArray(value).filter((memoryType) => allowedTypes.includes(memoryType));
 }
 
 function truncateForTool(value: unknown, depth: number = 0): unknown {
@@ -103,12 +121,8 @@ export class AgentMemoryService {
 	}): Promise<UnifiedMemoryToolResult> {
 		const scope = MemoryScopeResolver.resolve(params.context, params.toolName);
 		const allowedTypes = MemoryPolicy.getReadableMemoryTypes(params.toolName);
-		const requestedTypes = Array.isArray(params.input.memoryTypes)
-			? params.input.memoryTypes.filter(
-					(memoryType): memoryType is string =>
-						typeof memoryType === 'string' && allowedTypes.includes(memoryType as never)
-				)
-			: allowedTypes;
+		const requestedTypes = normalizeMemoryTypeFilter(params.input.memoryTypes, allowedTypes);
+		const effectiveTypes = requestedTypes.length > 0 ? requestedTypes : allowedTypes;
 
 		const sinceDays =
 			typeof params.input.sinceDays === 'number' ? Math.max(0, params.input.sinceDays) : undefined;
@@ -127,13 +141,13 @@ export class AgentMemoryService {
 		const tagsAny = tagsAnyNormalized.length > 0 ? tagsAnyNormalized : undefined;
 
 		const items =
-			requestedTypes.length === 0
+			effectiveTypes.length === 0
 				? []
 				: await DBAgentMemoryUtils.queryMemoriesByScope({
 						scopeType: scope.scopeType,
 						scopeKey: scope.scopeKey,
 						privacyClass: scope.privacyClass,
-						memoryTypes: requestedTypes,
+						memoryTypes: effectiveTypes,
 						minImportance,
 						since,
 						limit,
@@ -151,7 +165,7 @@ export class AgentMemoryService {
 				ignoredScopeFields: params.ignoredScopeFields,
 				ignoredActionFields: params.ignoredActionFields,
 				goal: typeof params.input.goal === 'string' ? params.input.goal : undefined,
-				memoryTypes: requestedTypes
+				memoryTypes: effectiveTypes
 			}
 		});
 
@@ -172,10 +186,37 @@ export class AgentMemoryService {
 		ignoredActionFields: string[];
 	}): Promise<UnifiedMemoryToolResult> {
 		const scope = MemoryScopeResolver.resolve(params.context, params.toolName);
-		const memoryType = typeof params.input.memoryType === 'string' ? params.input.memoryType.trim() : '';
 		const allowedTypes = MemoryPolicy.getWritableMemoryTypes(params.toolName);
+		const normalized = MemorySchemaRegistry.normalizeWriteProposal(params.input);
+		if (!normalized.ok) {
+			await DBAgentMemoryUtils.logAccessEvent({
+				actorUserId: params.context.userId,
+				toolName: params.toolName,
+				operation: 'write',
+				outcome: 'validation_failed',
+				scopeKey: scope.scopeKey,
+				resultCount: 0,
+				details: {
+					ignoredScopeFields: params.ignoredScopeFields,
+					ignoredActionFields: params.ignoredActionFields,
+					originalSuggestedMemoryType: normalized.originalSuggestedMemoryType,
+					inferredMemoryType: normalized.inferredMemoryType,
+					normalizationWarnings: normalized.normalizationWarnings,
+					error: normalized.error
+				}
+			});
 
-		if (!allowedTypes.includes(memoryType as never)) {
+			return {
+				action: 'write',
+				stored: false,
+				status: 'rejected',
+				reason: normalized.error,
+				ignoredScopeFields: params.ignoredScopeFields,
+				ignoredActionFields: params.ignoredActionFields
+			};
+		}
+
+		if (!allowedTypes.includes(normalized.memoryType)) {
 			await DBAgentMemoryUtils.logAccessEvent({
 				actorUserId: params.context.userId,
 				toolName: params.toolName,
@@ -186,7 +227,10 @@ export class AgentMemoryService {
 				details: {
 					ignoredScopeFields: params.ignoredScopeFields,
 					ignoredActionFields: params.ignoredActionFields,
-					memoryType
+					memoryType: normalized.memoryType,
+					originalSuggestedMemoryType: normalized.originalSuggestedMemoryType,
+					inferredMemoryType: normalized.inferredMemoryType,
+					fallbackUsed: normalized.fallbackUsed
 				}
 			});
 
@@ -194,13 +238,13 @@ export class AgentMemoryService {
 				action: 'write',
 				stored: false,
 				status: 'rejected',
-				reason: `Tipo de memoria no permitido para esta herramienta: ${memoryType || '(vacío)'}.`,
+				reason: `Tipo de memoria no permitido para esta herramienta: ${normalized.memoryType}.`,
 				ignoredScopeFields: params.ignoredScopeFields,
 				ignoredActionFields: params.ignoredActionFields
 			};
 		}
 
-		const parsed = MemorySchemaRegistry.parsePayload(memoryType, params.input.payload);
+		const parsed = MemorySchemaRegistry.parsePayload(normalized.memoryType, normalized.payload);
 		if (!parsed.ok) {
 			await DBAgentMemoryUtils.logAccessEvent({
 				actorUserId: params.context.userId,
@@ -212,7 +256,11 @@ export class AgentMemoryService {
 				details: {
 					ignoredScopeFields: params.ignoredScopeFields,
 					ignoredActionFields: params.ignoredActionFields,
-					memoryType,
+					memoryType: normalized.memoryType,
+					originalSuggestedMemoryType: normalized.originalSuggestedMemoryType,
+					inferredMemoryType: normalized.inferredMemoryType,
+					fallbackUsed: normalized.fallbackUsed,
+					normalizationWarnings: normalized.normalizationWarnings,
 					error: parsed.error
 				}
 			});
@@ -227,41 +275,8 @@ export class AgentMemoryService {
 			};
 		}
 
-		const summary =
-			typeof params.input.summary === 'string' && params.input.summary.trim().length > 0
-				? params.input.summary.trim().slice(0, 500)
-				: null;
-		if (!summary) {
-			await DBAgentMemoryUtils.logAccessEvent({
-				actorUserId: params.context.userId,
-				toolName: params.toolName,
-				operation: 'write',
-				outcome: 'validation_failed',
-				scopeKey: scope.scopeKey,
-				resultCount: 0,
-				details: {
-					ignoredScopeFields: params.ignoredScopeFields,
-					ignoredActionFields: params.ignoredActionFields,
-					memoryType,
-					error: 'summary is required'
-				}
-			});
-
-			return {
-				action: 'write',
-				stored: false,
-				status: 'rejected',
-				reason: 'La memoria requiere un summary no vacío.',
-				ignoredScopeFields: params.ignoredScopeFields,
-				ignoredActionFields: params.ignoredActionFields
-			};
-		}
-
-		const confidence = MemorySchemaRegistry.extractConfidence(memoryType, parsed.payload);
-		const shouldReject =
-			confidence !== null &&
-			typeof parsed.definition.minConfidenceToStore === 'number' &&
-			confidence < parsed.definition.minConfidenceToStore;
+		const confidence =
+			normalized.confidence ?? MemorySchemaRegistry.extractConfidence(normalized.memoryType, parsed.payload);
 		const occurredAt = parseOccurredAt(
 			typeof params.input.occurredAt === 'string' ? params.input.occurredAt : undefined
 		);
@@ -270,8 +285,14 @@ export class AgentMemoryService {
 				? params.input.dedupeKey.trim().slice(0, 200)
 				: undefined;
 		const tags = normalizeStringArray(params.input.tags).slice(0, 12);
+		const requestedImportance =
+			typeof params.input.importance === 'number'
+				? clamp(params.input.importance, 1, 5, normalized.fallbackUsed ? 2 : 3)
+				: normalized.fallbackUsed
+					? 2
+					: 3;
 		const importance =
-			typeof params.input.importance === 'number' ? clamp(params.input.importance, 1, 5, 3) : 3;
+			confidence !== null && confidence < 0.3 ? Math.max(1, requestedImportance - 1) : requestedImportance;
 
 		const record = await DBAgentMemoryUtils.saveMemory({
 			scopeType: scope.scopeType,
@@ -282,15 +303,15 @@ export class AgentMemoryService {
 			subjectUserId: scope.subjectUserId,
 			createdByUserId: scope.createdByUserId,
 			sourceKind: 'agent',
-			memoryType,
-			status: shouldReject ? 'rejected' : 'active',
+			memoryType: normalized.memoryType,
+			status: 'active',
 			importance,
 			dedupeKey,
-			summary,
+			summary: normalized.summary,
 			tags,
 			payload: parsed.payload,
 			occurredAt,
-			expiresAt: MemorySchemaRegistry.computeExpiry(memoryType, occurredAt ?? new Date())
+			expiresAt: MemorySchemaRegistry.computeExpiry(normalized.memoryType, occurredAt ?? new Date())
 		});
 
 		await DBAgentMemoryUtils.logAccessEvent({
@@ -298,13 +319,17 @@ export class AgentMemoryService {
 			actorUserId: params.context.userId,
 			toolName: params.toolName,
 			operation: 'write',
-			outcome: params.ignoredScopeFields.length > 0 ? 'ignored_scope_fields' : shouldReject ? 'rejected' : 'allowed',
+			outcome: params.ignoredScopeFields.length > 0 ? 'ignored_scope_fields' : 'allowed',
 			scopeKey: scope.scopeKey,
-			resultCount: shouldReject ? 0 : 1,
+			resultCount: 1,
 			details: {
 				ignoredScopeFields: params.ignoredScopeFields,
 				ignoredActionFields: params.ignoredActionFields,
-				memoryType,
+				memoryType: normalized.memoryType,
+				originalSuggestedMemoryType: normalized.originalSuggestedMemoryType,
+				inferredMemoryType: normalized.inferredMemoryType,
+				fallbackUsed: normalized.fallbackUsed,
+				normalizationWarnings: normalized.normalizationWarnings,
 				confidence,
 				originActivityId: params.context.activityId
 			}
@@ -312,9 +337,8 @@ export class AgentMemoryService {
 
 		return {
 			action: 'write',
-			stored: !shouldReject,
-			status: shouldReject ? 'rejected' : 'active',
-			reason: shouldReject ? 'La memoria fue registrada como rechazada por baja confianza.' : undefined,
+			stored: true,
+			status: 'active',
 			item: toToolItem(record),
 			ignoredScopeFields: params.ignoredScopeFields,
 			ignoredActionFields: params.ignoredActionFields
