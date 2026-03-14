@@ -37,12 +37,13 @@
 		created?: number;
 		updated?: number;
 		skipped?: number;
+		removed?: number;
 		conflicts?: number;
 		domains?: Record<string, number>;
 		tools?: Array<{
 			name: string;
 			usageDomain: string;
-			action: 'create' | 'update' | 'skip' | 'conflict';
+			action: 'create' | 'update' | 'skip' | 'conflict' | 'remove';
 		}>;
 	}
 
@@ -56,6 +57,7 @@
 		rebuilt?: number;
 		created?: number;
 		updated?: number;
+		removed?: number;
 		conflicts?: number;
 		totalBuiltin?: number;
 	}
@@ -73,7 +75,7 @@
 			id: 'sync-builtin-agent-tools',
 			title: 'Sincronizar herramientas agénticas built-in',
 			description:
-				'Revisa el registro local de herramientas built-in y sincroniza su definición con la base de datos. Crea las que faltan, actualiza las del sistema desalineadas y detecta conflictos por nombre.',
+				'Revisa el registro local de herramientas built-in y sincroniza su definición con la base de datos. Crea las que faltan, actualiza las del sistema desalineadas, elimina las retiradas y detecta conflictos por nombre.',
 			risk: 'low' as RiskLevel,
 			endpoint: '/api/admin/maintenance/sync-builtin-agent-tools'
 		},
@@ -215,7 +217,7 @@
 		const d = states[id].previewData;
 		if (!d) return null;
 		if (id === 'sync-builtin-agent-tools') {
-			return `${d.totalBuiltin ?? 0} built-in revisada(s): ${d.created ?? 0} a crear, ${d.updated ?? 0} a actualizar, ${d.conflicts ?? 0} conflicto(s), ${d.skipped ?? 0} sin cambios`;
+			return `${d.totalBuiltin ?? 0} built-in revisada(s): ${d.created ?? 0} a crear, ${d.updated ?? 0} a actualizar, ${d.removed ?? 0} a retirar, ${d.conflicts ?? 0} conflicto(s), ${d.skipped ?? 0} sin cambios`;
 		}
 		if (id === 'fix-student-roles') return `${d.users?.length ?? 0} usuario(s) sin rol de sistema`;
 		if (id === 'cleanup-expired-sessions') return `${d.count ?? 0} sesión(es) expirada(s)`;
@@ -241,6 +243,7 @@
 		if (r.rebuilt !== undefined) parts.push(`${r.rebuilt} reconstruido(s)`);
 		if (r.created !== undefined) parts.push(`${r.created} creada(s)`);
 		if (r.updated !== undefined) parts.push(`${r.updated} actualizada(s)`);
+		if (r.removed !== undefined) parts.push(`${r.removed} retirada(s)`);
 		if (r.conflicts !== undefined) parts.push(`${r.conflicts} conflicto(s)`);
 		return parts.join(', ');
 	}
@@ -390,7 +393,7 @@
 					{/if}
 
 					{#if script.id === 'sync-builtin-agent-tools' && pd.domains}
-						<div class="mb-4 grid gap-3 md:grid-cols-4">
+						<div class="mb-4 grid gap-3 md:grid-cols-5">
 							<div class="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30">
 								<p class="text-xs font-medium uppercase tracking-wide text-green-700 dark:text-green-300">
 									A crear
@@ -405,6 +408,14 @@
 								</p>
 								<p class="mt-1 text-2xl font-semibold text-blue-800 dark:text-blue-200">
 									{pd.updated ?? 0}
+								</p>
+							</div>
+							<div class="rounded-lg border border-rose-200 bg-rose-50 p-3 dark:border-rose-800 dark:bg-rose-950/30">
+								<p class="text-xs font-medium uppercase tracking-wide text-rose-700 dark:text-rose-300">
+									A retirar
+								</p>
+								<p class="mt-1 text-2xl font-semibold text-rose-800 dark:text-rose-200">
+									{pd.removed ?? 0}
 								</p>
 							</div>
 							<div class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
@@ -456,13 +467,15 @@
 												<TableBodyCell class="font-mono text-xs">{tool.name}</TableBodyCell>
 												<TableBodyCell>{tool.usageDomain}</TableBodyCell>
 												<TableBodyCell>
-													{#if tool.action === 'create'}
-														<Badge color="green">Crear</Badge>
-													{:else if tool.action === 'update'}
-														<Badge color="blue">Actualizar</Badge>
-													{:else if tool.action === 'conflict'}
-														<Badge color="yellow">Conflicto</Badge>
-													{:else}
+												{#if tool.action === 'create'}
+													<Badge color="green">Crear</Badge>
+												{:else if tool.action === 'update'}
+													<Badge color="blue">Actualizar</Badge>
+												{:else if tool.action === 'remove'}
+													<Badge color="red">Retirar</Badge>
+												{:else if tool.action === 'conflict'}
+													<Badge color="yellow">Conflicto</Badge>
+												{:else}
 														<Badge color="gray">Sin cambios</Badge>
 													{/if}
 												</TableBodyCell>

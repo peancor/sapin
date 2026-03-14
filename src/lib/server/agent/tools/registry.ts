@@ -15,9 +15,7 @@ import {
 	getActivityEvidenceOverviewPackage,
 	getActivityTranscriptsPackage,
 	getCourseStudentRosterPackage,
-	getStudentCourseMemoryContextPackage,
 	getLearningProgressTimelinePackage,
-	getStudentActivityMemoryContextPackage,
 	getStudentProgressPackage,
 	recommendNextActivityPackage,
 	renderAttentionControlTestPackage,
@@ -35,8 +33,8 @@ import {
 	saveGradePackage,
 	searchCourseContentPackage,
 	sendNotificationPackage,
-	storeStudentCourseMemoryPackage,
-	storeStudentActivityMemoryPackage,
+	studentActivityMemoryPackage,
+	studentCourseMemoryPackage,
 	summarizeEvidenceForStudentPackage
 } from './index';
 
@@ -49,8 +47,8 @@ const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
 	getActivityTranscriptsPackage,
 	getLearningProgressTimelinePackage,
 	getActivityToolUsageSummaryPackage,
-	getStudentCourseMemoryContextPackage,
-	getStudentActivityMemoryContextPackage,
+	studentCourseMemoryPackage,
+	studentActivityMemoryPackage,
 	compareStudentGroupsPackage,
 	findStuckSessionsPackage,
 	analyzeActivityDifficultyPackage,
@@ -77,8 +75,6 @@ const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
 	renderSustainedAttentionTestPackage,
 	renderWorkingMemoryTestPackage,
 	sendNotificationPackage,
-	storeStudentCourseMemoryPackage,
-	storeStudentActivityMemoryPackage
 ];
 
 export const BUILTIN_TOOL_MANIFESTS: ToolManifest[] = ALL_TOOL_PACKAGES.map((item) => item.manifest);

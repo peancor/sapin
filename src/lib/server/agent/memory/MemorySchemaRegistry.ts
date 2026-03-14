@@ -1,11 +1,6 @@
 import { z } from 'zod';
 import type { MemoryType } from '$lib/types/agentMemory';
-import {
-	LEGACY_MEMORY_READ_TOOL_NAME,
-	LEGACY_MEMORY_WRITE_TOOL_NAME,
-	MEMORY_READ_TOOL_NAME,
-	MEMORY_WRITE_TOOL_NAME
-} from './constants';
+import { STUDENT_ACTIVITY_MEMORY_TOOL_NAME, STUDENT_COURSE_MEMORY_TOOL_NAME } from './constants';
 
 function wrapArrayValue(value: unknown) {
 	if (Array.isArray(value)) return value;
@@ -175,16 +170,16 @@ const MEMORY_DEFINITIONS: Record<MemoryType, MemorySchemaDefinition> = {
 	student_preference: {
 		type: 'student_preference',
 		payloadSchema: studentPreferenceMemorySchema,
-		allowedReaderTools: [MEMORY_READ_TOOL_NAME, LEGACY_MEMORY_READ_TOOL_NAME],
-		allowedWriterTools: [MEMORY_WRITE_TOOL_NAME, LEGACY_MEMORY_WRITE_TOOL_NAME],
+		allowedReaderTools: [STUDENT_COURSE_MEMORY_TOOL_NAME, STUDENT_ACTIVITY_MEMORY_TOOL_NAME],
+		allowedWriterTools: [STUDENT_COURSE_MEMORY_TOOL_NAME, STUDENT_ACTIVITY_MEMORY_TOOL_NAME],
 		defaultRetentionDays: 365,
 		minConfidenceToStore: 0.4
 	},
 	activity_episode: {
 		type: 'activity_episode',
 		payloadSchema: activityEpisodeMemorySchema,
-		allowedReaderTools: [MEMORY_READ_TOOL_NAME, LEGACY_MEMORY_READ_TOOL_NAME],
-		allowedWriterTools: [MEMORY_WRITE_TOOL_NAME, LEGACY_MEMORY_WRITE_TOOL_NAME],
+		allowedReaderTools: [STUDENT_COURSE_MEMORY_TOOL_NAME, STUDENT_ACTIVITY_MEMORY_TOOL_NAME],
+		allowedWriterTools: [STUDENT_COURSE_MEMORY_TOOL_NAME, STUDENT_ACTIVITY_MEMORY_TOOL_NAME],
 		defaultRetentionDays: 180,
 		minConfidenceToStore: 0.4
 	},

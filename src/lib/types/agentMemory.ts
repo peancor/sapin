@@ -12,6 +12,7 @@ export type MemorySourceKind = 'tool' | 'agent' | 'event' | 'system';
 export type MemoryStatus = 'active' | 'superseded' | 'expired' | 'rejected';
 
 export type MemoryAccessOperation = 'read' | 'write' | 'prefetch';
+export type MemoryAction = 'read' | 'write';
 
 export type MemoryAccessOutcome =
 	| 'allowed'
@@ -49,6 +50,32 @@ export interface MemoryWriteInput {
 	occurredAt?: string;
 	dedupeKey?: string;
 	tags?: string[];
+}
+
+export interface UnifiedMemoryToolInput extends Partial<MemoryQueryInput>, Partial<MemoryWriteInput> {
+	action: MemoryAction;
+}
+
+export interface UnifiedMemoryReadResultItem {
+	id: string;
+	memoryType: string;
+	summary: string;
+	payload: unknown;
+	importance: number;
+	occurredAt: string | null;
+	tags: string[];
+}
+
+export interface UnifiedMemoryToolResult {
+	action: MemoryAction;
+	ignoredScopeFields: string[];
+	ignoredActionFields: string[];
+	items?: UnifiedMemoryReadResultItem[];
+	resultCount?: number;
+	stored?: boolean;
+	status?: 'active' | 'rejected';
+	reason?: string;
+	item?: UnifiedMemoryReadResultItem;
 }
 
 export interface AgentMemoryRecord {

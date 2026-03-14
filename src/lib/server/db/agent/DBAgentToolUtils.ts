@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, or } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db } from '..';
 import * as schema from '../schema';
 import { nanoid } from 'nanoid';
@@ -157,6 +157,7 @@ export default class DBAgentToolUtils {
 			created: 0,
 			updated: 0,
 			skipped: 0,
+			removed: 0,
 			conflicts: 0,
 			domains: Object.fromEntries(
 				toolManifests.reduce(
@@ -167,9 +168,55 @@ export default class DBAgentToolUtils {
 			tools: [] as Array<{
 				name: string;
 				usageDomain: string;
-				action: 'create' | 'update' | 'skip' | 'conflict';
+				action: 'create' | 'update' | 'skip' | 'conflict' | 'remove';
 			}>
 		};
+
+		const manifestNames = new Set(toolManifests.map((manifest) => manifest.name));
+		const existingSystemTools =
+			usageDomain === undefined || usageDomain === this.ALL_BUILTIN_USAGE_DOMAINS
+				? await db
+						.select()
+						.from(schema.agentToolDefinition)
+						.where(eq(schema.agentToolDefinition.isSystem, true))
+				: await db
+						.select()
+						.from(schema.agentToolDefinition)
+						.where(
+							and(
+								eq(schema.agentToolDefinition.isSystem, true),
+								eq(schema.agentToolDefinition.usageDomain, usageDomain)
+							)
+						);
+
+		const removedTools = existingSystemTools.filter((tool) => !manifestNames.has(tool.name));
+		if (removedTools.length > 0) {
+			const removedIds = removedTools.map((tool) => tool.id);
+
+			for (const removedTool of removedTools) {
+				summary.removed++;
+				summary.tools.push({
+					name: removedTool.name,
+					usageDomain: removedTool.usageDomain,
+					action: 'remove'
+				});
+			}
+
+			if (!dryRun) {
+				await db
+					.delete(schema.agentActivityTool)
+					.where(inArray(schema.agentActivityTool.toolDefinitionId, removedIds));
+
+				await db
+					.update(schema.agentToolCall)
+					.set({ toolDefinitionId: null })
+					.where(inArray(schema.agentToolCall.toolDefinitionId, removedIds));
+
+				await db
+					.delete(schema.agentToolDefinition)
+					.where(inArray(schema.agentToolDefinition.id, removedIds));
+			}
+		}
 
 		for (const manifest of toolManifests) {
 			const existing = await this.getToolDefinitionByName(manifest.name);

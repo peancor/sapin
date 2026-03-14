@@ -1,10 +1,5 @@
 import type { AgentContext } from '$lib/types/agent';
-import {
-	ALL_MEMORY_READ_TOOL_NAMES,
-	ALL_MEMORY_WRITE_TOOL_NAMES,
-	MEMORY_READ_TOOL_NAME,
-	MEMORY_SCOPE_RESERVED_INPUT_KEYS
-} from './constants';
+import { ALL_MEMORY_TOOL_NAMES, MEMORY_SCOPE_RESERVED_INPUT_KEYS, STUDENT_COURSE_MEMORY_TOOL_NAME } from './constants';
 import { MemorySchemaRegistry } from './MemorySchemaRegistry';
 
 export class MemoryPolicy {
@@ -27,12 +22,10 @@ export class MemoryPolicy {
 	}
 
 	static isPromptPrefetchEnabled(context: AgentContext): boolean {
-		return context.enabledTools.some((tool) => tool.name === MEMORY_READ_TOOL_NAME);
+		return context.enabledTools.some((tool) => tool.name === STUDENT_COURSE_MEMORY_TOOL_NAME);
 	}
 
 	static isMemoryTool(toolName: string): boolean {
-		return [...ALL_MEMORY_READ_TOOL_NAMES, ...ALL_MEMORY_WRITE_TOOL_NAMES].includes(
-			toolName as (typeof ALL_MEMORY_READ_TOOL_NAMES)[number]
-		);
+		return ALL_MEMORY_TOOL_NAMES.includes(toolName as (typeof ALL_MEMORY_TOOL_NAMES)[number]);
 	}
 }
