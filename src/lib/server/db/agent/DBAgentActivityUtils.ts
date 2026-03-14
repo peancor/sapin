@@ -11,9 +11,7 @@ import DBAgentToolUtils from './DBAgentToolUtils';
 import {
 	getCanvasToolNamePairs,
 	isCrossDomainAgentChatMemoryTool
-} from '$lib/server/agent/memory';
-
-const MEMORY_TOOL_NAME_PAIRS = getCanvasToolNamePairs();
+} from '$lib/server/agent/memory/CanvasScopeRegistry';
 
 function normalizeCanvasToolPairs(
 	enabledTools: ToolDefinitionResolved[],
@@ -22,8 +20,9 @@ function normalizeCanvasToolPairs(
 	const normalized = new Map(enabledTools.map((tool) => [tool.id, tool]));
 	const byName = new Map(activeTools.map((tool) => [tool.name, tool]));
 	const enabledNames = new Set(enabledTools.map((tool) => tool.name));
+	const memoryToolNamePairs = getCanvasToolNamePairs();
 
-	for (const [readToolName, updateToolName] of MEMORY_TOOL_NAME_PAIRS) {
+	for (const [readToolName, updateToolName] of memoryToolNamePairs) {
 		if (enabledNames.has(readToolName) || enabledNames.has(updateToolName)) {
 			const readTool = byName.get(readToolName);
 			const updateTool = byName.get(updateToolName);

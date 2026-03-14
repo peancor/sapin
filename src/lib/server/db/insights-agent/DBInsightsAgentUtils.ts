@@ -9,7 +9,7 @@ import {
 	BUILTIN_TOOL_USAGE_DOMAIN_INSIGHTS,
 	BUILTIN_TOOL_USAGE_DOMAIN_INTERNAL
 } from '$lib/server/agent/tools/constants';
-import { getCanvasToolNamePairs } from '$lib/server/agent/memory';
+import { getCanvasToolNamePairs } from '$lib/server/agent/memory/CanvasScopeRegistry';
 import type {
 	InsightsAgentConfig,
 	InsightsAgentRunScope,
@@ -43,7 +43,6 @@ const DEFAULT_TOOL_NAMES = [
 	'system_global_canvas_update'
 ];
 const ALLOWED_GENERAL_TOOL_NAMES = ['get_student_progress', 'search_course_content', 'calculate_expression'];
-const MEMORY_TOOL_NAME_PAIRS = getCanvasToolNamePairs();
 
 const DEFAULT_SCOPE: InsightsAgentRunScope = {
 	mode: 'cohort',
@@ -74,8 +73,9 @@ function normalizeCanvasToolPairs(
 	const normalized = new Map(enabledTools.map((tool) => [tool.id, tool]));
 	const byName = new Map(activeTools.map((tool) => [tool.name, tool]));
 	const enabledNames = new Set(enabledTools.map((tool) => tool.name));
+	const memoryToolNamePairs = getCanvasToolNamePairs();
 
-	for (const [readToolName, updateToolName] of MEMORY_TOOL_NAME_PAIRS) {
+	for (const [readToolName, updateToolName] of memoryToolNamePairs) {
 		if (enabledNames.has(readToolName) || enabledNames.has(updateToolName)) {
 			const readTool = byName.get(readToolName);
 			const updateTool = byName.get(updateToolName);
@@ -254,8 +254,9 @@ export default class DBInsightsAgentUtils {
 				.map((toolId) => allowedToolById.get(toolId)?.name)
 				.filter((name): name is string => typeof name === 'string')
 		);
+		const memoryToolNamePairs = getCanvasToolNamePairs();
 
-		for (const [readToolName, updateToolName] of MEMORY_TOOL_NAME_PAIRS) {
+		for (const [readToolName, updateToolName] of memoryToolNamePairs) {
 			if (enabledNames.has(readToolName) || enabledNames.has(updateToolName)) {
 				const readToolId = idByName.get(readToolName);
 				const updateToolId = idByName.get(updateToolName);

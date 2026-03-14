@@ -27,7 +27,8 @@
 		TicketPlus,
 		Wrench,
 		Puzzle,
-		LayoutGrid
+		LayoutGrid,
+		Bug
 	} from 'lucide-svelte';
 	import { min } from 'drizzle-orm';
 
@@ -135,6 +136,13 @@
 			label: 'Analítica Agent',
 			href: '/admin/agent-analytics',
 			icon: BarChart3,
+			minLevel: ROLE_LEVELS.ADMIN
+		},
+		{
+			id: 'activity-debugger',
+			label: 'Depurador IA',
+			href: '/admin/activity-debugger',
+			icon: Bug,
 			minLevel: ROLE_LEVELS.ADMIN
 		},
 		{
