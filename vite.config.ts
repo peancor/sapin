@@ -2,6 +2,7 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js'
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import devtoolsJson from 'vite-plugin-devtools-json';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
@@ -12,6 +13,18 @@ export default defineConfig({
 			strategy: ['url', 'cookie', 'baseLocale']
 		}),
 		tailwindcss(),
+		viteStaticCopy({
+			targets: [
+				{
+					src: 'node_modules/@rod2ik/tikzjax/dist/**/*',
+					dest: 'vendor/tikzjax'
+				},
+				{
+					src: 'node_modules/node-tikzjax/css/**/*',
+					dest: 'vendor/node-tikzjax'
+				}
+			]
+		}),
 		sveltekit(),
 		devtoolsJson(),
 	],
