@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { base } from '$app/paths';
+	import TikzjaxBrowserRenderer from '$lib/components/tikzjax/TikzjaxBrowserRenderer.svelte';
 	import {
 		tikzBrowserSupportedPackages,
 		tikzExampleGroups,
@@ -7,19 +7,10 @@
 		tikzExamples,
 		type TikzExampleId
 	} from '$lib/constants/tikzExamples';
-	import { onMount } from 'svelte';
-
-	interface BrowserRenderRequest {
-		source: string;
-		texPackagesJson: string;
-		tikzLibraries: string;
-		addToPreamble: string;
-		showConsole: boolean;
-		disableCache: boolean;
-		ariaLabel: string;
-		width: string;
-		height: string;
-	}
+	import type {
+		TikzjaxBrowserRenderRequest,
+		TikzjaxBrowserRenderState
+	} from '$lib/types/tikzjax';
 
 	const supportedPackages = tikzBrowserSupportedPackages;
 
@@ -27,9 +18,6 @@
 
 	const examples = tikzExamples;
 	const exampleGroups = tikzExampleGroups;
-	const tikzjaxScriptId = 'demo-tikzjax-browser-runtime';
-	const tikzjaxRuntimeBasePath = `${base}/vendor/tikzjax-browser`;
-	let tikzjaxRuntimePromise: Promise<void> | null = null;
 
 	function splitCsv(value: string): string[] {
 		return value
@@ -130,72 +118,11 @@
 	let addToPreambleText = $state('');
 	let normalizationNotes = $state<string[]>([]);
 	let renderMessage = $state('');
-	let renderState = $state<'idle' | 'rendering' | 'ready' | 'error'>('idle');
+	let renderState = $state<TikzjaxBrowserRenderState>('idle');
 	let isPasting = $state(false);
 	let isRuntimeReady = $state(false);
 	let renderVersion = $state(0);
-	let renderedRequest = $state<BrowserRenderRequest | null>(null);
-	let renderHost = $state<HTMLDivElement | null>(null);
-
-	function loadTikzjaxRuntime(): Promise<void> {
-		if (typeof window === 'undefined') {
-			return Promise.resolve();
-		}
-
-		const runtimeWindow = window as Window & {
-			TikzJax?: boolean;
-			__tikzjaxRuntimeReady?: Promise<unknown>;
-		};
-		const runtimeReadyPromise = runtimeWindow.__tikzjaxRuntimeReady;
-
-		if (runtimeReadyPromise) {
-			return runtimeReadyPromise.then(() => undefined);
-		}
-
-		if (tikzjaxRuntimePromise) {
-			return tikzjaxRuntimePromise;
-		}
-
-		tikzjaxRuntimePromise = new Promise<void>((resolve, reject) => {
-			const existingScript = document.getElementById(tikzjaxScriptId) as HTMLScriptElement | null;
-
-			const resolveWhenRuntimeReady = () => {
-				const currentRuntimeReadyPromise = runtimeWindow.__tikzjaxRuntimeReady;
-
-				if (!currentRuntimeReadyPromise) {
-					reject(new Error('TikZJax cargó el script principal, pero no expuso su promesa de inicialización.'));
-					return;
-				}
-
-				currentRuntimeReadyPromise.then(() => resolve()).catch((error) => {
-					reject(error instanceof Error ? error : new Error('No se pudo inicializar el runtime de TikZJax.'));
-				});
-			};
-
-			if (existingScript) {
-				existingScript.addEventListener('load', resolveWhenRuntimeReady, { once: true });
-				existingScript.addEventListener('error', () => reject(new Error('No se pudo cargar tikzjax.js.')), {
-					once: true
-				});
-
-				if (runtimeWindow.TikzJax && runtimeWindow.__tikzjaxRuntimeReady) {
-					resolveWhenRuntimeReady();
-				}
-
-				return;
-			}
-
-			const runtimeScript = document.createElement('script');
-			runtimeScript.id = tikzjaxScriptId;
-			runtimeScript.src = `${tikzjaxRuntimeBasePath}/tikzjax.js`;
-			runtimeScript.async = true;
-			runtimeScript.onload = resolveWhenRuntimeReady;
-			runtimeScript.onerror = () => reject(new Error('No se pudo cargar tikzjax.js.'));
-			document.head.append(runtimeScript);
-		});
-
-		return tikzjaxRuntimePromise;
-	}
+	let renderedRequest = $state<TikzjaxBrowserRenderRequest | null>(null);
 
 	function loadExample(exampleId: TikzExampleId) {
 		const example = examples.find((candidate) => candidate.id === exampleId);
@@ -213,7 +140,7 @@
 		renderMessage = '';
 	}
 
-	function prepareRenderRequest(): BrowserRenderRequest {
+	function prepareRenderRequest(): TikzjaxBrowserRenderRequest {
 		const rawSource = editorText.trim();
 
 		if (!rawSource) {
@@ -305,6 +232,20 @@
 		}
 	}
 
+	function handleRuntimeReady() {
+		renderMessage = 'Runtime cargado e inicializado. Pulsa Renderizar En Cliente para compilar el diagrama.';
+	}
+
+	function handleRuntimeError(error: Error) {
+		renderState = 'error';
+		renderMessage = error.message;
+	}
+
+	function handleClientRenderFinished() {
+		renderState = 'ready';
+		renderMessage = 'TikZJax terminó de generar el SVG en cliente.';
+	}
+
 	async function pasteFromClipboard() {
 		if (!navigator.clipboard) {
 			renderMessage = 'El portapapeles no está disponible en este navegador.';
@@ -337,39 +278,10 @@
 		}
 	}
 
-	$effect(() => {
-		if (!renderHost) {
-			return;
-		}
-
-		const handleTikzRenderFinished = () => {
-			renderState = 'ready';
-			renderMessage = 'TikZJax terminó de generar el SVG en cliente.';
-		};
-
-		renderHost.addEventListener('tikzjax-load-finished', handleTikzRenderFinished);
-
-		return () => {
-			renderHost?.removeEventListener('tikzjax-load-finished', handleTikzRenderFinished);
-		};
-	});
-
-	onMount(() => {
-		void loadTikzjaxRuntime()
-			.then(() => {
-				isRuntimeReady = true;
-				renderMessage = 'Runtime cargado e inicializado. Pulsa Renderizar En Cliente para compilar el diagrama.';
-			})
-			.catch((error) => {
-				renderState = 'error';
-				renderMessage = error instanceof Error ? error.message : 'No se pudo cargar TikZJax en el navegador.';
-			});
-	});
 </script>
 
 <svelte:head>
 	<title>Demo TikZJax Browser</title>
-	<link rel="stylesheet" href={`${tikzjaxRuntimeBasePath}/fonts.css`} />
 </svelte:head>
 
 <div class="space-y-6">
@@ -516,30 +428,14 @@
 				</p>
 			</div>
 
-			<div class="mt-5 overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 p-6">
-				{#if isRuntimeReady && renderedRequest}
-					{#key renderVersion}
-						<div bind:this={renderHost} class="tikzjax-scaled-container mx-auto min-h-56 max-w-4xl">
-							<svelte:element
-								this={'script'}
-								type="text/tikz"
-								data-aria-label={renderedRequest.ariaLabel}
-								data-width={renderedRequest.width}
-								data-height={renderedRequest.height}
-								data-show-console={String(renderedRequest.showConsole)}
-								data-disable-cache={String(renderedRequest.disableCache)}
-								data-tex-packages={renderedRequest.texPackagesJson || undefined}
-								data-tikz-libraries={renderedRequest.tikzLibraries || undefined}
-								data-add-to-preamble={renderedRequest.addToPreamble || undefined}
-							>{renderedRequest.source}</svelte:element>
-						</div>
-					{/key}
-				{:else}
-					<div class="flex min-h-56 items-center justify-center text-sm text-slate-500">
-						{isRuntimeReady ? 'Pulsa Renderizar En Cliente para generar el SVG.' : 'Cargando runtime de TikZJax...'}
-					</div>
-				{/if}
-			</div>
+			<TikzjaxBrowserRenderer
+				bind:runtimeReady={isRuntimeReady}
+				request={renderedRequest}
+				renderKey={renderVersion}
+				onRuntimeReady={handleRuntimeReady}
+				onRuntimeError={handleRuntimeError}
+				onRenderFinished={handleClientRenderFinished}
+			/>
 
 			<div class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
 				<h3 class="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Bloque enviado a TikZJax</h3>

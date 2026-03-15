@@ -381,20 +381,26 @@ to[R=$R_2$, i>_=$i_2$]
 		description: 'Amplificador operacional con realimentacion resistiva.',
 		learningGoal: 'Introducir ganancia inversora y el papel de Rin y Rf.',
 		runtimeSupport: { server: true, browser: 'supported' },
-		source: String.raw`\usepackage{circuitikz}
-\begin{document}
-
-\begin{circuitikz}[american]
-\draw
-(0,2) node[left] {$V_{in}$} to[R, l=$R_{in}$] (2,2)
-(2,2) -- (3,2)
-(3,1) node[op amp] (opamp) {}
-(opamp.-) -- (3,2)
-(opamp.+) -- (3,0) node[ground] {}
-(opamp.out) to[short, -o] (7,1) node[right] {$V_{out}$}
-(opamp.out) to[R, l=$R_f$] (3,2);
-\end{circuitikz}
-
+		source: String.raw`\begin{document}
+\begin{tikzpicture}[line cap=round, line join=round, x=1cm, y=1cm]
+\draw (-0.6,1.7) -- (-0.6,-1.7) -- (1.8,0) -- cycle;
+\node at (-0.25,0.6) {$-$};
+\node at (-0.25,-0.6) {$+$};
+\draw (-4.6,0.6) node[left] {$V_{in}$} -- (-3.7,0.6);
+\draw (-3.7,0.25) rectangle (-2.4,0.95);
+\node at (-3.05,1.25) {$R_{in}$};
+\draw (-2.4,0.6) -- (-0.6,0.6);
+\draw (-0.6,-0.6) -- (-1.6,-0.6);
+\draw (-1.6,-0.6) -- (-1.6,-1.7);
+\draw (-1.95,-1.7) -- (-1.25,-1.7);
+\draw (-1.85,-1.88) -- (-1.35,-1.88);
+\draw (-1.75,-2.04) -- (-1.45,-2.04);
+\draw (1.8,0) -- (4.6,0) node[right] {$V_{out}$};
+\draw (-0.6,0.6) -- (-0.6,1.85) -- (2.55,1.85);
+\draw (2.55,1.5) rectangle (3.9,2.2);
+\node at (3.22,2.5) {$R_f$};
+\draw (3.9,1.85) -- (3.9,0);
+\end{tikzpicture}
 \end{document}`
 	},
 	{
@@ -405,21 +411,27 @@ to[R=$R_2$, i>_=$i_2$]
 		description: 'Configuracion clasica no inversora con divisor de realimentacion.',
 		learningGoal: 'Comparar el rol de la entrada positiva frente a la inversora.',
 		runtimeSupport: { server: true, browser: 'supported' },
-		source: String.raw`\usepackage{circuitikz}
-\begin{document}
-
-\begin{circuitikz}[american]
-\draw
-(0,1) node[left] {$V_{in}$} -- (3,1)
-(3,1) -- (3,2)
-(3,1) node[op amp] (opamp) {}
-(opamp.+) -- (3,2)
-(opamp.-) -- (3,0)
-(opamp.out) to[short, -o] (7,1) node[right] {$V_{out}$}
-(opamp.out) to[R, l=$R_f$] (3,0)
-(3,0) to[R, l_=$R_g$] (3,-2) node[ground] {};
-\end{circuitikz}
-
+		source: String.raw`\begin{document}
+\begin{tikzpicture}[line cap=round, line join=round, x=1cm, y=1cm]
+\draw (0,1.8) -- (0,-1.8) -- (2.6,0) -- cycle;
+\node at (0.3,0.7) {$-$};
+\node at (0.3,-0.7) {$+$};
+\draw (-4.5,-0.7) node[left] {$V_{in}$} -- (0,-0.7);
+\draw (2.6,0) -- (4.8,0) node[right] {$V_{out}$};
+\fill (-1.4,0.7) circle (1.6pt);
+\draw (0,0.7) -- (-1.4,0.7);
+\draw (-1.4,0.7) -- (-1.4,-0.9);
+\draw (-1.75,-0.9) rectangle (-1.05,-2.2);
+\node[left] at (-1.8,-1.55) {$R_g$};
+\draw (-1.4,-2.2) -- (-1.4,-2.8);
+\draw (-1.75,-2.8) -- (-1.05,-2.8);
+\draw (-1.65,-2.98) -- (-1.15,-2.98);
+\draw (-1.55,-3.14) -- (-1.25,-3.14);
+\draw (-1.4,0.7) -- (-1.4,1.7) -- (-0.1,1.7);
+\draw (-0.1,1.35) rectangle (1.2,2.05);
+\node at (0.55,2.35) {$R_f$};
+\draw (1.2,1.7) -- (3.5,1.7) -- (3.5,0);
+\end{tikzpicture}
 \end{document}`
 	},
 	{
@@ -430,21 +442,32 @@ to[R=$R_2$, i>_=$i_2$]
 		description: 'Dos entradas resistivas comparten el nodo inversor.',
 		learningGoal: 'Mostrar superposicion y mezcla analogica con op-amps.',
 		runtimeSupport: { server: true, browser: 'supported' },
-		source: String.raw`\usepackage{circuitikz}
-\begin{document}
-
-\begin{circuitikz}[american]
-\draw
-(0,3) node[left] {$V_1$} to[R, l=$R_1$] (2,3) -- (3,3)
-(0,1) node[left] {$V_2$} to[R, l_=$R_2$] (2,1) -- (3,1)
-(3,2) node[op amp] (opamp) {}
-(3,3) -- (opamp.-)
-(3,1) -- (3,0) -- (opamp.+)
-(opamp.+) -- (3,-1) node[ground] {}
-(opamp.out) to[short, -o] (7,2) node[right] {$V_{out}$}
-(opamp.out) to[R, l=$R_f$] (3,3);
-\end{circuitikz}
-
+		source: String.raw`\begin{document}
+\begin{tikzpicture}[line cap=round, line join=round, x=1cm, y=1cm]
+\draw (0,1.8) -- (0,-1.8) -- (2.6,0) -- cycle;
+\node at (0.3,0.7) {$-$};
+\node at (0.3,-0.7) {$+$};
+\fill (-1.4,0.7) circle (1.6pt);
+\draw (0,0.7) -- (-1.4,0.7);
+\draw (-4.8,1.4) node[left] {$V_1$} -- (-4.0,1.4);
+\draw (-4.0,1.05) rectangle (-2.7,1.75);
+\node at (-3.35,2.05) {$R_1$};
+\draw (-2.7,1.4) -- (-1.4,1.4) -- (-1.4,0.7);
+\draw (-4.8,0.0) node[left] {$V_2$} -- (-4.0,0.0);
+\draw (-4.0,-0.35) rectangle (-2.7,0.35);
+\node at (-3.35,-0.65) {$R_2$};
+\draw (-2.7,0.0) -- (-1.4,0.0) -- (-1.4,0.7);
+\draw (0,-0.7) -- (-1.0,-0.7);
+\draw (-1.0,-0.7) -- (-1.0,-1.5);
+\draw (-1.35,-1.5) -- (-0.65,-1.5);
+\draw (-1.25,-1.68) -- (-0.75,-1.68);
+\draw (-1.15,-1.84) -- (-0.85,-1.84);
+\draw (2.6,0) -- (4.8,0) node[right] {$V_{out}$};
+\draw (-1.4,0.7) -- (-1.4,1.9) -- (2.0,1.9);
+\draw (2.0,1.55) rectangle (3.3,2.25);
+\node at (2.65,2.55) {$R_f$};
+\draw (3.3,1.9) -- (3.3,0);
+\end{tikzpicture}
 \end{document}`
 	},
 	{
@@ -500,7 +523,8 @@ to[R=$R_2$, i>_=$i_2$]
 		description: 'Sensor, acondicionamiento, ADC y procesamiento.',
 		learningGoal: 'Pasar de circuito a sistema de adquisicion de datos.',
 		runtimeSupport: { server: true, browser: 'supported' },
-		source: String.raw`\begin{document}
+		source: String.raw`\usetikzlibrary{positioning,arrows.meta}
+\begin{document}
 \begin{tikzpicture}[node distance=1.8cm, >=Latex]
 \node[draw, rounded corners, minimum height=1.2cm, minimum width=2.3cm, align=center, fill=blue!6] (sensor) {Sensor};
 \node[draw, rounded corners, minimum height=1.2cm, minimum width=2.3cm, align=center, fill=blue!6, right=of sensor] (cond) {Acondicionamiento};
@@ -634,7 +658,8 @@ to[R=$R_2$, i>_=$i_2$]
 		description: 'Rayos principales de un objeto a traves de una lente convergente.',
 		learningGoal: 'Ver construccion geometrica de imagen en optica basica.',
 		runtimeSupport: { server: true, browser: 'supported' },
-		source: String.raw`\begin{document}
+		source: String.raw`\usetikzlibrary{arrows.meta}
+\begin{document}
 \begin{tikzpicture}[scale=0.95, >=Latex]
 \draw[->] (-5,0) -- (5,0) node[right] {eje optico};
 \draw[thick, blue] (0,-3) -- (0,3);
@@ -657,7 +682,8 @@ to[R=$R_2$, i>_=$i_2$]
 		description: 'Fuente, divisor de haz, dos brazos y detector.',
 		learningGoal: 'Introducir caminos opticos y recombinacion de haces.',
 		runtimeSupport: { server: true, browser: 'supported' },
-		source: String.raw`\begin{document}
+		source: String.raw`\usetikzlibrary{arrows.meta}
+\begin{document}
 \begin{tikzpicture}[scale=1.05, >=Latex]
 \draw[fill=yellow!20] (-4,-0.3) rectangle (-3,0.3);
 \node at (-3.5,0.7) {Fuente};
@@ -682,7 +708,8 @@ to[R=$R_2$, i>_=$i_2$]
 		description: 'Dos guias paralelas con zona de acoplo.',
 		learningGoal: 'Representar de forma conceptual un dispositivo fotonico integrado.',
 		runtimeSupport: { server: true, browser: 'supported' },
-		source: String.raw`\begin{document}
+		source: String.raw`\usetikzlibrary{arrows.meta}
+\begin{document}
 \begin{tikzpicture}[scale=1.0, >=Latex]
 \fill[blue!10] (-4,0.7) rectangle (4,1.1);
 \fill[blue!10] (-4,-1.1) rectangle (4,-0.7);
