@@ -28,7 +28,7 @@
 	const examples = tikzExamples;
 	const exampleGroups = tikzExampleGroups;
 	const tikzjaxScriptId = 'demo-tikzjax-browser-runtime';
-	const tikzjaxRuntimeBasePath = `${base}/${(globalThis as typeof globalThis & { __TIKZJAX_RUNTIME_PUBLIC_DIR__: string }).__TIKZJAX_RUNTIME_PUBLIC_DIR__}`;
+	const tikzjaxRuntimeBasePath = `${base}/vendor/tikzjax-browser`;
 	let tikzjaxRuntimePromise: Promise<void> | null = null;
 
 	function splitCsv(value: string): string[] {

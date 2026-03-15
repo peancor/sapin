@@ -15,6 +15,9 @@ import { gzipSync } from 'node:zlib';
 
 const thisFilePath = fileURLToPath(import.meta.url);
 const projectRoot = resolve(dirname(thisFilePath), '..');
+const staticVendorDirPath = resolve(projectRoot, 'static/vendor');
+const staticTikzjaxBrowserRuntimeDirPath = join(staticVendorDirPath, 'tikzjax-browser');
+const staticNodeTikzjaxDirPath = join(staticVendorDirPath, 'node-tikzjax');
 
 /**
  * @param {string} dirPath
@@ -49,6 +52,47 @@ function copyDirectory(sourceDirPath, targetDirPath) {
 		mkdirSync(dirname(targetPath), { recursive: true });
 		copyFileSync(filePath, targetPath);
 	}
+}
+
+/**
+ * @param {string} filePath
+ */
+function ensureParentDir(filePath) {
+	mkdirSync(dirname(filePath), { recursive: true });
+}
+
+/**
+ * @param {string} sourcePath
+ * @param {string} targetPath
+ */
+function copyIfMissing(sourcePath, targetPath) {
+	if (!existsSync(sourcePath) || existsSync(targetPath)) {
+		return;
+	}
+
+	ensureParentDir(targetPath);
+	copyFileSync(sourcePath, targetPath);
+}
+
+/**
+ * @param {string} markerPath
+ * @param {Record<string, unknown>} marker
+ */
+function writeMarkerIfChanged(markerPath, marker) {
+	if (existsSync(markerPath)) {
+		try {
+			const currentMarker = JSON.parse(readFileSync(markerPath, 'utf8'));
+			if (JSON.stringify(currentMarker) === JSON.stringify(marker)) {
+				return false;
+			}
+		} catch {
+			// Ignore invalid marker files and rebuild the generated assets.
+		}
+	}
+
+	ensureParentDir(markerPath);
+	writeFileSync(markerPath, JSON.stringify(marker, null, 2));
+	return true;
 }
 
 export function prepareTikzjaxBrowserTexFiles() {
@@ -118,7 +162,7 @@ export function prepareTikzjaxBrowserTexFiles() {
 export function prepareTikzjaxBrowserRuntimeAssets() {
 	const distDirPath = resolve(projectRoot, 'node_modules/@rod2ik/tikzjax/dist');
 	const sourceTarPath = resolve(projectRoot, 'node_modules/node-tikzjax/tex/tex_files.tar.gz');
-	const generatedDirPath = resolve(projectRoot, '.generated/tikzjax-browser-runtime');
+	const generatedDirPath = staticTikzjaxBrowserRuntimeDirPath;
 	const tempExtractDirPath = resolve(projectRoot, '.generated/.tikzjax-browser-runtime-temp');
 	const markerPath = join(generatedDirPath, '.prepared.json');
 	const runTexPath = join(distDirPath, 'run-tex.js');
@@ -131,7 +175,7 @@ export function prepareTikzjaxBrowserRuntimeAssets() {
 	}
 
 	const marker = {
-		generatorVersion: 3,
+		generatorVersion: 4,
 		sourceTarMtimeMs: statSync(sourceTarPath).mtimeMs,
 		runTexMtimeMs: statSync(runTexPath).mtimeMs,
 		tikzjaxMtimeMs: statSync(tikzjaxPath).mtimeMs,
@@ -139,22 +183,8 @@ export function prepareTikzjaxBrowserRuntimeAssets() {
 		coreDumpMtimeMs: statSync(coreDumpPath).mtimeMs
 	};
 
-	if (existsSync(markerPath)) {
-		try {
-			const currentMarker = JSON.parse(readFileSync(markerPath, 'utf8'));
-			if (
-				currentMarker?.generatorVersion === marker.generatorVersion &&
-				currentMarker?.sourceTarMtimeMs === marker.sourceTarMtimeMs &&
-				currentMarker?.runTexMtimeMs === marker.runTexMtimeMs &&
-				currentMarker?.tikzjaxMtimeMs === marker.tikzjaxMtimeMs &&
-				currentMarker?.texWasmMtimeMs === marker.texWasmMtimeMs &&
-				currentMarker?.coreDumpMtimeMs === marker.coreDumpMtimeMs
-			) {
-				return generatedDirPath;
-			}
-		} catch {
-			// Ignore invalid marker files and rebuild the generated assets.
-		}
+	if (!writeMarkerIfChanged(markerPath, marker)) {
+		return generatedDirPath;
 	}
 
 	rmSync(generatedDirPath, { recursive: true, force: true });
@@ -202,9 +232,26 @@ export function prepareTikzjaxBrowserRuntimeAssets() {
 	for (const filePath of walkFiles(tempExtractDirPath)) {
 		const relativePath = relative(tempExtractDirPath, filePath);
 		const targetPath = join(generatedDirPath, 'tex_files', `${relativePath}.bin`);
-		mkdirSync(dirname(targetPath), { recursive: true });
+		ensureParentDir(targetPath);
 		writeFileSync(targetPath, gzipSync(readFileSync(filePath)));
 	}
+
+	for (const filePath of walkFiles(join(generatedDirPath, 'tex_files'))) {
+		if (!filePath.endsWith('.gz')) {
+			continue;
+		}
+
+		copyIfMissing(filePath, filePath.replace(/\.gz$/, '.bin'));
+	}
+
+	copyIfMissing(
+		join(generatedDirPath, 'tex_files', 'pgflibraryarrows.meta.code.tex.bin'),
+		join(generatedDirPath, 'tex_files', 'tikzlibraryarrows.meta.code.tex.bin')
+	);
+	copyIfMissing(
+		join(generatedDirPath, 'tex_files', 'pgflibraryarrows.meta.code.tex.gz'),
+		join(generatedDirPath, 'tex_files', 'tikzlibraryarrows.meta.code.tex.gz')
+	);
 
 	writeFileSync(markerPath, JSON.stringify(marker, null, 2));
 
@@ -213,7 +260,34 @@ export function prepareTikzjaxBrowserRuntimeAssets() {
 	return generatedDirPath;
 }
 
+export function prepareNodeTikzjaxStaticAssets() {
+	const sourceDirPath = resolve(projectRoot, 'node_modules/node-tikzjax/css');
+	const markerPath = join(staticNodeTikzjaxDirPath, '.prepared.json');
+
+	if (!existsSync(sourceDirPath)) {
+		return staticNodeTikzjaxDirPath;
+	}
+
+	const marker = {
+		generatorVersion: 1,
+		sourceDirPath,
+		sourceMtimeMs: statSync(sourceDirPath).mtimeMs
+	};
+
+	if (!writeMarkerIfChanged(markerPath, marker)) {
+		return staticNodeTikzjaxDirPath;
+	}
+
+	rmSync(staticNodeTikzjaxDirPath, { recursive: true, force: true });
+	mkdirSync(staticNodeTikzjaxDirPath, { recursive: true });
+	copyDirectory(sourceDirPath, staticNodeTikzjaxDirPath);
+	writeFileSync(markerPath, JSON.stringify(marker, null, 2));
+
+	return staticNodeTikzjaxDirPath;
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === thisFilePath) {
 	prepareTikzjaxBrowserTexFiles();
 	prepareTikzjaxBrowserRuntimeAssets();
+	prepareNodeTikzjaxStaticAssets();
 }
