@@ -593,6 +593,67 @@ export default class DBAgentUIUtils {
 				}),
 				isSystem: true,
 				version: '1.0.0'
+			},
+			{
+				name: 'svg_diagram_card',
+				displayName: 'Diagrama SVG',
+				description:
+					'Visualiza un diagrama SVG generado por el agente, con titulo, notas técnicas y vista ampliada.',
+				category: 'visualization',
+				componentKey: 'SvgDiagramCard',
+				propsSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						svg: { type: 'string', description: 'Markup SVG saneado y listo para mostrar' },
+						title: { type: 'string', description: 'Título opcional visible sobre el diagrama' },
+						caption: { type: 'string', description: 'Pie opcional del diagrama' },
+						ariaLabel: { type: 'string', description: 'Etiqueta accesible opcional' },
+						notes: {
+							type: 'array',
+							description: 'Notas técnicas o advertencias derivadas de la validación',
+							items: { type: 'string' }
+						}
+					},
+					required: ['svg']
+				}),
+				isSystem: true,
+				version: '1.0.0'
+			},
+			{
+				name: 'tikzjax_diagram_card',
+				displayName: 'Diagrama TikZJax',
+				description:
+					'Visualiza un diagrama TikZJax renderizado en navegador con detalles de normalización y paquetes detectados.',
+				category: 'visualization',
+				componentKey: 'TikzjaxDiagramCard',
+				propsSchema: JSON.stringify({
+					type: 'object',
+					properties: {
+						request: { type: 'object', description: 'Payload final enviado al runtime TikZJax' },
+						normalizedSource: { type: 'string', description: 'Fuente TikZ normalizada' },
+						normalizationNotes: {
+							type: 'array',
+							items: { type: 'string' },
+							description: 'Notas generadas durante el preprocesado'
+						},
+						detectedPackages: {
+							type: 'array',
+							items: { type: 'string' },
+							description: 'Paquetes TeX finalmente activados'
+						},
+						detectedLibraries: {
+							type: 'array',
+							items: { type: 'string' },
+							description: 'Librerías TikZ finalmente activadas'
+						},
+						title: { type: 'string' },
+						caption: { type: 'string' },
+						ariaLabel: { type: 'string' }
+					},
+					required: ['request', 'normalizedSource']
+				}),
+				isSystem: true,
+				version: '1.0.0'
 			}
 		];
 

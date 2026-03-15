@@ -109,7 +109,7 @@ export const tikzExamples = [
 
 \begin{circuitikz}[american]
 \draw
-(0,0) to[V, l=$V$] (0,3)
+(0,0) to[V, l=$V$, invert] (0,3)
       to[R, l=$R$, i>^=$I$] (4,3)
       -- (4,0) -- (0,0);
 \end{circuitikz}
@@ -152,7 +152,7 @@ to[R=$R_2$, i>_=$i_2$]
 
 \begin{circuitikz}[american]
 \draw
-(0,0) to[V, l=$V_{in}$] (0,4)
+(0,0) to[V, l=$V_{in}$, invert] (0,4)
       to[R, l=$R_1$] (3,4)
       to[R, l=$R_2$] (3,0)
       -- (0,0);
@@ -193,7 +193,7 @@ to[R=$R_2$, i>_=$i_2$]
 
 \begin{circuitikz}[american]
 \draw
-(0,0) to[V, l=$V_s$] (0,4)
+(0,0) to[V, l=$V_s$, invert] (0,4)
       to[R, l=$R_1$, v^>=$V_{R1}$] (3,4)
       to[R, l=$R_2$, v^>=$V_{R2}$] (6,4)
       -- (6,0) -- (0,0);
@@ -214,7 +214,7 @@ to[R=$R_2$, i>_=$i_2$]
 
 \begin{circuitikz}[american]
 \draw
-(0,0) to[battery1, l=$V_s$] (0,4)
+(0,0) to[battery1, l=$V_s$, invert] (0,4)
       to[R, l=$R$] (3,4)
       to[led, l=LED] (3,0)
       -- (0,0);
@@ -234,7 +234,7 @@ to[R=$R_2$, i>_=$i_2$]
 
 \begin{tikzpicture}[scale=1.2, transform shape]
 	\draw (0,0)
-		to[V, v=$9V$, a=Fuente] (0,3)
+		to[V, v=$9V$, invert, a=Fuente] (0,3)
 		to[closing switch, l=Interruptor] (2.5,3)
 		to[R, l=$R$ ($10k\Omega$), a=Resistencia] (5.5,3)
 		to[C, l=$C$ ($100\mu F$), a=Condensador] (5.5,0)
@@ -256,7 +256,7 @@ to[R=$R_2$, i>_=$i_2$]
 
 \begin{circuitikz}[american]
 \draw
-(0,0) to[V, l=$V_s$] (0,3)
+(0,0) to[V, l=$V_s$, invert] (0,3)
       to[closing switch, l=S] (2,3)
       to[R, l=$R$] (4,3)
       to[L, l=$L$, i>^=$i(t)$] (6,3)
@@ -278,7 +278,7 @@ to[R=$R_2$, i>_=$i_2$]
 
 \begin{circuitikz}[american]
 \draw
-(0,0) to[sV, l=$v(t)$] (0,3)
+(0,0) to[sV, l=$v(t)$, invert] (0,3)
       to[R, l=$R$] (2.5,3)
       to[L, l=$L$] (5,3)
       to[C, l=$C$] (7.5,3)
@@ -321,7 +321,7 @@ to[R=$R_2$, i>_=$i_2$]
 
 \begin{circuitikz}[american]
 \draw
-(0,0) to[sV, l=$v_{ac}$] (0,4)
+(0,0) to[sV, l=$v_{ac}$, invert] (0,4)
       to[D, l=$D$] (3,4)
       to[R, l=$R_L$] (3,0)
       -- (0,0);
@@ -341,7 +341,7 @@ to[R=$R_2$, i>_=$i_2$]
 \begin{document}
 
 \begin{circuitikz}[american]
-\draw (0,2) to[sV, l=$v_{ac}$] (0,6);
+\draw (0,2) to[sV, l=$v_{ac}$, invert] (0,6);
 \draw (0,6) -- (2,6) to[D] (4,4) to[D] (2,2) -- (0,2);
 \draw (0,6) -- (2,6) to[D*] (4,8) to[D*] (2,2) -- (0,2);
 \draw (4,8) -- (6,8) to[R, l=$R_L$] (6,4) -- (4,4);
@@ -487,7 +487,7 @@ to[R=$R_2$, i>_=$i_2$]
       to[R, l=$R_2$] (4,2)
       to[R, l=$R_3$] (2,0)
       to[R, l=$R_4$] (0,2);
-\draw (2,4) to[V, l=$V_s$] (2,0);
+\draw (2,4) to[V, l=$V_s$, invert] (2,0);
 \draw (0,2) to[rmeter, t=$G$] (4,2);
 \end{circuitikz}
 
@@ -506,7 +506,7 @@ to[R=$R_2$, i>_=$i_2$]
 
 \begin{circuitikz}[american]
 \draw
-(0,0) to[V, l=$V_s$] (0,4)
+(0,0) to[V, l=$V_s$, invert] (0,4)
       to[R, l=$R_L$] (4,4)
       to[R, l_=$R_{sh}$] (4,0)
       -- (0,0);

@@ -4,15 +4,17 @@ import DrivingPsychotechTest from './DrivingPsychotechTest/index.svelte';
 import DrivingPsychotechTestLauncher from './DrivingPsychotechTest/Launcher.svelte';
 import ExecutiveFlexibilityTest from './ExecutiveFlexibilityTest/index.svelte';
 import ExecutiveFlexibilityTestLauncher from './ExecutiveFlexibilityTest/Launcher.svelte';
- import FlashcardDeck from './FlashcardDeck/index.svelte';
- import GraphPlotCard from './GraphPlotCard/index.svelte';
- import ImmersiveTimedQuiz from './ImmersiveTimedQuiz/index.svelte';
- import ImmersiveTimedQuizLauncher from './ImmersiveTimedQuiz/Launcher.svelte';
- import QuizCard from './QuizCard/index.svelte';
- import SharedImageCard from './SharedImageCard/index.svelte';
- import SustainedAttentionTest from './SustainedAttentionTest/index.svelte';
- import SustainedAttentionTestLauncher from './SustainedAttentionTest/Launcher.svelte';
- import TimedQuizCard from './TimedQuizCard/index.svelte';
+import FlashcardDeck from './FlashcardDeck/index.svelte';
+import GraphPlotCard from './GraphPlotCard/index.svelte';
+import ImmersiveTimedQuiz from './ImmersiveTimedQuiz/index.svelte';
+import ImmersiveTimedQuizLauncher from './ImmersiveTimedQuiz/Launcher.svelte';
+import QuizCard from './QuizCard/index.svelte';
+import SharedImageCard from './SharedImageCard/index.svelte';
+import SvgDiagramCard from './SvgDiagramCard/index.svelte';
+import SustainedAttentionTest from './SustainedAttentionTest/index.svelte';
+import SustainedAttentionTestLauncher from './SustainedAttentionTest/Launcher.svelte';
+import TikzjaxDiagramCard from './TikzjaxDiagramCard/index.svelte';
+import TimedQuizCard from './TimedQuizCard/index.svelte';
 import WorkingMemoryTest from './WorkingMemoryTest/index.svelte';
 import WorkingMemoryTestLauncher from './WorkingMemoryTest/Launcher.svelte';
 
@@ -42,6 +44,10 @@ interface QuizQuestion {
 interface Flashcard {
 	front: string;
 	back: string;
+}
+
+function asStringArray(value: unknown): string[] {
+	return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
 }
 
 function asString(value: unknown): string | undefined {
@@ -375,6 +381,44 @@ const uiComponentRegistry = {
 			mimeType: asString(ctx.props.mimeType) ?? 'image/*',
 			title: asString(ctx.props.title),
 			caption: asString(ctx.props.caption),
+			interactive: ctx.interactive,
+			initialUserResponse: ctx.initialUserResponse,
+			apiBase: ctx.apiBase,
+			onRespond: () => ctx.onRespond?.()
+		})
+	},
+	SvgDiagramCard: {
+		renderStyle: 'inline',
+		component: SvgDiagramCard,
+		buildProps: (ctx: UIComponentContext) => ({
+			instanceId: ctx.instanceId,
+			svg: asString(ctx.props.svg) ?? '',
+			title: asString(ctx.props.title),
+			caption: asString(ctx.props.caption),
+			ariaLabel: asString(ctx.props.ariaLabel),
+			notes: asStringArray(ctx.props.notes),
+			interactive: ctx.interactive,
+			initialUserResponse: ctx.initialUserResponse,
+			apiBase: ctx.apiBase,
+			onRespond: () => ctx.onRespond?.()
+		})
+	},
+	TikzjaxDiagramCard: {
+		renderStyle: 'inline',
+		component: TikzjaxDiagramCard,
+		buildProps: (ctx: UIComponentContext) => ({
+			instanceId: ctx.instanceId,
+			request:
+				typeof ctx.props.request === 'object' && ctx.props.request !== null
+					? ctx.props.request
+					: null,
+			normalizedSource: asString(ctx.props.normalizedSource) ?? '',
+			normalizationNotes: asStringArray(ctx.props.normalizationNotes),
+			detectedPackages: asStringArray(ctx.props.detectedPackages),
+			detectedLibraries: asStringArray(ctx.props.detectedLibraries),
+			title: asString(ctx.props.title),
+			caption: asString(ctx.props.caption),
+			ariaLabel: asString(ctx.props.ariaLabel),
 			interactive: ctx.interactive,
 			initialUserResponse: ctx.initialUserResponse,
 			apiBase: ctx.apiBase,

@@ -6,7 +6,9 @@ import { immersiveTimedQuizHandler } from './handlers/immersive-timed-quiz';
 import { flashcardDeckHandler } from './handlers/flashcard-deck';
 import { quizCardHandler } from './handlers/quiz-card';
 import { sharedImageCardHandler } from './handlers/shared-image-card';
+import { svgDiagramCardHandler } from './handlers/svg-diagram-card';
 import { sustainedAttentionTestHandler } from './handlers/sustained-attention-test';
+import { tikzjaxDiagramCardHandler } from './handlers/tikzjax-diagram-card';
 import { timedQuizCardHandler } from './handlers/timed-quiz-card';
 import { workingMemoryTestHandler } from './handlers/working-memory-test';
 import type { UIRendererHandler } from './types';
@@ -21,7 +23,9 @@ const UI_RENDERER_HANDLER_REGISTRY: Record<string, UIRendererHandler> = {
 	[flashcardDeckHandler.componentKey]: flashcardDeckHandler,
 	[graphPlotCardHandler.componentKey]: graphPlotCardHandler,
 	[sharedImageCardHandler.componentKey]: sharedImageCardHandler,
+	[svgDiagramCardHandler.componentKey]: svgDiagramCardHandler,
 	[sustainedAttentionTestHandler.componentKey]: sustainedAttentionTestHandler,
+	[tikzjaxDiagramCardHandler.componentKey]: tikzjaxDiagramCardHandler,
 	[workingMemoryTestHandler.componentKey]: workingMemoryTestHandler
 };
 

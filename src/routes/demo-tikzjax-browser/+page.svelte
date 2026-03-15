@@ -7,6 +7,10 @@
 		tikzExamples,
 		type TikzExampleId
 	} from '$lib/constants/tikzExamples';
+	import {
+		prepareTikzjaxBrowserDiagram,
+		splitCommaSeparatedList
+	} from '$lib/utils/tikzjaxBrowserDiagram';
 	import type {
 		TikzjaxBrowserRenderRequest,
 		TikzjaxBrowserRenderState
@@ -14,101 +18,8 @@
 
 	const supportedPackages = tikzBrowserSupportedPackages;
 
-	const preambleLinePattern = /^\\(?:documentclass|usepackage|usetikzlibrary|pgfplotsset|ctikzset|tikzset|definecolor|colorlet|def|newcommand|renewcommand|providecommand|input)\b/;
-
 	const examples = tikzExamples;
 	const exampleGroups = tikzExampleGroups;
-
-	function splitCsv(value: string): string[] {
-		return value
-			.split(',')
-			.map((item) => item.trim())
-			.filter(Boolean);
-	}
-
-	function unique(items: string[]): string[] {
-		return [...new Set(items)];
-	}
-
-	function extractPackagesFromPreamble(preamble: string): Record<string, string> {
-		const packages: Record<string, string> = {};
-
-		for (const match of preamble.matchAll(/\\usepackage(?:\[([^\]]*)\])?\{([^}]*)\}/g)) {
-			const packageOptions = match[1] ?? '';
-			const packageNames = splitCsv(match[2] ?? '');
-
-			for (const packageName of packageNames) {
-				packages[packageName] = packageOptions;
-			}
-		}
-
-		return packages;
-	}
-
-	function extractTikzLibrariesFromPreamble(preamble: string): string[] {
-		const libraries: string[] = [];
-
-		for (const match of preamble.matchAll(/\\usetikzlibrary\{([^}]*)\}/g)) {
-			libraries.push(...splitCsv(match[1] ?? ''));
-		}
-
-		return unique(libraries);
-	}
-
-	function cleanPreamble(preamble: string): string {
-		return preamble
-			.replace(/\\documentclass(?:\[[^\]]*\])?\{[^}]*\}/g, '')
-			.replace(/\\usepackage(?:\[[^\]]*\])?\{[^}]*\}/g, '')
-			.replace(/\\usetikzlibrary\{[^}]*\}/g, '')
-			.replace(/^[\t ]*$/gm, '')
-			.trim();
-	}
-
-	function parsePackagesJson(value: string): Record<string, string> {
-		if (!value.trim()) {
-			return {};
-		}
-
-		const parsed = JSON.parse(value) as Record<string, unknown>;
-
-		if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-			throw new Error('El campo de paquetes debe ser un objeto JSON.');
-		}
-
-		return Object.fromEntries(
-			Object.entries(parsed).map(([key, packageOptions]) => [key, String(packageOptions ?? '')])
-		);
-	}
-
-	function stringifyPackagesMap(packages: Record<string, string>): string {
-		const entries = Object.entries(packages);
-
-		if (!entries.length) {
-			return '';
-		}
-
-		return JSON.stringify(Object.fromEntries(entries), null, 2);
-	}
-
-	function splitPreambleAndBody(source: string): {
-		preamble: string;
-		body: string;
-	} {
-		const lines = source.split(/\r?\n/);
-		let bodyStartIndex = lines.findIndex((line) => {
-			const trimmedLine = line.trim();
-			return trimmedLine.length > 0 && !preambleLinePattern.test(trimmedLine);
-		});
-
-		if (bodyStartIndex === -1) {
-			bodyStartIndex = lines.length;
-		}
-
-		return {
-			preamble: lines.slice(0, bodyStartIndex).join('\n').trim(),
-			body: lines.slice(bodyStartIndex).join('\n').trim()
-		};
-	}
 
 	let selectedExampleId = $state<TikzExampleId>(examples[0].id);
 	let selectedExample = $derived(examples.find((candidate) => candidate.id === selectedExampleId) ?? examples[0]);
@@ -117,6 +28,9 @@
 	let tikzLibrariesText = $state('');
 	let addToPreambleText = $state('');
 	let normalizationNotes = $state<string[]>([]);
+	let detectedPackages = $state<string[]>([]);
+	let detectedLibraries = $state<string[]>([]);
+	let normalizedSource = $state('');
 	let renderMessage = $state('');
 	let renderState = $state<TikzjaxBrowserRenderState>('idle');
 	let isPasting = $state(false);
@@ -137,80 +51,28 @@
 		tikzLibrariesText = '';
 		addToPreambleText = '';
 		normalizationNotes = [];
+		detectedPackages = [];
+		detectedLibraries = [];
+		normalizedSource = '';
 		renderMessage = '';
 	}
 
 	function prepareRenderRequest(): TikzjaxBrowserRenderRequest {
-		const rawSource = editorText.trim();
-
-		if (!rawSource) {
-			throw new Error('Pega una fuente TikZ o TeX antes de renderizar.');
-		}
-
-		let source = rawSource;
-		let detectedPackages: Record<string, string> = {};
-		let detectedLibraries: string[] = [];
-		let detectedPreamble = '';
-		const notes: string[] = [];
-
-		const documentMatch = rawSource.match(/([\s\S]*?)\\begin\{document\}([\s\S]*?)\\end\{document\}/);
-
-		if (documentMatch) {
-			const preamble = (documentMatch[1] ?? '').trim();
-			source = (documentMatch[2] ?? '').trim();
-			detectedPackages = extractPackagesFromPreamble(preamble);
-			detectedLibraries = extractTikzLibrariesFromPreamble(preamble);
-			detectedPreamble = cleanPreamble(preamble);
-			notes.push('Se extrajo el contenido de \\begin{document}...\\end{document} para adaptarlo al runtime del navegador.');
-		} else {
-			const { preamble, body } = splitPreambleAndBody(rawSource);
-
-			if (preamble) {
-				source = body || source;
-				detectedPackages = extractPackagesFromPreamble(preamble);
-				detectedLibraries = extractTikzLibrariesFromPreamble(preamble);
-				detectedPreamble = cleanPreamble(preamble);
-				notes.push('Se extrajeron instrucciones de preámbulo iniciales sin necesidad de \\begin{document}.');
-			}
-		}
-
-		const manualPackages = parsePackagesJson(texPackagesText);
-		const mergedPackages = {
-			...detectedPackages,
-			...manualPackages
-		};
-		const mergedLibraries = unique([...detectedLibraries, ...splitCsv(tikzLibrariesText)]);
-		const mergedPreamble = [detectedPreamble, addToPreambleText.trim()].filter(Boolean).join('\n');
-
-		const unsupportedPackages = Object.keys(mergedPackages).filter(
-			(packageName) => !supportedPackages.includes(packageName as (typeof supportedPackages)[number])
-		);
-
-		if (Object.keys(detectedPackages).length) {
-			notes.push(`Paquetes detectados: ${Object.keys(detectedPackages).join(', ')}.`);
-		}
-
-		if (detectedLibraries.length) {
-			notes.push(`Librerías detectadas: ${detectedLibraries.join(', ')}.`);
-		}
-
-		if (unsupportedPackages.length) {
-			notes.push(`Paquetes fuera de la lista documentada del navegador: ${unsupportedPackages.join(', ')}.`);
-		}
-
-		normalizationNotes = notes;
-
-		return {
-			source,
-			texPackagesJson: stringifyPackagesMap(mergedPackages),
-			tikzLibraries: mergedLibraries.join(', '),
-			addToPreamble: mergedPreamble,
+		const prepared = prepareTikzjaxBrowserDiagram({
+			source: editorText,
+			texPackages: splitCommaSeparatedList(texPackagesText),
+			tikzLibraries: splitCommaSeparatedList(tikzLibrariesText),
+			addToPreamble: addToPreambleText,
 			showConsole: true,
-			disableCache: true,
-			ariaLabel: 'Diagrama renderizado por TikZJax en el navegador',
-			width: '420',
-			height: '240'
-		};
+			disableCache: true
+		});
+
+		normalizationNotes = prepared.normalizationNotes;
+		detectedPackages = prepared.detectedPackages;
+		detectedLibraries = prepared.detectedLibraries;
+		normalizedSource = prepared.normalizedSource;
+
+		return prepared.request;
 	}
 
 	function renderDiagram() {
@@ -227,6 +89,10 @@
 			renderState = 'rendering';
 		} catch (error) {
 			renderedRequest = null;
+			normalizationNotes = [];
+			detectedPackages = [];
+			detectedLibraries = [];
+			normalizedSource = '';
 			renderMessage = error instanceof Error ? error.message : 'No se pudo preparar el diagrama.';
 			renderState = 'error';
 		}
@@ -376,7 +242,7 @@
 						bind:value={texPackagesText}
 						spellcheck="false"
 						class="mt-2 min-h-36 w-full rounded-2xl border border-slate-300 bg-slate-50 p-3 font-mono text-xs leading-6 text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-						placeholder={"{\"pgfplots\":\"\",\"tikz-cd\":\"\"}"}
+						placeholder="pgfplots, tikz-cd"
 					></textarea>
 				</div>
 				<div>
@@ -387,7 +253,7 @@
 						class="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
 						placeholder="arrows.meta,calc,patterns"
 					/>
-					<p class="mt-2 text-xs leading-5 text-slate-500">Se mapea a <code>data-tikz-libraries</code>.</p>
+					<p class="mt-2 text-xs leading-5 text-slate-500">Usa una lista CSV que se mapeará a <code>data-tikz-libraries</code>.</p>
 				</div>
 				<div>
 					<label for="browser-preamble" class="block text-sm font-medium text-slate-800">Preambulo extra</label>
@@ -439,15 +305,15 @@
 
 			<div class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
 				<h3 class="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Bloque enviado a TikZJax</h3>
-				<pre class="mt-4 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-emerald-200">{renderedRequest?.source ?? 'Sin render todavía.'}</pre>
+				<pre class="mt-4 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-emerald-200">{normalizedSource || 'Sin render todavía.'}</pre>
 				<div class="mt-4 grid gap-3 text-xs leading-6 text-slate-600 md:grid-cols-3">
 					<div class="rounded-2xl bg-white p-3">
 						<p class="font-semibold text-slate-900">Paquetes</p>
-						<pre class="mt-2 overflow-x-auto text-[11px] leading-5">{renderedRequest?.texPackagesJson || 'Ninguno'}</pre>
+						<p class="mt-2 break-all">{detectedPackages.length ? detectedPackages.join(', ') : 'Ninguno'}</p>
 					</div>
 					<div class="rounded-2xl bg-white p-3">
 						<p class="font-semibold text-slate-900">Librerías</p>
-						<p class="mt-2 break-all">{renderedRequest?.tikzLibraries || 'Ninguna'}</p>
+						<p class="mt-2 break-all">{detectedLibraries.length ? detectedLibraries.join(', ') : 'Ninguna'}</p>
 					</div>
 					<div class="rounded-2xl bg-white p-3">
 						<p class="font-semibold text-slate-900">Preambulo extra</p>
