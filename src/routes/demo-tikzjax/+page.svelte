@@ -1,123 +1,20 @@
 <script lang="ts">
 	import { base } from '$app/paths';
+	import {
+		tikzExampleGroups,
+		tikzExampleCategories,
+		tikzExamples,
+		tikzServerSupportedPackages,
+		type TikzExampleId
+	} from '$lib/constants/tikzExamples';
 	import { onMount } from 'svelte';
 
-	const examples = [
-		{
-			id: 'plot',
-			label: 'Funciones',
-			source: String.raw`\begin{document}
-  \begin{tikzpicture}[domain=0:4]
-    \draw[very thin,color=gray] (-0.1,-1.1) grid (3.9,3.9);
-    \draw[->] (-0.2,0) -- (4.2,0) node[right] {$x$};
-    \draw[->] (0,-1.2) -- (0,4.2) node[above] {$f(x)$};
-    \draw[color=red]    plot (\x,\x)             node[right] {$f(x)=x$};
-    \draw[color=blue]   plot (\x,{sin(\x r)})    node[right] {$f(x)=\sin x$};
-    \draw[color=orange] plot (\x,{0.05*exp(\x)}) node[right] {$f(x)=\frac{1}{20}\mathrm e^x$};
-  \end{tikzpicture}
-\end{document}`
-		},
-		{
-			id: 'circuit',
-			label: 'Circuitikz',
-			source: String.raw`\usepackage{circuitikz}
-\begin{document}
+	const examples = tikzExamples;
+	const exampleGroups = tikzExampleGroups;
+	const supportedPackages = tikzServerSupportedPackages;
 
-\begin{circuitikz}[american, voltage shift=0.5]
-\draw (0,0)
-to[isource, l=$I_0$, v=$V_0$] (0,3)
-to[short, -*, i=$I_0$] (2,3)
-to[R=$R_1$, i>_=$i_1$] (2,0) -- (0,0);
-\draw (2,3) -- (4,3)
-to[R=$R_2$, i>_=$i_2$]
-(4,0) to[short, -*] (2,0);
-\end{circuitikz}
-
-\end{document}`
-		},
-		{
-			id: 'circuit-rc',
-			label: 'Circuito RC',
-			source: String.raw`\usepackage{circuitikz}
-
-\begin{tikzpicture}[scale=1.2, transform shape]
-	% Dibujamos el circuito empezando desde la esquina inferior izquierda (0,0)
-	\draw (0,0)
-		% Fuente de voltaje hacia arriba
-		to[V, v=$9V$, a=Fuente] (0,3)
-    
-		% Interruptor hacia la derecha
-		to[closing switch, l=Interruptor] (2.5,3)
-    
-		% Resistencia hacia la derecha
-		to[R, l=$R$ ($10k\Omega$), a=Resistencia] (5.5,3)
-    
-		% Condensador hacia abajo
-		to[C, l=$C$ ($100\mu F$), a=Condensador] (5.5,0)
-    
-		% Línea de retorno (tierra/negativo) para cerrar el circuito
-		-- (0,0);
-    
-	% Añadimos un nodo de tierra como buena práctica
-	\draw (0,0) node[ground]{};
-\end{tikzpicture}`
-		},
-		{
-			id: 'pgfplots',
-			label: 'PGFPlots',
-			source: String.raw`\usepackage{pgfplots}
-\pgfplotsset{compat=1.16}
-
-\begin{document}
-
-\begin{tikzpicture}
-\begin{axis}[colormap/viridis]
-\addplot3[
-	surf,
-	samples=18,
-	domain=-3:3
-]
-{exp(-x^2-y^2)*x};
-\end{axis}
-\end{tikzpicture}
-
-\end{document}`
-		},
-		{
-			id: 'tikzcd',
-			label: 'TikZ-CD',
-			source: String.raw`\usepackage{tikz-cd}
-
-\begin{document}
-
-\begin{tikzcd}
-  T
-  \arrow[drr, bend left, "x"]
-  \arrow[ddr, bend right, "y"]
-  \arrow[dr, dotted, "{(x,y)}" description] & & \\
-  K & X \times_Z Y \arrow[r, "p"] \arrow[d, "q"]
-  & X \arrow[d, "f"] \\
-  & Y \arrow[r, "g"]
-  & Z
-\end{tikzcd}
-
-\end{document}`
-		},
-		{
-			id: 'chemfig',
-			label: 'Chemfig',
-			source: String.raw`\usepackage{chemfig}
-\begin{document}
-
-\chemfig{[:-90]HN(-[::-45](-[::-45]R)=[::+45]O)>[::+45]*4(-(=O)-N*5(-(<:(=[::-60]O)-[::+60]OH)-(<[::+0])(<:[::-108])-S>)--)}
-
-\end{document}`
-		}
-	] as const;
-
-	const supportedPackages = ['chemfig', 'tikz-cd', 'circuitikz', 'pgfplots', 'array', 'amsmath', 'amstext', 'amsfonts', 'amssymb', 'tikz-3dplot'];
-
-	let selectedExampleId = $state<(typeof examples)[number]['id']>(examples[0].id);
+	let selectedExampleId = $state<TikzExampleId>(examples[0].id);
+	let selectedExample = $derived(examples.find((candidate) => candidate.id === selectedExampleId) ?? examples[0]);
 	let editorText = $state(examples[0].source);
 	let svgMarkup = $state('');
 	let normalizedSource = $state('');
@@ -127,7 +24,7 @@ to[R=$R_2$, i>_=$i_2$]
 	let isPasting = $state(false);
 	let renderState = $state<'idle' | 'rendering' | 'ready' | 'error'>('idle');
 
-	function loadExample(exampleId: (typeof examples)[number]['id']) {
+	function loadExample(exampleId: TikzExampleId) {
 		const example = examples.find((candidate) => candidate.id === exampleId);
 
 		if (!example) {
@@ -228,7 +125,7 @@ to[R=$R_2$, i>_=$i_2$]
 		<p class="text-sm font-semibold uppercase tracking-[0.28em] text-sky-700">Demo</p>
 		<h1 class="mt-2 text-3xl font-semibold text-slate-900">Node-TikZJax En Servidor</h1>
 		<p class="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-			La demo ya no usa el runtime del navegador de <code>@rod2ik/tikzjax</code>. Ahora envía el TeX completo al servidor y renderiza con <code>node-tikzjax</code>, que es el motor que sí declara soporte para los ejemplos de <code>circuitikz</code>, <code>pgfplots</code>, <code>tikz-cd</code> y <code>chemfig</code>.
+			Esta version renderiza en servidor con <code>node-tikzjax</code> y comparte el mismo catalogo de ejemplos que la demo de navegador. La idea ahora es usar estas dos rutas como banco comun para circuitos didacticos, plots, optica y otros diagramas cientificos.
 		</p>
 	</div>
 
@@ -263,18 +160,42 @@ to[R=$R_2$, i>_=$i_2$]
 				</div>
 			</div>
 
-			<div class="mt-6 flex flex-wrap gap-2">
-				{#each examples as example (example.id)}
-					<button
-						type="button"
-						onclick={() => loadExample(example.id)}
-						class={selectedExampleId === example.id
-							? 'rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white'
-							: 'rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900'}
-					>
-						{example.label}
-					</button>
+			<div class="mt-6 space-y-5">
+				{#each exampleGroups as group (group.category)}
+					<div>
+						<div class="mb-3 flex items-center justify-between gap-3">
+							<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{group.label}</p>
+							<p class="text-xs text-slate-400">{group.examples.length} ejemplos</p>
+						</div>
+						<div class="flex flex-wrap gap-2">
+							{#each group.examples as example (example.id)}
+								<button
+									type="button"
+									onclick={() => loadExample(example.id)}
+									class={selectedExampleId === example.id
+										? 'rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white'
+										: 'rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900'}
+								>
+									{example.label}
+								</button>
+							{/each}
+						</div>
+					</div>
 				{/each}
+			</div>
+
+			<div class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+				<div class="flex flex-wrap items-center gap-2">
+					<p class="font-semibold text-slate-900">{selectedExample.label}</p>
+					<span class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+						{tikzExampleCategories[selectedExample.category]}
+					</span>
+					<span class="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700">
+						{selectedExample.priority === 'core' ? 'Base' : 'Ampliado'}
+					</span>
+				</div>
+				<p class="mt-3">{selectedExample.description}</p>
+				<p class="mt-2 text-slate-500">Objetivo didáctico: {selectedExample.learningGoal}</p>
 			</div>
 
 			<label for="tikz-editor" class="mt-6 block text-sm font-medium text-slate-800">Fuente TeX</label>
@@ -348,20 +269,20 @@ to[R=$R_2$, i>_=$i_2$]
 		<aside class="rounded-3xl border border-slate-200 bg-slate-950 p-6 text-slate-100 shadow-sm xl:col-span-2">
 			<h2 class="text-lg font-semibold">Qué Cambió</h2>
 			<p class="mt-3 text-sm leading-6 text-slate-300">
-				Antes intentábamos adaptar ejemplos de <code>node-tikzjax</code> a un runtime distinto, el de <code>@rod2ik/tikzjax</code>. Ese motor no trae la misma distribución de paquetes. Ahora la demo usa directamente <code>node-tikzjax</code>, que sí es el origen de los ejemplos del repositorio que citaste.
+				La ruta de servidor ya no es solo una prueba tecnica. Ahora actua como referencia principal del catalogo compartido, con ejemplos organizados por bloques didacticos para leyes basicas, filtros, conversion, medida y optica.
 			</p>
 			<div class="mt-4 grid gap-4 md:grid-cols-3">
 				<div class="rounded-2xl bg-black/30 p-4 text-sm leading-6 text-slate-300">
-					<p class="font-semibold text-white">1. Mismo motor</p>
-					<p class="mt-2">El servidor renderiza con el mismo paquete que documenta esos ejemplos.</p>
+					<p class="font-semibold text-white">1. Catalogo comun</p>
+					<p class="mt-2">La seleccion de ejemplos sale del mismo modulo que usa la demo de navegador.</p>
 				</div>
 				<div class="rounded-2xl bg-black/30 p-4 text-sm leading-6 text-slate-300">
-					<p class="font-semibold text-white">2. Documento completo</p>
-					<p class="mt-2">Ahora puedes pegar ejemplos completos con <code>\usepackage</code> y <code>\begin&#123;document&#125;</code>.</p>
+					<p class="font-semibold text-white">2. Cobertura amplia</p>
+					<p class="mt-2">El catalogo ya incluye desde leyes de Kirchhoff hasta puentes, filtros, Bode y optica geometrica.</p>
 				</div>
 				<div class="rounded-2xl bg-black/30 p-4 text-sm leading-6 text-slate-300">
-					<p class="font-semibold text-white">3. SVG real</p>
-					<p class="mt-2">El SVG vuelve al cliente ya generado, sin depender del compilador TeX en el navegador.</p>
+					<p class="font-semibold text-white">3. Pegado libre</p>
+					<p class="mt-2">Sigues pudiendo sustituir cualquier preset por tu propio TeX completo y renderizarlo directamente.</p>
 				</div>
 			</div>
 		</aside>
