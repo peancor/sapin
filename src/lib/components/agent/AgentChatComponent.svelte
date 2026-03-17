@@ -223,6 +223,10 @@
         }
     }
 
+    function getConnectedUserLabel() {
+        return user?.alias?.trim() || user?.username?.trim() || 'usuario';
+    }
+
     function scrollToBottom(force = false) {
         if (!chatContainer) return;
         if (force || isAtBottom) {
@@ -557,7 +561,7 @@
         setTimeout(() => scrollToBottom(true), 50);
 
         const url = new URL(apiEndpoint, window.location.origin);
-        url.searchParams.set('message', `[[Usuario conectado: ${user?.username ?? 'usuario'}]]`);
+        url.searchParams.set('message', `[[Usuario conectado: ${getConnectedUserLabel()}]]`);
         startStream(url.toString(), assistantMsgId);
     }
 
@@ -567,7 +571,7 @@
         scrollToBottom(true);
         chatContainer?.addEventListener('scroll', handleScroll);
 
-        if (messages.length === 0 && user?.username) {
+        if (messages.length === 0 && (user?.alias?.trim() || user?.username?.trim())) {
             sendAutoStart();
         }
     });
