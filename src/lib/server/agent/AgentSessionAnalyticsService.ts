@@ -177,7 +177,7 @@ function buildSummary(params: {
 	let totalPasteCount = 0;
 	let totalCharCount = 0;
 	let totalWordCount = 0;
-	let totalTimeSpentSeconds = 0;
+	let totalDraftTimeSpentSeconds = 0;
 	let mobileCount = 0;
 	let metricsMessagesCount = 0;
 
@@ -198,7 +198,7 @@ function buildSummary(params: {
 				totalPasteCount += metrics.pasteCount;
 				totalCharCount += metrics.charCount;
 				totalWordCount += metrics.wordCount;
-				totalTimeSpentSeconds += metrics.timeSpentSeconds;
+				totalDraftTimeSpentSeconds += metrics.timeSpentSeconds;
 				if (metrics.deviceInfo.isMobile) mobileCount += 1;
 			}
 			continue;
@@ -237,6 +237,11 @@ function buildSummary(params: {
 		latestMeaningfulText && latestMeaningfulText !== previewText
 			? latestMeaningfulText
 			: undefined;
+	const lastActivityAt = chat.updatedAt ?? chat.createdAt;
+	const sessionDurationSeconds = Math.max(
+		0,
+		Math.floor((lastActivityAt.getTime() - chat.createdAt.getTime()) / 1000)
+	);
 
 	const finalization = parseFinalizationMetadata(chat.metadata);
 	const status: AgentSessionSummary['status'] = finalization
@@ -250,7 +255,7 @@ function buildSummary(params: {
 		hasStudentMessages: userMessages > 0,
 		previewText,
 		latestText,
-		lastActivityAt: chat.updatedAt ?? chat.createdAt,
+		lastActivityAt,
 		finalization,
 		stats: {
 			totalMessages: userMessages + assistantMessages,
@@ -270,13 +275,16 @@ function buildSummary(params: {
 			totalUiComponents: allUiInstances.length,
 			totalKeystrokeCount,
 			totalPasteCount,
-			totalTimeSpentSeconds,
+			sessionDurationSeconds,
+			totalDraftTimeSpentSeconds,
 			averageCharCount:
 				metricsMessagesCount > 0 ? Math.round(totalCharCount / metricsMessagesCount) : 0,
 			averageWordCount:
 				metricsMessagesCount > 0 ? Math.round(totalWordCount / metricsMessagesCount) : 0,
-			averageTimeSpentSeconds:
-				metricsMessagesCount > 0 ? Math.round(totalTimeSpentSeconds / metricsMessagesCount) : 0,
+			averageDraftTimeSpentSeconds:
+				metricsMessagesCount > 0
+					? Math.round(totalDraftTimeSpentSeconds / metricsMessagesCount)
+					: 0,
 			mobileUsage:
 				metricsMessagesCount > 0 ? Math.round((mobileCount / metricsMessagesCount) * 100) : 0,
 			desktopUsage:

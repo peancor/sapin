@@ -129,7 +129,7 @@
 								Tiempo total
 							</p>
 							<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-								{formatTime(data.sessionSummary.globalStats.totalTimeSpentSeconds)}
+								{formatTime(data.sessionSummary.globalStats.sessionDurationSeconds)}
 							</p>
 						</div>
 					</div>
@@ -204,15 +204,21 @@
 								</h3>
 								<div class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
 									<div class="flex justify-between">
-										<span>Tiempo total</span>
+										<span>Duracion de la sesion</span>
 										<span class="font-medium">
-											{formatTime(data.sessionSummary.globalStats.totalTimeSpentSeconds)}
+											{formatTime(data.sessionSummary.globalStats.sessionDurationSeconds)}
 										</span>
 									</div>
 									<div class="flex justify-between">
-										<span>Tiempo medio</span>
+										<span>Escritura acumulada</span>
 										<span class="font-medium">
-											{formatTime(data.sessionSummary.globalStats.averageTimeSpentSeconds)}
+											{formatTime(data.sessionSummary.globalStats.totalDraftTimeSpentSeconds)}
+										</span>
+									</div>
+									<div class="flex justify-between">
+										<span>Tiempo medio por mensaje</span>
+										<span class="font-medium">
+											{formatTime(data.sessionSummary.globalStats.averageDraftTimeSpentSeconds)}
 										</span>
 									</div>
 									<div class="flex justify-between">

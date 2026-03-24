@@ -221,10 +221,11 @@ export interface AgentSessionGlobalStats {
 	totalUiComponents: number;
 	totalKeystrokeCount: number;
 	totalPasteCount: number;
-	totalTimeSpentSeconds: number;
+	sessionDurationSeconds: number;
+	totalDraftTimeSpentSeconds: number;
 	averageCharCount: number;
 	averageWordCount: number;
-	averageTimeSpentSeconds: number;
+	averageDraftTimeSpentSeconds: number;
 	mobileUsage: number;
 	desktopUsage: number;
 	messagesWithMetrics: number;

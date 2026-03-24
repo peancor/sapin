@@ -518,7 +518,7 @@
 											Tiempo total
 										</p>
 										<p class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
-											{formatTime(session.globalStats.totalTimeSpentSeconds)}
+											{formatTime(session.globalStats.sessionDurationSeconds)}
 										</p>
 									</div>
 
@@ -601,7 +601,7 @@
 												<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
 													{getSessionSummaryLabel(session)}
 												</p>
-												<div class="prose prose-sm mt-2 max-h-24 max-w-none overflow-hidden break-words text-slate-700 dark:prose-invert dark:text-slate-200 [&_p]:my-0 [&_ul]:my-1">
+												<div class="prose prose-sm mt-2 max-h-24 max-w-none overflow-hidden break-words text-slate-700 dark:prose-invert dark:text-slate-200">
 													{@html renderRichText(getSessionSummaryText(session))}
 												</div>
 											</div>
@@ -639,7 +639,7 @@
 											Tiempo total
 										</p>
 										<p class="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-											{formatTime(session.globalStats.totalTimeSpentSeconds)}
+											{formatTime(session.globalStats.sessionDurationSeconds)}
 										</p>
 									</div>
 								</div>
@@ -744,7 +744,7 @@
 										Tiempo total
 									</p>
 									<p class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
-										{formatTime(session.globalStats.totalTimeSpentSeconds)}
+										{formatTime(session.globalStats.sessionDurationSeconds)}
 									</p>
 								</div>
 							</div>
