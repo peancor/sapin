@@ -470,7 +470,9 @@
 										<p>{round.durationMs ?? 'N/A'} ms</p>
 									</td>
 									<td class="px-4 py-4 text-xs text-slate-600 dark:text-slate-300">
-										<p>{round.cachedInputTokens ? `${formatNumber(round.cachedInputTokens)} cached` : 'Sin cache hit'}</p>
+										<p>{round.cacheReadTokens ? `${formatNumber(round.cacheReadTokens)} read` : 'Sin cache hit'}</p>
+										<p>{round.cacheWriteTokens ? `${formatNumber(round.cacheWriteTokens)} write` : 'Sin cache write'}</p>
+										<p>{round.cacheStrategy || 'Sin estrategia cacheable'}</p>
 										<p>{round.reasoningTokens ? `${formatNumber(round.reasoningTokens)} reasoning` : 'Sin reasoning'}</p>
 									</td>
 								</tr>

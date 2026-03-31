@@ -163,7 +163,8 @@ export class AIUtils {
                 const metadata: Record<string, unknown> = {
                     totalTokens: usage?.totalTokens,
                     reasoningTokens: usage?.reasoningTokens,
-                    cachedInputTokens: usage?.cachedInputTokens
+                    cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+                    cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens
                 };
 
                 await this.logUsage({
@@ -248,7 +249,8 @@ export class AIUtils {
             const metadata: Record<string, unknown> = {
                 totalTokens: usage?.totalTokens,
                 reasoningTokens: usage?.reasoningTokens,
-                cachedInputTokens: usage?.cachedInputTokens
+                cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+                cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens
             };
 
             await this.logUsage({
@@ -544,7 +546,8 @@ export class AIUtils {
 					const metadata: Record<string, unknown> = {
 						totalTokens: usage?.totalTokens,
 						reasoningTokens: usage?.reasoningTokens,
-						cachedInputTokens: usage?.cachedInputTokens,
+                        cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+                        cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
 						ragEnabled: chatConfig.ragEnabled,
 						ragContextUsed: ragContext !== null
 					};
@@ -599,7 +602,8 @@ export class AIUtils {
 									},
 									inputTokens,
 									outputTokens,
-									cachedInputTokens: usage?.cachedInputTokens,
+                                    cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+                                    cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
 									reasoningTokens: usage?.reasoningTokens,
 									durationMs,
 									finishedAt: new Date()

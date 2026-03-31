@@ -6,7 +6,7 @@ import { RagService } from '$lib/server/ai/services/RagService';
 import { DBAgentMessageUtils } from '$lib/server/db/agent';
 import { ToolManager } from './ToolManager';
 import { ToolExecutor } from './ToolExecutor';
-import { AgentPromptBuilder } from './AgentPromptBuilder';
+import { AgentPromptBuilder, type AgentPromptSegments } from './AgentPromptBuilder';
 import { AgentFinalizationService } from './AgentFinalizationService';
 import { AgentUIRendererService } from './AgentUIRendererService';
 import { AgentMemoryService } from './memory';
@@ -20,6 +20,64 @@ import {
 
 export class AgentEngine {
 	private static readonly DEFAULT_FINALIZATION_TOOL_NAME = 'finalize_activity';
+	private static readonly SUPPORTED_CACHE_PROVIDER = 'openrouter';
+	private static readonly OPENROUTER_CACHE_CONTROL = {
+		openrouter: {
+			cacheControl: { type: 'ephemeral' as const }
+		}
+	};
+
+	private static resolveCacheStrategy(params: {
+		providerType: string | null;
+		ragPrompt: string | null;
+		memoryPrompt: string | null;
+	}): 'disabled' | 'no_rag_static_prefix' | 'no_rag_with_memory' | 'rag_dynamic' {
+		if (params.providerType !== this.SUPPORTED_CACHE_PROVIDER) {
+			return 'disabled';
+		}
+
+		if (params.ragPrompt) {
+			return 'rag_dynamic';
+		}
+
+		if (params.memoryPrompt) {
+			return 'no_rag_with_memory';
+		}
+
+		return 'no_rag_static_prefix';
+	}
+
+	private static buildRequestMessages(params: {
+		promptSegments: AgentPromptSegments;
+		historyMessages: ModelMessage[];
+		cacheStrategy: 'disabled' | 'no_rag_static_prefix' | 'no_rag_with_memory' | 'rag_dynamic';
+	}): ModelMessage[] {
+		const promptMessages: ModelMessage[] = [
+			{
+				role: 'system',
+				content: params.promptSegments.baseSystemPrompt,
+				...(params.cacheStrategy === 'disabled'
+					? {}
+					: { providerOptions: this.OPENROUTER_CACHE_CONTROL })
+			}
+		];
+
+		if (params.promptSegments.memoryPrompt) {
+			promptMessages.push({
+				role: 'system',
+				content: params.promptSegments.memoryPrompt
+			});
+		}
+
+		if (params.promptSegments.ragPrompt) {
+			promptMessages.push({
+				role: 'system',
+				content: params.promptSegments.ragPrompt
+			});
+		}
+
+		return [...promptMessages, ...params.historyMessages];
+	}
 
 	private static async logFailureUsage(params: {
 		modelName: string;
@@ -228,6 +286,8 @@ export class AgentEngine {
 		messages: ModelMessage[];
 		runtimeTools: ToolDefinitionResolved[];
 		toolChoice: 'auto' | 'required' | 'none';
+		cacheStrategy: 'disabled' | 'no_rag_static_prefix' | 'no_rag_with_memory' | 'rag_dynamic';
+		cacheTargetProvider: string | null;
 		ragContext?: string | null;
 		memoryContext?: string | null;
 	}) {
@@ -243,6 +303,8 @@ export class AgentEngine {
 			toolsExact: params.runtimeTools,
 			requestOptions: {
 				toolChoice: params.toolChoice,
+				cacheStrategy: params.cacheStrategy,
+				cacheTargetProvider: params.cacheTargetProvider,
 				stopWhen: {
 					maxToolRoundtrips: params.context.activityConfig.maxToolRoundtrips
 				},
@@ -253,10 +315,11 @@ export class AgentEngine {
 			memoryContextExact: params.memoryContext ?? null,
 			requestPayload: {
 				modelName: params.modelName,
-				system: params.systemPrompt,
 				messages: params.messages,
 				tools: params.runtimeTools,
 				toolChoice: params.toolChoice,
+				cacheStrategy: params.cacheStrategy,
+				cacheTargetProvider: params.cacheTargetProvider,
 				stopWhen: {
 					maxToolRoundtrips: params.context.activityConfig.maxToolRoundtrips
 				},
@@ -338,7 +401,7 @@ export class AgentEngine {
 		}
 
 		const runtimeTools = this.getRuntimeTools(context);
-		const systemPrompt = AgentPromptBuilder.buildSystemPrompt(
+		const promptSegments = AgentPromptBuilder.buildPromptSegments(
 			config,
 			runtimeTools,
 			ragContext,
@@ -355,7 +418,20 @@ export class AgentEngine {
 
 		yield { type: 'status', status: 'thinking' };
 
-		const messages = await this.buildMessagesFromDB(context.chatId);
+		const historyMessages = await this.buildMessagesFromDB(context.chatId);
+		const providerType = await ModelResolver.getProviderTypeByModelName(modelName).catch(
+			() => null
+		);
+		const cacheStrategy = this.resolveCacheStrategy({
+			providerType,
+			ragPrompt: promptSegments.ragPrompt,
+			memoryPrompt: promptSegments.memoryPrompt
+		});
+		const messages = this.buildRequestMessages({
+			promptSegments,
+			historyMessages,
+			cacheStrategy
+		});
 
 		let model;
 		try {
@@ -408,10 +484,13 @@ export class AgentEngine {
 					modelName,
 					roundType: 'agent',
 					startTime,
-					systemPrompt,
+					systemPrompt: promptSegments.baseSystemPrompt,
 					messages,
 					runtimeTools,
 					toolChoice: toolChoice ?? 'none',
+					cacheStrategy,
+					cacheTargetProvider:
+						cacheStrategy === 'disabled' ? null : this.SUPPORTED_CACHE_PROVIDER,
 					ragContext,
 					memoryContext
 				});
@@ -421,7 +500,6 @@ export class AgentEngine {
 
 			const result = streamText({
 				model,
-				system: systemPrompt,
 				messages,
 				tools: useTools,
 				toolChoice,
@@ -453,7 +531,9 @@ export class AgentEngine {
 								ragContextUsed: !!ragContext,
 								memoryContextUsed: !!memoryContext,
 								reasoningTokens: usage?.reasoningTokens,
-								cachedInputTokens: usage?.cachedInputTokens,
+								cacheStrategy,
+								cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+								cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
 								streamError: accumulated.streamError ?? undefined
 							}
 						});
@@ -493,7 +573,8 @@ export class AgentEngine {
 									},
 									inputTokens: usage?.inputTokens ?? 0,
 									outputTokens: usage?.outputTokens ?? 0,
-									cachedInputTokens: usage?.cachedInputTokens,
+									cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+									cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
 									reasoningTokens: usage?.reasoningTokens,
 									durationMs,
 									errorMessage: accumulated.streamError ?? null,
@@ -592,8 +673,10 @@ export class AgentEngine {
 			return;
 		}
 
-		const messages = await DBAgentMessageUtils.getAgentMessagesAsModelMessages(context.chatId);
-		if (messages.length === 0) {
+		const historyMessages = await DBAgentMessageUtils.getAgentMessagesAsModelMessages(
+			context.chatId
+		);
+		if (historyMessages.length === 0) {
 			yield {
 				type: 'error',
 				code: 'RESUME_ERROR',
@@ -610,7 +693,25 @@ export class AgentEngine {
 			// Continue without memory context.
 		}
 
-		const systemPrompt = AgentPromptBuilder.buildSystemPrompt(config, runtimeTools, null, memoryContext);
+		const promptSegments = AgentPromptBuilder.buildPromptSegments(
+			config,
+			runtimeTools,
+			null,
+			memoryContext
+		);
+		const providerType = await ModelResolver.getProviderTypeByModelName(modelName).catch(
+			() => null
+		);
+		const cacheStrategy = this.resolveCacheStrategy({
+			providerType,
+			ragPrompt: promptSegments.ragPrompt,
+			memoryPrompt: promptSegments.memoryPrompt
+		});
+		const messages = this.buildRequestMessages({
+			promptSegments,
+			historyMessages,
+			cacheStrategy
+		});
 
 		let model;
 		try {
@@ -666,10 +767,13 @@ export class AgentEngine {
 					modelName,
 					roundType: 'agent_resume',
 					startTime,
-					systemPrompt,
+					systemPrompt: promptSegments.baseSystemPrompt,
 					messages,
 					runtimeTools,
 					toolChoice: toolChoice ?? 'none',
+					cacheStrategy,
+					cacheTargetProvider:
+						cacheStrategy === 'disabled' ? null : this.SUPPORTED_CACHE_PROVIDER,
 					ragContext: null,
 					memoryContext
 				});
@@ -679,7 +783,6 @@ export class AgentEngine {
 
 			const result = streamText({
 				model,
-				system: systemPrompt,
 				messages,
 				tools: useTools,
 				toolChoice,
@@ -710,7 +813,9 @@ export class AgentEngine {
 								resumed: true,
 								memoryContextUsed: !!memoryContext,
 								reasoningTokens: usage?.reasoningTokens,
-								cachedInputTokens: usage?.cachedInputTokens,
+								cacheStrategy,
+								cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+								cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
 								streamError: accumulated.streamError ?? undefined
 							}
 						});
@@ -750,7 +855,8 @@ export class AgentEngine {
 									},
 									inputTokens: usage?.inputTokens ?? 0,
 									outputTokens: usage?.outputTokens ?? 0,
-									cachedInputTokens: usage?.cachedInputTokens,
+									cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+									cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
 									reasoningTokens: usage?.reasoningTokens,
 									durationMs,
 									errorMessage: accumulated.streamError ?? null,

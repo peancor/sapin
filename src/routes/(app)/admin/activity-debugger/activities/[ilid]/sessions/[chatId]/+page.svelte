@@ -273,7 +273,7 @@
 				<div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-950/60">
 					<div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400"><Cpu class="h-3.5 w-3.5" /> Cache hits</div>
 					<p class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{data.detail.requestRounds.filter((round) => round.hasCacheHit).length}</p>
-					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Con `cachedInputTokens` reportados</p>
+					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Con cacheReadTokens reportados</p>
 				</div>
 				<div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-950/60">
 					<div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400"><Bot class="h-3.5 w-3.5" /> RAG</div>
@@ -315,6 +315,7 @@
 											messages {round.comparison.sameMessagesHash === null ? 'n/a' : round.comparison.sameMessagesHash ? 'same' : 'diff'} ·
 											rag {round.comparison.sameRagContextHash === null ? 'n/a' : round.comparison.sameRagContextHash ? 'same' : 'diff'}
 										</p>
+										<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{round.cacheStrategy || 'Sin estrategia cacheable'} · {round.cacheReadTokens ? `${round.cacheReadTokens} read` : '0 read'} · {round.cacheWriteTokens ? `${round.cacheWriteTokens} write` : '0 write'}</p>
 									</div>
 									<div class="text-xs text-slate-500 dark:text-slate-400">{formatDate(round.startedAt)}</div>
 								</div>
@@ -338,7 +339,9 @@
 									</div>
 									<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/60">
 										<p class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Cache</p>
-										<p class="mt-1 text-sm text-slate-800 dark:text-slate-200">{selectedRound.cachedInputTokens ? `${selectedRound.cachedInputTokens} cached` : 'Sin cache hit'}</p>
+										<p class="mt-1 text-sm text-slate-800 dark:text-slate-200">{selectedRound.cacheReadTokens ? `${selectedRound.cacheReadTokens} read` : 'Sin cache hit'}</p>
+										<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{selectedRound.cacheWriteTokens ? `${selectedRound.cacheWriteTokens} write` : 'Sin cache write'}</p>
+										<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{selectedRound.cacheStrategy || 'Sin estrategia cacheable'}</p>
 									</div>
 									<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/60">
 										<p class="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">RAG</p>

@@ -65,6 +65,11 @@ function parseJsonRecord(value: unknown): Record<string, unknown> | null {
 		: null;
 }
 
+function getStringProperty(record: Record<string, unknown> | null, key: string): string | null {
+	const value = record?.[key];
+	return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
 function summarizeText(value: string | null | undefined, maxLength = 160): string {
 	if (!value) return 'Sin contenido';
 	const compact = value.replace(/\s+/g, ' ').trim();
@@ -150,6 +155,10 @@ function toCaptureFocus(
 }
 
 function toRequestRound(row: RequestRoundRow, previous: RequestRoundRow | null): ActivityDebuggerRequestRound {
+	const requestOptions = parseJsonRecord(row.requestOptionsJson);
+	const cacheStrategy = getStringProperty(requestOptions, 'cacheStrategy');
+	const cacheTargetProvider = getStringProperty(requestOptions, 'cacheTargetProvider');
+
 	return {
 		id: row.id,
 		interactiveLearningId: row.interactiveLearningId ?? null,
@@ -169,7 +178,10 @@ function toRequestRound(row: RequestRoundRow, previous: RequestRoundRow | null):
 		inputTokens: row.inputTokens,
 		outputTokens: row.outputTokens,
 		totalTokens: row.inputTokens + row.outputTokens,
-		cachedInputTokens: row.cachedInputTokens ?? null,
+		cacheStrategy,
+		cacheTargetProvider,
+		cacheReadTokens: row.cacheReadTokens ?? null,
+		cacheWriteTokens: row.cacheWriteTokens ?? null,
 		reasoningTokens: row.reasoningTokens ?? null,
 		errorMessage: row.errorMessage ?? null,
 		usageLogId: row.usageLogId ?? null,
@@ -179,7 +191,7 @@ function toRequestRound(row: RequestRoundRow, previous: RequestRoundRow | null):
 		ragContextHash: row.ragContextHash ?? null,
 		memoryContextHash: row.memoryContextHash ?? null,
 		toolsHash: row.toolsHash ?? null,
-		hasCacheHit: (row.cachedInputTokens ?? 0) > 0,
+		hasCacheHit: (row.cacheReadTokens ?? 0) > 0,
 		comparison: {
 			previousRoundId: previous?.id ?? null,
 			sameRequestHash:
@@ -202,7 +214,7 @@ function toRequestRound(row: RequestRoundRow, previous: RequestRoundRow | null):
 		systemPromptExact: row.systemPromptExact ?? null,
 		messagesExact: parseJsonValue(row.messagesExactJson),
 		toolsExact: parseJsonValue(row.toolsExactJson),
-		requestOptions: parseJsonValue(row.requestOptionsJson),
+		requestOptions,
 		ragContextExact: row.ragContextExact ?? null,
 		ragSources: parseJsonValue(row.ragSourcesJson),
 		memoryContextExact: row.memoryContextExact ?? null,

@@ -96,7 +96,10 @@ export interface ActivityDebuggerRequestRound {
 	inputTokens: number;
 	outputTokens: number;
 	totalTokens: number;
-	cachedInputTokens: number | null;
+	cacheStrategy: string | null;
+	cacheTargetProvider: string | null;
+	cacheReadTokens: number | null;
+	cacheWriteTokens: number | null;
 	reasoningTokens: number | null;
 	errorMessage: string | null;
 	usageLogId: string | null;

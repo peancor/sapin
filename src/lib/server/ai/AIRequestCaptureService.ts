@@ -65,7 +65,8 @@ export interface AIRequestRoundFinishInput {
 	providerUsage?: unknown;
 	inputTokens?: number;
 	outputTokens?: number;
-	cachedInputTokens?: number | null;
+	cacheReadTokens?: number | null;
+	cacheWriteTokens?: number | null;
 	reasoningTokens?: number | null;
 	durationMs?: number | null;
 	errorMessage?: string | null;
@@ -439,7 +440,8 @@ export class AIRequestCaptureService {
 				providerUsageJson: stableStringify(input.providerUsage),
 				inputTokens: input.inputTokens ?? 0,
 				outputTokens: input.outputTokens ?? 0,
-				cachedInputTokens: input.cachedInputTokens ?? null,
+				cacheReadTokens: input.cacheReadTokens ?? null,
+				cacheWriteTokens: input.cacheWriteTokens ?? null,
 				reasoningTokens: input.reasoningTokens ?? null,
 				durationMs: input.durationMs ?? null,
 				errorMessage: input.errorMessage ?? null,
