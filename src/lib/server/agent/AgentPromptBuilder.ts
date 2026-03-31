@@ -18,8 +18,6 @@ export class AgentPromptBuilder {
 
 {context}
 
-{memory_section}
-
 ## Herramientas disponibles
 
 Tienes acceso a las siguientes herramientas para ayudar al estudiante:
@@ -35,9 +33,7 @@ Tienes acceso a las siguientes herramientas para ayudar al estudiante:
 - Manten un tono educativo, alentador y adaptado al nivel del estudiante
 - Para matematicas usa notacion LaTeX con $expresion$ para inline y $$expresion$$ para bloque
 - Evita usar \\( ... \\) y \\[ ... \\] en salidas nuevas
-- {finalization_instruction}
-
-{rag_section}`;
+- {finalization_instruction}`;
 
     static buildPromptSegments(
         config: AgentActivityConfig,
@@ -78,15 +74,13 @@ Tienes acceso a las siguientes herramientas para ayudar al estudiante:
                 : `Cuando completes completamente el objetivo de la actividad, llama la herramienta \`${finalizationToolName}\` una sola vez para cerrar la sesion`
             : 'Cierra la sesion de forma natural cuando completes el objetivo';
 
-        const prompt = config.systemPrompt || this.BASE_TEMPLATE;
+        const prompt = config.systemPrompt?.trim() ? config.systemPrompt : this.BASE_TEMPLATE;
         const baseSystemPrompt = prompt
             .replace(/{role}/g, role)
             .replace(/{instructions}/g, instructions)
             .replace(/{context}/g, context)
-            .replace(/{memory_section}/g, '')
             .replace(/{tools_section}/g, toolsSection)
             .replace(/{finalization_instruction}/g, finalizationInstruction)
-            .replace(/{rag_section}/g, '')
             .trim();
 
         return {
