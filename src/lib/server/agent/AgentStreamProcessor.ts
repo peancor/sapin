@@ -282,6 +282,15 @@ export class AgentStreamProcessor {
 								toolName: event.toolName,
 								sequenceOrder: 2
 							});
+
+							yield {
+								type: 'tool-result',
+								toolCallId,
+								toolName: event.toolName,
+								result: cleanResult,
+								status: 'completed',
+								durationMs: 0
+							};
 						}
 
 						break;
