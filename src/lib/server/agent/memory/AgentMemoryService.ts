@@ -1,4 +1,4 @@
-import { generateText, Output } from 'ai';
+import { extractJsonMiddleware, generateText, Output, wrapLanguageModel } from 'ai';
 import { z } from 'zod';
 import type { AgentContext } from '$lib/types/agent';
 import type {
@@ -25,6 +25,24 @@ const canvasUpdateOutputSchema = z.object({
 	changeSummary: z.string().nullable()
 });
 
+type CanvasUpdateOutput = z.infer<typeof canvasUpdateOutputSchema>;
+
+const CANVAS_UPDATE_OUTPUT_NAME = 'canvas_update';
+const CANVAS_UPDATE_OUTPUT_DESCRIPTION =
+	'Actualizacion de un canvas de memoria con las claves status, newContent y changeSummary.';
+const CANVAS_UPDATE_OUTPUT_CONTRACT = [
+	'## Formato de salida obligatorio',
+	'Responde exclusivamente con JSON valido. No uses Markdown, bloques de codigo ni texto adicional.',
+	'Usa exactamente estas claves: status, newContent, changeSummary.',
+	'status debe ser "updated" o "unchanged".',
+	'Si status es "unchanged", newContent debe ser null.',
+	'Si status es "updated", newContent debe contener el canvas Markdown completo reescrito.',
+	'changeSummary debe ser una frase breve en espanol o null.',
+	'',
+	'JSON esperado:',
+	'{"status":"updated|unchanged","newContent":"string|null","changeSummary":"string|null"}'
+].join('\n');
+
 type CanvasScopeStatus = MemoryCanvasScopeResolved & {
 	profile: CanvasScopeProfile;
 };
@@ -44,6 +62,99 @@ function normalizeOptionalText(value: unknown): string | null {
 	if (typeof value !== 'string') return null;
 	const normalized = value.trim();
 	return normalized.length > 0 ? normalized : null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+	return value !== null && typeof value === 'object' && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: null;
+}
+
+function extractNestedText(value: unknown): string | null {
+	const directText = normalizeOptionalText(value);
+	if (directText) return directText;
+
+	if (Array.isArray(value)) {
+		const textItems = value
+			.map((item) => extractNestedText(item))
+			.filter((item): item is string => item !== null);
+		return textItems.length > 0 ? textItems.join('\n').trim() : null;
+	}
+
+	const record = asRecord(value);
+	if (!record) return null;
+
+	for (const key of ['text', 'content', 'markdown', 'document', 'value']) {
+		const nested = extractNestedText(record[key]);
+		if (nested) return nested;
+	}
+
+	return null;
+}
+
+function pickFirstDefined(record: Record<string, unknown>, keys: string[]): unknown {
+	for (const key of keys) {
+		if (key in record) return record[key];
+	}
+
+	return undefined;
+}
+
+function normalizeCanvasUpdateStatus(value: unknown): CanvasUpdateOutput['status'] | null {
+	if (typeof value !== 'string') return null;
+
+	const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+	if (
+		['updated', 'update', 'changed', 'modified', 'rewrite', 'rewritten', 'actualizado', 'cambiado'].includes(
+			normalized
+		)
+	) {
+		return 'updated';
+	}
+
+	if (
+		['unchanged', 'no_change', 'no_changes', 'same', 'sin_cambio', 'sin_cambios', 'igual'].includes(
+			normalized
+		)
+	) {
+		return 'unchanged';
+	}
+
+	return null;
+}
+
+function normalizeCanvasUpdateOutput(value: unknown, currentCanvas: string): CanvasUpdateOutput {
+	const record = asRecord(value);
+	const contentCandidate = record
+		? extractNestedText(
+				pickFirstDefined(record, ['newContent', 'new_content', 'content', 'canvas', 'document', 'markdown'])
+			)
+		: null;
+	const summaryCandidate = record
+		? extractNestedText(
+				pickFirstDefined(record, ['changeSummary', 'change_summary', 'summary', 'reason', 'notes'])
+			)
+		: null;
+	const requestedStatus = record
+		? normalizeCanvasUpdateStatus(pickFirstDefined(record, ['status', 'result', 'action']))
+		: null;
+	const normalizedCurrentCanvas = currentCanvas.trim();
+
+	let status = requestedStatus;
+	if (!status) {
+		status = contentCandidate !== null && contentCandidate !== normalizedCurrentCanvas ? 'updated' : 'unchanged';
+	}
+
+	const newContent =
+		status === 'updated' && contentCandidate !== null && contentCandidate !== normalizedCurrentCanvas
+			? contentCandidate
+			: null;
+
+	return canvasUpdateOutputSchema.parse({
+		status: newContent !== null ? 'updated' : 'unchanged',
+		newContent,
+		changeSummary: summaryCandidate
+	});
 }
 
 function isMemoryTool(toolName: string): boolean {
@@ -89,7 +200,9 @@ function buildPromptSections(params: {
 		params.currentCanvas,
 		'',
 		'## Historial de la sesión',
-		params.transcript
+		params.transcript,
+		'',
+		CANVAS_UPDATE_OUTPUT_CONTRACT
 	].join('\n');
 }
 
@@ -392,12 +505,19 @@ export class AgentMemoryService {
 		}
 
 		try {
-			const result = await generateText({
+			const wrappedModel = wrapLanguageModel({
 				model,
+				middleware: extractJsonMiddleware()
+			});
+			const result = await generateText({
+				model: wrappedModel,
 				temperature: 0,
-				output: Output.object({ schema: canvasUpdateOutputSchema }),
+				output: Output.json({
+					name: CANVAS_UPDATE_OUTPUT_NAME,
+					description: CANVAS_UPDATE_OUTPUT_DESCRIPTION
+				}),
 				system:
-					'Eres el servicio interno de memoria de un tutor educativo. Mantienes un canvas Markdown como fuente de verdad. Solo debes conservar información útil, verificable a partir de la sesión y relevante para futuras interacciones. Nunca inventes hechos. Si no hay cambios sustanciales, responde unchanged. Si sí los hay, devuelve el documento completo reescrito en newContent.',
+					'Eres el servicio interno de memoria de un tutor educativo. Mantienes un canvas Markdown como fuente de verdad. Solo debes conservar informacion util, verificable a partir de la sesion y relevante para futuras interacciones. Nunca inventes hechos. Devuelve exclusivamente JSON valido con las claves status, newContent y changeSummary. status debe ser "updated" o "unchanged". Si no hay cambios sustanciales, usa status="unchanged" y newContent=null. Si si los hay, devuelve el documento completo reescrito en newContent.',
 				prompt: buildPromptSections({
 					scope: params.scope,
 					currentCanvas: params.currentCanvas,
@@ -421,11 +541,12 @@ export class AgentMemoryService {
 				metadata: {
 					agentMode: true,
 					memoryScope: params.scope.scopeType,
-					memoryUpdate: true
+					memoryUpdate: true,
+					outputMode: 'json'
 				}
 			});
 
-			return result.output;
+			return normalizeCanvasUpdateOutput(result.output, params.currentCanvas);
 		} catch (error) {
 			await UsageTracker.logUsage({
 				modelName: params.modelName,
@@ -443,7 +564,8 @@ export class AgentMemoryService {
 					agentMode: true,
 					memoryScope: params.scope.scopeType,
 					memoryUpdate: true,
-					phase: 'generation'
+					phase: 'generation',
+					outputMode: 'json'
 				}
 			});
 
