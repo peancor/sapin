@@ -11,7 +11,8 @@
 		Trash2,
 		Clock,
 		BarChart3,
-		TrendingUp
+		TrendingUp,
+		Bot
 	} from 'lucide-svelte';
 	import { Modal, Dropdown, DropdownItem, Button, Toast, Badge } from 'flowbite-svelte';
 	import { enhance } from '$app/forms';
@@ -199,6 +200,13 @@
 			<h2 class="text-xl font-bold text-gray-900 dark:text-white">Resumen del curso</h2>
 		</div>
 		<div class="flex flex-wrap items-center gap-2">
+			<a
+				href={resolve(`/course/${data.course.id}/admin/course-agent`)}
+				class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
+			>
+				<Bot class="h-4 w-4" />
+				Agente del curso
+			</a>
 			<a
 				href={resolve(`/course/${data.course.id}/admin/analytics`)}
 				class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"

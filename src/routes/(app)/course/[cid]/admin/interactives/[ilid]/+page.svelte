@@ -154,7 +154,7 @@
 	<!-- Quick Actions -->
 	<div class="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
 		<h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Acciones rápidas</h2>
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
 			<a
 				href={resolve(`/course/${cid}/admin/interactives/${ilid}/students`)}
 				class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-blue-300 hover:bg-blue-50 dark:border-gray-700 dark:hover:border-blue-800 dark:hover:bg-blue-900/20"
@@ -208,6 +208,19 @@
 				<h3 class="font-medium text-gray-900 dark:text-white">Generar insights</h3>
 				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
 					Análisis detallado con IA
+				</p>
+			</a>
+
+			<a
+				href={resolve(`/course/${cid}/admin/interactives/${ilid}/staff-agent`)}
+				class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-emerald-300 hover:bg-emerald-50 dark:border-gray-700 dark:hover:border-emerald-800 dark:hover:bg-emerald-900/20"
+			>
+				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400">
+					<Bot class="h-5 w-5" />
+				</div>
+				<h3 class="font-medium text-gray-900 dark:text-white">Staff agent</h3>
+				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+					Chat multi-hilo para consultas del profesorado
 				</p>
 			</a>
 		</div>
