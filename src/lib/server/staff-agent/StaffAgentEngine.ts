@@ -13,6 +13,11 @@ import { DBStaffAgentUtils } from '$lib/server/db/staff-agent';
 import type { AgentContext, AgentStreamPart, ToolDefinitionResolved } from '$lib/types/agent';
 
 export class StaffAgentEngine {
+	private static getResolvedInteractiveLearningId(context: AgentContext): string | undefined {
+		const activityId = context.activityId?.trim();
+		return activityId ? activityId : undefined;
+	}
+
 	private static async logFailureUsage(params: {
 		modelName: string;
 		context: AgentContext;
@@ -25,7 +30,7 @@ export class StaffAgentEngine {
 				modelName: params.modelName,
 				userId: params.context.userId,
 				courseId: params.context.courseId,
-				interactiveLearningId: params.context.activityId,
+				interactiveLearningId: this.getResolvedInteractiveLearningId(params.context),
 				chatId: params.context.chatId,
 				operation: 'chat',
 				inputTokens: 0,
@@ -83,7 +88,7 @@ export class StaffAgentEngine {
 			modelName: params.modelName,
 			userId: params.context.userId,
 			courseId: params.context.courseId,
-			interactiveLearningId: params.context.activityId,
+			interactiveLearningId: this.getResolvedInteractiveLearningId(params.context),
 			chatId: params.context.chatId,
 			operation: 'chat',
 			inputTokens: usage?.inputTokens ?? 0,
@@ -119,7 +124,7 @@ export class StaffAgentEngine {
 			modelName,
 			context.userId,
 			context.courseId,
-			context.activityId
+			this.getResolvedInteractiveLearningId(context)
 		);
 		if (!quotaCheck.allowed) {
 			await this.logFailureUsage({

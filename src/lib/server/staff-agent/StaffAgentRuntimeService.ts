@@ -100,7 +100,7 @@ export class StaffAgentRuntimeService {
 			userId: params.userId,
 			courseId: resolvedCourseId ?? undefined,
 			chatId: params.chatId,
-			activityId: resolvedActivityId ?? workspace.id,
+			activityId: resolvedActivityId ?? '',
 			activityConfig: {
 				llmModel: workspace.llmModel,
 				llmRole: workspace.llmRole,
