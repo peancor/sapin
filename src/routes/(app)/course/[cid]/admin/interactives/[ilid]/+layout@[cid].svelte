@@ -19,7 +19,8 @@
 		BarChart3,
 		Sparkles,
 		MessageSquare,
-		Bot
+		Bot,
+		ShieldAlert
 	} from 'lucide-svelte';
 	import { resolve } from '$app/paths';
 
@@ -30,11 +31,7 @@
 
 	// Sidebar state
 	const sidebarUi = uiHelpers();
-	let isSidebarOpen = $derived(true);
-
-	$effect(() => {
-		isSidebarOpen = sidebarUi.isOpen;
-	});
+	let isSidebarOpen = $derived(sidebarUi.isOpen);
 
 	// Active URL
 	let activeUrl = $derived(page.url.pathname);
@@ -42,7 +39,7 @@
 	const isAgent = $derived(data.interactive.type === 'agent');
 
 	// Menu items for interactive admin
-	const menuItems = $derived([
+	const managementItems = $derived([
 		{
 			id: 'overview',
 			label: 'Visión general',
@@ -68,7 +65,9 @@
 			label: 'Estudiantes',
 			href: resolve(`/course/${cid}/admin/interactives/${ilid}/students`),
 			icon: Users
-		},
+		}
+	]);
+	const diagnosticItems = $derived([
 		...(!isAgent
 			? [
 					{
@@ -79,6 +78,12 @@
 					}
 				]
 			: []),
+		{
+			id: 'staff-agent',
+			label: 'Agente de intervencion',
+			href: resolve(`/course/${cid}/admin/interactives/${ilid}/staff-agent`),
+			icon: Bot
+		},
 		{
 			id: 'agentic-insights',
 			label: 'Asistente de analisis',
@@ -198,13 +203,34 @@
 					<p class="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
 						Gestión de actividad
 					</p>
-					{#each menuItems as item (item.id)}
+					{#each managementItems as item (item.id)}
 						<SidebarItem label={item.label} href={item.href} {spanClass}>
 							{#snippet icon()}
 								<item.icon class={iconClass} />
 							{/snippet}
 						</SidebarItem>
 					{/each}
+				</SidebarGroup>
+
+				<SidebarGroup border class="mt-4">
+					<p class="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+						Diagnóstico docente
+					</p>
+					{#each diagnosticItems as item (item.id)}
+						<SidebarItem label={item.label} href={item.href} {spanClass}>
+							{#snippet icon()}
+								<item.icon class={iconClass} />
+							{/snippet}
+						</SidebarItem>
+					{/each}
+					<div class="mt-3 rounded-xl bg-sky-50 p-3 dark:bg-sky-900/20">
+						<div class="flex items-start gap-2">
+							<ShieldAlert class="mt-0.5 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" />
+							<p class="text-xs leading-5 text-sky-800 dark:text-sky-200">
+								Desde aquí puedes revisar fricción, abandono, intervención y análisis guiado sin salir del contexto de la actividad.
+							</p>
+						</div>
+					</div>
 				</SidebarGroup>
 
 				<!-- Quick Actions -->

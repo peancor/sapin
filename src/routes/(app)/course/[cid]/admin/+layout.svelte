@@ -19,7 +19,8 @@
 		Settings,
 		ChevronLeft,
 		GraduationCap,
-		Menu,
+		Sparkles,
+		ShieldAlert,
 		Plus,
 		Eye
 	} from 'lucide-svelte';
@@ -35,18 +36,12 @@
 
 	// Course-specific menu items
 	const courseId = $derived(data.course.id);
-	const menuItems = $derived([
+	const managementItems = $derived([
 		{
 			id: 'overview',
 			label: 'Visión general',
 			href: `/course/${courseId}/admin`,
 			icon: LayoutDashboard
-		},
-		{
-			id: 'analytics',
-			label: 'Learning analytics',
-			href: `/course/${courseId}/admin/analytics`,
-			icon: BarChart3
 		},
 		{
 			id: 'activities',
@@ -65,6 +60,20 @@
 			label: 'Editar curso',
 			href: `/course/${courseId}/admin/edit`,
 			icon: Settings
+		}
+	]);
+	const operationalItems = $derived([
+		{
+			id: 'analytics',
+			label: 'Learning analytics',
+			href: `/course/${courseId}/admin/analytics`,
+			icon: BarChart3
+		},
+		{
+			id: 'course-agent',
+			label: 'Agente docente',
+			href: `/course/${courseId}/admin/course-agent`,
+			icon: Sparkles
 		}
 	]);
 
@@ -149,13 +158,34 @@
 					<p class="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
 						Gestión
 					</p>
-					{#each menuItems as item (item.id)}
+					{#each managementItems as item (item.id)}
 						<SidebarItem label={item.label} href={item.href} {spanClass}>
 							{#snippet icon()}
 								<item.icon class={iconClass} />
 							{/snippet}
 						</SidebarItem>
 					{/each}
+				</SidebarGroup>
+
+				<SidebarGroup border class="mt-4">
+					<p class="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+						Seguimiento docente
+					</p>
+					{#each operationalItems as item (item.id)}
+						<SidebarItem label={item.label} href={item.href} {spanClass}>
+							{#snippet icon()}
+								<item.icon class={iconClass} />
+							{/snippet}
+						</SidebarItem>
+					{/each}
+					<div class="mt-3 rounded-xl bg-amber-50 p-3 dark:bg-amber-900/20">
+						<div class="flex items-start gap-2">
+							<ShieldAlert class="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+							<p class="text-xs leading-5 text-amber-800 dark:text-amber-200">
+								Usa esta sección para detectar cuellos de botella, priorizar intervenciones y abrir hilos de trabajo del agente del curso.
+							</p>
+						</div>
+					</div>
 				</SidebarGroup>
 
 				<!-- Quick Actions -->
