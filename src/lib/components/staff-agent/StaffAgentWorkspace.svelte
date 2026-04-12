@@ -53,6 +53,19 @@
 	let isCreating = $state(false);
 	let pendingThreadId = $state<string | null>(null);
 
+	function buildThreadUrl(threadId?: string | null): URL {
+		const target =
+			typeof window !== 'undefined' ? new URL(window.location.href) : new URL(page.url);
+
+		if (threadId) {
+			target.searchParams.set('thread', threadId);
+		} else {
+			target.searchParams.delete('thread');
+		}
+
+		return target;
+	}
+
 	function formatDate(value: string | null): string {
 		if (!value) return 'Sin actividad';
 
@@ -67,9 +80,11 @@
 	}
 
 	async function selectThread(threadId: string) {
-		const target = new URL(page.url);
-		target.searchParams.set('thread', threadId);
-		await goto(target, { keepFocus: true, noScroll: true });
+		await goto(buildThreadUrl(threadId), {
+			keepFocus: true,
+			noScroll: true,
+			invalidateAll: true
+		});
 	}
 
 	async function createThread() {
@@ -88,9 +103,11 @@
 				throw new Error(payload?.error ?? `Error ${response.status}`);
 			}
 
-			const nextUrl = new URL(page.url);
-			nextUrl.searchParams.set('thread', payload.thread.id);
-			await goto(nextUrl, { invalidateAll: true });
+			await goto(buildThreadUrl(payload.thread.id), {
+				keepFocus: true,
+				noScroll: true,
+				invalidateAll: true
+			});
 		} catch (error) {
 			actionError = error instanceof Error ? error.message : 'No se pudo crear el hilo.';
 		} finally {
@@ -142,13 +159,11 @@
 
 			if (selectedThread?.id === thread.id) {
 				const remaining = threads.filter((item) => item.id !== thread.id);
-				const target = new URL(page.url);
-				if (remaining[0]) {
-					target.searchParams.set('thread', remaining[0].id);
-				} else {
-					target.searchParams.delete('thread');
-				}
-				await goto(target, { invalidateAll: true });
+				await goto(buildThreadUrl(remaining[0]?.id ?? null), {
+					keepFocus: true,
+					noScroll: true,
+					invalidateAll: true
+				});
 				return;
 			}
 
@@ -309,12 +324,14 @@
 					</div>
 				</div>
 
-				<AgentChatComponent
-					initialMessages={selectedThread.messages}
-					apiEndpoint={`${apiBasePath}/threads/${selectedThread.id}/ask`}
-					user={viewerUser}
-					onComplete={handleChatComplete}
-				/>
+				{#key selectedThread.id}
+					<AgentChatComponent
+						initialMessages={selectedThread.messages}
+						apiEndpoint={`${apiBasePath}/threads/${selectedThread.id}/ask`}
+						user={viewerUser}
+						onComplete={handleChatComplete}
+					/>
+				{/key}
 			{:else}
 				<div class="flex min-h-[28rem] items-center justify-center px-6 py-12">
 					<div class="max-w-md text-center">

@@ -27,7 +27,25 @@ const ALLOWED_TOOL_NAMES_BY_KIND: Record<StaffAgentWorkspaceKind, string[]> = {
 		'get_student_progress',
 		'search_course_content',
 		'get_course_student_signals',
-		'get_course_activity_overview'
+		'get_course_activity_overview',
+		'get_activity_participants',
+		'get_activity_evidence_overview',
+		'get_activity_transcripts',
+		'get_activity_tool_usage_summary',
+		'get_learning_progress_timeline',
+		'compare_student_groups',
+		'forecast_completion_risk',
+		'find_stuck_sessions',
+		'get_activity_non_starters',
+		'get_activity_dropout_funnel',
+		'get_student_attempt_history',
+		'analyze_tool_friction_hotspots',
+		'get_teacher_intervention_queue',
+		'get_course_sequence_bottlenecks',
+		'detect_activity_misconceptions',
+		'measure_response_depth',
+		'get_rubric_coverage_gaps',
+		'recommend_group_interventions'
 	],
 	activity_staff: [
 		'get_course_student_roster',
@@ -40,7 +58,16 @@ const ALLOWED_TOOL_NAMES_BY_KIND: Record<StaffAgentWorkspaceKind, string[]> = {
 		'compare_student_groups',
 		'forecast_completion_risk',
 		'find_stuck_sessions',
-		'get_activity_participants'
+		'get_activity_participants',
+		'get_activity_non_starters',
+		'get_activity_dropout_funnel',
+		'get_student_attempt_history',
+		'analyze_tool_friction_hotspots',
+		'get_teacher_intervention_queue',
+		'detect_activity_misconceptions',
+		'measure_response_depth',
+		'get_rubric_coverage_gaps',
+		'recommend_group_interventions'
 	]
 };
 
@@ -293,9 +320,47 @@ export default class DBStaffAgentUtils {
 		return created;
 	}
 
+	private static async syncWorkspaceToolsWithAllowedCatalog(
+		workspaceId: string,
+		kind: StaffAgentWorkspaceKind
+	) {
+		await DBAgentToolUtils.seedBuiltinTools();
+		const allowedNames = new Set(this.getAllowedToolNames(kind));
+		const activeTools = await DBAgentToolUtils.getActiveToolDefinitions();
+		const allowedTools = activeTools.filter((tool) => allowedNames.has(tool.name));
+
+		if (allowedTools.length === 0) return;
+
+		const existingRows = await db
+			.select({ toolDefinitionId: schema.staffAgentWorkspaceTool.toolDefinitionId })
+			.from(schema.staffAgentWorkspaceTool)
+			.where(eq(schema.staffAgentWorkspaceTool.workspaceId, workspaceId));
+		const existingToolIds = new Set(existingRows.map((row) => row.toolDefinitionId));
+		const missingToolIds = allowedTools
+			.map((tool) => tool.id)
+			.filter((toolId) => !existingToolIds.has(toolId));
+
+		if (missingToolIds.length === 0) return;
+
+		const now = new Date();
+		await db.insert(schema.staffAgentWorkspaceTool).values(
+			missingToolIds.map((toolId) => ({
+				id: nanoid(),
+				workspaceId,
+				toolDefinitionId: toolId,
+				isEnabled: true,
+				configOverride: null,
+				createdAt: now
+			}))
+		);
+	}
+
 	static async getOrCreateCourseWorkspace(courseId: string) {
 		const existing = await this.getWorkspaceForCourse(courseId);
-		if (existing) return existing;
+		if (existing) {
+			await this.syncWorkspaceToolsWithAllowedCatalog(existing.id, existing.kind as StaffAgentWorkspaceKind);
+			return existing;
+		}
 		return this.createWorkspace({
 			kind: schema.staffAgentWorkspaceKind.COURSE,
 			scopeType: STAFF_AGENT_SCOPE_TYPE.COURSE,
@@ -305,7 +370,10 @@ export default class DBStaffAgentUtils {
 
 	static async getOrCreateActivityWorkspace(activityId: string, _courseId?: string) {
 		const existing = await this.getWorkspaceForActivity(activityId);
-		if (existing) return existing;
+		if (existing) {
+			await this.syncWorkspaceToolsWithAllowedCatalog(existing.id, existing.kind as StaffAgentWorkspaceKind);
+			return existing;
+		}
 		return this.createWorkspace({
 			kind: schema.staffAgentWorkspaceKind.ACTIVITY,
 			scopeType: STAFF_AGENT_SCOPE_TYPE.ACTIVITY,
