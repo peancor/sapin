@@ -109,6 +109,58 @@ test('validateDefinition allows loops and graph summaries reflect incoming and o
 	assert.deepEqual(hubSummary.outgoingBlockIds, ['intro', 'end']);
 });
 
+test('validateDefinition stitches orphan linear blocks before the end node', () => {
+	const definition: LessonDefinition = {
+		version: '2',
+		entryBlockId: 'intro',
+		blocks: [
+			{
+				id: 'intro',
+				kind: 'content',
+				title: 'Intro',
+				body: 'Empieza',
+				next: 'end'
+			},
+			{
+				id: 'content',
+				kind: 'content',
+				title: 'Paso 1',
+				body: 'Primer bloque intermedio',
+				next: 'end'
+			},
+			{
+				id: 'content_1',
+				kind: 'agent',
+				title: 'Paso 2',
+				body: 'Segundo bloque intermedio',
+				next: 'end',
+				agentConfig: {
+					mode: 'guided_turn',
+					promptTemplate: 'Continua'
+				}
+			},
+			{
+				id: 'end',
+				kind: 'end',
+				title: 'Fin',
+				body: 'Cierre'
+			}
+		]
+	};
+
+	const validated = validateLessonDefinition(definition);
+	const intro = validated.blocks.find((block) => block.id === 'intro');
+	const firstIntermediate = validated.blocks.find((block) => block.id === 'content');
+	const secondIntermediate = validated.blocks.find((block) => block.id === 'content_1');
+
+	assert.equal(intro?.kind, 'content');
+	assert.equal(intro?.next, 'content');
+	assert.equal(firstIntermediate?.kind, 'content');
+	assert.equal(firstIntermediate?.next, 'content_1');
+	assert.equal(secondIntermediate?.kind, 'agent');
+	assert.equal(secondIntermediate?.next, 'end');
+});
+
 test('reference groups expose state and outputs for content, choice and agent blocks', () => {
 	const definition: LessonDefinition = {
 		version: '2',

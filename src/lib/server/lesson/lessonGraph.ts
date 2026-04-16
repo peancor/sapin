@@ -165,8 +165,9 @@ export function parseLessonDefinition(content: string): LessonDefinition {
 }
 
 export function validateLessonDefinition(definition: LessonDefinition): LessonDefinition {
-	const blockMap = new Map(definition.blocks.map((block) => [block.id, block]));
-	const duplicatedIds = definition.blocks
+	const normalizedDefinition = normalizeLessonDefinition(definition);
+	const blockMap = new Map(normalizedDefinition.blocks.map((block) => [block.id, block]));
+	const duplicatedIds = normalizedDefinition.blocks
 		.map((block) => block.id)
 		.filter((id, index, list) => list.indexOf(id) !== index);
 
@@ -177,11 +178,11 @@ export function validateLessonDefinition(definition: LessonDefinition): LessonDe
 		);
 	}
 
-	if (!blockMap.has(definition.entryBlockId)) {
+	if (!blockMap.has(normalizedDefinition.entryBlockId)) {
 		throw new LessonServiceError(400, 'El bloque de entrada no existe en la definición.');
 	}
 
-	for (const block of definition.blocks) {
+	for (const block of normalizedDefinition.blocks) {
 		assertBlockConfiguration(block);
 
 		if (block.kind === 'end' && (block.next || block.branches?.length)) {
@@ -206,9 +207,9 @@ export function validateLessonDefinition(definition: LessonDefinition): LessonDe
 		}
 	}
 
-	assertTransitionTargets(definition, blockMap);
-	assertTemplateReferences(definition);
-	return definition;
+	assertTransitionTargets(normalizedDefinition, blockMap);
+	assertTemplateReferences(normalizedDefinition);
+	return normalizedDefinition;
 }
 
 export function getLessonBlock(definition: LessonDefinition, blockId: string): LessonBlock {
@@ -529,6 +530,107 @@ function migrateLessonDefinition(definition: LessonDefinitionInput): LessonDefin
 		entryBlockId: definition.entryBlockId,
 		blocks: definition.blocks.map((block) => structuredClone(block))
 	};
+}
+
+function normalizeLessonDefinition(definition: LessonDefinition): LessonDefinition {
+	return normalizeSimpleLinearOrphans(structuredClone(definition));
+}
+
+function normalizeSimpleLinearOrphans(definition: LessonDefinition): LessonDefinition {
+	if (definition.blocks.length < 3) {
+		return definition;
+	}
+
+	if (
+		definition.blocks.some(
+			(block) => block.kind === 'choice' || Boolean(block.branches && block.branches.length > 0)
+		)
+	) {
+		return definition;
+	}
+
+	const endBlocks = definition.blocks.filter((block) => block.kind === 'end');
+	if (endBlocks.length !== 1) {
+		return definition;
+	}
+
+	const endBlockId = endBlocks[0]?.id;
+	if (!endBlockId) {
+		return definition;
+	}
+
+	const blockMap = new Map(definition.blocks.map((block) => [block.id, block]));
+	if (!blockMap.has(definition.entryBlockId)) {
+		return definition;
+	}
+
+	const linearChainIds: string[] = [];
+	const visited = new Set<string>();
+	let currentBlockId: string | null = definition.entryBlockId;
+
+	while (currentBlockId) {
+		if (visited.has(currentBlockId)) {
+			return definition;
+		}
+
+		const block = blockMap.get(currentBlockId);
+		if (!block) {
+			return definition;
+		}
+
+		visited.add(currentBlockId);
+		linearChainIds.push(currentBlockId);
+
+		if (block.kind === 'end') {
+			break;
+		}
+
+		if (!block.next) {
+			return definition;
+		}
+
+		currentBlockId = block.next;
+	}
+
+	if (linearChainIds.at(-1) !== endBlockId) {
+		return definition;
+	}
+
+	const linearTailId = linearChainIds.at(-2);
+	if (!linearTailId) {
+		return definition;
+	}
+
+	const incoming = buildIncomingTransitionGraph(definition);
+	const orphanBlocks = definition.blocks.filter((block) => {
+		if (visited.has(block.id) || block.id === endBlockId || block.kind === 'choice' || block.kind === 'end') {
+			return false;
+		}
+
+		return (incoming.get(block.id)?.size ?? 0) === 0 && block.next === endBlockId;
+	});
+
+	if (orphanBlocks.length === 0) {
+		return definition;
+	}
+
+	const linearTail = blockMap.get(linearTailId);
+	if (!linearTail || linearTail.kind === 'choice' || linearTail.kind === 'end') {
+		return definition;
+	}
+
+	linearTail.next = orphanBlocks[0]?.id ?? endBlockId;
+
+	for (let index = 0; index < orphanBlocks.length; index += 1) {
+		const block = orphanBlocks[index];
+		if (!block || block.kind === 'choice' || block.kind === 'end') {
+			return definition;
+		}
+
+		block.next = orphanBlocks[index + 1]?.id ?? endBlockId;
+	}
+
+	return definition;
 }
 
 function assertBlockConfiguration(block: LessonBlock): void {
