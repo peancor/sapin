@@ -1,114 +1,77 @@
 import type { Actions, PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
-import { db, CourseInteractiveAuthUtils } from '$lib/server/db';
-import {
-	fileType,
-	interactiveLearning,
-	interactiveLearningFile,
-	interactiveLearningLesson
-} from '$lib/server/db/schema';
+import { fail } from '@sveltejs/kit';
+import { db } from '$lib/server/db';
+import { interactiveLearning, interactiveLearningLesson } from '$lib/server/db/schema';
 import type { InteractiveLearningStatusType } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { LessonService } from '$lib/server/lesson/LessonService';
-import { fileStorageService } from '$lib/server/files/FileStorageService';
-import { nanoid } from 'nanoid';
+import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
+import {
+	loadLessonAdminData,
+	requireLessonAdminContext,
+	resolveLifecycleUpdate
+} from './lessonAdmin';
 
-function resolveLifecycleUpdate(
-	currentStatus: InteractiveLearningStatusType | undefined,
-	nextStatus: InteractiveLearningStatusType,
-	now: Date
-) {
-	return {
-		status: nextStatus,
-		publishedAt: nextStatus === 'published' && currentStatus !== 'published' ? now : undefined,
-		closedAt: nextStatus === 'closed' && currentStatus !== 'closed' ? now : undefined,
-		archivedAt: nextStatus === 'archived' && currentStatus !== 'archived' ? now : undefined
-	};
+async function persistDefinition(ilid: string, definition: ReturnType<typeof LessonService.parseDefinition>) {
+	await db
+		.update(interactiveLearning)
+		.set({
+			content: LessonService.serializeDefinition(definition),
+			updatedAt: new Date()
+		})
+		.where(eq(interactiveLearning.id, ilid));
+}
+
+function parseStatus(statusValue: FormDataEntryValue | null): InteractiveLearningStatusType {
+	const candidate = statusValue?.toString();
+	return candidate === 'published' ||
+		candidate === 'closed' ||
+		candidate === 'archived' ||
+		candidate === 'hidden'
+		? candidate
+		: 'hidden';
+}
+
+function asLessonError(errorValue: unknown, fallbackAction: string) {
+	if (errorValue instanceof LessonServiceError) {
+		return fail(errorValue.status, {
+			action: fallbackAction,
+			error: errorValue.message
+		});
+	}
+
+	throw errorValue;
 }
 
 export const load = (async ({ params, locals }) => {
-	if (!locals.user) {
-		throw error(401, 'No autorizado');
-	}
-
-	const access = await CourseInteractiveAuthUtils.userCanAdminCourseInteractive(
-		locals.user.id,
-		params.cid,
-		params.ilid,
-		locals.user.highestRoleLevel
-	);
-
-	if (!access.allowed) {
-		throw error(403, access.reason || 'No tienes permisos para editar esta lesson');
-	}
-
-	const [activity, lessonConfig, files] = await Promise.all([
-		db.select().from(interactiveLearning).where(eq(interactiveLearning.id, params.ilid)).get(),
-		db
-			.select()
-			.from(interactiveLearningLesson)
-			.where(eq(interactiveLearningLesson.id, params.ilid))
-			.get(),
-		db
-			.select()
-			.from(interactiveLearningFile)
-			.where(eq(interactiveLearningFile.interactiveLearningId, params.ilid))
-			.all()
-	]);
-
-	if (!activity || activity.type !== 'lesson') {
-		throw error(404, 'Lesson no encontrada');
-	}
-
-	if (!lessonConfig) {
-		throw error(500, 'La lesson no tiene configuración runtime asociada');
-	}
-
-	return {
-		activity,
-		lessonConfig,
-		definition: LessonService.parseDefinition(activity.content),
-		files
-	};
+	return loadLessonAdminData(params.cid, params.ilid, locals);
 }) satisfies PageServerLoad;
 
 export const actions = {
-	updateLesson: async ({ request, params }) => {
+	updateLessonMeta: async ({ request, params, locals }) => {
+		const { activity, lessonConfig } = await requireLessonAdminContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const name = formData.get('name')?.toString().trim();
 		const description = formData.get('description')?.toString() || null;
-		const lessonDefinition = formData.get('lessonDefinition')?.toString();
 		const sessionPolicyRaw = formData.get('sessionPolicy')?.toString();
 		const allowRestart = formData.get('allowRestart') === 'on' || formData.get('allowRestart') === 'true';
-		const statusValue = formData.get('status')?.toString();
-		const status =
-			statusValue === 'published' ||
-			statusValue === 'closed' ||
-			statusValue === 'archived' ||
-			statusValue === 'hidden'
-				? (statusValue as InteractiveLearningStatusType)
-				: 'hidden';
+		const status = parseStatus(formData.get('status'));
 
-		if (!name || !lessonDefinition) {
-			throw error(400, 'Faltan datos obligatorios de la lesson');
+		if (!name) {
+			return fail(400, {
+				action: 'updateLessonMeta',
+				error: 'El nombre es obligatorio.'
+			});
 		}
 
-		const parsedDefinition = LessonService.parseDefinition(lessonDefinition);
 		const now = new Date();
-		const current = await db
-			.select({ status: interactiveLearning.status })
-			.from(interactiveLearning)
-			.where(eq(interactiveLearning.id, params.ilid))
-			.get();
 
 		await db
 			.update(interactiveLearning)
 			.set({
 				name,
 				description,
-				content: LessonService.serializeDefinition(parsedDefinition),
 				updatedAt: now,
-				...resolveLifecycleUpdate(current?.status, status, now)
+				...resolveLifecycleUpdate(activity.status, status, now)
 			})
 			.where(eq(interactiveLearning.id, params.ilid));
 
@@ -120,67 +83,86 @@ export const actions = {
 				allowRestart,
 				updatedAt: now
 			})
-			.where(eq(interactiveLearningLesson.id, params.ilid));
+			.where(eq(interactiveLearningLesson.id, lessonConfig.id));
 
-		return { success: true };
+		return {
+			success: true,
+			action: 'updateLessonMeta'
+		};
 	},
 
-	uploadFile: async ({ request, params, locals }) => {
+	reorderBlocks: async ({ request, params, locals }) => {
+		const { activity } = await requireLessonAdminContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
-		const file = formData.get('file') as File;
+		const blockId = formData.get('blockId')?.toString().trim();
+		const directionRaw = formData.get('direction')?.toString();
+		const direction = directionRaw === 'up' || directionRaw === 'down' ? directionRaw : null;
 
-		if (!file) throw error(400, 'No se recibió ningún archivo');
-
-		const upload = await fileStorageService.upload({
-			file,
-			category: 'chat',
-			entityType: 'interactive_learning',
-			entityId: params.ilid,
-			uploadedBy: locals.user?.id || 'system',
-			displayName: file.name,
-			visibility: 'restricted'
-		});
-
-		if (!upload.success) {
-			throw error(500, upload.error || 'No se pudo subir el archivo');
+		if (!blockId || !direction) {
+			return fail(400, {
+				action: 'reorderBlocks',
+				error: 'Faltan datos para reordenar el bloque.'
+			});
 		}
 
-		await db.insert(interactiveLearningFile).values({
-			id: nanoid(),
-			interactiveLearningId: params.ilid,
-			fileStorageId: upload.fileId || null,
-			name: file.name,
-			path: `/api/files/${upload.fileId}`,
-			type: file.type.startsWith('image/') ? 'IMAGE' : 'DOCUMENT',
-			size: file.size,
-			mimeType: file.type,
-			createdAt: new Date()
-		});
-
-		return { success: true };
+		try {
+			const nextDefinition = LessonService.moveBlock(
+				LessonService.parseDefinition(activity.content),
+				blockId,
+				direction
+			);
+			await persistDefinition(params.ilid, nextDefinition);
+			return { success: true, action: 'reorderBlocks' };
+		} catch (errorValue) {
+			return asLessonError(errorValue, 'reorderBlocks');
+		}
 	},
 
-	deleteFile: async ({ request, locals }) => {
+	deleteBlock: async ({ request, params, locals }) => {
+		const { activity } = await requireLessonAdminContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
-		const fileId = formData.get('fileId')?.toString();
-		if (!fileId) throw error(400, 'No se indicó el archivo');
+		const blockId = formData.get('blockId')?.toString().trim();
 
-		const record = await db
-			.select()
-			.from(interactiveLearningFile)
-			.where(eq(interactiveLearningFile.id, fileId))
-			.get();
-
-		if (!record) throw error(404, 'Archivo no encontrado');
-
-		if (record.fileStorageId) {
-			const deleted = await fileStorageService.delete(record.fileStorageId, locals.user?.id || 'system');
-			if (!deleted.success) {
-				throw error(500, deleted.error || 'No se pudo borrar el archivo');
-			}
+		if (!blockId) {
+			return fail(400, {
+				action: 'deleteBlock',
+				error: 'No se indicó el bloque a eliminar.'
+			});
 		}
 
-		await db.delete(interactiveLearningFile).where(eq(interactiveLearningFile.id, fileId));
-		return { success: true };
+		try {
+			const nextDefinition = LessonService.deleteBlock(
+				LessonService.parseDefinition(activity.content),
+				blockId
+			);
+			await persistDefinition(params.ilid, nextDefinition);
+			return { success: true, action: 'deleteBlock' };
+		} catch (errorValue) {
+			return asLessonError(errorValue, 'deleteBlock');
+		}
+	},
+
+	setEntryBlock: async ({ request, params, locals }) => {
+		const { activity } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const formData = await request.formData();
+		const blockId = formData.get('blockId')?.toString().trim();
+
+		if (!blockId) {
+			return fail(400, {
+				action: 'setEntryBlock',
+				error: 'No se indicó el bloque de entrada.'
+			});
+		}
+
+		try {
+			const nextDefinition = LessonService.setEntryBlock(
+				LessonService.parseDefinition(activity.content),
+				blockId
+			);
+			await persistDefinition(params.ilid, nextDefinition);
+			return { success: true, action: 'setEntryBlock' };
+		} catch (errorValue) {
+			return asLessonError(errorValue, 'setEntryBlock');
+		}
 	}
 } satisfies Actions;

@@ -5,6 +5,7 @@
 	import Placeholder from '@tiptap/extension-placeholder';
 	import Underline from '@tiptap/extension-underline';
 	import Link from '@tiptap/extension-link';
+	import Image from '@tiptap/extension-image';
 	import TextAlign from '@tiptap/extension-text-align';
 	import Typography from '@tiptap/extension-typography';
 	import Highlight from '@tiptap/extension-highlight';
@@ -37,6 +38,13 @@
 		onchange?: (content: string) => void;
 		name?: string;
 		id?: string;
+		enableImagePaste?: boolean;
+		uploadImage?: (file: File) => Promise<{
+			id: string;
+			name: string;
+			path: string;
+			markdown: string;
+		}>;
 	}
 
 	let { 
@@ -45,12 +53,16 @@
 		rows = 5, 
 		onchange,
 		name,
-		id
+		id,
+		enableImagePaste = false,
+		uploadImage
 	}: Props = $props();
 
 	let element: HTMLDivElement;
 	let editor: Editor | null = $state(null);
 	let hiddenInput: HTMLInputElement | undefined = $state(undefined);
+	let isUploadingImage = $state(false);
+	let imageUploadError = $state('');
 
 	// Flag to suppress onchange during programmatic setContent (e.g. when the
 	// parent hydrates state after mount). We must not mark the form dirty then.
@@ -58,6 +70,42 @@
 
 	// Calculate min-height based on rows (approximately 1.5rem per row)
 	const getMinHeight = () => `${rows * 1.5}rem`;
+
+	async function insertUploadedImage(file: File) {
+		if (!uploadImage) return;
+
+		isUploadingImage = true;
+		imageUploadError = '';
+
+		try {
+			const uploaded = await uploadImage(file);
+			editor?.chain().focus().setImage({
+				src: uploaded.path,
+				alt: uploaded.name,
+				title: uploaded.name
+			}).run();
+		} catch (errorValue) {
+			imageUploadError =
+				errorValue instanceof Error ? errorValue.message : 'No se pudo subir la imagen.';
+		} finally {
+			isUploadingImage = false;
+		}
+	}
+
+	function extractImageFile(items: Iterable<DataTransferItem> | null | undefined): File | null {
+		if (!items) return null;
+
+		for (const item of items) {
+			if (item.kind === 'file') {
+				const file = item.getAsFile();
+				if (file && file.type.startsWith('image/')) {
+					return file;
+				}
+			}
+		}
+
+		return null;
+	}
 
 	onMount(() => {
 		const minHeight = getMinHeight();
@@ -77,6 +125,11 @@
 					openOnClick: false,
 					HTMLAttributes: {
 						class: 'text-blue-600 underline hover:text-blue-800 dark:text-blue-400'
+					}
+				}),
+				Image.configure({
+					HTMLAttributes: {
+						class: 'rounded-xl max-w-full border border-gray-200 dark:border-gray-700'
 					}
 				}),
 				TextAlign.configure({
@@ -101,6 +154,28 @@
 				attributes: {
 					class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none p-3',
 					style: `min-height: ${minHeight}`
+				},
+				handlePaste: (_view, event) => {
+					if (!enableImagePaste || !uploadImage) return false;
+
+					const file = extractImageFile(event.clipboardData?.items);
+					if (!file) return false;
+
+					event.preventDefault();
+					void insertUploadedImage(file);
+					return true;
+				},
+				handleDrop: (_view, event) => {
+					if (!enableImagePaste || !uploadImage) return false;
+
+					const file = Array.from(event.dataTransfer?.files ?? []).find((candidate) =>
+						candidate.type.startsWith('image/')
+					);
+					if (!file) return false;
+
+					event.preventDefault();
+					void insertUploadedImage(file);
+					return true;
 				}
 			},
 			onUpdate: ({ editor }) => {
@@ -352,6 +427,16 @@
 	{#if name}
 		<input type="hidden" {name} {id} bind:this={hiddenInput} value={value} />
 	{/if}
+
+	{#if isUploadingImage || imageUploadError}
+		<div class="border-t px-3 py-2 text-sm dark:border-gray-600">
+			{#if isUploadingImage}
+				<p class="text-sky-700 dark:text-sky-300">Subiendo imagen...</p>
+			{:else if imageUploadError}
+				<p class="text-red-700 dark:text-red-300">{imageUploadError}</p>
+			{/if}
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -442,6 +527,12 @@
 		padding-left: 1rem;
 		margin: 0.5rem 0;
 		color: var(--color-gray-600);
+	}
+
+	.editor-content :global(.ProseMirror img) {
+		margin: 1rem 0;
+		height: auto;
+		max-width: 100%;
 	}
 
 	:global(.dark) .editor-content :global(.ProseMirror blockquote) {

@@ -27,6 +27,7 @@ import type {
 	LessonAgentBlock,
 	LessonAvailableVariable,
 	LessonBlock,
+	LessonBlockKind,
 	LessonConditionOperator,
 	LessonDefinition,
 	LessonOutputField,
@@ -77,10 +78,79 @@ const lessonOutputFieldSchema = z.object({
 	description: z.string().optional()
 });
 
+const lessonAssetRefSchema = z.object({
+	fileId: z.string().min(1),
+	kind: z.enum(['image', 'video', 'audio', 'file']).optional(),
+	caption: z.string().optional()
+});
+
+const lessonChoiceOptionSchema = z.object({
+	id: z.string().min(1),
+	label: z.string().min(1),
+	value: z.string(),
+	description: z.string().optional(),
+	targetBlockId: z.string().min(1)
+});
+
+const lessonAgentConfigSchema = z.object({
+	mode: z.enum(['guided_turn', 'mini_chat']),
+	model: z.string().nullable().optional(),
+	systemPrompt: z.string().nullable().optional(),
+	promptTemplate: z.string(),
+	placeholder: z.string().optional(),
+	submitLabel: z.string().optional(),
+	continueLabel: z.string().optional(),
+	initialAssistantMessage: z.string().optional(),
+	maxTurns: z.number().nullable().optional(),
+	outputSchema: z.array(lessonOutputFieldSchema).optional()
+});
+
+const lessonBlockSchema = z.discriminatedUnion('kind', [
+	z.object({
+		id: z.string().min(1),
+		kind: z.literal('content'),
+		title: z.string().min(1),
+		body: z.string(),
+		continueLabel: z.string().optional(),
+		next: z.string().nullable().optional(),
+		branches: z.array(lessonTransitionSchema).optional(),
+		assetRefs: z.array(lessonAssetRefSchema).optional()
+	}),
+	z.object({
+		id: z.string().min(1),
+		kind: z.literal('choice'),
+		title: z.string().min(1),
+		body: z.string().optional(),
+		next: z.string().nullable().optional(),
+		branches: z.array(lessonTransitionSchema).optional(),
+		options: z.array(lessonChoiceOptionSchema).min(1),
+		outputKey: z.string().optional()
+	}),
+	z.object({
+		id: z.string().min(1),
+		kind: z.literal('agent'),
+		title: z.string().min(1),
+		body: z.string().optional(),
+		next: z.string().nullable().optional(),
+		branches: z.array(lessonTransitionSchema).optional(),
+		agentConfig: lessonAgentConfigSchema,
+		requiresResponse: z.boolean().optional()
+	}),
+	z.object({
+		id: z.string().min(1),
+		kind: z.literal('end'),
+		title: z.string().min(1),
+		body: z.string().optional(),
+		next: z.string().nullable().optional(),
+		branches: z.array(lessonTransitionSchema).optional(),
+		ctaLabel: z.string().optional()
+	})
+]);
+
 const lessonDefinitionSchema = z.object({
 	version: z.literal('1'),
 	entryBlockId: z.string().min(1),
-	blocks: z.array(z.any()).min(1)
+	blocks: z.array(lessonBlockSchema).min(1)
 });
 
 const DEFAULT_LESSON_DEFINITION: LessonDefinition = {
@@ -245,6 +315,112 @@ export class LessonService {
 		this.assertNoGraphCycles(graph, definition.entryBlockId);
 		this.assertTemplateReferences(definition, graph);
 		return definition;
+	}
+
+	static getBlock(definition: LessonDefinition, blockId: string): LessonBlock {
+		const block = definition.blocks.find((candidate) => candidate.id === blockId);
+		if (!block) {
+			throw new LessonServiceError(404, `El bloque "${blockId}" no existe.`);
+		}
+		return structuredClone(block);
+	}
+
+	static createBlock(
+		definition: LessonDefinition,
+		kind: LessonBlockKind
+	): { definition: LessonDefinition; block: LessonBlock } {
+		const nextDefinition = structuredClone(definition);
+		const block = this.createBlockTemplate(nextDefinition, kind);
+		nextDefinition.blocks.push(block);
+
+		if (!nextDefinition.entryBlockId) {
+			nextDefinition.entryBlockId = block.id;
+		}
+
+		return {
+			definition: this.validateDefinition(nextDefinition),
+			block: structuredClone(block)
+		};
+	}
+
+	static updateBlock(
+		definition: LessonDefinition,
+		blockId: string,
+		block: LessonBlock
+	): LessonDefinition {
+		const nextDefinition = structuredClone(definition);
+		const blockIndex = nextDefinition.blocks.findIndex((candidate) => candidate.id === blockId);
+
+		if (blockIndex < 0) {
+			throw new LessonServiceError(404, `El bloque "${blockId}" no existe.`);
+		}
+
+		nextDefinition.blocks[blockIndex] = structuredClone(block);
+
+		if (definition.entryBlockId === blockId && block.id !== blockId) {
+			nextDefinition.entryBlockId = block.id;
+		}
+
+		return this.validateDefinition(nextDefinition);
+	}
+
+	static deleteBlock(definition: LessonDefinition, blockId: string): LessonDefinition {
+		if (definition.blocks.length <= 1) {
+			throw new LessonServiceError(
+				400,
+				'La lesson debe conservar al menos un bloque. Crea otro antes de eliminar este.'
+			);
+		}
+
+		const references = this.findIncomingReferences(definition, blockId);
+		if (references.length > 0) {
+			throw new LessonServiceError(
+				400,
+				`No se puede eliminar el bloque "${blockId}" porque aún recibe referencias desde ${references.join(', ')}.`
+			);
+		}
+
+		const nextDefinition = structuredClone(definition);
+		nextDefinition.blocks = nextDefinition.blocks.filter((block) => block.id !== blockId);
+
+		if (nextDefinition.entryBlockId === blockId) {
+			nextDefinition.entryBlockId = nextDefinition.blocks[0]?.id ?? '';
+		}
+
+		return this.validateDefinition(nextDefinition);
+	}
+
+	static moveBlock(
+		definition: LessonDefinition,
+		blockId: string,
+		direction: 'up' | 'down'
+	): LessonDefinition {
+		const nextDefinition = structuredClone(definition);
+		const currentIndex = nextDefinition.blocks.findIndex((block) => block.id === blockId);
+
+		if (currentIndex < 0) {
+			throw new LessonServiceError(404, `El bloque "${blockId}" no existe.`);
+		}
+
+		const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+		if (targetIndex < 0 || targetIndex >= nextDefinition.blocks.length) {
+			return this.validateDefinition(nextDefinition);
+		}
+
+		const [block] = nextDefinition.blocks.splice(currentIndex, 1);
+		nextDefinition.blocks.splice(targetIndex, 0, block);
+		return this.validateDefinition(nextDefinition);
+	}
+
+	static setEntryBlock(definition: LessonDefinition, blockId: string): LessonDefinition {
+		if (!definition.blocks.some((block) => block.id === blockId)) {
+			throw new LessonServiceError(404, `El bloque "${blockId}" no existe.`);
+		}
+
+		return this.validateDefinition({
+			...structuredClone(definition),
+			entryBlockId: blockId
+		});
 	}
 
 	static getAvailableVariables(definition: LessonDefinition): LessonAvailableVariable[] {
@@ -1441,6 +1617,133 @@ export class LessonService {
 			graph.set(block.id, [...targets]);
 		}
 		return graph;
+	}
+
+	private static createBlockTemplate(
+		definition: LessonDefinition,
+		kind: LessonBlockKind
+	): LessonBlock {
+		const existingIds = new Set(definition.blocks.map((block) => block.id));
+		const baseId =
+			kind === 'content'
+				? 'content'
+				: kind === 'choice'
+					? 'choice'
+					: kind === 'agent'
+						? 'agent'
+						: 'end';
+		const blockId = this.createUniqueBlockId(baseId, existingIds);
+		const defaultTarget =
+			definition.blocks.find((block) => block.kind === 'end')?.id ??
+			definition.entryBlockId ??
+			definition.blocks[0]?.id;
+
+		if (!defaultTarget && kind !== 'end') {
+			throw new LessonServiceError(
+				400,
+				'No se ha encontrado un bloque de destino por defecto para el nuevo bloque.'
+			);
+		}
+
+		if (kind === 'content') {
+			return {
+				id: blockId,
+				kind,
+				title: 'Nuevo contenido',
+				body: '',
+				continueLabel: 'Siguiente',
+				next: defaultTarget ?? null,
+				assetRefs: []
+			};
+		}
+
+		if (kind === 'choice') {
+			return {
+				id: blockId,
+				kind,
+				title: 'Nueva decisión',
+				body: '',
+				outputKey: 'selection',
+				options: [
+					{
+						id: 'option_1',
+						label: 'Opción 1',
+						value: 'option_1',
+						description: '',
+						targetBlockId: defaultTarget ?? ''
+					}
+				]
+			};
+		}
+
+		if (kind === 'agent') {
+			return {
+				id: blockId,
+				kind,
+				title: 'Nuevo bloque IA',
+				body: '',
+				next: defaultTarget ?? null,
+				requiresResponse: true,
+				agentConfig: {
+					mode: 'guided_turn',
+					promptTemplate: '',
+					systemPrompt: '',
+					placeholder: 'Escribe tu respuesta',
+					submitLabel: 'Enviar',
+					continueLabel: 'Continuar',
+					outputSchema: []
+				}
+			};
+		}
+
+		return {
+			id: blockId,
+			kind,
+			title: 'Bloque final',
+			body: 'Has llegado al final de esta lección.',
+			ctaLabel: 'Volver al curso'
+		};
+	}
+
+	private static createUniqueBlockId(base: string, existingIds: Set<string>): string {
+		const normalizedBase = base.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase() || 'block';
+		let candidate = normalizedBase;
+		let counter = 1;
+
+		while (existingIds.has(candidate)) {
+			candidate = `${normalizedBase}_${counter}`;
+			counter += 1;
+		}
+
+		return candidate;
+	}
+
+	private static findIncomingReferences(definition: LessonDefinition, blockId: string): string[] {
+		const references: string[] = [];
+
+		for (const block of definition.blocks) {
+			if (block.id === blockId) continue;
+
+			if (block.next === blockId) {
+				references.push(`${block.id}.next`);
+			}
+
+			for (const [branchIndex, branch] of (block.branches ?? []).entries()) {
+				if (branch.targetBlockId === blockId) {
+					references.push(`${block.id}.branches[${branchIndex}]`);
+				}
+			}
+
+			if (block.kind === 'choice') {
+				for (const option of block.options) {
+					if (option.targetBlockId === blockId) {
+						references.push(`${block.id}.options.${option.id}`);
+					}
+				}
+			}
+		}
+
+		return references;
 	}
 
 	private static assertBlockConfiguration(block: LessonBlock): void {
