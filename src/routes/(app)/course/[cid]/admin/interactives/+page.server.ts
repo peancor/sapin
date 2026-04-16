@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { interactiveLearning, courseInteractiveLearning, interactiveLearningChat, userInteractiveLearningChat } from '$lib/server/db/schema';
+import { interactiveLearning, courseInteractiveLearning, interactiveLearningChat, userInteractiveLearningChat, interactiveLessonSession } from '$lib/server/db/schema';
 import { eq, and, sql, count, inArray } from 'drizzle-orm';
 
 export const load = (async ({ params, locals }) => {
@@ -34,6 +34,7 @@ export const load = (async ({ params, locals }) => {
 	// Separar por tipo
 	const chatIds = interactives.filter((i) => i.type === 'chat').map((i) => i.id);
 	const agentIds = interactives.filter((i) => i.type === 'agent').map((i) => i.id);
+	const lessonIds = interactives.filter((i) => i.type === 'lesson').map((i) => i.id);
 
 	// Conteo de participaciones para actividades tipo chat (via interactiveLearningChat)
 	const chatParticipationCounts =
@@ -61,7 +62,19 @@ export const load = (async ({ params, locals }) => {
 					.groupBy(userInteractiveLearningChat.interactiveLearningChatId)
 			: [];
 
-	const allParticipationCounts = [...chatParticipationCounts, ...agentParticipationCounts];
+	const lessonParticipationCounts =
+		lessonIds.length > 0
+			? await db
+					.select({
+						interactiveLearningId: interactiveLessonSession.interactiveLearningId,
+						count: count()
+					})
+					.from(interactiveLessonSession)
+					.where(inArray(interactiveLessonSession.interactiveLearningId, lessonIds))
+					.groupBy(interactiveLessonSession.interactiveLearningId)
+			: [];
+
+	const allParticipationCounts = [...chatParticipationCounts, ...agentParticipationCounts, ...lessonParticipationCounts];
 
 	// Combinar datos
 	const interactivesWithStats = interactives.map((interactive) => ({

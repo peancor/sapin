@@ -1,7 +1,12 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { interactiveLearning, interactiveLearningChat, courseInteractiveLearning } from '$lib/server/db/schema';
+import {
+	interactiveLearning,
+	interactiveLearningChat,
+	interactiveLearningLesson,
+	courseInteractiveLearning
+} from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { CourseRoleUtils } from '$lib/server/db/CourseRoleUtils';
 
@@ -58,6 +63,19 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		}
 	}
 
+	let lessonConfig = null;
+	if (activity.type === 'lesson') {
+		const [lesson] = await db
+			.select()
+			.from(interactiveLearningLesson)
+			.where(eq(interactiveLearningLesson.id, id));
+
+		if (lesson) {
+			const { id: lessonId, createdAt, updatedAt, ...lessonData } = lesson;
+			lessonConfig = lessonData;
+		}
+	}
+
 	// Crear objeto de exportación
 	const exportData = {
 		version: '2.0', // Nueva versión con campos de ciclo de vida
@@ -74,7 +92,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			publishedAt: activity.publishedAt?.toISOString() || null,
 			archivedAt: activity.archivedAt?.toISOString() || null
 		},
-		chatConfig
+		chatConfig,
+		lessonConfig
 	};
 
 	// Devolver como archivo JSON descargable

@@ -2,8 +2,8 @@ import { error } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { and, desc, eq, or } from 'drizzle-orm';
 import { db, CourseRoleUtils } from '$lib/server/db';
-import { course, courseInteractiveLearning, interactiveLearning, learningActivityProgress, interactiveLearningChat, userInteractiveLearningChat, chat } from '$lib/server/db/schema';
-import type { InteractiveLearning, InteractiveLearningChat, LearningActivityProgress, Chat } from '$lib/server/db/schema';
+import { course, courseInteractiveLearning, interactiveLearning, learningActivityProgress, interactiveLearningChat, userInteractiveLearningChat, chat, interactiveLessonSession } from '$lib/server/db/schema';
+import type { InteractiveLearning, InteractiveLearningChat, LearningActivityProgress, Chat, InteractiveLessonSession } from '$lib/server/db/schema';
 
 // Definir el tipo completo para una actividad de chat
 interface FullActivityChat extends InteractiveLearning {
@@ -11,6 +11,7 @@ interface FullActivityChat extends InteractiveLearning {
     progress: LearningActivityProgress | null;
     chatConfig: InteractiveLearningChat | null;
     chats: Chat[];
+    latestLessonSession: InteractiveLessonSession | null;
 }
 
 export const load = (async ({ params, locals }) => {
@@ -98,6 +99,7 @@ export const load = (async ({ params, locals }) => {
 
     // Get chats for chat-type activities
     const chatActivities = activities.filter(a => a.type === 'chat');
+    const lessonActivities = activities.filter(a => a.type === 'lesson');
 
     const chatsData = chatActivities.length > 0
         ? await db
@@ -122,6 +124,20 @@ export const load = (async ({ params, locals }) => {
             .execute()
         : [];
 
+    const lessonSessions = lessonActivities.length > 0
+        ? await db
+            .select()
+            .from(interactiveLessonSession)
+            .where(
+                and(
+                    eq(interactiveLessonSession.userId, userId),
+                    eq(interactiveLessonSession.courseId, params.cid)
+                )
+            )
+            .orderBy(desc(interactiveLessonSession.attemptNumber), desc(interactiveLessonSession.createdAt))
+            .execute()
+        : [];
+
     // Organizar los chats por actividad
     const chatsByActivity = chatsData.reduce((acc, { chat, interactiveLearningId }) => {
         if (!acc[interactiveLearningId]) {
@@ -131,10 +147,18 @@ export const load = (async ({ params, locals }) => {
         return acc;
     }, {} as Record<string, Chat[]>);
 
+    const latestLessonSessionByActivity = lessonSessions.reduce((acc, session) => {
+        if (!acc[session.interactiveLearningId]) {
+            acc[session.interactiveLearningId] = session;
+        }
+        return acc;
+    }, {} as Record<string, InteractiveLessonSession>);
+
     // Combinar toda la información
     const fullActivities: FullActivityChat[] = activities.map(activity => ({
         ...activity,
-        chats: activity.type === 'chat' ? (chatsByActivity[activity.id] || []) : []
+        chats: activity.type === 'chat' ? (chatsByActivity[activity.id] || []) : [],
+        latestLessonSession: activity.type === 'lesson' ? (latestLessonSessionByActivity[activity.id] || null) : null
     }));
 
     return {

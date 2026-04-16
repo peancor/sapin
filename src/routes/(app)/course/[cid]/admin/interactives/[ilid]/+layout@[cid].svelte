@@ -20,7 +20,8 @@
 		Sparkles,
 		MessageSquare,
 		Bot,
-		ShieldAlert
+		ShieldAlert,
+		Route
 	} from 'lucide-svelte';
 	import { resolve } from '$app/paths';
 
@@ -37,6 +38,7 @@
 	let activeUrl = $derived(page.url.pathname);
 
 	const isAgent = $derived(data.interactive.type === 'agent');
+	const isLesson = $derived(data.interactive.type === 'lesson');
 
 	// Menu items for interactive admin
 	const managementItems = $derived([
@@ -49,26 +51,30 @@
 		{
 			id: 'editor',
 			label: 'Editor',
-			href: resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chatedit'}`),
+			href: resolve(`/course/${cid}/admin/interactives/${ilid}/${isLesson ? 'lessonedit' : isAgent ? 'agentedit' : 'chatedit'}`),
 			icon: Edit
 		},
-		{
-			id: 'review',
-			label: 'Revisión',
-			href: resolve(
-				`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agent-review' : 'chat-review'}`
-			),
-			icon: Eye
-		},
-		{
-			id: 'students',
-			label: 'Estudiantes',
-			href: resolve(`/course/${cid}/admin/interactives/${ilid}/students`),
-			icon: Users
-		}
+		...(!isLesson
+			? [
+					{
+						id: 'review',
+						label: 'Revisión',
+						href: resolve(
+							`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agent-review' : 'chat-review'}`
+						),
+						icon: Eye
+					},
+					{
+						id: 'students',
+						label: 'Estudiantes',
+						href: resolve(`/course/${cid}/admin/interactives/${ilid}/students`),
+						icon: Users
+					}
+				]
+			: [])
 	]);
 	const diagnosticItems = $derived([
-		...(!isAgent
+		...(!isAgent && !isLesson
 			? [
 					{
 						id: 'insights',
@@ -93,7 +99,11 @@
 	]);
 
 	const previewHref = $derived(
-		isAgent ? resolve(`/agent-chat/${ilid}`) : resolve(`/interactive-chat/${ilid}`)
+		isLesson
+			? resolve(`/lesson/${ilid}`)
+			: isAgent
+				? resolve(`/agent-chat/${ilid}`)
+				: resolve(`/interactive-chat/${ilid}`)
 	);
 
 	const spanClass = 'ms-3 flex-1 whitespace-nowrap';
@@ -114,9 +124,11 @@
 			class="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
 		/>
 		<div class="flex items-center gap-3 truncate">
-			<div class="flex h-8 w-8 items-center justify-center rounded-lg {isAgent ? 'bg-green-100 dark:bg-green-900/50' : 'bg-blue-100 dark:bg-blue-900/50'}">
+			<div class="flex h-8 w-8 items-center justify-center rounded-lg {isAgent ? 'bg-green-100 dark:bg-green-900/50' : isLesson ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-blue-100 dark:bg-blue-900/50'}">
 				{#if isAgent}
 					<Bot class="h-4 w-4 text-green-600 dark:text-green-400" />
+				{:else if isLesson}
+					<Route class="h-4 w-4 text-amber-600 dark:text-amber-400" />
 				{:else}
 					<MessageSquare class="h-4 w-4 text-blue-600 dark:text-blue-400" />
 				{/if}
@@ -157,11 +169,13 @@
 					</a>
 
 					<!-- Interactive Header -->
-					<div class="rounded-xl bg-linear-to-br {isAgent ? 'from-green-500 to-green-600' : 'from-blue-500 to-blue-600'} p-4">
+					<div class="rounded-xl bg-linear-to-br {isAgent ? 'from-green-500 to-green-600' : isLesson ? 'from-amber-500 to-orange-500' : 'from-blue-500 to-blue-600'} p-4">
 						<div class="flex items-center gap-3">
 							<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
 								{#if isAgent}
 									<Bot class="h-5 w-5 text-white" />
+								{:else if isLesson}
+									<Route class="h-5 w-5 text-white" />
 								{:else}
 									<MessageSquare class="h-5 w-5 text-white" />
 								{/if}
@@ -170,7 +184,7 @@
 								<h2 class="line-clamp-2 text-sm font-bold text-white">
 									{data.interactive.name}
 								</h2>
-								<span class="text-xs {isAgent ? 'text-green-100' : 'text-blue-100'}">
+								<span class="text-xs {isAgent ? 'text-green-100' : isLesson ? 'text-amber-100' : 'text-blue-100'}">
 									{data.interactive.type || 'chat'}
 								</span>
 							</div>

@@ -24,7 +24,8 @@
 		BookOpen,
 		Download,
 		Upload,
-		Bot
+		Bot,
+		Route
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -73,9 +74,9 @@
 	}
 
 	function getStudentRunUrl(interactive: { id: string; type: string }): string {
-		return interactive.type === 'agent'
-			? `/student/run-agent/${interactive.id}`
-			: `/student/run-chat/${interactive.id}`;
+		if (interactive.type === 'agent') return `/student/run-agent/${interactive.id}`;
+		if (interactive.type === 'lesson') return `/student/run-lesson/${interactive.id}`;
+		return `/student/run-chat/${interactive.id}`;
 	}
 
 	async function copyActivityLink(interactive: { id: string; type: string }) {
@@ -97,6 +98,8 @@
 				return 'blue';
 			case 'agent':
 				return 'green';
+			case 'lesson':
+				return 'purple';
 			case 'quiz':
 				return 'purple';
 			case 'simulation':
@@ -318,10 +321,12 @@
 						<div class="flex items-start justify-between">
 							<div class="flex items-center gap-3">
 								<div
-									class="flex h-10 w-10 items-center justify-center rounded-lg {interactive.type === 'agent' ? 'bg-green-100 dark:bg-green-900/50' : 'bg-blue-100 dark:bg-blue-900/50'}"
+										class="flex h-10 w-10 items-center justify-center rounded-lg {interactive.type === 'agent' ? 'bg-green-100 dark:bg-green-900/50' : interactive.type === 'lesson' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-blue-100 dark:bg-blue-900/50'}"
 								>
 									{#if interactive.type === 'agent'}
 										<Bot class="h-5 w-5 text-green-600 dark:text-green-400" />
+									{:else if interactive.type === 'lesson'}
+										<Route class="h-5 w-5 text-amber-600 dark:text-amber-400" />
 									{:else}
 										<MessageSquare class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 									{/if}
@@ -349,7 +354,9 @@
 								<DropdownItem
 									href={resolve(interactive.type === 'agent'
 										? `/agent-chat/${interactive.id}`
-										: `/interactive-chat/${interactive.id}`)}
+										: interactive.type === 'lesson'
+											? `/lesson/${interactive.id}`
+											: `/interactive-chat/${interactive.id}`)}
 								>
 									<Eye class="mr-2 inline h-4 w-4" /> Previsualizar
 								</DropdownItem>
@@ -465,7 +472,9 @@
 									<a
 										href={resolve(interactive.type === 'agent'
 											? `/agent-chat/${interactive.id}`
-											: `/interactive-chat/${interactive.id}`)}
+											: interactive.type === 'lesson'
+												? `/lesson/${interactive.id}`
+												: `/interactive-chat/${interactive.id}`)}
 										class="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-600"
 										title="Previsualizar"
 									>

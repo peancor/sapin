@@ -4,7 +4,8 @@ export const interactiveLearningTypes = {
     READING: 'reading',
     EXERCISE: 'exercise',
     CHAT: 'chat',
-    AGENT: 'agent'
+    AGENT: 'agent',
+    LESSON: 'lesson'
 } as const;
 
 export const ACTIVITY_COMPLETION_MIN_MESSAGES = 3;

@@ -8,7 +8,8 @@
 		LearningActivityProgress,
 		InteractiveLearning,
 		InteractiveLearningChat,
-		Chat
+		Chat,
+		InteractiveLessonSession
 	} from '$lib/server/db/schema';
 
 	interface FullActivityChat extends InteractiveLearning {
@@ -16,6 +17,7 @@
 		progress: LearningActivityProgress | null;
 		chatConfig: InteractiveLearningChat | null;
 		chats: Chat[];
+		latestLessonSession: InteractiveLessonSession | null;
 	}
 
 	let { data } = $props<{
@@ -75,6 +77,15 @@
 			console.error('Error marking activity complete:', e);
 		}
 	}
+
+	function goToLesson(activity: FullActivityChat, sessionId?: string) {
+		if (!browser) return;
+		goto(
+			sessionId
+				? resolve(`/course/${data.course.id}/run/lesson/${sessionId}`)
+				: resolve(`/course/${data.course.id}/run/new-lesson/${activity.id}`)
+		);
+	}
 </script>
 
 <div class="container mx-auto px-4 py-8">
@@ -125,6 +136,12 @@
 									>
 										🔒 Cerrada
 									</span>
+								{:else if activity.type === 'lesson' && activity.latestLessonSession}
+									<span
+										class="ml-2 inline-block rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-800"
+									>
+										Intento {activity.latestLessonSession.attemptNumber}
+									</span>
 								{:else if activity.type === 'chat' && activity.chats.length > 0}
 									<span
 										class="ml-2 inline-block rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800"
@@ -171,6 +188,17 @@
 								<Button color="green" onclick={() => startChat(activity)}>Repetir Chat</Button>
 							{:else}
 								<Button color="blue" onclick={() => startChat(activity)}>Iniciar Chat</Button>
+							{/if}
+						{:else if activity.type === 'lesson'}
+							{#if activity.latestLessonSession}
+								<Button color="blue" onclick={() => goToLesson(activity, activity.latestLessonSession?.id)}>
+									Continuar lesson
+								</Button>
+								<Button color="light" onclick={() => goToLesson(activity)}>
+									Nuevo intento
+								</Button>
+							{:else}
+								<Button color="blue" onclick={() => goToLesson(activity)}>Iniciar lesson</Button>
 							{/if}
 						{:else}
 							<Button color="blue" onclick={() => markComplete(activity)}>

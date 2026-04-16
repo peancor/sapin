@@ -15,7 +15,8 @@
 		AlertCircle,
 		ArrowLeft,
 		Bot,
-		Wrench
+		Wrench,
+		Route
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -35,6 +36,7 @@
 	}
 
 	const isAgent = $derived(data.interactive.type === 'agent');
+	const isLesson = $derived(data.interactive.type === 'lesson');
 </script>
 
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -155,36 +157,38 @@
 	<div class="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
 		<h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Acciones rápidas</h2>
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-			<a
-				href={resolve(`/course/${cid}/admin/interactives/${ilid}/students`)}
-				class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-blue-300 hover:bg-blue-50 dark:border-gray-700 dark:hover:border-blue-800 dark:hover:bg-blue-900/20"
-			>
-				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400">
-					<Users class="h-5 w-5" />
-				</div>
-				<h3 class="font-medium text-gray-900 dark:text-white">Ver estudiantes</h3>
-				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-					Ver el progreso de cada estudiante
-				</p>
-			</a>
+			{#if !isLesson}
+				<a
+					href={resolve(`/course/${cid}/admin/interactives/${ilid}/students`)}
+					class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-blue-300 hover:bg-blue-50 dark:border-gray-700 dark:hover:border-blue-800 dark:hover:bg-blue-900/20"
+				>
+					<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400">
+						<Users class="h-5 w-5" />
+					</div>
+					<h3 class="font-medium text-gray-900 dark:text-white">Ver estudiantes</h3>
+					<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+						Ver el progreso de cada estudiante
+					</p>
+				</a>
+
+				<a
+					href={resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agent-review' : 'chat-review'}`)}
+					class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-green-300 hover:bg-green-50 dark:border-gray-700 dark:hover:border-green-800 dark:hover:bg-green-900/20"
+				>
+					<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400">
+						<Eye class="h-5 w-5" />
+					</div>
+					<h3 class="font-medium text-gray-900 dark:text-white">Revisar sesiones</h3>
+					<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+						{isAgent
+							? 'Revisar las sesiones de los estudiantes con el agente'
+							: 'Revisar las conversaciones de los estudiantes'}
+					</p>
+				</a>
+			{/if}
 
 			<a
-				href={resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agent-review' : 'chat-review'}`)}
-				class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-green-300 hover:bg-green-50 dark:border-gray-700 dark:hover:border-green-800 dark:hover:bg-green-900/20"
-			>
-				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400">
-					<Eye class="h-5 w-5" />
-				</div>
-				<h3 class="font-medium text-gray-900 dark:text-white">Revisar sesiones</h3>
-				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-					{isAgent
-						? 'Revisar las sesiones de los estudiantes con el agente'
-						: 'Revisar las conversaciones de los estudiantes'}
-				</p>
-			</a>
-
-			<a
-				href={resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chatedit'}`)}
+				href={resolve(`/course/${cid}/admin/interactives/${ilid}/${isLesson ? 'lessonedit' : isAgent ? 'agentedit' : 'chatedit'}`)}
 				class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-purple-300 hover:bg-purple-50 dark:border-gray-700 dark:hover:border-purple-800 dark:hover:bg-purple-900/20"
 			>
 				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400">
@@ -192,37 +196,41 @@
 				</div>
 				<h3 class="font-medium text-gray-900 dark:text-white">Editar actividad</h3>
 				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-					{isAgent
-						? 'Modificar la configuración del agente'
-						: 'Modificar la configuración del chat'}
+					{isLesson
+						? 'Modificar bloques, branching y configuración runtime'
+						: isAgent
+							? 'Modificar la configuración del agente'
+							: 'Modificar la configuración del chat'}
 				</p>
 			</a>
 
-			<a
-				href={resolve(`/course/${cid}/admin/interactives/${ilid}/insights`)}
-				class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-amber-300 hover:bg-amber-50 dark:border-gray-700 dark:hover:border-amber-800 dark:hover:bg-amber-900/20"
-			>
-				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
-					<BarChart3 class="h-5 w-5" />
-				</div>
-				<h3 class="font-medium text-gray-900 dark:text-white">Generar insights</h3>
-				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-					Análisis detallado con IA
-				</p>
-			</a>
+			{#if !isLesson}
+				<a
+					href={resolve(`/course/${cid}/admin/interactives/${ilid}/insights`)}
+					class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-amber-300 hover:bg-amber-50 dark:border-gray-700 dark:hover:border-amber-800 dark:hover:bg-amber-900/20"
+				>
+					<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
+						<BarChart3 class="h-5 w-5" />
+					</div>
+					<h3 class="font-medium text-gray-900 dark:text-white">Generar insights</h3>
+					<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+						Análisis detallado con IA
+					</p>
+				</a>
 
-			<a
-				href={resolve(`/course/${cid}/admin/interactives/${ilid}/staff-agent`)}
-				class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-emerald-300 hover:bg-emerald-50 dark:border-gray-700 dark:hover:border-emerald-800 dark:hover:bg-emerald-900/20"
-			>
-				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400">
-					<Bot class="h-5 w-5" />
-				</div>
-				<h3 class="font-medium text-gray-900 dark:text-white">Staff agent</h3>
-				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-					Chat multi-hilo para consultas del profesorado
-				</p>
-			</a>
+				<a
+					href={resolve(`/course/${cid}/admin/interactives/${ilid}/staff-agent`)}
+					class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-emerald-300 hover:bg-emerald-50 dark:border-gray-700 dark:hover:border-emerald-800 dark:hover:bg-emerald-900/20"
+				>
+					<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400">
+						<Bot class="h-5 w-5" />
+					</div>
+					<h3 class="font-medium text-gray-900 dark:text-white">Staff agent</h3>
+					<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+						Chat multi-hilo para consultas del profesorado
+					</p>
+				</a>
+			{/if}
 		</div>
 	</div>
 
@@ -235,13 +243,36 @@
 					Configuración de la actividad
 				</h2>
 				<a
-					href={resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chatedit'}`)}
+					href={resolve(`/course/${cid}/admin/interactives/${ilid}/${isLesson ? 'lessonedit' : isAgent ? 'agentedit' : 'chatedit'}`)}
 					class="text-sm text-primary-600 hover:underline dark:text-primary-400"
 				>
 					Editar
 				</a>
 			</div>
-			{#if isAgent}
+			{#if isLesson}
+				<div class="space-y-4">
+					<div class="flex items-start gap-3">
+						<Route class="mt-0.5 h-5 w-5 text-gray-400" />
+						<div>
+							<p class="text-sm font-medium text-gray-900 dark:text-white">Política de sesión</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								{data.lessonConfig?.sessionPolicy === 'always_new_attempt'
+									? 'Crear un intento nuevo siempre'
+									: 'Reanudar el último intento'}
+							</p>
+						</div>
+					</div>
+					<div class="flex items-start gap-3">
+						<Activity class="mt-0.5 h-5 w-5 text-gray-400" />
+						<div>
+							<p class="text-sm font-medium text-gray-900 dark:text-white">Reinicio</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								{data.lessonConfig?.allowRestart ? 'Los alumnos pueden reiniciar' : 'Los alumnos no pueden reiniciar'}
+							</p>
+						</div>
+					</div>
+				</div>
+			{:else if isAgent}
 				<div class="space-y-4">
 					<div class="flex items-start gap-3">
 						<Bot class="mt-0.5 h-5 w-5 text-gray-400" />
@@ -370,7 +401,7 @@
 	<!-- Preview Button -->
 	<div class="flex justify-center">
 		<a
-			href={resolve(isAgent ? `/agent-chat/${ilid}` : `/interactive-chat/${ilid}`)}
+			href={resolve(isLesson ? `/lesson/${ilid}` : isAgent ? `/agent-chat/${ilid}` : `/interactive-chat/${ilid}`)}
 			target="_blank"
 			class="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-6 py-3 text-white transition-colors hover:bg-primary-700"
 		>

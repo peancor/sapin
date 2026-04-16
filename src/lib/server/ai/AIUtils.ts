@@ -288,6 +288,102 @@ export class AIUtils {
         }
     }
 
+    public static async generateTextFromMessages(
+        messages: ModelMessage[],
+        modelName: string,
+        context?: { userId?: string; courseId?: string; interactiveLearningId?: string; chatId?: string },
+        options?: { temperature?: number }
+    ) {
+        const startTime = Date.now();
+        const quotaCheck = await this.checkQuota(
+            modelName,
+            context?.userId,
+            context?.courseId,
+            context?.interactiveLearningId
+        );
+
+        if (!quotaCheck.allowed) {
+            await this.logFailureUsage({
+                modelName,
+                context,
+                operation: 'completion',
+                startTime,
+                errorMessage: `Cuota excedida: ${quotaCheck.reason}`,
+                metadata: { phase: 'quota_check' }
+            });
+            throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
+        }
+
+        let model;
+        try {
+            model = await this.buildChatModel(modelName);
+        } catch (error) {
+            await this.logFailureUsage({
+                modelName,
+                context,
+                operation: 'completion',
+                startTime,
+                errorMessage: error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
+                metadata: { phase: 'model_build' }
+            });
+            throw error;
+        }
+
+        try {
+            const result = await generateText({
+                model,
+                messages,
+                temperature: options?.temperature
+            });
+
+            const durationMs = Date.now() - startTime;
+            const usage = result.usage;
+            const inputTokens = usage?.inputTokens ?? 0;
+            const outputTokens = usage?.outputTokens ?? 0;
+            const metadata: Record<string, unknown> = {
+                totalTokens: usage?.totalTokens,
+                reasoningTokens: usage?.reasoningTokens,
+                cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+                cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
+                messageCount: messages.length
+            };
+
+            await this.logUsage({
+                modelName,
+                userId: context?.userId,
+                courseId: context?.courseId,
+                interactiveLearningId: context?.interactiveLearningId,
+                chatId: context?.chatId,
+                operation: 'completion',
+                inputTokens,
+                outputTokens,
+                durationMs,
+                success: true,
+                metadata
+            });
+
+            return result.text;
+        } catch (error) {
+            const durationMs = Date.now() - startTime;
+
+            await this.logUsage({
+                modelName,
+                userId: context?.userId,
+                courseId: context?.courseId,
+                interactiveLearningId: context?.interactiveLearningId,
+                chatId: context?.chatId,
+                operation: 'completion',
+                inputTokens: 0,
+                outputTokens: 0,
+                durationMs,
+                success: false,
+                errorMessage: error instanceof Error ? error.message : 'Unknown error'
+            });
+
+            throw error;
+        }
+    }
+
     // ==================== Chat Utilities ====================
 
     public static async saveMessage(

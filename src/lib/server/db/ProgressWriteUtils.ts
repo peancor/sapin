@@ -17,6 +17,7 @@ interface ProgressWriteInput {
     userId: string;
     courseId: string;
     activityId: string;
+    activityType?: string;
     source?: string;
 }
 
@@ -124,7 +125,7 @@ export async function markActivityInProgress(input: ProgressWriteInput): Promise
             userId: input.userId,
             courseId: input.courseId,
             activityId: input.activityId,
-            activityType: 'chat',
+            activityType: input.activityType ?? 'chat',
             status: 'in_progress',
             startedAt: now,
             lastInteractionAt: now,
@@ -177,6 +178,7 @@ export async function markActivityInProgress(input: ProgressWriteInput): Promise
     await db
         .update(learningActivityProgress)
         .set({
+            activityType: input.activityType ?? existing.activityType,
             status: existing.status === 'completed' ? 'completed' : 'in_progress',
             startedAt: existing.startedAt ?? now,
             activityId: existing.activityId ?? input.activityId,
@@ -247,7 +249,7 @@ export async function markActivityCompleted(input: ProgressWriteInput): Promise<
             userId: input.userId,
             courseId: input.courseId,
             activityId: input.activityId,
-            activityType: 'chat',
+            activityType: input.activityType ?? 'chat',
             status: 'completed',
             startedAt: now,
             completedAt: now,
@@ -300,6 +302,7 @@ export async function markActivityCompleted(input: ProgressWriteInput): Promise<
     await db
         .update(learningActivityProgress)
         .set({
+            activityType: input.activityType ?? existing.activityType,
             status: 'completed',
             completedAt: completionTimestamp,
             lastInteractionAt: now,

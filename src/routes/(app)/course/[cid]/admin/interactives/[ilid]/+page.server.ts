@@ -1,7 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import { db, CourseRoleUtils, CourseInteractiveAuthUtils } from '$lib/server/db';
-import { eq } from 'drizzle-orm';
-import { interactiveLearning, interactiveLearningChat } from '$lib/server/db/schema';
+import { eq, inArray } from 'drizzle-orm';
+import { interactiveLearning, interactiveLearningChat, interactiveLearningLesson, interactiveLessonSession, interactiveLessonBlockState, message } from '$lib/server/db/schema';
 import type { PageServerLoad } from './$types';
 import DBChatUtils from '$lib/server/db/DBChatUtils';
 import { DBAgentActivityUtils, DBAgentAnalyticsUtils } from '$lib/server/db/agent';
@@ -84,6 +84,79 @@ export const load = (async ({ params, locals }) => {
 				averageMessagesPerChat,
 				lastActivityDate: overview.lastActivityAt,
 				requiresMinMessages: ACTIVITY_COMPLETION_MIN_MESSAGES
+			}
+		};
+	}
+
+	// === Actividad de tipo CHAT (lógica existente) ===
+	if (interactive.type === 'lesson') {
+		const lessonConfig = await db
+			.select()
+			.from(interactiveLearningLesson)
+			.where(eq(interactiveLearningLesson.id, ilid))
+			.get();
+
+		if (!lessonConfig) {
+			throw error(500, 'La lesson no tiene configuración runtime');
+		}
+
+		const sessions = await db
+			.select()
+			.from(interactiveLessonSession)
+			.where(eq(interactiveLessonSession.interactiveLearningId, ilid))
+			.all();
+
+		const sessionUserIds = [...new Set(sessions.map((session) => session.userId))];
+		const completedUserIds = [
+			...new Set(
+				sessions
+					.filter((session) => session.status === 'completed')
+					.map((session) => session.userId)
+			)
+		];
+		const blockStates = sessions.length
+			? await db
+					.select()
+					.from(interactiveLessonBlockState)
+					.where(inArray(interactiveLessonBlockState.sessionId, sessions.map((session) => session.id)))
+					.all()
+			: [];
+		const chatIds = blockStates.map((state) => state.chatId).filter(Boolean) as string[];
+		const totalMessages = chatIds.length
+			? (
+					await db
+						.select()
+						.from(message)
+						.where(inArray(message.chatId, chatIds))
+						.all()
+			  ).length
+			: 0;
+		const lastActivityDate = sessions
+			.map((session) => session.lastActiveAt)
+			.sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+		const participationRate =
+			totalStudents > 0 ? Math.round((sessionUserIds.length / totalStudents) * 100) : 0;
+		const completionRate =
+			totalStudents > 0 ? Math.round((completedUserIds.length / totalStudents) * 100) : 0;
+
+		return {
+			interactive,
+			chatConfig: null,
+			agentConfig: null,
+			agentStats: null,
+			lessonConfig,
+			enabledTools: [],
+			stats: {
+				totalStudents,
+				studentsWithActivity: sessionUserIds.length,
+				studentsCompleted: completedUserIds.length,
+				totalChats: sessions.length,
+				totalMessages,
+				participationRate,
+				completionRate,
+				averageMessagesPerChat: sessions.length > 0 ? Math.round(totalMessages / sessions.length) : 0,
+				lastActivityDate,
+				requiresMinMessages: 0
 			}
 		};
 	}

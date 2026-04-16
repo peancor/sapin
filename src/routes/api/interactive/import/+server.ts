@@ -1,12 +1,18 @@
 import { json, error, fail } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { interactiveLearning, interactiveLearningChat, courseInteractiveLearning } from '$lib/server/db/schema';
+import {
+	interactiveLearning,
+	interactiveLearningChat,
+	interactiveLearningLesson,
+	courseInteractiveLearning
+} from '$lib/server/db/schema';
 import type { InteractiveLearningStatusType } from '$lib/server/db/schema';
 import { eq, and, max } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { CourseRoleUtils } from '$lib/server/db/CourseRoleUtils';
 import { generateSlug } from '$lib/utils/slug';
+import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
 
 interface ImportData {
 	version: string;
@@ -32,6 +38,11 @@ interface ImportData {
 		temperature?: number | null;
 		maxTokens?: number | null;
 		topP?: number | null;
+		metadata?: string | null;
+	} | null;
+	lessonConfig?: {
+		sessionPolicy?: 'resume_latest' | 'always_new_attempt' | null;
+		allowRestart?: boolean | null;
 		metadata?: string | null;
 	} | null;
 }
@@ -64,11 +75,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'Datos de importación inválidos');
 		}
 
-		const { activity, chatConfig } = importData;
+		const { activity, chatConfig, lessonConfig } = importData;
 
 		// Validar campos requeridos
 		if (!activity.name || !activity.type || !activity.content) {
 			throw error(400, 'Faltan campos requeridos en la actividad (name, type, content)');
+		}
+
+		if (activity.type === 'lesson') {
+			try {
+				LessonService.parseDefinition(activity.content);
+			} catch (lessonError) {
+				if (lessonError instanceof LessonServiceError) {
+					throw error(400, lessonError.message);
+				}
+				throw lessonError;
+			}
 		}
 
 		const now = new Date();
@@ -128,6 +150,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				topP: chatConfig.topP || null,
 				metadata: chatConfig.metadata || null,
 				createdAt: now
+			});
+		}
+
+		if (activity.type === 'lesson') {
+			await db.insert(interactiveLearningLesson).values({
+				id: activityId,
+				sessionPolicy:
+					lessonConfig?.sessionPolicy === 'always_new_attempt'
+						? 'always_new_attempt'
+						: 'resume_latest',
+				allowRestart: lessonConfig?.allowRestart ?? true,
+				metadata: lessonConfig?.metadata || null,
+				createdAt: now,
+				updatedAt: now
 			});
 		}
 

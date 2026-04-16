@@ -12,7 +12,8 @@
 		Clock,
 		BarChart3,
 		TrendingUp,
-		Bot
+		Bot,
+		Route
 	} from 'lucide-svelte';
 	import { Modal, Dropdown, DropdownItem, Button, Toast, Badge } from 'flowbite-svelte';
 	import { enhance } from '$app/forms';
@@ -43,15 +44,15 @@
 	}
 
 	function getStudentRunUrl(interactive: { id: string; type: string }): string {
-		return interactive.type === 'agent'
-			? `/student/run-agent/${interactive.id}`
-			: `/student/run-chat/${interactive.id}`;
+		if (interactive.type === 'agent') return `/student/run-agent/${interactive.id}`;
+		if (interactive.type === 'lesson') return `/student/run-lesson/${interactive.id}`;
+		return `/student/run-chat/${interactive.id}`;
 	}
 
 	function getPreviewUrl(interactive: { id: string; type: string }): string {
-		return interactive.type === 'agent'
-			? `/agent-chat/${interactive.id}`
-			: `/interactive-chat/${interactive.id}`;
+		if (interactive.type === 'agent') return `/agent-chat/${interactive.id}`;
+		if (interactive.type === 'lesson') return `/lesson/${interactive.id}`;
+		return `/interactive-chat/${interactive.id}`;
 	}
 
 	async function copyActivityLink(interactive: { id: string; type: string }) {
@@ -73,6 +74,8 @@
 				return 'blue';
 			case 'agent':
 				return 'green';
+			case 'lesson':
+				return 'purple';
 			case 'quiz':
 				return 'purple';
 			case 'simulation':
