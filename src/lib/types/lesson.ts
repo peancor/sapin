@@ -1,6 +1,9 @@
 export const lessonBlockKinds = ['content', 'choice', 'agent', 'end'] as const;
 export type LessonBlockKind = (typeof lessonBlockKinds)[number];
 
+export const lessonDefinitionVersions = ['1', '2'] as const;
+export type LessonDefinitionVersion = (typeof lessonDefinitionVersions)[number];
+
 export const lessonSessionPolicies = ['resume_latest', 'always_new_attempt'] as const;
 export type LessonSessionPolicy = (typeof lessonSessionPolicies)[number];
 
@@ -23,15 +26,29 @@ export type LessonConditionOperator = (typeof lessonConditionOperators)[number];
 export const lessonOutputFieldTypes = ['string', 'number', 'boolean', 'json'] as const;
 export type LessonOutputFieldType = (typeof lessonOutputFieldTypes)[number];
 
+export const lessonReferenceNamespaces = ['session', 'state', 'outputs'] as const;
+export type LessonReferenceNamespace = (typeof lessonReferenceNamespaces)[number];
+
 export interface LessonVariableRef {
 	path: string;
-	source: 'session' | 'block-output';
+	source: 'session' | 'block-state' | 'block-output';
 }
 
 export interface LessonOutputField {
 	key: string;
 	type: LessonOutputFieldType;
 	description?: string;
+}
+
+export interface LessonBlockGraphMeta {
+	position?: {
+		x: number;
+		y: number;
+	};
+}
+
+export interface LessonBlockExposure {
+	outputs?: LessonOutputField[];
 }
 
 export interface LessonAssetRef {
@@ -59,6 +76,8 @@ interface LessonBlockBase {
 	title: string;
 	next?: string | null;
 	branches?: LessonTransition[];
+	graph?: LessonBlockGraphMeta;
+	exposure?: LessonBlockExposure;
 }
 
 export interface LessonContentBlock extends LessonBlockBase {
@@ -116,7 +135,7 @@ export type LessonBlock =
 	| LessonEndBlock;
 
 export interface LessonDefinition {
-	version: '1';
+	version: '2';
 	entryBlockId: string;
 	blocks: LessonBlock[];
 }
@@ -125,4 +144,40 @@ export interface LessonAvailableVariable {
 	path: string;
 	label: string;
 	description: string;
+	namespace?: LessonReferenceNamespace;
+	blockId?: string;
+	source?: 'session' | 'block-state' | 'block-output';
+}
+
+export interface LessonBlockContractField {
+	path: string;
+	key: string;
+	label: string;
+	description: string;
+	type: LessonOutputFieldType | 'date' | 'integer' | 'status';
+	source: 'system' | 'public';
+	namespace: Exclude<LessonReferenceNamespace, 'session'>;
+	availableWhen: 'always' | 'after_visit' | 'after_completion';
+}
+
+export interface LessonBlockContract {
+	blockId: string;
+	blockTitle: string;
+	blockKind: LessonBlockKind;
+	state: LessonBlockContractField[];
+	outputs: LessonBlockContractField[];
+}
+
+export interface LessonBlockReferenceGroups {
+	blockId: string;
+	blockTitle: string;
+	state: LessonAvailableVariable[];
+	outputs: LessonAvailableVariable[];
+}
+
+export interface LessonBlockGraphSummary {
+	blockId: string;
+	incomingBlockIds: string[];
+	outgoingBlockIds: string[];
+	contracts: LessonBlockContract;
 }

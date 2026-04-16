@@ -49,6 +49,12 @@
 	const availableBlockIds = $derived(
 		data.definition.blocks.map((block) => (block.id === data.block.id ? workingBlock.id : block.id))
 	);
+	const sessionVariables = $derived(
+		data.availableVariables.filter((variable) => variable.source === 'session')
+	);
+	const referenceGroups = $derived(data.availableReferenceGroups.byBlock);
+	const currentGraphSummary = $derived(data.graphSummary);
+	const currentBlockContract = $derived(data.graphSummary.contracts);
 	const conditionOperators = [
 		'equals',
 		'not_equals',
@@ -77,6 +83,10 @@
 		if (block.kind === 'choice') return ListChecks;
 		if (block.kind === 'agent') return Bot;
 		return Flag;
+	}
+
+	function blockLabel(blockId: string) {
+		return data.definition.blocks.find((block) => block.id === blockId)?.title ?? blockId;
 	}
 
 	function addBranch() {
@@ -881,35 +891,194 @@
 
 		<div class="space-y-6">
 			<div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800">
-				<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Variables disponibles</h2>
+				<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Mapa del bloque</h2>
 				<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-					Úsalas en prompts, markdown y condiciones con la sintaxis
-					<code>{'{{variable}}'}</code>.
+					El flujo real lo definen las conexiones del grafo. Cambiar el orden visual de la
+					lesson no altera estas relaciones.
 				</p>
 
-				<div class="mt-4 space-y-2">
-					{#each data.availableVariables as variable (variable.path)}
-						<div class="rounded-2xl border border-gray-200 px-3 py-3 dark:border-gray-800">
-							<p class="font-mono text-xs text-primary-700 dark:text-primary-300">{`{{${variable.path}}}`}</p>
-							<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{variable.label}</p>
-							<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{variable.description}</p>
+				<div class="mt-4 grid gap-3 sm:grid-cols-2">
+					<div class="rounded-2xl border border-sky-200 bg-sky-50/80 px-4 py-4 dark:border-sky-900/40 dark:bg-sky-950/20">
+						<p class="text-xs font-medium uppercase tracking-[0.16em] text-sky-700 dark:text-sky-300">
+							Entradas
+						</p>
+						<p class="mt-1 text-2xl font-semibold text-sky-950 dark:text-sky-50">
+							{currentGraphSummary.incomingBlockIds.length}
+						</p>
+						<div class="mt-3 flex flex-wrap gap-2">
+							{#if currentGraphSummary.incomingBlockIds.length}
+								{#each currentGraphSummary.incomingBlockIds as sourceId (sourceId)}
+									<span class="rounded-full border border-sky-200 px-2.5 py-1 text-[11px] font-medium text-sky-700 dark:border-sky-900/50 dark:text-sky-200">
+										{blockLabel(sourceId)}
+									</span>
+								{/each}
+							{:else}
+								<span class="text-sm text-sky-800/80 dark:text-sky-100/80">Nadie llega todavía a este bloque.</span>
+							{/if}
 						</div>
-					{/each}
+					</div>
+					<div class="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+						<p class="text-xs font-medium uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-300">
+							Salidas
+						</p>
+						<p class="mt-1 text-2xl font-semibold text-emerald-950 dark:text-emerald-50">
+							{currentGraphSummary.outgoingBlockIds.length}
+						</p>
+						<div class="mt-3 flex flex-wrap gap-2">
+							{#if currentGraphSummary.outgoingBlockIds.length}
+								{#each currentGraphSummary.outgoingBlockIds as targetId (targetId)}
+									<span class="rounded-full border border-emerald-200 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:border-emerald-900/50 dark:text-emerald-200">
+										{blockLabel(targetId)}
+									</span>
+								{/each}
+							{:else}
+								<span class="text-sm text-emerald-800/80 dark:text-emerald-100/80">
+									Este bloque no tiene destinos configurados.
+								</span>
+							{/if}
+						</div>
+					</div>
 				</div>
-			</div>
-
-			<div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800">
-				<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Objetivos de flujo</h2>
-				<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-					Destinos posibles en esta lesson. Si cambias el ID actual, la nueva referencia se
-					usará aquí mismo al guardar.
-				</p>
 
 				<div class="mt-4 flex flex-wrap gap-2">
 					{#each availableBlockIds as blockId (blockId)}
 						<span class="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
 							{blockId}
 						</span>
+					{/each}
+				</div>
+			</div>
+
+			<div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800">
+				<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Qué expone este bloque</h2>
+				<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+					Estas son las referencias estables que otros nodos podrán leer desde
+					<code>{`{{blocks.${data.block.id}.state.*}}`}</code> y
+					<code>{`{{blocks.${data.block.id}.outputs.*}}`}</code>.
+				</p>
+
+				<div class="mt-4 space-y-4">
+					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+						<div class="flex items-center justify-between gap-3">
+							<h3 class="text-sm font-semibold text-gray-900 dark:text-white">Estado runtime</h3>
+							<span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+								{currentBlockContract.state.length} referencia{currentBlockContract.state.length === 1 ? '' : 's'}
+							</span>
+						</div>
+						<div class="mt-3 space-y-2">
+							{#each currentBlockContract.state as field (field.path)}
+								<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
+									<p class="font-mono text-xs text-primary-700 dark:text-primary-300">{`{{${field.path}}}`}</p>
+									<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{field.label}</p>
+									<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{field.description}</p>
+								</div>
+							{/each}
+						</div>
+					</div>
+					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+						<div class="flex items-center justify-between gap-3">
+							<h3 class="text-sm font-semibold text-gray-900 dark:text-white">Outputs reutilizables</h3>
+							<span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+								{currentBlockContract.outputs.length} referencia{currentBlockContract.outputs.length === 1 ? '' : 's'}
+							</span>
+						</div>
+						<div class="mt-3 space-y-2">
+							{#if currentBlockContract.outputs.length}
+								{#each currentBlockContract.outputs as field (field.path)}
+									<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
+										<p class="font-mono text-xs text-primary-700 dark:text-primary-300">{`{{${field.path}}}`}</p>
+										<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{field.label}</p>
+										<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{field.description}</p>
+									</div>
+								{/each}
+							{:else}
+								<p class="rounded-2xl bg-gray-50 px-3 py-3 text-sm text-gray-500 dark:bg-gray-950/40 dark:text-gray-400">
+									Este bloque todavía no publica outputs propios aparte del estado del sistema.
+								</p>
+							{/if}
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800">
+				<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Referencias disponibles</h2>
+				<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+					Úsalas en prompts, markdown y condiciones con la sintaxis
+					<code>{'{{variable}}'}</code>. Si un bloque aún no se ha visitado, sus outputs
+					resolverán vacío o <code>undefined</code> según el contexto.
+				</p>
+
+				<div class="mt-4 space-y-4">
+					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+						<div class="flex items-center justify-between gap-3">
+							<h3 class="text-sm font-semibold text-gray-900 dark:text-white">Sesión</h3>
+							<span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+								{sessionVariables.length} variable{sessionVariables.length === 1 ? '' : 's'}
+							</span>
+						</div>
+						<div class="mt-3 space-y-2">
+							{#each sessionVariables as variable (variable.path)}
+								<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
+									<p class="font-mono text-xs text-primary-700 dark:text-primary-300">{`{{${variable.path}}}`}</p>
+									<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{variable.label}</p>
+									<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{variable.description}</p>
+								</div>
+							{/each}
+						</div>
+					</div>
+
+					{#each referenceGroups as group (group.blockId)}
+						<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+							<div class="flex flex-wrap items-center gap-2">
+								<h3 class="text-sm font-semibold text-gray-900 dark:text-white">{group.blockTitle}</h3>
+								<span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-mono font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+									{group.blockId}
+								</span>
+								{#if group.blockId === data.block.id}
+									<span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+										Este bloque
+									</span>
+								{/if}
+							</div>
+
+							<div class="mt-4 grid gap-3">
+								<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
+									<p class="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+										State
+									</p>
+									<div class="space-y-2">
+										{#each group.state as variable (variable.path)}
+											<div>
+												<p class="font-mono text-xs text-primary-700 dark:text-primary-300">{`{{${variable.path}}}`}</p>
+												<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{variable.label}</p>
+												<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{variable.description}</p>
+											</div>
+										{/each}
+									</div>
+								</div>
+								<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
+									<p class="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+										Outputs
+									</p>
+									{#if group.outputs.length}
+										<div class="space-y-2">
+											{#each group.outputs as variable (variable.path)}
+												<div>
+													<p class="font-mono text-xs text-primary-700 dark:text-primary-300">{`{{${variable.path}}}`}</p>
+													<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{variable.label}</p>
+													<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{variable.description}</p>
+												</div>
+											{/each}
+										</div>
+									{:else}
+										<p class="text-sm text-gray-500 dark:text-gray-400">
+											Este bloque no expone outputs públicos adicionales todavía.
+										</p>
+									{/if}
+								</div>
+							</div>
+						</div>
 					{/each}
 				</div>
 			</div>

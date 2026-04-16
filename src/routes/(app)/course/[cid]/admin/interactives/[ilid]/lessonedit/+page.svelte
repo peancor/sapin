@@ -67,6 +67,16 @@
 		return `${block.next ? `siguiente: ${block.next}` : 'sin siguiente'}${branches ? ` · ${branches} rama${branches === 1 ? '' : 's'}` : ''}`;
 	}
 
+	function graphSummary(blockId: string) {
+		return data.graphSummaries.find((summary) => summary.blockId === blockId);
+	}
+
+	function exposedFieldCount(blockId: string) {
+		const summary = graphSummary(blockId);
+		if (!summary) return 0;
+		return summary.contracts.state.length + summary.contracts.outputs.length;
+	}
+
 	function confirmDelete(event: SubmitEvent, blockTitle: string) {
 		if (!window.confirm(`Vas a eliminar "${blockTitle}". Esta acción no se puede deshacer.`)) {
 			event.preventDefault();
@@ -120,6 +130,13 @@
 					política de sesión, orden de bloques y accesos rápidos al editor especializado de
 					cada bloque.
 				</p>
+				<div class="mt-4 rounded-2xl border border-amber-200/80 bg-white/70 px-4 py-3 text-sm text-amber-900 shadow-sm dark:border-amber-900/50 dark:bg-gray-950/40 dark:text-amber-100">
+					<p class="font-medium">El orden de esta lista ya no define el flujo.</p>
+					<p class="mt-1 text-amber-800/80 dark:text-amber-100/80">
+						El runtime sigue las conexiones del grafo y reutiliza la última visita de cada
+						bloque, así que aquí solo mantenemos una vista editorial cómoda.
+					</p>
+				</div>
 			</div>
 
 			<div class="grid gap-3 sm:grid-cols-3">
@@ -311,6 +328,7 @@
 				<div class="space-y-3">
 					{#each data.definition.blocks as block, index (block.id)}
 						{@const Icon = blockIcon(block)}
+						{@const summary = graphSummary(block.id)}
 						<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
 							<div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
 								<div class="flex min-w-0 items-start gap-4">
@@ -334,6 +352,53 @@
 										</div>
 										<p class="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400">{block.id}</p>
 										<p class="mt-2 text-sm text-gray-600 dark:text-gray-300">{blockSummary(block)}</p>
+										<div class="mt-3 flex flex-wrap gap-2">
+											<span class="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-950/30 dark:text-sky-300">
+												Entradas {summary?.incomingBlockIds.length ?? 0}
+											</span>
+											<span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+												Salidas {summary?.outgoingBlockIds.length ?? 0}
+											</span>
+											<span class="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-700 dark:bg-violet-950/30 dark:text-violet-300">
+												Expone {exposedFieldCount(block.id)} referencias
+											</span>
+										</div>
+										{#if summary}
+											<div class="mt-3 grid gap-3 text-xs text-gray-500 dark:text-gray-400 sm:grid-cols-2">
+												<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
+													<p class="mb-2 font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+														Llega desde
+													</p>
+													<div class="flex flex-wrap gap-2">
+														{#if summary.incomingBlockIds.length}
+															{#each summary.incomingBlockIds as sourceId (sourceId)}
+																<span class="rounded-full border border-gray-200 px-2.5 py-1 font-mono text-[11px] text-gray-600 dark:border-gray-800 dark:text-gray-300">
+																	{sourceId}
+																</span>
+															{/each}
+														{:else}
+															<span>Sin conexiones entrantes.</span>
+														{/if}
+													</div>
+												</div>
+												<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
+													<p class="mb-2 font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+														Apunta a
+													</p>
+													<div class="flex flex-wrap gap-2">
+														{#if summary.outgoingBlockIds.length}
+															{#each summary.outgoingBlockIds as targetId (targetId)}
+																<span class="rounded-full border border-gray-200 px-2.5 py-1 font-mono text-[11px] text-gray-600 dark:border-gray-800 dark:text-gray-300">
+																	{targetId}
+																</span>
+															{/each}
+														{:else}
+															<span>Sin conexiones salientes.</span>
+														{/if}
+													</div>
+												</div>
+											</div>
+										{/if}
 									</div>
 								</div>
 

@@ -96,6 +96,7 @@ export async function loadLessonAdminData(
 	lessonConfig: InteractiveLearningLesson;
 	definition: ReturnType<typeof LessonService.parseDefinition>;
 	files: InteractiveLearningFile[];
+	graphSummaries: ReturnType<typeof LessonService.getGraphSummaries>;
 }> {
 	const { activity, lessonConfig } = await requireLessonAdminContext(cid, ilid, locals);
 	const files = await db
@@ -103,12 +104,14 @@ export async function loadLessonAdminData(
 		.from(interactiveLearningFile)
 		.where(eq(interactiveLearningFile.interactiveLearningId, ilid))
 		.all();
+	const definition = LessonService.parseDefinition(activity.content);
 
 	return {
 		activity,
 		lessonConfig,
-		definition: LessonService.parseDefinition(activity.content),
-		files
+		definition,
+		files,
+		graphSummaries: LessonService.getGraphSummaries(definition)
 	};
 }
 

@@ -14,11 +14,15 @@ import {
 export const load = (async ({ params, locals }) => {
 	const data = await loadLessonAdminData(params.cid, params.ilid, locals);
 	const block = LessonService.getBlock(data.definition, params.blockId);
+	const graphSummary = LessonService.getBlockGraphSummary(data.definition, params.blockId);
+	const availableReferenceGroups = LessonService.getAvailableReferenceGroups(data.definition);
 
 	return {
 		...data,
 		block,
-		availableVariables: LessonService.getAvailableVariables(data.definition)
+		graphSummary,
+		availableVariables: LessonService.getAvailableVariables(data.definition),
+		availableReferenceGroups
 	};
 }) satisfies PageServerLoad;
 

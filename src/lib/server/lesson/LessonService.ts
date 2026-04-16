@@ -9,10 +9,12 @@ import {
 	interactiveLearningFile,
 	interactiveLearningLesson,
 	interactiveLessonBlockState,
+	interactiveLessonBlockVisit,
 	interactiveLessonEvent,
 	interactiveLessonSession,
 	lessonAttemptStatus,
 	lessonBlockStateStatus,
+	lessonBlockVisitStatus,
 	lessonEventType,
 	message
 } from '$lib/server/db/schema';
@@ -21,12 +23,17 @@ import type {
 	InteractiveLearningFile,
 	InteractiveLearningLesson,
 	InteractiveLessonBlockState,
+	InteractiveLessonBlockVisit,
 	InteractiveLessonSession
 } from '$lib/server/db/schema';
 import type {
 	LessonAgentBlock,
 	LessonAvailableVariable,
 	LessonBlock,
+	LessonBlockContract,
+	LessonBlockContractField,
+	LessonBlockGraphSummary,
+	LessonBlockReferenceGroups,
 	LessonBlockKind,
 	LessonConditionOperator,
 	LessonDefinition,
@@ -36,18 +43,21 @@ import type {
 import { and, desc, eq, max } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
+import { LessonServiceError } from './LessonServiceError';
+import {
+	buildLessonBlockContract,
+	getAvailableLessonReferenceGroups,
+	getAvailableLessonVariables,
+	getLessonBlock,
+	getLessonBlockGraphSummary,
+	getLessonGraphSummaries,
+	parseLessonDefinition,
+	validateLessonDefinition
+} from './lessonGraph';
+
+export { LessonServiceError } from './LessonServiceError';
 
 type JsonRecord = Record<string, unknown>;
-
-export class LessonServiceError extends Error {
-	status: number;
-
-	constructor(status: number, message: string) {
-		super(message);
-		this.name = 'LessonServiceError';
-		this.status = status;
-	}
-}
 
 const lessonTransitionSchema = z.object({
 	id: z.string().optional(),
@@ -78,6 +88,19 @@ const lessonOutputFieldSchema = z.object({
 	description: z.string().optional()
 });
 
+const lessonBlockGraphMetaSchema = z.object({
+	position: z
+		.object({
+			x: z.number(),
+			y: z.number()
+		})
+		.optional()
+});
+
+const lessonBlockExposureSchema = z.object({
+	outputs: z.array(lessonOutputFieldSchema).optional()
+});
+
 const lessonAssetRefSchema = z.object({
 	fileId: z.string().min(1),
 	kind: z.enum(['image', 'video', 'audio', 'file']).optional(),
@@ -105,56 +128,49 @@ const lessonAgentConfigSchema = z.object({
 	outputSchema: z.array(lessonOutputFieldSchema).optional()
 });
 
+const lessonBlockBaseSchema = z.object({
+	id: z.string().min(1),
+	title: z.string().min(1),
+	next: z.string().nullable().optional(),
+	branches: z.array(lessonTransitionSchema).optional(),
+	graph: lessonBlockGraphMetaSchema.optional(),
+	exposure: lessonBlockExposureSchema.optional()
+});
+
 const lessonBlockSchema = z.discriminatedUnion('kind', [
-	z.object({
-		id: z.string().min(1),
+	lessonBlockBaseSchema.extend({
 		kind: z.literal('content'),
-		title: z.string().min(1),
 		body: z.string(),
 		continueLabel: z.string().optional(),
-		next: z.string().nullable().optional(),
-		branches: z.array(lessonTransitionSchema).optional(),
 		assetRefs: z.array(lessonAssetRefSchema).optional()
 	}),
-	z.object({
-		id: z.string().min(1),
+	lessonBlockBaseSchema.extend({
 		kind: z.literal('choice'),
-		title: z.string().min(1),
 		body: z.string().optional(),
-		next: z.string().nullable().optional(),
-		branches: z.array(lessonTransitionSchema).optional(),
 		options: z.array(lessonChoiceOptionSchema).min(1),
 		outputKey: z.string().optional()
 	}),
-	z.object({
-		id: z.string().min(1),
+	lessonBlockBaseSchema.extend({
 		kind: z.literal('agent'),
-		title: z.string().min(1),
 		body: z.string().optional(),
-		next: z.string().nullable().optional(),
-		branches: z.array(lessonTransitionSchema).optional(),
 		agentConfig: lessonAgentConfigSchema,
 		requiresResponse: z.boolean().optional()
 	}),
-	z.object({
-		id: z.string().min(1),
+	lessonBlockBaseSchema.extend({
 		kind: z.literal('end'),
-		title: z.string().min(1),
 		body: z.string().optional(),
-		next: z.string().nullable().optional(),
-		branches: z.array(lessonTransitionSchema).optional(),
 		ctaLabel: z.string().optional()
 	})
 ]);
 
 const lessonDefinitionSchema = z.object({
-	version: z.literal('1'),
+	version: z.enum(['1', '2']).optional().default('1'),
 	entryBlockId: z.string().min(1),
 	blocks: z.array(lessonBlockSchema).min(1)
 });
 
 const DEFAULT_LESSON_DEFINITION: LessonDefinition = {
-	version: '1',
+	version: '2',
 	entryBlockId: 'intro',
 	blocks: [
 		{
@@ -190,17 +206,40 @@ export interface LessonSessionView {
 	definition: LessonDefinition;
 	session: InteractiveLessonSession;
 	blockStates: InteractiveLessonBlockState[];
+	blockVisits: InteractiveLessonBlockVisit[];
 	currentBlock: LessonBlock;
 	resolvedCurrentBlock: LessonBlock;
 	currentBlockState: InteractiveLessonBlockState | null;
+	currentVisit: InteractiveLessonBlockVisit | null;
 	currentAssets: LessonResolvedAsset[];
 	currentChatMessages: Array<{ id: string; type: string; content: string; createdAt: Date }>;
 	files: InteractiveLearningFile[];
 	filesById: Record<string, InteractiveLearningFile>;
 	availableVariables: LessonAvailableVariable[];
+	availableReferenceGroups: LessonReferenceGroups;
+	currentBlockContract: LessonBlockContract;
+	currentVisitId: string | null;
 	canRestart: boolean;
 	canInteract: boolean;
 	isReadOnly: boolean;
+}
+
+interface LessonDefinitionInput {
+	version?: '1' | '2';
+	entryBlockId: string;
+	blocks: LessonBlock[];
+}
+
+interface LessonReferenceGroups {
+	session: LessonAvailableVariable[];
+	state: LessonAvailableVariable[];
+	outputs: LessonAvailableVariable[];
+	byBlock: LessonBlockReferenceGroups[];
+}
+
+interface LessonTemplateContext {
+	session: JsonRecord;
+	blocks: Record<string, { state: JsonRecord; outputs: JsonRecord }>;
 }
 
 function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
@@ -248,81 +287,15 @@ export class LessonService {
 	}
 
 	static parseDefinition(content: string): LessonDefinition {
-		let parsed: unknown;
-
-		try {
-			parsed = JSON.parse(content);
-		} catch {
-			throw new LessonServiceError(400, 'La definición JSON de la lesson no es válida.');
-		}
-
-		const parseResult = lessonDefinitionSchema.safeParse(parsed);
-		if (!parseResult.success) {
-			throw new LessonServiceError(
-				400,
-				'La definición JSON de la lesson no tiene la estructura esperada.'
-			);
-		}
-
-		const definition = parseResult.data as LessonDefinition;
-		return this.validateDefinition(definition);
+		return parseLessonDefinition(content);
 	}
 
 	static validateDefinition(definition: LessonDefinition): LessonDefinition {
-		const blockMap = new Map(definition.blocks.map((block) => [block.id, block]));
-		const duplicatedIds = definition.blocks
-			.map((block) => block.id)
-			.filter((id, index, list) => list.indexOf(id) !== index);
-
-		if (duplicatedIds.length > 0) {
-			throw new LessonServiceError(
-				400,
-				`Hay bloques con IDs duplicados: ${[...new Set(duplicatedIds)].join(', ')}.`
-			);
-		}
-
-		if (!blockMap.has(definition.entryBlockId)) {
-			throw new LessonServiceError(400, 'El bloque de entrada no existe en la definición.');
-		}
-
-		for (const block of definition.blocks) {
-			this.assertBlockConfiguration(block);
-
-			if (block.kind === 'end' && (block.next || block.branches?.length)) {
-				throw new LessonServiceError(
-					400,
-					`El bloque final "${block.id}" no puede tener salidas adicionales.`
-				);
-			}
-
-			if (block.kind === 'choice' && (block.next || block.branches?.length)) {
-				throw new LessonServiceError(
-					400,
-					`El bloque de elección "${block.id}" debe usar únicamente destinos por opción.`
-				);
-			}
-
-			if (block.kind !== 'end' && block.kind !== 'choice' && !block.next && !(block.branches?.length)) {
-				throw new LessonServiceError(
-					400,
-					`El bloque "${block.id}" necesita un siguiente bloque o una rama condicional.`
-				);
-			}
-		}
-
-		const graph = this.buildTransitionGraph(definition);
-		this.assertTransitionTargets(definition, blockMap);
-		this.assertNoGraphCycles(graph, definition.entryBlockId);
-		this.assertTemplateReferences(definition, graph);
-		return definition;
+		return validateLessonDefinition(definition);
 	}
 
 	static getBlock(definition: LessonDefinition, blockId: string): LessonBlock {
-		const block = definition.blocks.find((candidate) => candidate.id === blockId);
-		if (!block) {
-			throw new LessonServiceError(404, `El bloque "${blockId}" no existe.`);
-		}
-		return structuredClone(block);
+		return getLessonBlock(definition, blockId);
 	}
 
 	static createBlock(
@@ -423,45 +396,20 @@ export class LessonService {
 		});
 	}
 
+	static getAvailableReferenceGroups(definition: LessonDefinition): LessonReferenceGroups {
+		return getAvailableLessonReferenceGroups(definition);
+	}
+
 	static getAvailableVariables(definition: LessonDefinition): LessonAvailableVariable[] {
-		const variables: LessonAvailableVariable[] = [
-			{ path: 'session.id', label: 'ID de sesión', description: 'Identificador del intento actual.' },
-			{
-				path: 'session.attemptNumber',
-				label: 'Número de intento',
-				description: 'Intento actual del estudiante en esta lesson.'
-			},
-			{ path: 'session.status', label: 'Estado', description: 'Estado actual de la sesión.' },
-			{ path: 'session.currentBlockId', label: 'Bloque actual', description: 'Bloque activo de la sesión.' },
-			{ path: 'session.activityName', label: 'Nombre de la actividad', description: 'Nombre visible de la lesson.' },
-			{ path: 'session.courseId', label: 'Curso', description: 'Curso asociado a la sesión.' }
-		];
+		return getAvailableLessonVariables(definition);
+	}
 
-		for (const block of definition.blocks) {
-			if (block.kind === 'choice') {
-				const outputKey = block.outputKey || 'selection';
-				variables.push(
-					{ path: `blocks.${block.id}.outputs.${outputKey}`, label: `${block.title} · selección`, description: 'Valor elegido por el estudiante.' },
-					{ path: `blocks.${block.id}.outputs.selectedLabel`, label: `${block.title} · etiqueta`, description: 'Etiqueta mostrada al estudiante.' }
-				);
-			}
+	static getGraphSummaries(definition: LessonDefinition): LessonBlockGraphSummary[] {
+		return getLessonGraphSummaries(definition);
+	}
 
-			if (block.kind === 'agent') {
-				variables.push(
-					{ path: `blocks.${block.id}.outputs.response`, label: `${block.title} · respuesta`, description: 'Última respuesta de la IA en este bloque.' },
-					{ path: `blocks.${block.id}.outputs.lastUserMessage`, label: `${block.title} · entrada`, description: 'Último mensaje del alumno en este bloque.' }
-				);
-				for (const field of block.agentConfig.outputSchema ?? []) {
-					variables.push({
-						path: `blocks.${block.id}.outputs.${field.key}`,
-						label: `${block.title} · ${field.key}`,
-						description: field.description || 'Salida estructurada del bloque IA.'
-					});
-				}
-			}
-		}
-
-		return variables;
+	static getBlockGraphSummary(definition: LessonDefinition, blockId: string): LessonBlockGraphSummary {
+		return getLessonBlockGraphSummary(definition, blockId);
 	}
 
 	static async startOrResumeSession(input: {
@@ -535,10 +483,32 @@ export class LessonService {
 			throw new LessonServiceError(400, 'Esta lesson no permite reiniciar.');
 		}
 
+		if (view.currentVisit && view.session.status !== lessonAttemptStatus.COMPLETED) {
+			await this.updateBlockVisit({
+				visitId: view.currentVisit.id,
+				status: lessonBlockVisitStatus.ABANDONED,
+				completedAt: new Date()
+			});
+
+			if (view.currentBlockState) {
+				await this.upsertBlockState({
+					sessionId: view.session.id,
+					blockId: view.currentBlock.id,
+					status: lessonBlockStateStatus.SKIPPED,
+					outputs: normalizeOutputs(view.currentBlockState.outputsJson),
+					lastChoiceValue: view.currentBlockState.lastChoiceValue ?? undefined,
+					chatId: view.currentBlockState.chatId ?? undefined,
+					lastVisitId: view.currentVisit.id,
+					completedAt: new Date()
+				});
+			}
+		}
+
 		await db
 			.update(interactiveLessonSession)
 			.set({
 				status: lessonAttemptStatus.RESTARTED,
+				currentVisitId: null,
 				lastActiveAt: new Date(),
 				updatedAt: new Date()
 			})
@@ -556,6 +526,7 @@ export class LessonService {
 			sessionId: newSession.id,
 			userId: view.session.userId,
 			courseId: view.session.courseId,
+			visitId: newSession.currentVisitId,
 			blockId: view.definition.entryBlockId,
 			eventType: lessonEventType.SESSION_RESTARTED,
 			payload: {
@@ -588,10 +559,18 @@ export class LessonService {
 		}
 
 		await this.assertSessionAccess(session, input.userId, input.userRoleLevel);
+		await this.ensureSessionVisitBackfill(session);
 
-		const activityData = await this.getLessonActivity(session.interactiveLearningId);
+		const refreshedSession = await db
+			.select()
+			.from(interactiveLessonSession)
+			.where(eq(interactiveLessonSession.id, session.id))
+			.get();
+		const activeSession = refreshedSession ?? session;
+
+		const activityData = await this.getLessonActivity(activeSession.interactiveLearningId);
 		const definition = this.parseDefinition(activityData.activity.content);
-		const currentBlock = definition.blocks.find((block) => block.id === session.currentBlockId);
+		const currentBlock = definition.blocks.find((block) => block.id === activeSession.currentBlockId);
 
 		if (!currentBlock) {
 			throw new LessonServiceError(
@@ -600,11 +579,17 @@ export class LessonService {
 			);
 		}
 
-		const [blockStates, files] = await Promise.all([
+		const [blockStates, blockVisits, files] = await Promise.all([
 			db
 				.select()
 				.from(interactiveLessonBlockState)
-				.where(eq(interactiveLessonBlockState.sessionId, session.id))
+				.where(eq(interactiveLessonBlockState.sessionId, activeSession.id))
+				.all(),
+			db
+				.select()
+				.from(interactiveLessonBlockVisit)
+				.where(eq(interactiveLessonBlockVisit.sessionId, activeSession.id))
+				.orderBy(interactiveLessonBlockVisit.visitNumber)
 				.all(),
 			db
 				.select()
@@ -615,38 +600,55 @@ export class LessonService {
 
 		const currentBlockState =
 			blockStates.find((blockState) => blockState.blockId === currentBlock.id) ?? null;
+		const currentVisit =
+			blockVisits.find((visit) => visit.id === activeSession.currentVisitId) ??
+			blockVisits
+				.filter((visit) => visit.blockId === currentBlock.id)
+				.sort((left, right) => right.visitNumber - left.visitNumber)[0] ??
+			null;
 		const filesById = Object.fromEntries(files.map((file) => [file.id, file])) as Record<
 			string,
 			InteractiveLearningFile
 		>;
-		const templateContext = this.buildTemplateContext(session, activityData.activity, blockStates);
+		const templateContext = this.buildTemplateContext(activeSession, activityData.activity, blockStates);
 		const resolvedCurrentBlock = this.resolveBlock(currentBlock, templateContext);
 		const currentAssets = this.resolveAssets(resolvedCurrentBlock, filesById);
 		const currentChatMessages =
-			currentBlock.kind === 'agent' && currentBlockState?.chatId
-				? await this.loadBlockChatMessages(currentBlockState.chatId)
+			currentBlock.kind === 'agent' && (currentVisit?.chatId || currentBlockState?.chatId)
+				? await this.loadBlockChatMessages(currentVisit?.chatId || currentBlockState?.chatId!)
 				: [];
 		const isReadOnly =
 			activityData.activity.status === 'closed' ||
-			session.status === lessonAttemptStatus.COMPLETED;
+			activeSession.status === lessonAttemptStatus.COMPLETED;
+		const availableReferenceGroups = this.getAvailableReferenceGroups(definition);
+		const currentBlockContract = buildLessonBlockContract(currentBlock);
 
 		return {
 			activity: activityData.activity,
 			lesson: activityData.lesson,
 			definition,
-			session,
+			session: activeSession,
 			blockStates,
+			blockVisits,
 			currentBlock,
 			resolvedCurrentBlock,
 			currentBlockState,
+			currentVisit,
 			currentAssets,
 			currentChatMessages,
 			files,
 			filesById,
-			availableVariables: this.getAvailableVariables(definition),
+			availableVariables: [
+				...availableReferenceGroups.session,
+				...availableReferenceGroups.state,
+				...availableReferenceGroups.outputs
+			],
+			availableReferenceGroups,
+			currentBlockContract,
+			currentVisitId: activeSession.currentVisitId ?? currentVisit?.id ?? null,
 			canRestart:
 				activityData.lesson.allowRestart &&
-				session.userId === input.userId &&
+				activeSession.userId === input.userId &&
 				activityData.activity.status === 'published',
 			canInteract: !isReadOnly,
 			isReadOnly
@@ -681,7 +683,7 @@ export class LessonService {
 		if (
 			view.currentBlock.kind === 'agent' &&
 			(view.currentBlock.requiresResponse ?? true) &&
-			!normalizeOutputs(view.currentBlockState?.outputsJson).response
+			!normalizeOutputs(view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson).response
 		) {
 			throw new LessonServiceError(
 				400,
@@ -689,7 +691,10 @@ export class LessonService {
 			);
 		}
 
-		return this.completeBlockAndEnterNext(view, normalizeOutputs(view.currentBlockState?.outputsJson));
+		return this.completeBlockAndEnterNext(
+			view,
+			normalizeOutputs(view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson)
+		);
 	}
 
 	static async submitChoice(input: {
@@ -730,12 +735,26 @@ export class LessonService {
 			optionId: option.id
 		};
 
+		if (!view.currentVisit) {
+			throw new LessonServiceError(409, 'No se pudo resolver la visita activa del bloque.');
+		}
+
+		await this.updateBlockVisit({
+			visitId: view.currentVisit.id,
+			status: lessonBlockVisitStatus.COMPLETED,
+			outputs,
+			lastChoiceValue: option.value,
+			completedAt: new Date()
+		});
+
 		await this.upsertBlockState({
 			sessionId: view.session.id,
 			blockId: view.currentBlock.id,
 			status: lessonBlockStateStatus.COMPLETED,
 			outputs,
-			lastChoiceValue: option.value
+			lastChoiceValue: option.value,
+			lastVisitId: view.currentVisit.id,
+			completedAt: new Date()
 		});
 
 		await this.logEvent({
@@ -743,6 +762,7 @@ export class LessonService {
 			sessionId: view.session.id,
 			userId: view.session.userId,
 			courseId: view.session.courseId,
+			visitId: view.currentVisit.id,
 			blockId: view.currentBlock.id,
 			eventType: lessonEventType.BLOCK_COMPLETED,
 			payload: {
@@ -757,6 +777,7 @@ export class LessonService {
 			sessionId: view.session.id,
 			userId: view.session.userId,
 			courseId: view.session.courseId,
+			visitId: view.currentVisit.id,
 			blockId: view.currentBlock.id,
 			eventType: lessonEventType.BRANCH_TAKEN,
 			payload: {
@@ -792,11 +813,11 @@ export class LessonService {
 			throw new LessonServiceError(409, 'El bloque activo no es un bloque IA.');
 		}
 
-		const currentOutputs = normalizeOutputs(view.currentBlockState?.outputsJson);
+		const currentOutputs = normalizeOutputs(view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson);
 		if (
 			view.currentBlock.agentConfig.mode === 'guided_turn' &&
 			currentOutputs.response &&
-			view.currentBlockState?.chatId
+			(view.currentVisit?.chatId || view.currentBlockState?.chatId)
 		) {
 			throw new LessonServiceError(
 				400,
@@ -850,12 +871,20 @@ export class LessonService {
 			...extractedOutputs
 		};
 
+		await this.updateBlockVisit({
+			visitId: blockState.id,
+			status: lessonBlockVisitStatus.ACTIVE,
+			outputs,
+			chatId: blockState.chatId!
+		});
+
 		await this.upsertBlockState({
 			sessionId: view.session.id,
 			blockId: view.currentBlock.id,
 			status: lessonBlockStateStatus.ACTIVE,
 			outputs,
-			chatId: blockState.chatId!
+			chatId: blockState.chatId!,
+			lastVisitId: blockState.id
 		});
 
 		await markActivityInProgress({
@@ -901,6 +930,7 @@ export class LessonService {
 			attemptNumber,
 			status: lessonAttemptStatus.ACTIVE,
 			currentBlockId: input.entryBlockId,
+			currentVisitId: null,
 			sessionStateJson: JSON.stringify({ attemptNumber }),
 			startedAt: now,
 			lastActiveAt: now,
@@ -938,6 +968,7 @@ export class LessonService {
 				attemptNumber,
 				status: lessonAttemptStatus.ACTIVE,
 				currentBlockId: input.entryBlockId,
+				currentVisitId: null,
 				sessionStateJson: JSON.stringify({ attemptNumber }),
 				startedAt: now,
 				lastActiveAt: now,
@@ -964,11 +995,24 @@ export class LessonService {
 			);
 		}
 
+		if (!view.currentVisit) {
+			throw new LessonServiceError(409, 'No se pudo resolver la visita activa del bloque.');
+		}
+
+		await this.updateBlockVisit({
+			visitId: view.currentVisit.id,
+			status: lessonBlockVisitStatus.COMPLETED,
+			outputs,
+			completedAt: new Date()
+		});
+
 		await this.upsertBlockState({
 			sessionId: view.session.id,
 			blockId: view.currentBlock.id,
 			status: lessonBlockStateStatus.COMPLETED,
-			outputs
+			outputs,
+			lastVisitId: view.currentVisit.id,
+			completedAt: new Date()
 		});
 
 		await this.logEvent({
@@ -976,6 +1020,7 @@ export class LessonService {
 			sessionId: view.session.id,
 			userId: view.session.userId,
 			courseId: view.session.courseId,
+			visitId: view.currentVisit.id,
 			blockId: view.currentBlock.id,
 			eventType: lessonEventType.BLOCK_COMPLETED,
 			payload: {
@@ -990,6 +1035,7 @@ export class LessonService {
 				sessionId: view.session.id,
 				userId: view.session.userId,
 				courseId: view.session.courseId,
+				visitId: view.currentVisit.id,
 				blockId: view.currentBlock.id,
 				eventType: lessonEventType.BRANCH_TAKEN,
 				payload: {
@@ -1018,23 +1064,38 @@ export class LessonService {
 		const now = new Date();
 		const nextStatus =
 			block.kind === 'end' ? lessonAttemptStatus.COMPLETED : lessonAttemptStatus.ACTIVE;
+		const visit = await this.createBlockVisit({
+			sessionId: session.id,
+			blockId,
+			status:
+				block.kind === 'end'
+					? lessonBlockVisitStatus.COMPLETED
+					: lessonBlockVisitStatus.ACTIVE,
+			completedAt: block.kind === 'end' ? now : null
+		});
 
 		await this.upsertBlockState({
 			sessionId: session.id,
 			blockId,
-			status: block.kind === 'end' ? lessonBlockStateStatus.COMPLETED : lessonBlockStateStatus.ACTIVE
+			status: block.kind === 'end' ? lessonBlockStateStatus.COMPLETED : lessonBlockStateStatus.ACTIVE,
+			lastVisitId: visit.id,
+			incrementVisitCount: true,
+			enteredAt: visit.enteredAt,
+			completedAt: visit.completedAt ?? null
 		});
 
 		await db
 			.update(interactiveLessonSession)
 			.set({
 				currentBlockId: blockId,
+				currentVisitId: visit.id,
 				status: nextStatus,
 				lastActiveAt: now,
 				completedAt: block.kind === 'end' ? now : null,
 				sessionStateJson: JSON.stringify({
 					...safeJsonParse<JsonRecord>(session.sessionStateJson, {}),
 					currentBlockId: blockId,
+					currentVisitId: visit.id,
 					status: nextStatus
 				}),
 				updatedAt: now
@@ -1046,6 +1107,7 @@ export class LessonService {
 			sessionId: session.id,
 			userId: session.userId,
 			courseId: session.courseId,
+			visitId: visit.id,
 			blockId,
 			eventType: lessonEventType.BLOCK_ENTERED,
 			payload: { kind: block.kind, title: block.title }
@@ -1057,6 +1119,7 @@ export class LessonService {
 				sessionId: session.id,
 				userId: session.userId,
 				courseId: session.courseId,
+				visitId: visit.id,
 				blockId,
 				eventType: lessonEventType.SESSION_COMPLETED,
 				payload: { attemptNumber: session.attemptNumber }
@@ -1084,7 +1147,7 @@ export class LessonService {
 		return updatedSession;
 	}
 
-	private static async ensureAgentBlockChat(view: LessonSessionView): Promise<InteractiveLessonBlockState> {
+	private static async ensureAgentBlockChat(view: LessonSessionView): Promise<InteractiveLessonBlockVisit> {
 		if (view.currentBlock.kind !== 'agent') {
 			throw new LessonServiceError(400, 'El bloque activo no es IA.');
 		}
@@ -1093,8 +1156,12 @@ export class LessonService {
 			throw new LessonServiceError(409, 'No se pudo resolver el bloque IA actual.');
 		}
 
-		if (view.currentBlockState?.chatId) {
-			return view.currentBlockState;
+		if (!view.currentVisit) {
+			throw new LessonServiceError(409, 'No se pudo resolver la visita activa del bloque IA.');
+		}
+
+		if (view.currentVisit.chatId) {
+			return view.currentVisit;
 		}
 
 		const now = new Date();
@@ -1130,30 +1197,35 @@ export class LessonService {
 			);
 		}
 
+		await this.updateBlockVisit({
+			visitId: view.currentVisit.id,
+			status: lessonBlockVisitStatus.ACTIVE,
+			outputs: normalizeOutputs(view.currentVisit.outputsJson ?? view.currentBlockState?.outputsJson),
+			chatId
+		});
+
 		await this.upsertBlockState({
 			sessionId: view.session.id,
 			blockId: view.currentBlock.id,
 			status: lessonBlockStateStatus.ACTIVE,
-			outputs: normalizeOutputs(view.currentBlockState?.outputsJson),
-			chatId
+			outputs: normalizeOutputs(view.currentVisit.outputsJson ?? view.currentBlockState?.outputsJson),
+			chatId,
+			lastVisitId: view.currentVisit.id
 		});
 
-		const updatedState = await db
+		const updatedVisit = await db
 			.select()
-			.from(interactiveLessonBlockState)
+			.from(interactiveLessonBlockVisit)
 			.where(
-				and(
-					eq(interactiveLessonBlockState.sessionId, view.session.id),
-					eq(interactiveLessonBlockState.blockId, view.currentBlock.id)
-				)
+				eq(interactiveLessonBlockVisit.id, view.currentVisit.id)
 			)
 			.get();
 
-		if (!updatedState) {
+		if (!updatedVisit) {
 			throw new LessonServiceError(500, 'No se pudo inicializar el bloque IA.');
 		}
 
-		return updatedState;
+		return updatedVisit;
 	}
 
 	private static async extractAgentOutputs(input: {
@@ -1184,7 +1256,7 @@ export class LessonService {
 
 		try {
 			const extractionPrompt = [
-				'Eres un extractor de datos para una lesson secuencial.',
+				'Eres un extractor de datos para una lesson basada en grafo.',
 				'Devuelve exclusivamente un objeto JSON válido que siga este esquema:',
 				schemaDescription,
 				'Conversación:',
@@ -1287,32 +1359,159 @@ export class LessonService {
 		return relation.courseId;
 	}
 
+	private static async ensureSessionVisitBackfill(session: InteractiveLessonSession): Promise<void> {
+		const [blockStates, blockVisits] = await Promise.all([
+			db
+				.select()
+				.from(interactiveLessonBlockState)
+				.where(eq(interactiveLessonBlockState.sessionId, session.id))
+				.all(),
+			db
+				.select()
+				.from(interactiveLessonBlockVisit)
+				.where(eq(interactiveLessonBlockVisit.sessionId, session.id))
+				.orderBy(interactiveLessonBlockVisit.visitNumber)
+				.all()
+		]);
+
+		const latestByBlock = new Map<string, InteractiveLessonBlockVisit>();
+
+		if (blockVisits.length === 0 && blockStates.length > 0) {
+			const orderedStates = [...blockStates].sort((left, right) => {
+				const leftTime = (left.enteredAt ?? left.createdAt).getTime();
+				const rightTime = (right.enteredAt ?? right.createdAt).getTime();
+				return leftTime - rightTime;
+			});
+
+			for (const blockState of orderedStates) {
+				const visit = await this.createBlockVisit({
+					sessionId: session.id,
+					blockId: blockState.blockId,
+					status:
+						blockState.status === lessonBlockStateStatus.COMPLETED
+							? lessonBlockVisitStatus.COMPLETED
+							: blockState.status === lessonBlockStateStatus.SKIPPED
+								? lessonBlockVisitStatus.SKIPPED
+								: lessonBlockVisitStatus.ACTIVE,
+					outputs: normalizeOutputs(blockState.outputsJson),
+					lastChoiceValue: blockState.lastChoiceValue ?? undefined,
+					chatId: blockState.chatId ?? undefined,
+					enteredAt: blockState.enteredAt ?? blockState.createdAt,
+					completedAt: blockState.completedAt ?? null,
+					metadata: {
+						backfilled: true,
+						sourceBlockStateId: blockState.id
+					}
+				});
+
+				latestByBlock.set(blockState.blockId, visit);
+
+				await db
+					.update(interactiveLessonBlockState)
+					.set({
+						lastVisitId: visit.id,
+						updatedAt: new Date()
+					})
+					.where(eq(interactiveLessonBlockState.id, blockState.id));
+			}
+		} else {
+			for (const visit of blockVisits) {
+				const existing = latestByBlock.get(visit.blockId);
+				if (!existing || visit.visitNumber >= existing.visitNumber) {
+					latestByBlock.set(visit.blockId, visit);
+				}
+			}
+		}
+
+		for (const blockState of blockStates) {
+			const latestVisit = latestByBlock.get(blockState.blockId);
+			if (!latestVisit || blockState.lastVisitId === latestVisit.id) continue;
+			await db
+				.update(interactiveLessonBlockState)
+				.set({
+					lastVisitId: latestVisit.id,
+					updatedAt: new Date()
+				})
+				.where(eq(interactiveLessonBlockState.id, blockState.id));
+		}
+
+		const currentVisitId =
+			session.currentVisitId ??
+			latestByBlock.get(session.currentBlockId)?.id ??
+			null;
+
+		if (currentVisitId && session.currentVisitId !== currentVisitId) {
+			await db
+				.update(interactiveLessonSession)
+				.set({
+					currentVisitId,
+					sessionStateJson: JSON.stringify({
+						...safeJsonParse<JsonRecord>(session.sessionStateJson, {}),
+						currentVisitId
+					}),
+					updatedAt: new Date()
+				})
+				.where(eq(interactiveLessonSession.id, session.id));
+		}
+
+		const events = await db
+			.select()
+			.from(interactiveLessonEvent)
+			.where(eq(interactiveLessonEvent.sessionId, session.id))
+			.all();
+
+		for (const event of events) {
+			if (event.visitId || !event.blockId) continue;
+			const visit = latestByBlock.get(event.blockId);
+			if (!visit) continue;
+			await db
+				.update(interactiveLessonEvent)
+				.set({ visitId: visit.id })
+				.where(eq(interactiveLessonEvent.id, event.id));
+		}
+	}
+
 	private static buildTemplateContext(
 		session: InteractiveLessonSession,
 		activity: InteractiveLearning,
 		blockStates: InteractiveLessonBlockState[]
-	): { session: JsonRecord; blocks: Record<string, { outputs: JsonRecord }> } {
+	): LessonTemplateContext {
 		return {
 			session: {
 				id: session.id,
 				attemptNumber: session.attemptNumber,
 				status: session.status,
 				currentBlockId: session.currentBlockId,
+				currentVisitId: session.currentVisitId,
 				activityName: activity.name,
 				courseId: session.courseId
 			},
 			blocks: Object.fromEntries(
 				blockStates.map((blockState) => [
 					blockState.blockId,
-					{ outputs: normalizeOutputs(blockState.outputsJson) }
+					{
+						state: {
+							status: blockState.status,
+							visitCount: blockState.visitCount,
+							enteredAt: blockState.enteredAt?.toISOString() ?? null,
+							completedAt: blockState.completedAt?.toISOString() ?? null,
+							lastVisitId: blockState.lastVisitId,
+							available: blockState.lastVisitId !== null && blockState.lastVisitId !== undefined
+						},
+						outputs: {
+							visited: blockState.visitCount > 0,
+							completed: blockState.status === lessonBlockStateStatus.COMPLETED,
+							...normalizeOutputs(blockState.outputsJson)
+						}
+					}
 				])
-			) as Record<string, { outputs: JsonRecord }>
+			) as LessonTemplateContext['blocks']
 		};
 	}
 
 	private static resolveStringTemplate(
 		template: string | null | undefined,
-		context: { session: JsonRecord; blocks: Record<string, { outputs: JsonRecord }> }
+		context: LessonTemplateContext
 	): string {
 		if (!template) return '';
 
@@ -1326,7 +1525,7 @@ export class LessonService {
 
 	private static resolveTemplateValue(
 		path: string,
-		context: { session: JsonRecord; blocks: Record<string, { outputs: JsonRecord }> }
+		context: LessonTemplateContext
 	): unknown {
 		if (path.startsWith('session.')) {
 			return path.split('.').slice(1).reduce<unknown>((current, segment) => {
@@ -1338,16 +1537,16 @@ export class LessonService {
 		if (!path.startsWith('blocks.')) return undefined;
 
 		const [, blockId, scope, ...rest] = path.split('.');
-		if (!blockId || scope !== 'outputs') return undefined;
+		if (!blockId || (scope !== 'outputs' && scope !== 'state')) return undefined;
 		return rest.reduce<unknown>((current, segment) => {
 			if (!current || typeof current !== 'object') return undefined;
 			return (current as Record<string, unknown>)[segment];
-		}, context.blocks[blockId]?.outputs);
+		}, scope === 'state' ? context.blocks[blockId]?.state : context.blocks[blockId]?.outputs);
 	}
 
 	private static resolveBlock(
 		block: LessonBlock,
-		context: { session: JsonRecord; blocks: Record<string, { outputs: JsonRecord }> }
+		context: LessonTemplateContext
 	): LessonBlock {
 		if (block.kind === 'agent') {
 			return {
@@ -1483,6 +1682,10 @@ export class LessonService {
 		outputs?: JsonRecord;
 		lastChoiceValue?: string;
 		chatId?: string;
+		lastVisitId?: string;
+		incrementVisitCount?: boolean;
+		enteredAt?: Date | null;
+		completedAt?: Date | null;
 	}): Promise<void> {
 		const existing = await db
 			.select()
@@ -1496,8 +1699,7 @@ export class LessonService {
 			.get();
 		const now = new Date();
 		const serializedOutputs = input.outputs ? JSON.stringify(input.outputs) : undefined;
-		const isActive = input.status === lessonBlockStateStatus.ACTIVE;
-		const shouldIncrementVisit = isActive && existing && existing.status !== lessonBlockStateStatus.ACTIVE;
+		const shouldIncrementVisit = Boolean(input.incrementVisitCount);
 
 		if (existing) {
 			await db
@@ -1505,9 +1707,16 @@ export class LessonService {
 				.set({
 					status: input.status as any,
 					visitCount: shouldIncrementVisit ? existing.visitCount + 1 : existing.visitCount,
-					enteredAt: shouldIncrementVisit ? now : existing.enteredAt,
+					lastVisitId: input.lastVisitId ?? existing.lastVisitId,
+					enteredAt:
+						(shouldIncrementVisit ? input.enteredAt : undefined) ??
+						(existing.enteredAt ?? input.enteredAt ?? null),
 					completedAt:
-						input.status === lessonBlockStateStatus.COMPLETED ? now : existing.completedAt,
+						input.status === lessonBlockStateStatus.COMPLETED
+							? input.completedAt ?? now
+							: input.status === lessonBlockStateStatus.ACTIVE
+								? null
+								: input.completedAt ?? existing.completedAt,
 					lastChoiceValue: input.lastChoiceValue ?? existing.lastChoiceValue,
 					outputsJson: serializedOutputs ?? existing.outputsJson,
 					chatId: input.chatId ?? existing.chatId,
@@ -1522,17 +1731,18 @@ export class LessonService {
 			sessionId: input.sessionId,
 			blockId: input.blockId,
 			status: input.status as any,
-			visitCount:
-				input.status === lessonBlockStateStatus.ACTIVE ||
-				input.status === lessonBlockStateStatus.COMPLETED
-					? 1
-					: 0,
+			visitCount: shouldIncrementVisit ? 1 : 0,
+			lastVisitId: input.lastVisitId ?? null,
 			enteredAt:
-				input.status === lessonBlockStateStatus.ACTIVE ||
+				input.enteredAt ??
+				(input.status === lessonBlockStateStatus.ACTIVE ||
 				input.status === lessonBlockStateStatus.COMPLETED
 					? now
-					: null,
-			completedAt: input.status === lessonBlockStateStatus.COMPLETED ? now : null,
+					: null),
+			completedAt:
+				input.status === lessonBlockStateStatus.COMPLETED
+					? input.completedAt ?? now
+					: input.completedAt ?? null,
 			lastChoiceValue: input.lastChoiceValue ?? null,
 			outputsJson: serializedOutputs ?? null,
 			chatId: input.chatId ?? null,
@@ -1540,6 +1750,110 @@ export class LessonService {
 			createdAt: now,
 			updatedAt: now
 		});
+	}
+
+	private static async createBlockVisit(input: {
+		sessionId: string;
+		blockId: string;
+		status?: string;
+		outputs?: JsonRecord;
+		lastChoiceValue?: string;
+		chatId?: string;
+		enteredAt?: Date;
+		completedAt?: Date | null;
+		metadata?: JsonRecord | null;
+	}): Promise<InteractiveLessonBlockVisit> {
+		const [visitStats] = await db
+			.select({ maxVisit: max(interactiveLessonBlockVisit.visitNumber) })
+			.from(interactiveLessonBlockVisit)
+			.where(eq(interactiveLessonBlockVisit.sessionId, input.sessionId));
+		const visitNumber = (visitStats?.maxVisit ?? 0) + 1;
+		const now = input.enteredAt ?? new Date();
+		const visitId = nanoid();
+
+		await db.insert(interactiveLessonBlockVisit).values({
+			id: visitId,
+			sessionId: input.sessionId,
+			blockId: input.blockId,
+			visitNumber,
+			status: (input.status ?? lessonBlockVisitStatus.ACTIVE) as any,
+			enteredAt: now,
+			completedAt: input.completedAt ?? null,
+			lastChoiceValue: input.lastChoiceValue ?? null,
+			outputsJson: input.outputs ? JSON.stringify(input.outputs) : null,
+			chatId: input.chatId ?? null,
+			metadata: input.metadata ? JSON.stringify(input.metadata) : null,
+			createdAt: now,
+			updatedAt: now
+		});
+
+		const createdVisit = await db
+			.select()
+			.from(interactiveLessonBlockVisit)
+			.where(eq(interactiveLessonBlockVisit.id, visitId))
+			.get();
+
+		if (!createdVisit) {
+			throw new LessonServiceError(500, 'No se pudo crear la visita del bloque.');
+		}
+
+		return createdVisit;
+	}
+
+	private static async updateBlockVisit(input: {
+		visitId: string;
+		status?: string;
+		outputs?: JsonRecord;
+		lastChoiceValue?: string;
+		chatId?: string;
+		completedAt?: Date | null;
+		metadata?: JsonRecord | null;
+	}): Promise<InteractiveLessonBlockVisit> {
+		const existing = await db
+			.select()
+			.from(interactiveLessonBlockVisit)
+			.where(eq(interactiveLessonBlockVisit.id, input.visitId))
+			.get();
+
+		if (!existing) {
+			throw new LessonServiceError(404, 'Visita de bloque no encontrada.');
+		}
+
+		const now = new Date();
+		const nextStatus = input.status ?? existing.status;
+		const nextCompletedAt =
+			input.completedAt !== undefined
+				? input.completedAt
+				: nextStatus === lessonBlockVisitStatus.COMPLETED ||
+					  nextStatus === lessonBlockVisitStatus.SKIPPED ||
+					  nextStatus === lessonBlockVisitStatus.ABANDONED
+					? existing.completedAt ?? now
+					: null;
+
+		await db
+			.update(interactiveLessonBlockVisit)
+			.set({
+				status: nextStatus as any,
+				completedAt: nextCompletedAt,
+				lastChoiceValue: input.lastChoiceValue ?? existing.lastChoiceValue,
+				outputsJson: input.outputs ? JSON.stringify(input.outputs) : existing.outputsJson,
+				chatId: input.chatId ?? existing.chatId,
+				metadata: input.metadata ? JSON.stringify(input.metadata) : existing.metadata,
+				updatedAt: now
+			})
+			.where(eq(interactiveLessonBlockVisit.id, input.visitId));
+
+		const updatedVisit = await db
+			.select()
+			.from(interactiveLessonBlockVisit)
+			.where(eq(interactiveLessonBlockVisit.id, input.visitId))
+			.get();
+
+		if (!updatedVisit) {
+			throw new LessonServiceError(500, 'No se pudo actualizar la visita del bloque.');
+		}
+
+		return updatedVisit;
 	}
 
 	private static async loadBlockChatMessages(
@@ -1584,6 +1898,7 @@ export class LessonService {
 		sessionId: string;
 		userId: string;
 		courseId: string;
+		visitId?: string | null;
 		blockId?: string | null;
 		eventType: string;
 		payload?: JsonRecord;
@@ -1594,6 +1909,7 @@ export class LessonService {
 			sessionId: input.sessionId,
 			userId: input.userId,
 			courseId: input.courseId,
+			visitId: input.visitId ?? null,
 			blockId: input.blockId ?? null,
 			eventType: input.eventType as any,
 			payloadJson: input.payload ? JSON.stringify(input.payload) : null,
@@ -1617,6 +1933,23 @@ export class LessonService {
 			graph.set(block.id, [...targets]);
 		}
 		return graph;
+	}
+
+	private static buildIncomingTransitionGraph(definition: LessonDefinition): Map<string, string[]> {
+		const graph = this.buildTransitionGraph(definition);
+		const incoming = new Map<string, string[]>();
+
+		for (const block of definition.blocks) {
+			incoming.set(block.id, []);
+		}
+
+		for (const [source, targets] of graph.entries()) {
+			for (const target of targets) {
+				incoming.set(target, [...(incoming.get(target) ?? []), source]);
+			}
+		}
+
+		return incoming;
 	}
 
 	private static createBlockTemplate(
@@ -1718,6 +2051,240 @@ export class LessonService {
 		return candidate;
 	}
 
+	private static contractFieldToVariable(
+		field: LessonBlockContractField,
+		blockId: string
+	): LessonAvailableVariable {
+		return {
+			path: field.path,
+			label: field.label,
+			description: field.description,
+			namespace: field.namespace,
+			blockId,
+			source: field.namespace === 'state' ? 'block-state' : 'block-output'
+		};
+	}
+
+	private static buildBlockContract(block: LessonBlock): LessonBlockContract {
+		const state: LessonBlockContractField[] = [
+			{
+				path: `blocks.${block.id}.state.status`,
+				key: 'status',
+				label: `${block.title} · estado`,
+				description: 'Estado resumido de la última visita registrada.',
+				type: 'status',
+				source: 'system',
+				namespace: 'state',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.state.visitCount`,
+				key: 'visitCount',
+				label: `${block.title} · visitas`,
+				description: 'Número de visitas registradas para este bloque en la sesión.',
+				type: 'integer',
+				source: 'system',
+				namespace: 'state',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.state.enteredAt`,
+				key: 'enteredAt',
+				label: `${block.title} · entrada`,
+				description: 'Fecha/hora ISO de la última entrada al bloque.',
+				type: 'date',
+				source: 'system',
+				namespace: 'state',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.state.completedAt`,
+				key: 'completedAt',
+				label: `${block.title} · completado`,
+				description: 'Fecha/hora ISO de la última completitud registrada.',
+				type: 'date',
+				source: 'system',
+				namespace: 'state',
+				availableWhen: 'after_completion'
+			},
+			{
+				path: `blocks.${block.id}.state.available`,
+				key: 'available',
+				label: `${block.title} · disponible`,
+				description: 'Indica si este bloque ya tiene una visita persistida en la sesión.',
+				type: 'boolean',
+				source: 'system',
+				namespace: 'state',
+				availableWhen: 'always'
+			},
+			{
+				path: `blocks.${block.id}.state.lastVisitId`,
+				key: 'lastVisitId',
+				label: `${block.title} · última visita`,
+				description: 'Identificador de la última visita registrada.',
+				type: 'string',
+				source: 'system',
+				namespace: 'state',
+				availableWhen: 'after_visit'
+			}
+		];
+
+		const outputs: LessonBlockContractField[] = [];
+
+		if (block.kind === 'content') {
+			outputs.push(
+				{
+					path: `blocks.${block.id}.outputs.visited`,
+					key: 'visited',
+					label: `${block.title} · visitado`,
+					description: 'Booleano derivado para saber si el bloque ya fue visitado.',
+					type: 'boolean',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'always'
+				},
+				{
+					path: `blocks.${block.id}.outputs.completed`,
+					key: 'completed',
+					label: `${block.title} · completado`,
+					description: 'Booleano derivado para saber si la última visita quedó completada.',
+					type: 'boolean',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'always'
+				}
+			);
+		}
+
+		if (block.kind === 'choice') {
+			const outputKey = block.outputKey || 'selection';
+			outputs.push(
+				{
+					path: `blocks.${block.id}.outputs.${outputKey}`,
+					key: outputKey,
+					label: `${block.title} · selección`,
+					description: 'Valor elegido por el estudiante en la última visita.',
+					type: 'string',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_completion'
+				},
+				{
+					path: `blocks.${block.id}.outputs.selectedValue`,
+					key: 'selectedValue',
+					label: `${block.title} · valor`,
+					description: 'Valor bruto elegido por el estudiante.',
+					type: 'string',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_completion'
+				},
+				{
+					path: `blocks.${block.id}.outputs.selectedLabel`,
+					key: 'selectedLabel',
+					label: `${block.title} · etiqueta`,
+					description: 'Etiqueta visible elegida por el estudiante.',
+					type: 'string',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_completion'
+				},
+				{
+					path: `blocks.${block.id}.outputs.optionId`,
+					key: 'optionId',
+					label: `${block.title} · opción`,
+					description: 'ID técnico de la opción elegida.',
+					type: 'string',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_completion'
+				}
+			);
+		}
+
+		if (block.kind === 'agent') {
+			outputs.push(
+				{
+					path: `blocks.${block.id}.outputs.response`,
+					key: 'response',
+					label: `${block.title} · respuesta`,
+					description: 'Última respuesta generada por la IA en este bloque.',
+					type: 'string',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_completion'
+				},
+				{
+					path: `blocks.${block.id}.outputs.lastUserMessage`,
+					key: 'lastUserMessage',
+					label: `${block.title} · entrada`,
+					description: 'Última aportación del alumno en este bloque.',
+					type: 'string',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_visit'
+				},
+				{
+					path: `blocks.${block.id}.outputs.mode`,
+					key: 'mode',
+					label: `${block.title} · modo`,
+					description: 'Modo de conversación configurado para el bloque IA.',
+					type: 'string',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_visit'
+				}
+			);
+		}
+
+		if (block.kind === 'end') {
+			outputs.push({
+				path: `blocks.${block.id}.outputs.completed`,
+				key: 'completed',
+				label: `${block.title} · final alcanzado`,
+				description: 'Indica si esta sesión llegó a este nodo final.',
+				type: 'boolean',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_completion'
+			});
+		}
+
+		const publicOutputFields = new Map<string, LessonOutputField>();
+
+		for (const field of block.exposure?.outputs ?? []) {
+			publicOutputFields.set(field.key, field);
+		}
+
+		if (block.kind === 'agent') {
+			for (const field of block.agentConfig.outputSchema ?? []) {
+				publicOutputFields.set(field.key, field);
+			}
+		}
+
+		for (const field of publicOutputFields.values()) {
+			if (outputs.some((candidate) => candidate.key === field.key)) continue;
+			outputs.push({
+				path: `blocks.${block.id}.outputs.${field.key}`,
+				key: field.key,
+				label: `${block.title} · ${field.key}`,
+				description: field.description || 'Salida pública disponible para otros bloques.',
+				type: field.type,
+				source: 'public',
+				namespace: 'outputs',
+				availableWhen: 'after_completion'
+			});
+		}
+
+		return {
+			blockId: block.id,
+			blockTitle: block.title,
+			blockKind: block.kind,
+			state,
+			outputs
+		};
+	}
+
 	private static findIncomingReferences(definition: LessonDefinition, blockId: string): string[] {
 		const references: string[] = [];
 
@@ -1739,6 +2306,12 @@ export class LessonService {
 					if (option.targetBlockId === blockId) {
 						references.push(`${block.id}.options.${option.id}`);
 					}
+				}
+			}
+
+			for (const ref of this.extractBlockReferences(block)) {
+				if (ref.startsWith(`blocks.${blockId}.`)) {
+					references.push(`${block.id}.ref:${ref}`);
 				}
 			}
 		}
@@ -1881,75 +2454,59 @@ export class LessonService {
 		}
 	}
 
-	private static assertNoGraphCycles(graph: Map<string, string[]>, entryBlockId: string): void {
-		const visited = new Set<string>();
-		const visiting = new Set<string>();
-		const visit = (node: string) => {
-			if (visiting.has(node)) {
-				throw new LessonServiceError(400, `La lesson contiene un ciclo que pasa por "${node}".`);
+	private static extractBlockReferences(block: LessonBlock): Set<string> {
+		const refs = new Set<string>([
+			...extractTemplateRefs((block as { body?: string }).body),
+			...(block.kind === 'agent'
+				? [
+						...extractTemplateRefs(block.agentConfig.promptTemplate),
+						...extractTemplateRefs(block.agentConfig.systemPrompt),
+						...extractTemplateRefs(block.agentConfig.initialAssistantMessage)
+					]
+				: []),
+			...(block.kind === 'choice'
+				? block.options.flatMap((option) => [
+						...extractTemplateRefs(option.label),
+						...extractTemplateRefs(option.description)
+					])
+				: []),
+			...(block.kind === 'content'
+				? extractTemplateRefs(block.continueLabel)
+				: []),
+			...(block.kind === 'end' ? extractTemplateRefs(block.ctaLabel) : [])
+		]);
+
+		for (const branch of block.branches ?? []) {
+			if (branch.condition?.source) refs.add(branch.condition.source);
+			if (branch.label) {
+				for (const ref of extractTemplateRefs(branch.label)) refs.add(ref);
 			}
-			if (visited.has(node)) return;
-			visiting.add(node);
-			for (const target of graph.get(node) ?? []) visit(target);
-			visiting.delete(node);
-			visited.add(node);
-		};
-		visit(entryBlockId);
+		}
+
+		return refs;
 	}
 
-	private static assertTemplateReferences(definition: LessonDefinition, graph: Map<string, string[]>): void {
+	private static assertTemplateReferences(definition: LessonDefinition): void {
 		const blockMap = new Map(definition.blocks.map((block) => [block.id, block]));
 		for (const block of definition.blocks) {
-			const refs = new Set<string>([
-				...extractTemplateRefs((block as { body?: string }).body),
-				...(block.kind === 'agent'
-					? [
-							...extractTemplateRefs(block.agentConfig.promptTemplate),
-							...extractTemplateRefs(block.agentConfig.systemPrompt)
-						]
-					: []),
-				...(block.kind === 'choice'
-					? block.options.flatMap((option) => [
-							...extractTemplateRefs(option.label),
-							...extractTemplateRefs(option.description)
-						])
-					: [])
-			]);
-			for (const branch of block.branches ?? []) {
-				if (branch.condition?.source) refs.add(branch.condition.source);
-			}
+			const refs = this.extractBlockReferences(block);
 			for (const ref of refs) {
 				if (ref.startsWith('session.')) continue;
 				if (!ref.startsWith('blocks.')) {
 					throw new LessonServiceError(400, `La referencia "${ref}" del bloque "${block.id}" no usa un formato soportado.`);
 				}
 				const [, sourceBlockId, scope] = ref.split('.');
-				if (!sourceBlockId || scope !== 'outputs') {
-					throw new LessonServiceError(400, `La referencia "${ref}" del bloque "${block.id}" debe apuntar a outputs.`);
+				if (!sourceBlockId || (scope !== 'outputs' && scope !== 'state')) {
+					throw new LessonServiceError(
+						400,
+						`La referencia "${ref}" del bloque "${block.id}" debe apuntar a state u outputs.`
+					);
 				}
 				if (!blockMap.has(sourceBlockId)) {
 					throw new LessonServiceError(400, `La referencia "${ref}" del bloque "${block.id}" apunta a un bloque inexistente.`);
 				}
-				if (sourceBlockId === block.id || this.canReach(graph, block.id, sourceBlockId)) {
-					throw new LessonServiceError(400, `La referencia "${ref}" del bloque "${block.id}" depende de un bloque futuro o crea un ciclo de datos.`);
-				}
 			}
 		}
-	}
-
-	private static canReach(
-		graph: Map<string, string[]>,
-		source: string,
-		target: string,
-		visited = new Set<string>()
-	): boolean {
-		if (source === target) return true;
-		if (visited.has(source)) return false;
-		visited.add(source);
-		for (const next of graph.get(source) ?? []) {
-			if (next === target || this.canReach(graph, next, target, visited)) return true;
-		}
-		return false;
 	}
 
 	private static isStaff(role: string | undefined): boolean {
