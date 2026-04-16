@@ -6,6 +6,38 @@ import type { PageServerLoad } from './$types';
 import DBChatUtils from '$lib/server/db/DBChatUtils';
 import { ACTIVITY_COMPLETION_MIN_MESSAGES } from '$lib/constants';
 
+type StudentDraftMetrics = {
+    totalKeypresses: number;
+    totalPastes: number;
+    totalTimeSpentSeconds: number;
+};
+
+function emptyStudentDraftMetrics(): StudentDraftMetrics {
+    return {
+        totalKeypresses: 0,
+        totalPastes: 0,
+        totalTimeSpentSeconds: 0
+    };
+}
+
+function parseDraftMetrics(metadata: string | null | undefined): StudentDraftMetrics {
+    if (!metadata) {
+        return emptyStudentDraftMetrics();
+    }
+
+    try {
+        const parsed = JSON.parse(metadata) as Record<string, unknown>;
+
+        return {
+            totalKeypresses: typeof parsed.keystrokeCount === 'number' ? parsed.keystrokeCount : 0,
+            totalPastes: typeof parsed.pasteCount === 'number' ? parsed.pasteCount : 0,
+            totalTimeSpentSeconds: typeof parsed.timeSpentSeconds === 'number' ? parsed.timeSpentSeconds : 0
+        };
+    } catch {
+        return emptyStudentDraftMetrics();
+    }
+}
+
 export const load = (async ({ params, locals }) => {
     // Verificación de seguridad (defensa en profundidad)
     if (!locals.user) {
@@ -55,6 +87,7 @@ export const load = (async ({ params, locals }) => {
         const studentIds = enrolledStudents.map((student) => student.id);
         const chatIds = sessions.map(s => s.chatId);
         const messageCounts: Record<string, number> = {};
+        const draftMetricsByChatId = new Map<string, StudentDraftMetrics>();
         const progressStatusByUser = new Map<string, string>();
 
         if (chatIds.length > 0) {
@@ -64,6 +97,30 @@ export const load = (async ({ params, locals }) => {
                 .where(inArray(agentMessage.chatId, chatIds))
                 .groupBy(agentMessage.chatId);
             counts.forEach(c => { messageCounts[c.chatId] = c.messageCount; });
+
+            const userMessageMetrics = await db
+                .select({
+                    chatId: agentMessage.chatId,
+                    metadata: agentMessage.metadata
+                })
+                .from(agentMessage)
+                .where(
+                    and(
+                        inArray(agentMessage.chatId, chatIds),
+                        eq(agentMessage.role, 'user')
+                    )
+                );
+
+            for (const message of userMessageMetrics) {
+                const currentTotals = draftMetricsByChatId.get(message.chatId) ?? emptyStudentDraftMetrics();
+                const messageMetrics = parseDraftMetrics(message.metadata);
+
+                currentTotals.totalKeypresses += messageMetrics.totalKeypresses;
+                currentTotals.totalPastes += messageMetrics.totalPastes;
+                currentTotals.totalTimeSpentSeconds += messageMetrics.totalTimeSpentSeconds;
+
+                draftMetricsByChatId.set(message.chatId, currentTotals);
+            }
         }
 
         if (studentIds.length > 0) {
@@ -88,6 +145,15 @@ export const load = (async ({ params, locals }) => {
             const totalMessages = studentSessions.reduce(
                 (sum, s) => sum + (messageCounts[s.chatId] || 0), 0
             );
+            const draftMetrics = studentSessions.reduce((totals, session) => {
+                const sessionMetrics = draftMetricsByChatId.get(session.chatId);
+                if (!sessionMetrics) return totals;
+
+                totals.totalKeypresses += sessionMetrics.totalKeypresses;
+                totals.totalPastes += sessionMetrics.totalPastes;
+                totals.totalTimeSpentSeconds += sessionMetrics.totalTimeSpentSeconds;
+                return totals;
+            }, emptyStudentDraftMetrics());
             const hasActivity = studentSessions.length > 0;
             const progressStatus = progressStatusByUser.get(student.id);
             const isCompleted = progressStatus === 'completed';
@@ -105,6 +171,9 @@ export const load = (async ({ params, locals }) => {
                 inProgress: hasActivity && !isCompleted,
                 lastActivity,
                 totalMessages,
+                totalKeypresses: draftMetrics.totalKeypresses,
+                totalPastes: draftMetrics.totalPastes,
+                totalTimeSpentSeconds: draftMetrics.totalTimeSpentSeconds,
                 hasCompletionMarker: isCompleted
             };
         });
@@ -138,6 +207,18 @@ export const load = (async ({ params, locals }) => {
 
         // Calcular el total de mensajes enviados por el estudiante
         const totalMessages = studentChats.reduce((sum, chat) => sum + (chat.messages?.length || 0), 0);
+        const draftMetrics = studentChats.reduce((totals, chat) => {
+            if (!chat.messages) return totals;
+
+            for (const message of chat.messages) {
+                const messageMetrics = parseDraftMetrics(message.metadata);
+                totals.totalKeypresses += messageMetrics.totalKeypresses;
+                totals.totalPastes += messageMetrics.totalPastes;
+                totals.totalTimeSpentSeconds += messageMetrics.totalTimeSpentSeconds;
+            }
+
+            return totals;
+        }, emptyStudentDraftMetrics());
 
         // Comprobar si algún mensaje contiene [[DONE]]
         let hasCompletionMarker = false;
@@ -172,6 +253,9 @@ export const load = (async ({ params, locals }) => {
             inProgress: hasActivity && !isCompleted,
             lastActivity,
             totalMessages,
+            totalKeypresses: draftMetrics.totalKeypresses,
+            totalPastes: draftMetrics.totalPastes,
+            totalTimeSpentSeconds: draftMetrics.totalTimeSpentSeconds,
             hasCompletionMarker
         };
     });

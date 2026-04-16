@@ -25,39 +25,15 @@
         ];
 
         data.students.forEach(student => {
-            // Calcular métricas totales para el estudiante
-            let totalKeypresses = 0;
-            let totalPastes = 0;
-            let totalTime = 0;
-            
-            // Recorrer todos los chats del estudiante para sumar métricas
-            student.chats.forEach(chat => {
-                if (chat.messages) {
-                    chat.messages.forEach(message => {
-                        // Extraer métricas del mensaje si existen
-                        if (message.metadata) {
-                            try {
-                                const metrics = JSON.parse(message.metadata);
-                                totalKeypresses += metrics.keystrokeCount || 0;
-                                totalPastes += metrics.pasteCount || 0;
-                                totalTime += metrics.timeSpentSeconds || 0;
-                            } catch (e) {
-                                // Ignorar errores de parseo
-                            }
-                        }
-                    });
-                }
-            });
-            
             const row = [
                 student.username || student.alias || 'Sin nombre',
                 student.isCompleted ? 'Completado' : student.inProgress ? 'En Progreso' : 'Pendiente',
                 formatDate(student.lastActivity),
                 student.totalMessages,
                 student.chats.length,
-                totalKeypresses,
-                totalPastes,
-                totalTime
+                student.totalKeypresses,
+                student.totalPastes,
+                student.totalTimeSpentSeconds
             ];
             csvRows.push(row.join(';'));
         });
@@ -186,7 +162,7 @@
                         <TableHeadCell>Chats</TableHeadCell>
                     </TableHead>
                     <TableBody class="divide-y">
-                        {#each data.students as student}
+                        {#each data.students as student (student.id)}
                             <TableBodyRow>
                                 <TableBodyCell class="p-4! w-14 h-14 flex items-center justify-center">
                                     <Avatar 
