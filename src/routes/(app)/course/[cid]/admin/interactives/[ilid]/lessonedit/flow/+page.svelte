@@ -18,8 +18,11 @@
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import {
 		createLessonFlowGraph,
+		getLessonFlowBranchEdgeId,
 		getLessonFlowChoiceHandleId,
+		getLessonFlowChoiceEdgeId,
 		getLessonFlowEdgeTypeLabel,
+		getLessonFlowNextEdgeId,
 		getLessonFlowNextHandleId
 	} from '$lib/lesson/lessonFlow';
 	import LessonFlowNodeComponent from '$lib/components/lesson/flow/LessonFlowNode.svelte';
@@ -277,6 +280,78 @@
 		);
 	}
 
+	function findBlock(definition: LessonDefinition, blockId: string | null | undefined) {
+		if (!blockId) return null;
+		return definition.blocks.find((candidate) => candidate.id === blockId) ?? null;
+	}
+
+	function supportsDynamicIncomingOrder(block: LessonBlock | null | undefined) {
+		return block?.kind === 'end';
+	}
+
+	function appendIncomingOrder(
+		definition: LessonDefinition,
+		targetBlockId: string,
+		edgeId: string | null
+	) {
+		if (!edgeId) return;
+		const targetBlock = findBlock(definition, targetBlockId);
+		if (!supportsDynamicIncomingOrder(targetBlock)) return;
+
+		const nextOrder = [
+			...(targetBlock.graph?.incomingOrder ?? []).filter((candidate) => candidate !== edgeId),
+			edgeId
+		];
+
+		targetBlock.graph = {
+			...(targetBlock.graph ?? {}),
+			incomingOrder: nextOrder
+		};
+	}
+
+	function removeIncomingOrder(
+		definition: LessonDefinition,
+		targetBlockId: string | null | undefined,
+		edgeId: string | null
+	) {
+		if (!targetBlockId || !edgeId) return;
+		const targetBlock = findBlock(definition, targetBlockId);
+		if (!supportsDynamicIncomingOrder(targetBlock)) return;
+
+		const nextOrder = (targetBlock.graph?.incomingOrder ?? []).filter(
+			(candidate) => candidate !== edgeId
+		);
+
+		targetBlock.graph = {
+			...(targetBlock.graph ?? {}),
+			...(nextOrder.length > 0 ? { incomingOrder: nextOrder } : {})
+		};
+
+		if (nextOrder.length === 0 && !targetBlock.graph?.position) {
+			delete targetBlock.graph;
+		} else if (nextOrder.length === 0 && targetBlock.graph) {
+			delete targetBlock.graph.incomingOrder;
+		}
+	}
+
+	function getEdgeIdFromConnection(connection: Connection): string | null {
+		if (!connection.source) return null;
+
+		if (connection.sourceHandle?.startsWith('out:choice:')) {
+			const optionId = connection.sourceHandle.slice(getLessonFlowChoiceHandleId('').length);
+			return optionId ? getLessonFlowChoiceEdgeId(connection.source, optionId) : null;
+		}
+
+		if (connection.sourceHandle?.startsWith('out:branch:')) {
+			const branchIndex = Number(connection.sourceHandle.split(':').at(-1) ?? '-1');
+			return Number.isInteger(branchIndex) && branchIndex >= 0
+				? getLessonFlowBranchEdgeId(connection.source, branchIndex)
+				: null;
+		}
+
+		return getLessonFlowNextEdgeId(connection.source);
+	}
+
 	function addBranchToSelectedBlock() {
 		if (!selectedBlock || (selectedBlock.kind !== 'content' && selectedBlock.kind !== 'agent'))
 			return;
@@ -312,7 +387,7 @@
 					label: `Opción ${optionNumber}`,
 					value: `option_${optionNumber}`,
 					description: '',
-					targetBlockId: draftDefinition.entryBlockId
+					targetBlockId: ''
 				}
 			];
 		});
@@ -324,6 +399,7 @@
 		if (branchIndex === undefined) return;
 
 		updateSelectedEdge((definition, edge) => {
+			removeIncomingOrder(definition, edge.target, edge.id);
 			const block = definition.blocks.find((candidate) => candidate.id === edge.source);
 			if (!block || (block.kind !== 'content' && block.kind !== 'agent')) return;
 			block.branches = (block.branches ?? []).filter((_, index) => index !== branchIndex);
@@ -336,6 +412,7 @@
 		if (!optionId) return;
 
 		updateSelectedEdge((definition, edge) => {
+			removeIncomingOrder(definition, edge.target, edge.id);
 			const block = definition.blocks.find((candidate) => candidate.id === edge.source);
 			if (!block || block.kind !== 'choice') return;
 			block.options = block.options.filter((option) => option.id !== optionId);
@@ -346,9 +423,40 @@
 		if (selection?.kind !== 'edge' || selectedEdge?.data?.edgeType !== 'next') return;
 
 		updateSelectedEdge((definition, edge) => {
+			removeIncomingOrder(definition, edge.target, edge.id);
 			const block = definition.blocks.find((candidate) => candidate.id === edge.source);
 			if (!block || block.kind === 'choice' || block.kind === 'end') return;
 			block.next = null;
+		});
+	}
+
+	function clearSelectedEdgeConnection() {
+		if (selection?.kind !== 'edge' || !selectedEdge) return;
+
+		updateSelectedEdge((definition, edge) => {
+			removeIncomingOrder(definition, edge.target, edge.id);
+			const block = definition.blocks.find((candidate) => candidate.id === edge.source);
+			if (!block) return;
+
+			if (edge.data?.edgeType === 'next') {
+				if (block.kind === 'choice' || block.kind === 'end') return;
+				block.next = null;
+				return;
+			}
+
+			if (edge.data?.edgeType === 'branch') {
+				if (block.kind !== 'content' && block.kind !== 'agent') return;
+				const branchIndex = edge.data.branchIndex;
+				if (branchIndex === undefined || !block.branches?.[branchIndex]) return;
+				block.branches[branchIndex].targetBlockId = '';
+				return;
+			}
+
+			if (block.kind !== 'choice') return;
+			const optionId = edge.data?.optionId;
+			const option = block.options.find((candidate) => candidate.id === optionId);
+			if (!option) return;
+			option.targetBlockId = '';
 		});
 	}
 
@@ -356,7 +464,9 @@
 		if (!connection.source || !connection.target) return;
 
 		const sourceBlock = draftDefinition.blocks.find((block) => block.id === connection.source);
+		const targetBlock = draftDefinition.blocks.find((block) => block.id === connection.target);
 		if (!sourceBlock) return;
+		if (!targetBlock) return;
 
 		if (sourceBlock.kind === 'end') {
 			actionError = 'Un bloque final no puede abrir nuevas salidas.';
@@ -364,6 +474,9 @@
 			return;
 		}
 
+		const edgeId = getEdgeIdFromConnection(connection);
+		const previousEdge = edgeId ? (flowEdges.find((edge) => edge.id === edgeId) ?? null) : null;
+		const previousTargetId = previousEdge?.target ?? null;
 		mutateDefinition(
 			(definition) => {
 				const block = definition.blocks.find((candidate) => candidate.id === connection.source);
@@ -389,6 +502,14 @@
 						return;
 					}
 					block.branches[branchIndex].targetBlockId = connection.target;
+				}
+
+				if (previousTargetId && previousTargetId !== connection.target) {
+					removeIncomingOrder(definition, previousTargetId, edgeId);
+				}
+
+				if (supportsDynamicIncomingOrder(targetBlock)) {
+					appendIncomingOrder(definition, connection.target, edgeId);
 				}
 			},
 			{ kind: 'node', id: connection.source }
@@ -568,6 +689,20 @@
 		return Number.isFinite(numericValue) && value.trim() !== '' ? numericValue : value;
 	}
 
+	function isEditableKeyboardTarget(target: EventTarget | null) {
+		if (!(target instanceof HTMLElement)) return false;
+		return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
+	}
+
+	function handleWindowKeydown(event: KeyboardEvent) {
+		if (event.key !== 'Delete' && event.key !== 'Del') return;
+		if (selection?.kind !== 'edge' || !selectedEdge || isSubmitting) return;
+		if (isEditableKeyboardTarget(event.target)) return;
+
+		event.preventDefault();
+		clearSelectedEdgeConnection();
+	}
+
 	$effect(() => {
 		breadcrumb.set([
 			{ label: 'Inicio', href: '/' },
@@ -588,6 +723,8 @@
 
 	initializeCanvas(cloneLoadedDefinition());
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <div class="lesson-flow-shell space-y-6">
 	<div
@@ -986,7 +1123,8 @@
 								<div>
 									<p class="text-sm font-medium text-stone-900 dark:text-white">Opciones</p>
 									<p class="text-xs text-stone-500 dark:text-stone-400">
-										Selecciona cada conexión para editar etiqueta, valor y destino.
+										Cada opción nueva aparece sin cable. Arrastra desde su salida o selecciona su
+										conexión para editarla.
 									</p>
 								</div>
 								<button

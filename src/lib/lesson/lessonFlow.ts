@@ -15,6 +15,11 @@ const FLOW_EDGE_TYPE = 'smoothstep';
 const LESSON_NODE_TYPE = 'lesson-block';
 const OPEN_TARGET_HANDLE_ID = 'in:open';
 
+interface LessonFlowIncomingHandleState {
+	handles: LessonFlowHandleDescriptor[];
+	targetHandleByEdgeId: Map<string, string>;
+}
+
 export function getLessonBlockKindLabel(kind: LessonBlock['kind']): string {
 	if (kind === 'content') return 'Contenido';
 	if (kind === 'choice') return 'Decision';
@@ -44,11 +49,13 @@ export function createLessonFlowGraph(definition: LessonDefinition): LessonFlowG
 	const outgoingMap = buildOutgoingMap(edgeInputs);
 	const incomingMap = buildIncomingMap(definition, edgeInputs);
 	const fallbackPositions = computeFallbackPositions(definition, outgoingMap);
+	const incomingHandleStateByBlockId = new Map<string, LessonFlowIncomingHandleState>();
 
 	const nodes: LessonFlowNode[] = definition.blocks.map((block) => {
 		const position = block.graph?.position ?? fallbackPositions.get(block.id) ?? { x: 0, y: 0 };
-		const incomingHandles = createIncomingHandles(incomingMap.get(block.id) ?? []);
+		const incomingHandleState = createIncomingHandleState(block, incomingMap.get(block.id) ?? []);
 		const outgoingHandles = createOutgoingHandles(block);
+		incomingHandleStateByBlockId.set(block.id, incomingHandleState);
 
 		return {
 			id: block.id,
@@ -63,7 +70,7 @@ export function createLessonFlowGraph(definition: LessonDefinition): LessonFlowG
 				incomingCount: incomingMap.get(block.id)?.length ?? 0,
 				outgoingCount: outgoingMap.get(block.id)?.length ?? 0,
 				summary: summarizeLessonBlock(block),
-				incomingHandles,
+				incomingHandles: incomingHandleState.handles,
 				outgoingHandles
 			},
 			sourcePosition: Position.Bottom,
@@ -73,9 +80,9 @@ export function createLessonFlowGraph(definition: LessonDefinition): LessonFlowG
 	});
 
 	const targetHandleByEdgeId = new Map<string, string>();
-	for (const edgeIdList of incomingMap.values()) {
-		for (const edgeId of edgeIdList) {
-			targetHandleByEdgeId.set(edgeId, getLessonFlowIncomingHandleId(edgeId));
+	for (const incomingHandleState of incomingHandleStateByBlockId.values()) {
+		for (const [edgeId, handleId] of incomingHandleState.targetHandleByEdgeId.entries()) {
+			targetHandleByEdgeId.set(edgeId, handleId);
 		}
 	}
 
@@ -100,17 +107,33 @@ export function applyLessonFlowGraph(
 	const nextDefinition = structuredClone(definition);
 	const positionById = new Map(graph.nodes.map((node) => [node.id, node.position]));
 	const edgeById = new Map(graph.edges.map((edge) => [edge.id, edge]));
+	const incomingOrderByBlockId = new Map(
+		graph.nodes.map((node) => [
+			node.id,
+			node.data.incomingHandles
+				.filter((handle) => handle.incomingKind === 'occupied' && handle.edgeId)
+				.map((handle) => handle.edgeId as string)
+		])
+	);
 
 	for (const block of nextDefinition.blocks) {
 		const position = positionById.get(block.id);
+		const nextGraph = {
+			...(block.graph ?? {}),
+			...(supportsDynamicIncomingHandles(block)
+				? { incomingOrder: incomingOrderByBlockId.get(block.id) ?? [] }
+				: {})
+		};
+
 		if (position) {
-			block.graph = {
-				...(block.graph ?? {}),
-				position: {
-					x: position.x,
-					y: position.y
-				}
+			nextGraph.position = {
+				x: position.x,
+				y: position.y
 			};
+		}
+
+		if (Object.keys(nextGraph).length > 0) {
+			block.graph = nextGraph;
 		}
 
 		if (block.kind !== 'choice' && block.kind !== 'end') {
@@ -240,7 +263,7 @@ function collectEdgeInputs(definition: LessonDefinition): Array<{
 	}> = [];
 
 	for (const block of definition.blocks) {
-		if (block.kind !== 'choice' && block.kind !== 'end' && block.next) {
+		if (block.kind !== 'choice' && block.kind !== 'end' && hasConnectedTarget(block.next)) {
 			edgeInputs.push({
 				id: getLessonFlowNextEdgeId(block.id),
 				source: block.id,
@@ -251,6 +274,8 @@ function collectEdgeInputs(definition: LessonDefinition): Array<{
 		}
 
 		for (const [branchIndex, branch] of (block.branches ?? []).entries()) {
+			if (!hasConnectedTarget(branch.targetBlockId)) continue;
+
 			edgeInputs.push({
 				id: getLessonFlowBranchEdgeId(block.id, branchIndex),
 				source: block.id,
@@ -266,6 +291,8 @@ function collectEdgeInputs(definition: LessonDefinition): Array<{
 
 		if (block.kind === 'choice') {
 			for (const option of block.options) {
+				if (!hasConnectedTarget(option.targetBlockId)) continue;
+
 				edgeInputs.push({
 					id: getLessonFlowChoiceEdgeId(block.id, option.id),
 					source: block.id,
@@ -280,6 +307,10 @@ function collectEdgeInputs(definition: LessonDefinition): Array<{
 	}
 
 	return edgeInputs;
+}
+
+function hasConnectedTarget(targetBlockId: string | null | undefined): targetBlockId is string {
+	return typeof targetBlockId === 'string' && targetBlockId.trim().length > 0;
 }
 
 function buildOutgoingMap(
@@ -375,24 +406,6 @@ function computeFallbackPositions(
 	return positions;
 }
 
-function createIncomingHandles(edgeIds: string[]): LessonFlowHandleDescriptor[] {
-	if (edgeIds.length === 0) {
-		return [
-			{
-				id: OPEN_TARGET_HANDLE_ID,
-				label: 'Entrada',
-				edgeType: 'incoming'
-			}
-		];
-	}
-
-	return edgeIds.map((edgeId, index) => ({
-		id: getLessonFlowIncomingHandleId(edgeId),
-		label: `Entrada ${index + 1}`,
-		edgeType: 'incoming'
-	}));
-}
-
 function createOutgoingHandles(block: LessonBlock): LessonFlowHandleDescriptor[] {
 	if (block.kind === 'end') {
 		return [];
@@ -455,4 +468,68 @@ export function getLessonFlowChoiceHandleId(optionId: string): string {
 
 export function getLessonFlowIncomingHandleId(edgeId: string): string {
 	return `in:${edgeId}`;
+}
+
+export function getLessonFlowIncomingAddHandleId(blockId: string): string {
+	return `in:add:${blockId}`;
+}
+
+function supportsDynamicIncomingHandles(block: Pick<LessonBlock, 'kind'>): boolean {
+	return block.kind === 'end';
+}
+
+function createIncomingHandleState(
+	block: LessonBlock,
+	edgeIds: string[]
+): LessonFlowIncomingHandleState {
+	if (!supportsDynamicIncomingHandles(block)) {
+		return {
+			handles: [
+				{
+					id: OPEN_TARGET_HANDLE_ID,
+					label: 'Entrada',
+					edgeType: 'incoming',
+					incomingKind: 'single'
+				}
+			],
+			targetHandleByEdgeId: new Map(edgeIds.map((edgeId) => [edgeId, OPEN_TARGET_HANDLE_ID]))
+		};
+	}
+
+	const orderedEdgeIds = orderIncomingEdgeIds(block, edgeIds);
+	const handles: LessonFlowHandleDescriptor[] = orderedEdgeIds.map((edgeId, index) => ({
+		id: getLessonFlowIncomingHandleId(edgeId),
+		label: `Entrada ${index + 1}`,
+		edgeType: 'incoming',
+		incomingKind: 'occupied',
+		edgeId
+	}));
+
+	handles.push({
+		id: getLessonFlowIncomingAddHandleId(block.id),
+		label: 'Añadir entrada',
+		edgeType: 'incoming',
+		incomingKind: 'add'
+	});
+
+	return {
+		handles,
+		targetHandleByEdgeId: new Map(
+			orderedEdgeIds.map((edgeId) => [edgeId, getLessonFlowIncomingHandleId(edgeId)])
+		)
+	};
+}
+
+function orderIncomingEdgeIds(block: LessonBlock, edgeIds: string[]): string[] {
+	const preferredOrder = block.graph?.incomingOrder ?? [];
+	const activeEdgeIds = new Set(edgeIds);
+	const orderedEdgeIds = preferredOrder.filter((edgeId) => activeEdgeIds.has(edgeId));
+
+	for (const edgeId of edgeIds) {
+		if (!orderedEdgeIds.includes(edgeId)) {
+			orderedEdgeIds.push(edgeId);
+		}
+	}
+
+	return orderedEdgeIds;
 }

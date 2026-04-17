@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { interactiveLearning } from '$lib/server/db/schema';
 import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
-import { lessonBlockKinds, type LessonBlockKind } from '$lib/types/lesson';
+import { lessonBlockKinds, type LessonBlock, type LessonBlockKind } from '$lib/types/lesson';
 import { loadLessonAdminData, requireLessonAdminContext } from '../lessonAdmin';
 
 function asLessonError(errorValue: unknown, fallbackMessage: string) {
@@ -39,6 +39,34 @@ function parseDefinitionPayload(formData: FormData) {
 	}
 
 	return LessonService.validateDefinition(LessonService.parseDefinition(definitionJson));
+}
+
+function disconnectBlockForFlowDraft(block: LessonBlock): LessonBlock {
+	if (block.kind === 'content') {
+		return {
+			...block,
+			next: null
+		};
+	}
+
+	if (block.kind === 'agent') {
+		return {
+			...block,
+			next: null
+		};
+	}
+
+	if (block.kind === 'choice') {
+		return {
+			...block,
+			options: block.options.map((option) => ({
+				...option,
+				targetBlockId: ''
+			}))
+		};
+	}
+
+	return block;
 }
 
 async function persistDefinition(
@@ -97,21 +125,20 @@ export const actions = {
 			const blockIndex = nextDefinition.blocks.findIndex((block) => block.id === created.block.id);
 
 			if (blockIndex >= 0) {
+				const draftBlock = disconnectBlockForFlowDraft(nextDefinition.blocks[blockIndex]);
 				nextDefinition.blocks[blockIndex] = {
-					...nextDefinition.blocks[blockIndex],
+					...draftBlock,
 					graph: {
-						...(nextDefinition.blocks[blockIndex]?.graph ?? {}),
+						...(draftBlock.graph ?? {}),
 						position
 					}
 				};
 			}
 
-			const validated = LessonService.validateDefinition(nextDefinition);
-
 			return {
 				success: true,
 				message: 'Bloque anadido al borrador. Guarda el mapa para aplicar el cambio.',
-				definition: validated,
+				definition: nextDefinition,
 				blockId: created.block.id
 			};
 		} catch (errorValue) {

@@ -83,7 +83,10 @@ const lessonTransitionSchema = z.object({
 });
 
 const lessonOutputFieldSchema = z.object({
-	key: z.string().min(1).regex(/^[a-zA-Z0-9_.-]+$/),
+	key: z
+		.string()
+		.min(1)
+		.regex(/^[a-zA-Z0-9_.-]+$/),
 	type: z.enum(['string', 'number', 'boolean', 'json']),
 	description: z.string().optional()
 });
@@ -94,7 +97,8 @@ const lessonBlockGraphMetaSchema = z.object({
 			x: z.number(),
 			y: z.number()
 		})
-		.optional()
+		.optional(),
+	incomingOrder: z.array(z.string().min(1)).optional()
 });
 
 const lessonBlockExposureSchema = z.object({
@@ -272,7 +276,8 @@ function toModelRole(type: string): 'system' | 'user' | 'assistant' {
 function coerceOutputValue(raw: unknown, field: LessonOutputField): unknown {
 	if (raw === undefined || raw === null) return null;
 	if (field.type === 'number') return typeof raw === 'number' ? raw : Number(raw);
-	if (field.type === 'boolean') return typeof raw === 'boolean' ? raw : String(raw).toLowerCase() === 'true';
+	if (field.type === 'boolean')
+		return typeof raw === 'boolean' ? raw : String(raw).toLowerCase() === 'true';
 	if (field.type === 'string') return String(raw);
 	return raw;
 }
@@ -408,7 +413,10 @@ export class LessonService {
 		return getLessonGraphSummaries(definition);
 	}
 
-	static getBlockGraphSummary(definition: LessonDefinition, blockId: string): LessonBlockGraphSummary {
+	static getBlockGraphSummary(
+		definition: LessonDefinition,
+		blockId: string
+	): LessonBlockGraphSummary {
 		return getLessonBlockGraphSummary(definition, blockId);
 	}
 
@@ -429,7 +437,10 @@ export class LessonService {
 		}
 
 		const activityData = await this.getLessonActivity(input.interactiveLearningId);
-		const courseId = await this.resolveCourseId(input.interactiveLearningId, input.courseId ?? access.courseId);
+		const courseId = await this.resolveCourseId(
+			input.interactiveLearningId,
+			input.courseId ?? access.courseId
+		);
 		const canBypassStatus = access.isSystemAdmin || this.isStaff(access.courseRole);
 		const latestSession = await db
 			.select()
@@ -441,11 +452,17 @@ export class LessonService {
 					eq(interactiveLessonSession.courseId, courseId)
 				)
 			)
-			.orderBy(desc(interactiveLessonSession.attemptNumber), desc(interactiveLessonSession.createdAt))
+			.orderBy(
+				desc(interactiveLessonSession.attemptNumber),
+				desc(interactiveLessonSession.createdAt)
+			)
 			.get();
 
 		if (!canBypassStatus) {
-			if (activityData.activity.status === 'hidden' || activityData.activity.status === 'archived') {
+			if (
+				activityData.activity.status === 'hidden' ||
+				activityData.activity.status === 'archived'
+			) {
 				throw new LessonServiceError(404, 'La lesson no está disponible.');
 			}
 
@@ -554,7 +571,10 @@ export class LessonService {
 			throw new LessonServiceError(404, 'Sesión de lesson no encontrada.');
 		}
 
-		if (input.interactiveLearningId && session.interactiveLearningId !== input.interactiveLearningId) {
+		if (
+			input.interactiveLearningId &&
+			session.interactiveLearningId !== input.interactiveLearningId
+		) {
 			throw new LessonServiceError(404, 'La sesión no pertenece a esta lesson.');
 		}
 
@@ -570,7 +590,9 @@ export class LessonService {
 
 		const activityData = await this.getLessonActivity(activeSession.interactiveLearningId);
 		const definition = this.parseDefinition(activityData.activity.content);
-		const currentBlock = definition.blocks.find((block) => block.id === activeSession.currentBlockId);
+		const currentBlock = definition.blocks.find(
+			(block) => block.id === activeSession.currentBlockId
+		);
 
 		if (!currentBlock) {
 			throw new LessonServiceError(
@@ -610,7 +632,11 @@ export class LessonService {
 			string,
 			InteractiveLearningFile
 		>;
-		const templateContext = this.buildTemplateContext(activeSession, activityData.activity, blockStates);
+		const templateContext = this.buildTemplateContext(
+			activeSession,
+			activityData.activity,
+			blockStates
+		);
 		const resolvedCurrentBlock = this.resolveBlock(currentBlock, templateContext);
 		const currentAssets = this.resolveAssets(resolvedCurrentBlock, filesById);
 		const currentChatMessages =
@@ -683,7 +709,8 @@ export class LessonService {
 		if (
 			view.currentBlock.kind === 'agent' &&
 			(view.currentBlock.requiresResponse ?? true) &&
-			!normalizeOutputs(view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson).response
+			!normalizeOutputs(view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson)
+				.response
 		) {
 			throw new LessonServiceError(
 				400,
@@ -721,7 +748,9 @@ export class LessonService {
 			throw new LessonServiceError(409, 'No se pudo resolver el bloque de elección actual.');
 		}
 
-		const rawOption = view.currentBlock.options.find((candidate) => candidate.id === input.optionId);
+		const rawOption = view.currentBlock.options.find(
+			(candidate) => candidate.id === input.optionId
+		);
 		const option = resolvedBlock.options.find((candidate) => candidate.id === input.optionId);
 		if (!option) {
 			throw new LessonServiceError(404, 'La opción seleccionada no existe.');
@@ -787,7 +816,13 @@ export class LessonService {
 			}
 		});
 
-		return this.enterBlock(view.session, option.targetBlockId, view.activity, view.lesson, view.definition);
+		return this.enterBlock(
+			view.session,
+			option.targetBlockId,
+			view.activity,
+			view.lesson,
+			view.definition
+		);
 	}
 
 	static async submitAgentTurn(input: {
@@ -797,7 +832,11 @@ export class LessonService {
 		userId: string;
 		userRoleLevel: number;
 		interactiveLearningId?: string;
-	}): Promise<{ session: InteractiveLessonSession; assistantMessage: string; outputs: JsonRecord }> {
+	}): Promise<{
+		session: InteractiveLessonSession;
+		assistantMessage: string;
+		outputs: JsonRecord;
+	}> {
 		const userMessage = input.message.trim();
 		if (!userMessage) {
 			throw new LessonServiceError(400, 'El mensaje no puede estar vacío.');
@@ -813,7 +852,9 @@ export class LessonService {
 			throw new LessonServiceError(409, 'El bloque activo no es un bloque IA.');
 		}
 
-		const currentOutputs = normalizeOutputs(view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson);
+		const currentOutputs = normalizeOutputs(
+			view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson
+		);
 		if (
 			view.currentBlock.agentConfig.mode === 'guided_turn' &&
 			currentOutputs.response &&
@@ -851,7 +892,10 @@ export class LessonService {
 		});
 		await AIUtils.saveMessage(blockState.chatId!, assistantMessage, 'ASSISTANT');
 
-		const updatedModelMessages = [...aiMessages, { role: 'assistant' as const, content: assistantMessage }];
+		const updatedModelMessages = [
+			...aiMessages,
+			{ role: 'assistant' as const, content: assistantMessage }
+		];
 		const extractedOutputs = await this.extractAgentOutputs({
 			block: view.currentBlock,
 			modelName,
@@ -987,7 +1031,12 @@ export class LessonService {
 		view: LessonSessionView,
 		outputs: JsonRecord
 	): Promise<InteractiveLessonSession> {
-		const transition = this.resolveTransition(view.currentBlock, view.session, view.activity, view.blockStates);
+		const transition = this.resolveTransition(
+			view.currentBlock,
+			view.session,
+			view.activity,
+			view.blockStates
+		);
 		if (!transition?.targetBlockId) {
 			throw new LessonServiceError(
 				400,
@@ -1046,7 +1095,13 @@ export class LessonService {
 			});
 		}
 
-		return this.enterBlock(view.session, transition.targetBlockId, view.activity, view.lesson, view.definition);
+		return this.enterBlock(
+			view.session,
+			transition.targetBlockId,
+			view.activity,
+			view.lesson,
+			view.definition
+		);
 	}
 
 	private static async enterBlock(
@@ -1068,16 +1123,15 @@ export class LessonService {
 			sessionId: session.id,
 			blockId,
 			status:
-				block.kind === 'end'
-					? lessonBlockVisitStatus.COMPLETED
-					: lessonBlockVisitStatus.ACTIVE,
+				block.kind === 'end' ? lessonBlockVisitStatus.COMPLETED : lessonBlockVisitStatus.ACTIVE,
 			completedAt: block.kind === 'end' ? now : null
 		});
 
 		await this.upsertBlockState({
 			sessionId: session.id,
 			blockId,
-			status: block.kind === 'end' ? lessonBlockStateStatus.COMPLETED : lessonBlockStateStatus.ACTIVE,
+			status:
+				block.kind === 'end' ? lessonBlockStateStatus.COMPLETED : lessonBlockStateStatus.ACTIVE,
 			lastVisitId: visit.id,
 			incrementVisitCount: true,
 			enteredAt: visit.enteredAt,
@@ -1147,7 +1201,9 @@ export class LessonService {
 		return updatedSession;
 	}
 
-	private static async ensureAgentBlockChat(view: LessonSessionView): Promise<InteractiveLessonBlockVisit> {
+	private static async ensureAgentBlockChat(
+		view: LessonSessionView
+	): Promise<InteractiveLessonBlockVisit> {
 		if (view.currentBlock.kind !== 'agent') {
 			throw new LessonServiceError(400, 'El bloque activo no es IA.');
 		}
@@ -1200,7 +1256,9 @@ export class LessonService {
 		await this.updateBlockVisit({
 			visitId: view.currentVisit.id,
 			status: lessonBlockVisitStatus.ACTIVE,
-			outputs: normalizeOutputs(view.currentVisit.outputsJson ?? view.currentBlockState?.outputsJson),
+			outputs: normalizeOutputs(
+				view.currentVisit.outputsJson ?? view.currentBlockState?.outputsJson
+			),
 			chatId
 		});
 
@@ -1208,7 +1266,9 @@ export class LessonService {
 			sessionId: view.session.id,
 			blockId: view.currentBlock.id,
 			status: lessonBlockStateStatus.ACTIVE,
-			outputs: normalizeOutputs(view.currentVisit.outputsJson ?? view.currentBlockState?.outputsJson),
+			outputs: normalizeOutputs(
+				view.currentVisit.outputsJson ?? view.currentBlockState?.outputsJson
+			),
 			chatId,
 			lastVisitId: view.currentVisit.id
 		});
@@ -1216,9 +1276,7 @@ export class LessonService {
 		const updatedVisit = await db
 			.select()
 			.from(interactiveLessonBlockVisit)
-			.where(
-				eq(interactiveLessonBlockVisit.id, view.currentVisit.id)
-			)
+			.where(eq(interactiveLessonBlockVisit.id, view.currentVisit.id))
 			.get();
 
 		if (!updatedVisit) {
@@ -1234,7 +1292,12 @@ export class LessonService {
 		assistantMessage: string;
 		userMessage: string;
 		messages: ModelMessage[];
-		context: { userId?: string; courseId?: string; interactiveLearningId?: string; chatId?: string };
+		context: {
+			userId?: string;
+			courseId?: string;
+			interactiveLearningId?: string;
+			chatId?: string;
+		};
 	}): Promise<JsonRecord> {
 		const baseOutputs: JsonRecord = {
 			response: input.assistantMessage,
@@ -1262,7 +1325,11 @@ export class LessonService {
 				'Conversación:',
 				transcript
 			].join('\n\n');
-			const extractedText = await AIUtils.generateText(extractionPrompt, input.modelName, input.context);
+			const extractedText = await AIUtils.generateText(
+				extractionPrompt,
+				input.modelName,
+				input.context
+			);
 			const parsed = safeJsonParse<JsonRecord>(this.extractJsonObject(extractedText), {});
 			for (const field of outputSchema) {
 				baseOutputs[field.key] = coerceOutputValue(parsed[field.key], field);
@@ -1359,7 +1426,9 @@ export class LessonService {
 		return relation.courseId;
 	}
 
-	private static async ensureSessionVisitBackfill(session: InteractiveLessonSession): Promise<void> {
+	private static async ensureSessionVisitBackfill(
+		session: InteractiveLessonSession
+	): Promise<void> {
 		const [blockStates, blockVisits] = await Promise.all([
 			db
 				.select()
@@ -1436,9 +1505,7 @@ export class LessonService {
 		}
 
 		const currentVisitId =
-			session.currentVisitId ??
-			latestByBlock.get(session.currentBlockId)?.id ??
-			null;
+			session.currentVisitId ?? latestByBlock.get(session.currentBlockId)?.id ?? null;
 
 		if (currentVisitId && session.currentVisitId !== currentVisitId) {
 			await db
@@ -1523,31 +1590,31 @@ export class LessonService {
 		});
 	}
 
-	private static resolveTemplateValue(
-		path: string,
-		context: LessonTemplateContext
-	): unknown {
+	private static resolveTemplateValue(path: string, context: LessonTemplateContext): unknown {
 		if (path.startsWith('session.')) {
-			return path.split('.').slice(1).reduce<unknown>((current, segment) => {
-				if (!current || typeof current !== 'object') return undefined;
-				return (current as Record<string, unknown>)[segment];
-			}, context.session);
+			return path
+				.split('.')
+				.slice(1)
+				.reduce<unknown>((current, segment) => {
+					if (!current || typeof current !== 'object') return undefined;
+					return (current as Record<string, unknown>)[segment];
+				}, context.session);
 		}
 
 		if (!path.startsWith('blocks.')) return undefined;
 
 		const [, blockId, scope, ...rest] = path.split('.');
 		if (!blockId || (scope !== 'outputs' && scope !== 'state')) return undefined;
-		return rest.reduce<unknown>((current, segment) => {
-			if (!current || typeof current !== 'object') return undefined;
-			return (current as Record<string, unknown>)[segment];
-		}, scope === 'state' ? context.blocks[blockId]?.state : context.blocks[blockId]?.outputs);
+		return rest.reduce<unknown>(
+			(current, segment) => {
+				if (!current || typeof current !== 'object') return undefined;
+				return (current as Record<string, unknown>)[segment];
+			},
+			scope === 'state' ? context.blocks[blockId]?.state : context.blocks[blockId]?.outputs
+		);
 	}
 
-	private static resolveBlock(
-		block: LessonBlock,
-		context: LessonTemplateContext
-	): LessonBlock {
+	private static resolveBlock(block: LessonBlock, context: LessonTemplateContext): LessonBlock {
 		if (block.kind === 'agent') {
 			return {
 				...block,
@@ -1667,7 +1734,8 @@ export class LessonService {
 		if (operator === 'not_equals') return left !== right;
 		if (operator === 'contains') return String(left ?? '').includes(String(right ?? ''));
 		if (operator === 'exists') return left !== undefined && left !== null && String(left) !== '';
-		if (operator === 'not_exists') return left === undefined || left === null || String(left) === '';
+		if (operator === 'not_exists')
+			return left === undefined || left === null || String(left) === '';
 		if (operator === 'gt') return Number(left) > Number(right);
 		if (operator === 'gte') return Number(left) >= Number(right);
 		if (operator === 'lt') return Number(left) < Number(right);
@@ -1710,13 +1778,15 @@ export class LessonService {
 					lastVisitId: input.lastVisitId ?? existing.lastVisitId,
 					enteredAt:
 						(shouldIncrementVisit ? input.enteredAt : undefined) ??
-						(existing.enteredAt ?? input.enteredAt ?? null),
+						existing.enteredAt ??
+						input.enteredAt ??
+						null,
 					completedAt:
 						input.status === lessonBlockStateStatus.COMPLETED
-							? input.completedAt ?? now
+							? (input.completedAt ?? now)
 							: input.status === lessonBlockStateStatus.ACTIVE
 								? null
-								: input.completedAt ?? existing.completedAt,
+								: (input.completedAt ?? existing.completedAt),
 					lastChoiceValue: input.lastChoiceValue ?? existing.lastChoiceValue,
 					outputsJson: serializedOutputs ?? existing.outputsJson,
 					chatId: input.chatId ?? existing.chatId,
@@ -1741,8 +1811,8 @@ export class LessonService {
 					: null),
 			completedAt:
 				input.status === lessonBlockStateStatus.COMPLETED
-					? input.completedAt ?? now
-					: input.completedAt ?? null,
+					? (input.completedAt ?? now)
+					: (input.completedAt ?? null),
 			lastChoiceValue: input.lastChoiceValue ?? null,
 			outputsJson: serializedOutputs ?? null,
 			chatId: input.chatId ?? null,
@@ -1827,7 +1897,7 @@ export class LessonService {
 				: nextStatus === lessonBlockVisitStatus.COMPLETED ||
 					  nextStatus === lessonBlockVisitStatus.SKIPPED ||
 					  nextStatus === lessonBlockVisitStatus.ABANDONED
-					? existing.completedAt ?? now
+					? (existing.completedAt ?? now)
 					: null;
 
 		await db
@@ -2470,9 +2540,7 @@ export class LessonService {
 						...extractTemplateRefs(option.description)
 					])
 				: []),
-			...(block.kind === 'content'
-				? extractTemplateRefs(block.continueLabel)
-				: []),
+			...(block.kind === 'content' ? extractTemplateRefs(block.continueLabel) : []),
 			...(block.kind === 'end' ? extractTemplateRefs(block.ctaLabel) : [])
 		]);
 
@@ -2493,7 +2561,10 @@ export class LessonService {
 			for (const ref of refs) {
 				if (ref.startsWith('session.')) continue;
 				if (!ref.startsWith('blocks.')) {
-					throw new LessonServiceError(400, `La referencia "${ref}" del bloque "${block.id}" no usa un formato soportado.`);
+					throw new LessonServiceError(
+						400,
+						`La referencia "${ref}" del bloque "${block.id}" no usa un formato soportado.`
+					);
 				}
 				const [, sourceBlockId, scope] = ref.split('.');
 				if (!sourceBlockId || (scope !== 'outputs' && scope !== 'state')) {
@@ -2503,7 +2574,10 @@ export class LessonService {
 					);
 				}
 				if (!blockMap.has(sourceBlockId)) {
-					throw new LessonServiceError(400, `La referencia "${ref}" del bloque "${block.id}" apunta a un bloque inexistente.`);
+					throw new LessonServiceError(
+						400,
+						`La referencia "${ref}" del bloque "${block.id}" apunta a un bloque inexistente.`
+					);
 				}
 			}
 		}

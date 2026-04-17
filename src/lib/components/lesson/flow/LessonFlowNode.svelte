@@ -41,7 +41,20 @@
 
 	function handleOffset(index: number, total: number) {
 		if (total <= 1) return '50%';
-		return `${(index / (total - 1)) * 100}%`;
+		const horizontalPadding = total === 2 ? 24 : 12;
+		const availableWidth = 100 - horizontalPadding * 2;
+		return `${horizontalPadding + (index / (total - 1)) * availableWidth}%`;
+	}
+
+	function handleClass(handle: LessonFlowNode['data']['incomingHandles'][number]) {
+		const baseClass =
+			'h-6 w-6 border-[3px] shadow-[0_10px_22px_-16px_rgba(24,24,27,0.65)] ring-4 ring-white/90 transition-transform hover:scale-110';
+
+		if (handle.incomingKind === 'add') {
+			return `${baseClass} !border-stone-400 !bg-white/95`;
+		}
+
+		return `${baseClass} ${style.handle}`;
 	}
 
 	let Icon = $derived(iconFor(data.kind));
@@ -50,13 +63,22 @@
 
 <div class="relative w-[280px] py-5">
 	{#each data.incomingHandles as handle, index (handle.id)}
+		{@const left = handleOffset(index, data.incomingHandles.length)}
 		<Handle
 			id={handle.id}
 			type="target"
 			position={Position.Top}
-			class={`h-3.5 w-3.5 border-2 border-white shadow-sm ${style.handle}`}
-			style={`left:${handleOffset(index, data.incomingHandles.length)};top:0;transform:translate(-50%,-50%);`}
+			class={handleClass(handle)}
+			style={`left:${left};top:0;transform:translate(-50%,-50%);`}
 		/>
+		{#if handle.incomingKind === 'add'}
+			<div
+				class="pointer-events-none absolute z-10 flex h-6 w-6 items-center justify-center rounded-full border-[3px] border-stone-400 bg-white/95 text-[15px] font-bold text-stone-500 ring-4 ring-white/90"
+				style={`left:${left};top:0;transform:translate(-50%,-50%);`}
+			>
+				+
+			</div>
+		{/if}
 	{/each}
 
 	<article
@@ -119,7 +141,7 @@
 			id={handle.id}
 			type="source"
 			position={Position.Bottom}
-			class={`h-3.5 w-3.5 border-2 border-white shadow-sm ${style.handle}`}
+			class={`h-6 w-6 border-[3px] shadow-[0_10px_22px_-16px_rgba(24,24,27,0.65)] ring-4 ring-white/90 transition-transform hover:scale-110 ${style.handle}`}
 			style={`left:${handleOffset(index, data.outgoingHandles.length)};bottom:0;transform:translate(-50%,50%);`}
 		/>
 	{/each}

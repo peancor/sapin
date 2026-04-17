@@ -45,6 +45,7 @@ export interface LessonBlockGraphMeta {
 		x: number;
 		y: number;
 	};
+	incomingOrder?: string[];
 }
 
 export interface LessonBlockExposure {

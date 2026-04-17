@@ -5,10 +5,11 @@ import type { LessonDefinition } from '../types/lesson';
 import {
 	applyLessonFlowGraph,
 	createLessonFlowGraph,
-	getLessonFlowChoiceHandleId,
 	getLessonFlowBranchEdgeId,
-	getLessonFlowIncomingHandleId,
+	getLessonFlowChoiceHandleId,
 	getLessonFlowChoiceEdgeId,
+	getLessonFlowIncomingAddHandleId,
+	getLessonFlowIncomingHandleId,
 	getLessonFlowNextHandleId,
 	getLessonFlowNextEdgeId
 } from './lessonFlow';
@@ -101,10 +102,7 @@ test('createLessonFlowGraph serializes nodes and edges with correct metadata', (
 		)
 	);
 	assert.equal(introNextEdge?.sourceHandle, getLessonFlowNextHandleId());
-	assert.equal(
-		introNextEdge?.targetHandle,
-		getLessonFlowIncomingHandleId(getLessonFlowNextEdgeId('intro'))
-	);
+	assert.equal(introNextEdge?.targetHandle, 'in:open');
 	assert.equal(leftChoiceEdge?.sourceHandle, getLessonFlowChoiceHandleId('left'));
 });
 
@@ -191,4 +189,104 @@ test('reconnected graph still respects entry block validation and rejects missin
 			error.message.includes('missing') &&
 			error.message.includes('inexistente')
 	);
+});
+
+test('dynamic incoming handles on end blocks preserve saved order and expose an add socket', () => {
+	const definition = makeDefinition();
+	const endBlock = definition.blocks.find((block) => block.id === 'end');
+	if (!endBlock) throw new Error('Missing end block');
+
+	endBlock.graph = {
+		...(endBlock.graph ?? {}),
+		incomingOrder: [
+			getLessonFlowNextEdgeId('agent'),
+			getLessonFlowChoiceEdgeId('decision', 'right')
+		]
+	};
+
+	const graph = createLessonFlowGraph(definition);
+	const endNode = graph.nodes.find((node) => node.id === 'end');
+	const endIncomingHandles = endNode?.data.incomingHandles ?? [];
+	const agentEdge = graph.edges.find((edge) => edge.id === getLessonFlowNextEdgeId('agent'));
+	const choiceEdge = graph.edges.find(
+		(edge) => edge.id === getLessonFlowChoiceEdgeId('decision', 'right')
+	);
+
+	assert.deepEqual(
+		endIncomingHandles.map((handle) => handle.id),
+		[
+			getLessonFlowIncomingHandleId(getLessonFlowNextEdgeId('agent')),
+			getLessonFlowIncomingHandleId(getLessonFlowChoiceEdgeId('decision', 'right')),
+			getLessonFlowIncomingAddHandleId('end')
+		]
+	);
+	assert.equal(
+		agentEdge?.targetHandle,
+		getLessonFlowIncomingHandleId(getLessonFlowNextEdgeId('agent'))
+	);
+	assert.equal(
+		choiceEdge?.targetHandle,
+		getLessonFlowIncomingHandleId(getLessonFlowChoiceEdgeId('decision', 'right'))
+	);
+});
+
+test('missing incomingOrder entries are appended without breaking the graph', () => {
+	const definition = makeDefinition();
+	const endBlock = definition.blocks.find((block) => block.id === 'end');
+	if (!endBlock) throw new Error('Missing end block');
+
+	endBlock.graph = {
+		...(endBlock.graph ?? {}),
+		incomingOrder: [getLessonFlowChoiceEdgeId('decision', 'right')]
+	};
+
+	const graph = createLessonFlowGraph(definition);
+	const endNode = graph.nodes.find((node) => node.id === 'end');
+
+	assert.deepEqual(
+		endNode?.data.incomingHandles.map((handle) => handle.id),
+		[
+			getLessonFlowIncomingHandleId(getLessonFlowChoiceEdgeId('decision', 'right')),
+			getLessonFlowIncomingHandleId(getLessonFlowNextEdgeId('agent')),
+			getLessonFlowIncomingAddHandleId('end')
+		]
+	);
+});
+
+test('applyLessonFlowGraph persists incomingOrder from dynamic incoming handles', () => {
+	const definition = makeDefinition();
+	const graph = createLessonFlowGraph(definition);
+	const endNode = graph.nodes.find((node) => node.id === 'end');
+	if (!endNode) throw new Error('Missing end node');
+
+	endNode.data.incomingHandles = [
+		{
+			id: getLessonFlowIncomingHandleId(getLessonFlowChoiceEdgeId('decision', 'right')),
+			label: 'Entrada 1',
+			edgeType: 'incoming',
+			incomingKind: 'occupied',
+			edgeId: getLessonFlowChoiceEdgeId('decision', 'right')
+		},
+		{
+			id: getLessonFlowIncomingHandleId(getLessonFlowNextEdgeId('agent')),
+			label: 'Entrada 2',
+			edgeType: 'incoming',
+			incomingKind: 'occupied',
+			edgeId: getLessonFlowNextEdgeId('agent')
+		},
+		{
+			id: getLessonFlowIncomingAddHandleId('end'),
+			label: 'Añadir entrada',
+			edgeType: 'incoming',
+			incomingKind: 'add'
+		}
+	];
+
+	const updated = applyLessonFlowGraph(definition, graph);
+	const updatedEnd = updated.blocks.find((block) => block.id === 'end');
+
+	assert.deepEqual(updatedEnd?.graph?.incomingOrder, [
+		getLessonFlowChoiceEdgeId('decision', 'right'),
+		getLessonFlowNextEdgeId('agent')
+	]);
 });

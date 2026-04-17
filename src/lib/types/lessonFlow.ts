@@ -2,11 +2,14 @@ import type { Edge, Node } from '@xyflow/svelte';
 import type { LessonBlockKind, LessonConditionOperator, LessonDefinition } from './lesson';
 
 export type LessonFlowEdgeType = 'next' | 'branch' | 'choice-option';
+export type LessonFlowIncomingHandleKind = 'single' | 'occupied' | 'add';
 
 export interface LessonFlowHandleDescriptor {
 	id: string;
 	label: string;
 	edgeType: LessonFlowEdgeType | 'incoming';
+	incomingKind?: LessonFlowIncomingHandleKind;
+	edgeId?: string;
 }
 
 export interface LessonFlowNodeData extends Record<string, unknown> {

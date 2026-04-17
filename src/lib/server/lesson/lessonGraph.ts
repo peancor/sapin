@@ -50,7 +50,10 @@ const lessonTransitionSchema = z.object({
 });
 
 const lessonOutputFieldSchema = z.object({
-	key: z.string().min(1).regex(/^[a-zA-Z0-9_.-]+$/),
+	key: z
+		.string()
+		.min(1)
+		.regex(/^[a-zA-Z0-9_.-]+$/),
 	type: z.enum(['string', 'number', 'boolean', 'json']),
 	description: z.string().optional()
 });
@@ -61,7 +64,8 @@ const lessonBlockGraphMetaSchema = z.object({
 			x: z.number(),
 			y: z.number()
 		})
-		.optional()
+		.optional(),
+	incomingOrder: z.array(z.string().min(1)).optional()
 });
 
 const lessonBlockExposureSchema = z.object({
@@ -96,7 +100,10 @@ const lessonAgentConfigSchema = z.object({
 });
 
 const lessonBlockBaseSchema = {
-	id: z.string().min(1).regex(/^[a-zA-Z0-9_-]+$/),
+	id: z
+		.string()
+		.min(1)
+		.regex(/^[a-zA-Z0-9_-]+$/),
 	title: z.string().min(1),
 	next: z.string().nullable().optional(),
 	branches: z.array(lessonTransitionSchema).optional(),
@@ -161,7 +168,9 @@ export function parseLessonDefinition(content: string): LessonDefinition {
 		);
 	}
 
-	return validateLessonDefinition(migrateLessonDefinition(parseResult.data as LessonDefinitionInput));
+	return validateLessonDefinition(
+		migrateLessonDefinition(parseResult.data as LessonDefinitionInput)
+	);
 }
 
 export function validateLessonDefinition(definition: LessonDefinition): LessonDefinition {
@@ -199,7 +208,7 @@ export function validateLessonDefinition(definition: LessonDefinition): LessonDe
 			);
 		}
 
-		if (block.kind !== 'end' && block.kind !== 'choice' && !block.next && !(block.branches?.length)) {
+		if (block.kind !== 'end' && block.kind !== 'choice' && !block.next && !block.branches?.length) {
 			throw new LessonServiceError(
 				400,
 				`El bloque "${block.id}" necesita un siguiente bloque o una rama condicional.`
@@ -293,7 +302,9 @@ export function getAvailableLessonReferenceGroups(
 	};
 }
 
-export function getAvailableLessonVariables(definition: LessonDefinition): LessonAvailableVariable[] {
+export function getAvailableLessonVariables(
+	definition: LessonDefinition
+): LessonAvailableVariable[] {
 	const groups = getAvailableLessonReferenceGroups(definition);
 	return [...groups.session, ...groups.state, ...groups.outputs];
 }
@@ -603,7 +614,12 @@ function normalizeSimpleLinearOrphans(definition: LessonDefinition): LessonDefin
 
 	const incoming = buildIncomingTransitionGraph(definition);
 	const orphanBlocks = definition.blocks.filter((block) => {
-		if (visited.has(block.id) || block.id === endBlockId || block.kind === 'choice' || block.kind === 'end') {
+		if (
+			visited.has(block.id) ||
+			block.id === endBlockId ||
+			block.kind === 'choice' ||
+			block.kind === 'end'
+		) {
 			return false;
 		}
 
@@ -664,9 +680,9 @@ function assertBlockConfiguration(block: LessonBlock): void {
 		if (duplicatedKeys.length > 0) {
 			throw new LessonServiceError(
 				400,
-				`El bloque "${block.id}" define outputs IA duplicados: ${[
-					...new Set(duplicatedKeys)
-				].join(', ')}.`
+				`El bloque "${block.id}" define outputs IA duplicados: ${[...new Set(duplicatedKeys)].join(
+					', '
+				)}.`
 			);
 		}
 	}
@@ -851,10 +867,7 @@ function contractFieldToVariable(
 	};
 }
 
-function publicOutputField(
-	block: LessonBlock,
-	field: LessonOutputField
-): LessonBlockContractField {
+function publicOutputField(block: LessonBlock, field: LessonOutputField): LessonBlockContractField {
 	return {
 		path: `blocks.${block.id}.outputs.${field.key}`,
 		key: field.key,
