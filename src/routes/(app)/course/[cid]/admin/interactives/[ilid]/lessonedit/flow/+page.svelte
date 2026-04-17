@@ -16,7 +16,12 @@
 		type Viewport
 	} from '@xyflow/svelte';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
-	import { createLessonFlowGraph, getLessonFlowEdgeTypeLabel } from '$lib/lesson/lessonFlow';
+	import {
+		createLessonFlowGraph,
+		getLessonFlowChoiceHandleId,
+		getLessonFlowEdgeTypeLabel,
+		getLessonFlowNextHandleId
+	} from '$lib/lesson/lessonFlow';
 	import LessonFlowNodeComponent from '$lib/components/lesson/flow/LessonFlowNode.svelte';
 	import {
 		lessonConditionOperators,
@@ -353,12 +358,6 @@
 		const sourceBlock = draftDefinition.blocks.find((block) => block.id === connection.source);
 		if (!sourceBlock) return;
 
-		if (sourceBlock.kind === 'choice') {
-			actionError = 'Las decisiones se conectan desde cada opción en el inspector lateral.';
-			actionMessage = '';
-			return;
-		}
-
 		if (sourceBlock.kind === 'end') {
 			actionError = 'Un bloque final no puede abrir nuevas salidas.';
 			actionMessage = '';
@@ -368,8 +367,29 @@
 		mutateDefinition(
 			(definition) => {
 				const block = definition.blocks.find((candidate) => candidate.id === connection.source);
-				if (!block || block.kind === 'choice' || block.kind === 'end') return;
-				block.next = connection.target;
+				if (!block || block.kind === 'end') return;
+
+				if (block.kind === 'choice') {
+					if (!connection.sourceHandle?.startsWith('out:choice:')) return;
+					const optionId = connection.sourceHandle.slice(getLessonFlowChoiceHandleId('').length);
+					const option = block.options.find((candidate) => candidate.id === optionId);
+					if (!option) return;
+					option.targetBlockId = connection.target;
+					return;
+				}
+
+				if (!connection.sourceHandle || connection.sourceHandle === getLessonFlowNextHandleId()) {
+					block.next = connection.target;
+					return;
+				}
+
+				if (connection.sourceHandle.startsWith('out:branch:')) {
+					const branchIndex = Number(connection.sourceHandle.split(':').at(-1) ?? '-1');
+					if (!Number.isInteger(branchIndex) || branchIndex < 0 || !block.branches?.[branchIndex]) {
+						return;
+					}
+					block.branches[branchIndex].targetBlockId = connection.target;
+				}
 			},
 			{ kind: 'node', id: connection.source }
 		);

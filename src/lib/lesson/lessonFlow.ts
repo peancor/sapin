@@ -4,14 +4,16 @@ import type {
 	LessonFlowEdge,
 	LessonFlowEdgeData,
 	LessonFlowEdgeType,
+	LessonFlowHandleDescriptor,
 	LessonFlowGraph,
 	LessonFlowNode
 } from '../types/lessonFlow';
 
 const FLOW_NODE_GAP_X = 360;
-const FLOW_NODE_GAP_Y = 220;
+const FLOW_NODE_GAP_Y = 260;
 const FLOW_EDGE_TYPE = 'smoothstep';
 const LESSON_NODE_TYPE = 'lesson-block';
+const OPEN_TARGET_HANDLE_ID = 'in:open';
 
 export function getLessonBlockKindLabel(kind: LessonBlock['kind']): string {
 	if (kind === 'content') return 'Contenido';
@@ -38,12 +40,15 @@ export function summarizeLessonBlock(block: LessonBlock): string {
 }
 
 export function createLessonFlowGraph(definition: LessonDefinition): LessonFlowGraph {
-	const outgoingMap = buildOutgoingMap(definition);
-	const incomingMap = buildIncomingMap(definition);
+	const edgeInputs = collectEdgeInputs(definition);
+	const outgoingMap = buildOutgoingMap(edgeInputs);
+	const incomingMap = buildIncomingMap(definition, edgeInputs);
 	const fallbackPositions = computeFallbackPositions(definition, outgoingMap);
 
 	const nodes: LessonFlowNode[] = definition.blocks.map((block) => {
 		const position = block.graph?.position ?? fallbackPositions.get(block.id) ?? { x: 0, y: 0 };
+		const incomingHandles = createIncomingHandles(incomingMap.get(block.id) ?? []);
+		const outgoingHandles = createOutgoingHandles(block);
 
 		return {
 			id: block.id,
@@ -57,61 +62,30 @@ export function createLessonFlowGraph(definition: LessonDefinition): LessonFlowG
 				isEntry: definition.entryBlockId === block.id,
 				incomingCount: incomingMap.get(block.id)?.length ?? 0,
 				outgoingCount: outgoingMap.get(block.id)?.length ?? 0,
-				summary: summarizeLessonBlock(block)
+				summary: summarizeLessonBlock(block),
+				incomingHandles,
+				outgoingHandles
 			},
-			sourcePosition: Position.Right,
-			targetPosition: Position.Left,
+			sourcePosition: Position.Bottom,
+			targetPosition: Position.Top,
 			deletable: false
 		};
 	});
 
-	const edges: LessonFlowEdge[] = [];
-
-	for (const block of definition.blocks) {
-		if (block.kind !== 'choice' && block.kind !== 'end' && block.next) {
-			edges.push(
-				createLessonFlowEdge({
-					id: getLessonFlowNextEdgeId(block.id),
-					source: block.id,
-					target: block.next,
-					label: 'Continuar',
-					edgeType: 'next'
-				})
-			);
-		}
-
-		for (const [branchIndex, branch] of (block.branches ?? []).entries()) {
-			edges.push(
-				createLessonFlowEdge({
-					id: getLessonFlowBranchEdgeId(block.id, branchIndex),
-					source: block.id,
-					target: branch.targetBlockId,
-					label: branch.label?.trim() || `Rama ${branchIndex + 1}`,
-					edgeType: 'branch',
-					branchIndex,
-					conditionSource: branch.condition?.source,
-					conditionOperator: branch.condition?.operator,
-					conditionValue: branch.condition?.value ?? null
-				})
-			);
-		}
-
-		if (block.kind === 'choice') {
-			for (const option of block.options) {
-				edges.push(
-					createLessonFlowEdge({
-						id: getLessonFlowChoiceEdgeId(block.id, option.id),
-						source: block.id,
-						target: option.targetBlockId,
-						label: option.label,
-						edgeType: 'choice-option',
-						optionId: option.id,
-						optionValue: option.value
-					})
-				);
-			}
+	const targetHandleByEdgeId = new Map<string, string>();
+	for (const edgeIdList of incomingMap.values()) {
+		for (const edgeId of edgeIdList) {
+			targetHandleByEdgeId.set(edgeId, getLessonFlowIncomingHandleId(edgeId));
 		}
 	}
+
+	const edges: LessonFlowEdge[] = edgeInputs.map((edgeInput) =>
+		createLessonFlowEdge({
+			...edgeInput,
+			sourceHandle: getLessonFlowSourceHandleId(edgeInput),
+			targetHandle: targetHandleByEdgeId.get(edgeInput.id) ?? OPEN_TARGET_HANDLE_ID
+		})
+	);
 
 	return {
 		nodes,
@@ -192,6 +166,8 @@ function createLessonFlowEdge(input: {
 	target: string;
 	label: string;
 	edgeType: LessonFlowEdgeType;
+	sourceHandle: string;
+	targetHandle: string;
 	branchIndex?: number;
 	optionId?: string;
 	optionValue?: string;
@@ -211,6 +187,8 @@ function createLessonFlowEdge(input: {
 		type: FLOW_EDGE_TYPE,
 		source: input.source,
 		target: input.target,
+		sourceHandle: input.sourceHandle,
+		targetHandle: input.targetHandle,
 		label: input.label,
 		labelStyle:
 			'fill:var(--xy-edge-label-color,#3f3a32);font-size:12px;font-weight:600;background:transparent',
@@ -234,46 +212,108 @@ function createLessonFlowEdge(input: {
 	};
 }
 
-function buildOutgoingMap(definition: LessonDefinition): Map<string, string[]> {
-	const outgoingMap = new Map<string, string[]>();
+function collectEdgeInputs(definition: LessonDefinition): Array<{
+	id: string;
+	source: string;
+	target: string;
+	label: string;
+	edgeType: LessonFlowEdgeType;
+	branchIndex?: number;
+	optionId?: string;
+	optionValue?: string;
+	conditionSource?: string;
+	conditionOperator?: LessonFlowEdgeData['conditionOperator'];
+	conditionValue?: LessonFlowEdgeData['conditionValue'];
+}> {
+	const edgeInputs: Array<{
+		id: string;
+		source: string;
+		target: string;
+		label: string;
+		edgeType: LessonFlowEdgeType;
+		branchIndex?: number;
+		optionId?: string;
+		optionValue?: string;
+		conditionSource?: string;
+		conditionOperator?: LessonFlowEdgeData['conditionOperator'];
+		conditionValue?: LessonFlowEdgeData['conditionValue'];
+	}> = [];
 
 	for (const block of definition.blocks) {
-		const targets: string[] = [];
-
 		if (block.kind !== 'choice' && block.kind !== 'end' && block.next) {
-			targets.push(block.next);
+			edgeInputs.push({
+				id: getLessonFlowNextEdgeId(block.id),
+				source: block.id,
+				target: block.next,
+				label: 'Continuar',
+				edgeType: 'next'
+			});
 		}
 
-		for (const branch of block.branches ?? []) {
-			targets.push(branch.targetBlockId);
+		for (const [branchIndex, branch] of (block.branches ?? []).entries()) {
+			edgeInputs.push({
+				id: getLessonFlowBranchEdgeId(block.id, branchIndex),
+				source: block.id,
+				target: branch.targetBlockId,
+				label: branch.label?.trim() || `Rama ${branchIndex + 1}`,
+				edgeType: 'branch',
+				branchIndex,
+				conditionSource: branch.condition?.source,
+				conditionOperator: branch.condition?.operator,
+				conditionValue: branch.condition?.value ?? null
+			});
 		}
 
 		if (block.kind === 'choice') {
 			for (const option of block.options) {
-				targets.push(option.targetBlockId);
+				edgeInputs.push({
+					id: getLessonFlowChoiceEdgeId(block.id, option.id),
+					source: block.id,
+					target: option.targetBlockId,
+					label: option.label,
+					edgeType: 'choice-option',
+					optionId: option.id,
+					optionValue: option.value
+				});
 			}
 		}
+	}
 
-		outgoingMap.set(block.id, targets);
+	return edgeInputs;
+}
+
+function buildOutgoingMap(
+	edgeInputs: Array<{
+		source: string;
+		target: string;
+	}>
+): Map<string, string[]> {
+	const outgoingMap = new Map<string, string[]>();
+
+	for (const edgeInput of edgeInputs) {
+		const currentTargets = outgoingMap.get(edgeInput.source) ?? [];
+		outgoingMap.set(edgeInput.source, [...currentTargets, edgeInput.target]);
 	}
 
 	return outgoingMap;
 }
 
-function buildIncomingMap(definition: LessonDefinition): Map<string, string[]> {
+function buildIncomingMap(
+	definition: LessonDefinition,
+	edgeInputs: Array<{
+		id: string;
+		target: string;
+	}>
+): Map<string, string[]> {
 	const incomingMap = new Map<string, string[]>();
 
 	for (const block of definition.blocks) {
 		incomingMap.set(block.id, []);
 	}
 
-	for (const [sourceId, targets] of buildOutgoingMap(definition)) {
-		for (const targetId of targets) {
-			const current = incomingMap.get(targetId) ?? [];
-			if (!current.includes(sourceId)) {
-				incomingMap.set(targetId, [...current, sourceId]);
-			}
-		}
+	for (const edgeInput of edgeInputs) {
+		const current = incomingMap.get(edgeInput.target) ?? [];
+		incomingMap.set(edgeInput.target, [...current, edgeInput.id]);
 	}
 
 	return incomingMap;
@@ -327,10 +367,92 @@ function computeFallbackPositions(
 		rowsByLevel.set(level, row + 1);
 
 		positions.set(block.id, {
-			x: level * FLOW_NODE_GAP_X,
-			y: row * FLOW_NODE_GAP_Y
+			x: row * FLOW_NODE_GAP_X,
+			y: level * FLOW_NODE_GAP_Y
 		});
 	}
 
 	return positions;
+}
+
+function createIncomingHandles(edgeIds: string[]): LessonFlowHandleDescriptor[] {
+	if (edgeIds.length === 0) {
+		return [
+			{
+				id: OPEN_TARGET_HANDLE_ID,
+				label: 'Entrada',
+				edgeType: 'incoming'
+			}
+		];
+	}
+
+	return edgeIds.map((edgeId, index) => ({
+		id: getLessonFlowIncomingHandleId(edgeId),
+		label: `Entrada ${index + 1}`,
+		edgeType: 'incoming'
+	}));
+}
+
+function createOutgoingHandles(block: LessonBlock): LessonFlowHandleDescriptor[] {
+	if (block.kind === 'end') {
+		return [];
+	}
+
+	if (block.kind === 'choice') {
+		return block.options.map((option, index) => ({
+			id: getLessonFlowChoiceHandleId(option.id),
+			label: option.label?.trim() || `Opción ${index + 1}`,
+			edgeType: 'choice-option'
+		}));
+	}
+
+	const handles: LessonFlowHandleDescriptor[] = [
+		{
+			id: getLessonFlowNextHandleId(),
+			label: 'Siguiente',
+			edgeType: 'next'
+		}
+	];
+
+	for (const [branchIndex, branch] of (block.branches ?? []).entries()) {
+		handles.push({
+			id: getLessonFlowBranchHandleId(branchIndex),
+			label: branch.label?.trim() || `Rama ${branchIndex + 1}`,
+			edgeType: 'branch'
+		});
+	}
+
+	return handles;
+}
+
+function getLessonFlowSourceHandleId(edgeInput: {
+	edgeType: LessonFlowEdgeType;
+	branchIndex?: number;
+	optionId?: string;
+}): string {
+	if (edgeInput.edgeType === 'next') {
+		return getLessonFlowNextHandleId();
+	}
+
+	if (edgeInput.edgeType === 'branch') {
+		return getLessonFlowBranchHandleId(edgeInput.branchIndex ?? 0);
+	}
+
+	return getLessonFlowChoiceHandleId(edgeInput.optionId ?? 'option');
+}
+
+export function getLessonFlowNextHandleId(): string {
+	return 'out:next';
+}
+
+export function getLessonFlowBranchHandleId(branchIndex: number): string {
+	return `out:branch:${branchIndex}`;
+}
+
+export function getLessonFlowChoiceHandleId(optionId: string): string {
+	return `out:choice:${optionId}`;
+}
+
+export function getLessonFlowIncomingHandleId(edgeId: string): string {
+	return `in:${edgeId}`;
 }

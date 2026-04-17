@@ -3,6 +3,12 @@ import type { LessonBlockKind, LessonConditionOperator, LessonDefinition } from 
 
 export type LessonFlowEdgeType = 'next' | 'branch' | 'choice-option';
 
+export interface LessonFlowHandleDescriptor {
+	id: string;
+	label: string;
+	edgeType: LessonFlowEdgeType | 'incoming';
+}
+
 export interface LessonFlowNodeData extends Record<string, unknown> {
 	blockId: string;
 	title: string;
@@ -12,6 +18,8 @@ export interface LessonFlowNodeData extends Record<string, unknown> {
 	incomingCount: number;
 	outgoingCount: number;
 	summary: string;
+	incomingHandles: LessonFlowHandleDescriptor[];
+	outgoingHandles: LessonFlowHandleDescriptor[];
 }
 
 export type LessonFlowNode = Node<LessonFlowNodeData, 'lesson-block'>;

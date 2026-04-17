@@ -39,73 +39,88 @@
 		return Flag;
 	}
 
+	function handleOffset(index: number, total: number) {
+		if (total <= 1) return '50%';
+		return `${(index / (total - 1)) * 100}%`;
+	}
+
 	let Icon = $derived(iconFor(data.kind));
 	let style = $derived(kindStyles[data.kind]);
 </script>
 
-<Handle
-	type="target"
-	position={Position.Left}
-	class={`h-3.5 w-3.5 border-2 border-white shadow-sm ${style.handle}`}
-/>
+<div class="relative w-[280px] py-5">
+	{#each data.incomingHandles as handle, index (handle.id)}
+		<Handle
+			id={handle.id}
+			type="target"
+			position={Position.Top}
+			class={`h-3.5 w-3.5 border-2 border-white shadow-sm ${style.handle}`}
+			style={`left:${handleOffset(index, data.incomingHandles.length)};top:0;transform:translate(-50%,-50%);`}
+		/>
+	{/each}
 
-<article
-	class={`w-[280px] rounded-[28px] border px-4 py-4 shadow-[0_22px_40px_-24px_rgba(24,24,27,0.38)] transition-all ${style.surface} ${
-		selected
-			? 'ring-primary-500/80 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-950'
-			: ''
-	}`}
->
-	<div class="flex items-start justify-between gap-3">
-		<div class={`rounded-2xl p-3 ring-1 ${style.accent}`}>
-			<Icon class="h-5 w-5" />
-		</div>
-		<div
-			class="flex flex-wrap justify-end gap-2 text-[11px] font-semibold tracking-[0.14em] uppercase"
-		>
-			<span class="rounded-full bg-white/90 px-2.5 py-1 text-stone-500 ring-1 ring-stone-200">
-				{data.kindLabel}
-			</span>
-			{#if data.isEntry}
-				<span
-					class="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700 ring-1 ring-emerald-200"
-				>
-					Entrada
+	<article
+		class={`w-[280px] rounded-[28px] border px-4 py-4 shadow-[0_22px_40px_-24px_rgba(24,24,27,0.38)] transition-all ${style.surface} ${
+			selected
+				? 'ring-primary-500/80 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-950'
+				: ''
+		}`}
+	>
+		<div class="flex items-start justify-between gap-3">
+			<div class={`rounded-2xl p-3 ring-1 ${style.accent}`}>
+				<Icon class="h-5 w-5" />
+			</div>
+			<div
+				class="flex flex-wrap justify-end gap-2 text-[11px] font-semibold tracking-[0.14em] uppercase"
+			>
+				<span class="rounded-full bg-white/90 px-2.5 py-1 text-stone-500 ring-1 ring-stone-200">
+					{data.kindLabel}
 				</span>
-			{/if}
+				{#if data.isEntry}
+					<span
+						class="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700 ring-1 ring-emerald-200"
+					>
+						Entrada
+					</span>
+				{/if}
+			</div>
 		</div>
-	</div>
 
-	<div class="mt-4 space-y-2">
-		<h3 class="line-clamp-2 text-[15px] leading-5 font-semibold text-stone-900">{data.title}</h3>
-		<p class="line-clamp-2 text-[13px] leading-5 text-stone-600">{data.summary}</p>
-	</div>
-
-	<div class="mt-4 grid grid-cols-2 gap-3 text-xs text-stone-600">
-		<div class="rounded-2xl bg-white/80 px-3 py-2 ring-1 ring-stone-200/80">
-			<p class="text-[11px] font-semibold tracking-[0.14em] text-stone-500 uppercase">Entradas</p>
-			<p class="mt-1 text-base font-semibold text-stone-900">{data.incomingCount}</p>
+		<div class="mt-4 space-y-2">
+			<h3 class="line-clamp-2 text-[15px] leading-5 font-semibold text-stone-900">
+				{data.title}
+			</h3>
+			<p class="line-clamp-2 text-[13px] leading-5 text-stone-600">{data.summary}</p>
 		</div>
-		<div class="rounded-2xl bg-white/80 px-3 py-2 ring-1 ring-stone-200/80">
-			<p class="text-[11px] font-semibold tracking-[0.14em] text-stone-500 uppercase">Salidas</p>
-			<p class="mt-1 text-base font-semibold text-stone-900">{data.outgoingCount}</p>
-		</div>
-	</div>
 
-	{#if data.kind === 'choice'}
-		<div
-			class="mt-4 flex items-center gap-2 rounded-2xl bg-teal-950/[0.035] px-3 py-2 text-xs text-teal-800 ring-1 ring-teal-200/80"
-		>
-			<GitBranch class="h-3.5 w-3.5" />
-			<span>Las opciones viven en el inspector lateral.</span>
+		<div class="mt-4 grid grid-cols-2 gap-3 text-xs text-stone-600">
+			<div class="rounded-2xl bg-white/80 px-3 py-2 ring-1 ring-stone-200/80">
+				<p class="text-[11px] font-semibold tracking-[0.14em] text-stone-500 uppercase">Entradas</p>
+				<p class="mt-1 text-base font-semibold text-stone-900">{data.incomingCount}</p>
+			</div>
+			<div class="rounded-2xl bg-white/80 px-3 py-2 ring-1 ring-stone-200/80">
+				<p class="text-[11px] font-semibold tracking-[0.14em] text-stone-500 uppercase">Salidas</p>
+				<p class="mt-1 text-base font-semibold text-stone-900">{data.outgoingCount}</p>
+			</div>
 		</div>
-	{/if}
-</article>
 
-{#if data.kind !== 'end'}
-	<Handle
-		type="source"
-		position={Position.Right}
-		class={`h-3.5 w-3.5 border-2 border-white shadow-sm ${style.handle}`}
-	/>
-{/if}
+		{#if data.kind === 'choice'}
+			<div
+				class="mt-4 flex items-center gap-2 rounded-2xl bg-teal-950/[0.035] px-3 py-2 text-xs text-teal-800 ring-1 ring-teal-200/80"
+			>
+				<GitBranch class="h-3.5 w-3.5" />
+				<span>Las opciones viven en el inspector lateral.</span>
+			</div>
+		{/if}
+	</article>
+
+	{#each data.outgoingHandles as handle, index (handle.id)}
+		<Handle
+			id={handle.id}
+			type="source"
+			position={Position.Bottom}
+			class={`h-3.5 w-3.5 border-2 border-white shadow-sm ${style.handle}`}
+			style={`left:${handleOffset(index, data.outgoingHandles.length)};bottom:0;transform:translate(-50%,50%);`}
+		/>
+	{/each}
+</div>

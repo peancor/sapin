@@ -5,8 +5,11 @@ import type { LessonDefinition } from '../types/lesson';
 import {
 	applyLessonFlowGraph,
 	createLessonFlowGraph,
+	getLessonFlowChoiceHandleId,
 	getLessonFlowBranchEdgeId,
+	getLessonFlowIncomingHandleId,
 	getLessonFlowChoiceEdgeId,
+	getLessonFlowNextHandleId,
 	getLessonFlowNextEdgeId
 } from './lessonFlow';
 import { LessonService } from '../server/lesson/LessonService';
@@ -72,6 +75,12 @@ function makeDefinition(): LessonDefinition {
 
 test('createLessonFlowGraph serializes nodes and edges with correct metadata', () => {
 	const graph = createLessonFlowGraph(makeDefinition());
+	const introNode = graph.nodes.find((node) => node.id === 'intro');
+	const decisionNode = graph.nodes.find((node) => node.id === 'decision');
+	const introNextEdge = graph.edges.find((edge) => edge.id === getLessonFlowNextEdgeId('intro'));
+	const leftChoiceEdge = graph.edges.find(
+		(edge) => edge.id === getLessonFlowChoiceEdgeId('decision', 'left')
+	);
 
 	assert.equal(graph.nodes.length, 4);
 	assert.equal(graph.edges.length, 5);
@@ -80,6 +89,23 @@ test('createLessonFlowGraph serializes nodes and edges with correct metadata', (
 	assert.ok(graph.edges.some((edge) => edge.id === getLessonFlowNextEdgeId('intro')));
 	assert.ok(graph.edges.some((edge) => edge.id === getLessonFlowChoiceEdgeId('decision', 'left')));
 	assert.ok(graph.edges.some((edge) => edge.id === getLessonFlowBranchEdgeId('agent', 0)));
+	assert.equal(introNode?.sourcePosition, 'bottom');
+	assert.equal(decisionNode?.targetPosition, 'top');
+	assert.deepEqual(
+		introNode?.data.outgoingHandles.map((handle) => handle.id),
+		[getLessonFlowNextHandleId()]
+	);
+	assert.ok(
+		decisionNode?.data.outgoingHandles.some(
+			(handle) => handle.id === getLessonFlowChoiceHandleId('left')
+		)
+	);
+	assert.equal(introNextEdge?.sourceHandle, getLessonFlowNextHandleId());
+	assert.equal(
+		introNextEdge?.targetHandle,
+		getLessonFlowIncomingHandleId(getLessonFlowNextEdgeId('intro'))
+	);
+	assert.equal(leftChoiceEdge?.sourceHandle, getLessonFlowChoiceHandleId('left'));
 });
 
 test('applyLessonFlowGraph preserves and updates graph positions', () => {
@@ -97,6 +123,22 @@ test('applyLessonFlowGraph preserves and updates graph positions', () => {
 		x: 40,
 		y: 60
 	});
+});
+
+test('fallback layout stacks blocks vertically from the entry block', () => {
+	const definition = makeDefinition();
+	for (const block of definition.blocks) {
+		delete block.graph;
+	}
+
+	const graph = createLessonFlowGraph(definition);
+	const intro = graph.nodes.find((node) => node.id === 'intro');
+	const decision = graph.nodes.find((node) => node.id === 'decision');
+	const agent = graph.nodes.find((node) => node.id === 'agent');
+
+	assert.equal(intro?.position.y, 0);
+	assert.ok((decision?.position.y ?? 0) > (intro?.position.y ?? 0));
+	assert.ok((agent?.position.y ?? 0) >= (decision?.position.y ?? 0));
 });
 
 test('applyLessonFlowGraph reconstructs next, branch and choice targets after reconnecting edges', () => {
