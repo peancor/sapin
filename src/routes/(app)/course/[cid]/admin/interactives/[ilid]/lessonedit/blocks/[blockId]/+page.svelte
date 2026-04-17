@@ -5,11 +5,7 @@
 	import { resolve } from '$app/paths';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
-	import type {
-		LessonAssetRef,
-		LessonBlock,
-		LessonTransition
-	} from '$lib/types/lesson';
+	import type { LessonAssetRef, LessonBlock, LessonTransition } from '$lib/types/lesson';
 	import {
 		ArrowRight,
 		BookOpenText,
@@ -20,6 +16,7 @@
 		MoveLeft,
 		Paperclip,
 		Plus,
+		Route,
 		Save,
 		Sparkles,
 		Trash2
@@ -106,7 +103,9 @@
 
 	function removeBranch(index: number) {
 		if (workingBlock.kind !== 'content' && workingBlock.kind !== 'agent') return;
-		workingBlock.branches = (workingBlock.branches ?? []).filter((_, branchIndex) => branchIndex !== index);
+		workingBlock.branches = (workingBlock.branches ?? []).filter(
+			(_, branchIndex) => branchIndex !== index
+		);
 		markDirty();
 	}
 
@@ -197,7 +196,9 @@
 			}
 
 			if (result.type === 'failure') {
-				throw new Error((result.data as { error?: string } | null)?.error || 'No se pudo subir la imagen.');
+				throw new Error(
+					(result.data as { error?: string } | null)?.error || 'No se pudo subir la imagen.'
+				);
 			}
 
 			throw new Error('La subida inline devolvió una respuesta inesperada.');
@@ -233,19 +234,21 @@
 	<div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 		<div>
 			<div class="mb-3 flex items-center gap-3">
-				<div class="rounded-2xl bg-amber-100 p-3 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+				<div
+					class="rounded-2xl bg-amber-100 p-3 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
+				>
 					<HeaderIcon class="h-5 w-5" />
 				</div>
 				<div>
-					<p class="text-sm uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+					<p class="text-sm tracking-[0.18em] text-gray-500 uppercase dark:text-gray-400">
 						{blockKindLabel(workingBlock)}
 					</p>
 					<h1 class="text-2xl font-semibold text-gray-900 dark:text-white">{workingBlock.title}</h1>
 				</div>
 			</div>
 			<p class="max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
-				Esta página edita un único bloque. El guardado es explícito y solo persiste el bloque
-				mutado dentro de la definición completa de la lesson.
+				Esta página edita un único bloque. El guardado es explícito y solo persiste el bloque mutado
+				dentro de la definición completa de la lesson.
 			</p>
 		</div>
 
@@ -258,6 +261,13 @@
 				Volver a la portada
 			</a>
 			<a
+				href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit/flow`)}
+				class="border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 dark:border-primary-900/40 dark:bg-primary-950/20 dark:text-primary-300 dark:hover:bg-primary-950/30 rounded-xl border px-4 py-2.5 text-sm font-medium"
+			>
+				<Route class="mr-1 inline h-4 w-4" />
+				Editor visual
+			</a>
+			<a
 				href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit/resources`)}
 				class="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
 			>
@@ -268,7 +278,9 @@
 	</div>
 
 	{#if form?.error}
-		<div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200">
+		<div
+			class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200"
+		>
 			{form.error}
 		</div>
 	{/if}
@@ -283,16 +295,19 @@
 
 			<div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
 				<label class="block">
-					<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">ID técnico</span>
+					<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						>ID técnico</span
+					>
 					<input
-						class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-mono dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+						class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 						bind:value={workingBlock.id}
 						oninput={markDirty}
 					/>
 				</label>
 
 				<label class="block">
-					<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Título</span>
+					<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Título</span
+					>
 					<input
 						class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 						bind:value={workingBlock.title}
@@ -301,11 +316,14 @@
 				</label>
 			</div>
 
-			<div class="rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:text-gray-300">
+			<div
+				class="rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:text-gray-300"
+			>
 				<Sparkles class="mr-2 inline h-4 w-4 text-amber-600 dark:text-amber-300" />
-				Tipo del bloque: <strong class="text-gray-900 dark:text-white">{blockKindLabel(workingBlock)}</strong>.
-				Si necesitas cambiarlo, crea un bloque nuevo del tipo correcto y elimina este cuando
-				ya no esté referenciado.
+				Tipo del bloque:
+				<strong class="text-gray-900 dark:text-white">{blockKindLabel(workingBlock)}</strong>. Si
+				necesitas cambiarlo, crea un bloque nuevo del tipo correcto y elimina este cuando ya no esté
+				referenciado.
 			</div>
 
 			{#if workingBlock.kind === 'content'}
@@ -339,7 +357,9 @@
 
 					<div class="grid gap-4 md:grid-cols-2">
 						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Texto del botón</span>
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Texto del botón</span
+							>
 							<input
 								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 								bind:value={workingBlock.continueLabel}
@@ -348,7 +368,9 @@
 						</label>
 
 						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Siguiente bloque por defecto</span>
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Siguiente bloque por defecto</span
+							>
 							<select
 								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 								bind:value={workingBlock.next}
@@ -364,10 +386,12 @@
 					<div class="space-y-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
 						<div class="flex flex-wrap items-center justify-between gap-3">
 							<div>
-								<h3 class="text-base font-semibold text-gray-900 dark:text-white">Recursos externos del bloque</h3>
+								<h3 class="text-base font-semibold text-gray-900 dark:text-white">
+									Recursos externos del bloque
+								</h3>
 								<p class="text-sm text-gray-500 dark:text-gray-400">
-									Los recursos inline pegados en el editor no aparecen aquí. Esta lista es
-									para adjuntos adicionales del bloque.
+									Los recursos inline pegados en el editor no aparecen aquí. Esta lista es para
+									adjuntos adicionales del bloque.
 								</p>
 							</div>
 							<a
@@ -380,16 +404,20 @@
 						</div>
 
 						{#if data.files.length === 0}
-							<p class="text-sm text-gray-500 dark:text-gray-400">Aún no hay recursos manuales en esta lesson.</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								Aún no hay recursos manuales en esta lesson.
+							</p>
 						{:else}
 							<div class="space-y-3">
 								{#each data.files as file (file.id)}
-									{@const currentIndex = (workingBlock.assetRefs ?? []).findIndex((asset) => asset.fileId === file.id)}
+									{@const currentIndex = (workingBlock.assetRefs ?? []).findIndex(
+										(asset) => asset.fileId === file.id
+									)}
 									<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
 										<label class="flex items-start gap-3">
 											<input
 												type="checkbox"
-												class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600"
+												class="text-primary-600 mt-1 h-4 w-4 rounded border-gray-300"
 												checked={currentIndex >= 0}
 												onchange={(event) =>
 													toggleAsset(file.id, (event.currentTarget as HTMLInputElement).checked)}
@@ -403,7 +431,10 @@
 										{#if currentIndex >= 0}
 											<div class="mt-3 grid gap-3 md:grid-cols-2">
 												<label class="block">
-													<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Tipo</span>
+													<span
+														class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+														>Tipo</span
+													>
 													<select
 														class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 														bind:value={workingBlock.assetRefs![currentIndex].kind}
@@ -417,7 +448,10 @@
 													</select>
 												</label>
 												<label class="block">
-													<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Caption</span>
+													<span
+														class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+														>Caption</span
+													>
 													<input
 														class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 														value={workingBlock.assetRefs?.[currentIndex]?.caption ?? ''}
@@ -438,7 +472,9 @@
 			{:else if workingBlock.kind === 'choice'}
 				<div class="space-y-5">
 					<label class="block">
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Introducción opcional</span>
+						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Introducción opcional</span
+						>
 						<textarea
 							class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 							bind:value={workingBlock.body}
@@ -447,9 +483,11 @@
 					</label>
 
 					<label class="block">
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Clave de salida</span>
+						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Clave de salida</span
+						>
 						<input
-							class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-mono dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+							class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 							bind:value={workingBlock.outputKey}
 							oninput={markDirty}
 						/>
@@ -477,16 +515,22 @@
 							<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
 								<div class="grid gap-3 md:grid-cols-2">
 									<label class="block">
-										<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">ID</span>
+										<span
+											class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+											>ID</span
+										>
 										<input
-											class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-mono dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+											class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 											bind:value={option.id}
 											oninput={markDirty}
 										/>
 									</label>
 
 									<label class="block">
-										<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Etiqueta</span>
+										<span
+											class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+											>Etiqueta</span
+										>
 										<input
 											class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 											bind:value={option.label}
@@ -495,16 +539,22 @@
 									</label>
 
 									<label class="block">
-										<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Valor</span>
+										<span
+											class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+											>Valor</span
+										>
 										<input
-											class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-mono dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+											class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 											bind:value={option.value}
 											oninput={markDirty}
 										/>
 									</label>
 
 									<label class="block">
-										<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Destino</span>
+										<span
+											class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+											>Destino</span
+										>
 										<select
 											class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 											bind:value={option.targetBlockId}
@@ -518,7 +568,10 @@
 								</div>
 
 								<label class="mt-3 block">
-									<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Descripción opcional</span>
+									<span
+										class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+										>Descripción opcional</span
+									>
 									<textarea
 										class="min-h-24 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 										bind:value={option.description}
@@ -543,7 +596,9 @@
 			{:else if workingBlock.kind === 'agent'}
 				<div class="space-y-5">
 					<label class="block">
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Introducción del bloque</span>
+						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Introducción del bloque</span
+						>
 						<textarea
 							class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 							bind:value={workingBlock.body}
@@ -553,7 +608,9 @@
 
 					<div class="grid gap-4 md:grid-cols-2">
 						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Modo</span>
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Modo</span
+							>
 							<select
 								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 								bind:value={workingBlock.agentConfig.mode}
@@ -565,7 +622,9 @@
 						</label>
 
 						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Modelo</span>
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Modelo</span
+							>
 							<input
 								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 								bind:value={workingBlock.agentConfig.model}
@@ -576,7 +635,9 @@
 					</div>
 
 					<label class="block">
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Prompt base</span>
+						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Prompt base</span
+						>
 						<textarea
 							class="min-h-36 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 							bind:value={workingBlock.agentConfig.promptTemplate}
@@ -585,7 +646,9 @@
 					</label>
 
 					<label class="block">
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">System prompt</span>
+						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>System prompt</span
+						>
 						<textarea
 							class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 							bind:value={workingBlock.agentConfig.systemPrompt}
@@ -595,7 +658,9 @@
 
 					<div class="grid gap-4 md:grid-cols-3">
 						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Placeholder</span>
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Placeholder</span
+							>
 							<input
 								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 								bind:value={workingBlock.agentConfig.placeholder}
@@ -604,7 +669,9 @@
 						</label>
 
 						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Botón enviar</span>
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Botón enviar</span
+							>
 							<input
 								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 								bind:value={workingBlock.agentConfig.submitLabel}
@@ -613,7 +680,9 @@
 						</label>
 
 						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Botón continuar</span>
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Botón continuar</span
+							>
 							<input
 								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 								bind:value={workingBlock.agentConfig.continueLabel}
@@ -624,7 +693,9 @@
 
 					<div class="grid gap-4 md:grid-cols-2">
 						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Mensaje inicial opcional</span>
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Mensaje inicial opcional</span
+							>
 							<input
 								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 								bind:value={workingBlock.agentConfig.initialAssistantMessage}
@@ -633,7 +704,9 @@
 						</label>
 
 						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Máx. turnos</span>
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Máx. turnos</span
+							>
 							<input
 								type="number"
 								min="1"
@@ -648,15 +721,19 @@
 						</label>
 					</div>
 
-					<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+					<label
+						class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+					>
 						<input
 							type="checkbox"
-							class="h-4 w-4 rounded border-gray-300 text-primary-600"
+							class="text-primary-600 h-4 w-4 rounded border-gray-300"
 							bind:checked={workingBlock.requiresResponse}
 							onchange={markDirty}
 						/>
 						<div>
-							<p class="text-sm font-medium text-gray-900 dark:text-white">Exigir respuesta del alumno</p>
+							<p class="text-sm font-medium text-gray-900 dark:text-white">
+								Exigir respuesta del alumno
+							</p>
 							<p class="text-xs text-gray-500 dark:text-gray-400">
 								Si se desactiva, el alumno podrá continuar sin enviar mensaje.
 							</p>
@@ -664,7 +741,9 @@
 					</label>
 
 					<label class="block">
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Siguiente bloque por defecto</span>
+						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Siguiente bloque por defecto</span
+						>
 						<select
 							class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 							bind:value={workingBlock.next}
@@ -679,7 +758,9 @@
 					<div class="space-y-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
 						<div class="flex flex-wrap items-center justify-between gap-3">
 							<div>
-								<h2 class="text-base font-semibold text-gray-900 dark:text-white">Salida estructurada</h2>
+								<h2 class="text-base font-semibold text-gray-900 dark:text-white">
+									Salida estructurada
+								</h2>
 								<p class="text-sm text-gray-500 dark:text-gray-400">
 									Campos disponibles luego como variables `blocks.{workingBlock.id}.outputs.*`.
 								</p>
@@ -698,16 +779,22 @@
 							<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
 								<div class="grid gap-3 md:grid-cols-3">
 									<label class="block">
-										<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Key</span>
+										<span
+											class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+											>Key</span
+										>
 										<input
-											class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-mono dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+											class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 											bind:value={field.key}
 											oninput={markDirty}
 										/>
 									</label>
 
 									<label class="block">
-										<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Tipo</span>
+										<span
+											class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+											>Tipo</span
+										>
 										<select
 											class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 											bind:value={field.type}
@@ -721,7 +808,10 @@
 									</label>
 
 									<label class="block">
-										<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Descripción</span>
+										<span
+											class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+											>Descripción</span
+										>
 										<input
 											class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 											bind:value={field.description}
@@ -759,7 +849,9 @@
 
 					{#if workingBlock.kind === 'end'}
 						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Texto CTA</span>
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Texto CTA</span
+							>
 							<input
 								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 								bind:value={workingBlock.ctaLabel}
@@ -771,7 +863,9 @@
 			{/if}
 
 			{#if workingBlock.kind === 'content' || workingBlock.kind === 'agent'}
-				<div class="space-y-4 rounded-2xl border border-dashed border-gray-300 p-4 dark:border-gray-700">
+				<div
+					class="space-y-4 rounded-2xl border border-dashed border-gray-300 p-4 dark:border-gray-700"
+				>
 					<div class="flex flex-wrap items-center justify-between gap-3">
 						<div>
 							<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Branching</h2>
@@ -790,7 +884,9 @@
 					</div>
 
 					{#if (workingBlock.branches?.length ?? 0) === 0}
-						<p class="text-sm text-gray-500 dark:text-gray-400">Todavía no hay ramas condicionales.</p>
+						<p class="text-sm text-gray-500 dark:text-gray-400">
+							Todavía no hay ramas condicionales.
+						</p>
 					{:else}
 						<div class="space-y-3">
 							{#each workingBlock.branches ?? [] as branch, branchIndex (`${branch.label}-${branchIndex}`)}
@@ -798,7 +894,10 @@
 								<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
 									<div class="grid gap-3 md:grid-cols-2">
 										<label class="block">
-											<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Etiqueta</span>
+											<span
+												class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+												>Etiqueta</span
+											>
 											<input
 												class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 												bind:value={branch.label}
@@ -807,7 +906,10 @@
 										</label>
 
 										<label class="block">
-											<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Destino</span>
+											<span
+												class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+												>Destino</span
+											>
 											<select
 												class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 												bind:value={branch.targetBlockId}
@@ -820,16 +922,22 @@
 										</label>
 
 										<label class="block">
-											<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Variable origen</span>
+											<span
+												class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+												>Variable origen</span
+											>
 											<input
-												class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-mono dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+												class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 												bind:value={condition.source}
 												oninput={markDirty}
 											/>
 										</label>
 
 										<label class="block">
-											<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Operador</span>
+											<span
+												class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+												>Operador</span
+											>
 											<select
 												class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 												bind:value={condition.operator}
@@ -843,7 +951,10 @@
 									</div>
 
 									<label class="mt-3 block">
-										<span class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Valor esperado</span>
+										<span
+											class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+											>Valor esperado</span
+										>
 										<input
 											class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 											value={condition.value?.toString() ?? ''}
@@ -871,10 +982,14 @@
 				</div>
 			{/if}
 
-			<div class="flex flex-col gap-4 border-t border-gray-200 pt-5 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
+			<div
+				class="flex flex-col gap-4 border-t border-gray-200 pt-5 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800"
+			>
 				<div>
 					{#if isDirty}
-						<p class="text-sm text-amber-700 dark:text-amber-300">Hay cambios pendientes en este bloque.</p>
+						<p class="text-sm text-amber-700 dark:text-amber-300">
+							Hay cambios pendientes en este bloque.
+						</p>
 					{:else}
 						<p class="text-sm text-gray-500 dark:text-gray-400">
 							Guarda para revalidar la lesson completa y persistir solo este bloque.
@@ -882,7 +997,9 @@
 					{/if}
 				</div>
 
-				<button class="rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700">
+				<button
+					class="bg-primary-600 hover:bg-primary-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white"
+				>
 					<Save class="mr-1 inline h-4 w-4" />
 					Guardar bloque
 				</button>
@@ -890,16 +1007,22 @@
 		</form>
 
 		<div class="space-y-6">
-			<div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800">
+			<div
+				class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800"
+			>
 				<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Mapa del bloque</h2>
 				<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-					El flujo real lo definen las conexiones del grafo. Cambiar el orden visual de la
-					lesson no altera estas relaciones.
+					El flujo real lo definen las conexiones del grafo. Cambiar el orden visual de la lesson no
+					altera estas relaciones.
 				</p>
 
 				<div class="mt-4 grid gap-3 sm:grid-cols-2">
-					<div class="rounded-2xl border border-sky-200 bg-sky-50/80 px-4 py-4 dark:border-sky-900/40 dark:bg-sky-950/20">
-						<p class="text-xs font-medium uppercase tracking-[0.16em] text-sky-700 dark:text-sky-300">
+					<div
+						class="rounded-2xl border border-sky-200 bg-sky-50/80 px-4 py-4 dark:border-sky-900/40 dark:bg-sky-950/20"
+					>
+						<p
+							class="text-xs font-medium tracking-[0.16em] text-sky-700 uppercase dark:text-sky-300"
+						>
 							Entradas
 						</p>
 						<p class="mt-1 text-2xl font-semibold text-sky-950 dark:text-sky-50">
@@ -908,17 +1031,25 @@
 						<div class="mt-3 flex flex-wrap gap-2">
 							{#if currentGraphSummary.incomingBlockIds.length}
 								{#each currentGraphSummary.incomingBlockIds as sourceId (sourceId)}
-									<span class="rounded-full border border-sky-200 px-2.5 py-1 text-[11px] font-medium text-sky-700 dark:border-sky-900/50 dark:text-sky-200">
+									<span
+										class="rounded-full border border-sky-200 px-2.5 py-1 text-[11px] font-medium text-sky-700 dark:border-sky-900/50 dark:text-sky-200"
+									>
 										{blockLabel(sourceId)}
 									</span>
 								{/each}
 							{:else}
-								<span class="text-sm text-sky-800/80 dark:text-sky-100/80">Nadie llega todavía a este bloque.</span>
+								<span class="text-sm text-sky-800/80 dark:text-sky-100/80"
+									>Nadie llega todavía a este bloque.</span
+								>
 							{/if}
 						</div>
 					</div>
-					<div class="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-						<p class="text-xs font-medium uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-300">
+					<div
+						class="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+					>
+						<p
+							class="text-xs font-medium tracking-[0.16em] text-emerald-700 uppercase dark:text-emerald-300"
+						>
 							Salidas
 						</p>
 						<p class="mt-1 text-2xl font-semibold text-emerald-950 dark:text-emerald-50">
@@ -927,7 +1058,9 @@
 						<div class="mt-3 flex flex-wrap gap-2">
 							{#if currentGraphSummary.outgoingBlockIds.length}
 								{#each currentGraphSummary.outgoingBlockIds as targetId (targetId)}
-									<span class="rounded-full border border-emerald-200 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:border-emerald-900/50 dark:text-emerald-200">
+									<span
+										class="rounded-full border border-emerald-200 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:border-emerald-900/50 dark:text-emerald-200"
+									>
 										{blockLabel(targetId)}
 									</span>
 								{/each}
@@ -942,14 +1075,18 @@
 
 				<div class="mt-4 flex flex-wrap gap-2">
 					{#each availableBlockIds as blockId (blockId)}
-						<span class="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+						<span
+							class="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+						>
 							{blockId}
 						</span>
 					{/each}
 				</div>
 			</div>
 
-			<div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800">
+			<div
+				class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800"
+			>
 				<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Qué expone este bloque</h2>
 				<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
 					Estas son las referencias estables que otros nodos podrán leer desde
@@ -961,38 +1098,64 @@
 					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
 						<div class="flex items-center justify-between gap-3">
 							<h3 class="text-sm font-semibold text-gray-900 dark:text-white">Estado runtime</h3>
-							<span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-								{currentBlockContract.state.length} referencia{currentBlockContract.state.length === 1 ? '' : 's'}
+							<span
+								class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+							>
+								{currentBlockContract.state.length} referencia{currentBlockContract.state.length ===
+								1
+									? ''
+									: 's'}
 							</span>
 						</div>
 						<div class="mt-3 space-y-2">
 							{#each currentBlockContract.state as field (field.path)}
 								<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
-									<p class="font-mono text-xs text-primary-700 dark:text-primary-300">{`{{${field.path}}}`}</p>
-									<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{field.label}</p>
-									<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{field.description}</p>
+									<p class="text-primary-700 dark:text-primary-300 font-mono text-xs">
+										{`{{${field.path}}}`}
+									</p>
+									<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+										{field.label}
+									</p>
+									<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+										{field.description}
+									</p>
 								</div>
 							{/each}
 						</div>
 					</div>
 					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
 						<div class="flex items-center justify-between gap-3">
-							<h3 class="text-sm font-semibold text-gray-900 dark:text-white">Outputs reutilizables</h3>
-							<span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-								{currentBlockContract.outputs.length} referencia{currentBlockContract.outputs.length === 1 ? '' : 's'}
+							<h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+								Outputs reutilizables
+							</h3>
+							<span
+								class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+							>
+								{currentBlockContract.outputs.length} referencia{currentBlockContract.outputs
+									.length === 1
+									? ''
+									: 's'}
 							</span>
 						</div>
 						<div class="mt-3 space-y-2">
 							{#if currentBlockContract.outputs.length}
 								{#each currentBlockContract.outputs as field (field.path)}
 									<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
-										<p class="font-mono text-xs text-primary-700 dark:text-primary-300">{`{{${field.path}}}`}</p>
-										<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{field.label}</p>
-										<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{field.description}</p>
+										<p class="text-primary-700 dark:text-primary-300 font-mono text-xs">
+											{`{{${field.path}}}`}
+										</p>
+										<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+											{field.label}
+										</p>
+										<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+											{field.description}
+										</p>
 									</div>
 								{/each}
 							{:else}
-								<p class="rounded-2xl bg-gray-50 px-3 py-3 text-sm text-gray-500 dark:bg-gray-950/40 dark:text-gray-400">
+								<p
+									class="rounded-2xl bg-gray-50 px-3 py-3 text-sm text-gray-500 dark:bg-gray-950/40 dark:text-gray-400"
+								>
 									Este bloque todavía no publica outputs propios aparte del estado del sistema.
 								</p>
 							{/if}
@@ -1001,28 +1164,38 @@
 				</div>
 			</div>
 
-			<div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800">
+			<div
+				class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800"
+			>
 				<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Referencias disponibles</h2>
 				<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
 					Úsalas en prompts, markdown y condiciones con la sintaxis
-					<code>{'{{variable}}'}</code>. Si un bloque aún no se ha visitado, sus outputs
-					resolverán vacío o <code>undefined</code> según el contexto.
+					<code>{'{{variable}}'}</code>. Si un bloque aún no se ha visitado, sus outputs resolverán
+					vacío o <code>undefined</code> según el contexto.
 				</p>
 
 				<div class="mt-4 space-y-4">
 					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
 						<div class="flex items-center justify-between gap-3">
 							<h3 class="text-sm font-semibold text-gray-900 dark:text-white">Sesión</h3>
-							<span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+							<span
+								class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+							>
 								{sessionVariables.length} variable{sessionVariables.length === 1 ? '' : 's'}
 							</span>
 						</div>
 						<div class="mt-3 space-y-2">
 							{#each sessionVariables as variable (variable.path)}
 								<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
-									<p class="font-mono text-xs text-primary-700 dark:text-primary-300">{`{{${variable.path}}}`}</p>
-									<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{variable.label}</p>
-									<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{variable.description}</p>
+									<p class="text-primary-700 dark:text-primary-300 font-mono text-xs">
+										{`{{${variable.path}}}`}
+									</p>
+									<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+										{variable.label}
+									</p>
+									<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+										{variable.description}
+									</p>
 								</div>
 							{/each}
 						</div>
@@ -1031,12 +1204,18 @@
 					{#each referenceGroups as group (group.blockId)}
 						<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
 							<div class="flex flex-wrap items-center gap-2">
-								<h3 class="text-sm font-semibold text-gray-900 dark:text-white">{group.blockTitle}</h3>
-								<span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-mono font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+								<h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+									{group.blockTitle}
+								</h3>
+								<span
+									class="rounded-full bg-gray-100 px-2.5 py-1 font-mono text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+								>
 									{group.blockId}
 								</span>
 								{#if group.blockId === data.block.id}
-									<span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+									<span
+										class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
+									>
 										Este bloque
 									</span>
 								{/if}
@@ -1044,30 +1223,46 @@
 
 							<div class="mt-4 grid gap-3">
 								<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
-									<p class="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+									<p
+										class="mb-2 text-xs font-medium tracking-[0.12em] text-gray-500 uppercase dark:text-gray-400"
+									>
 										State
 									</p>
 									<div class="space-y-2">
 										{#each group.state as variable (variable.path)}
 											<div>
-												<p class="font-mono text-xs text-primary-700 dark:text-primary-300">{`{{${variable.path}}}`}</p>
-												<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{variable.label}</p>
-												<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{variable.description}</p>
+												<p class="text-primary-700 dark:text-primary-300 font-mono text-xs">
+													{`{{${variable.path}}}`}
+												</p>
+												<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+													{variable.label}
+												</p>
+												<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+													{variable.description}
+												</p>
 											</div>
 										{/each}
 									</div>
 								</div>
 								<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
-									<p class="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+									<p
+										class="mb-2 text-xs font-medium tracking-[0.12em] text-gray-500 uppercase dark:text-gray-400"
+									>
 										Outputs
 									</p>
 									{#if group.outputs.length}
 										<div class="space-y-2">
 											{#each group.outputs as variable (variable.path)}
 												<div>
-													<p class="font-mono text-xs text-primary-700 dark:text-primary-300">{`{{${variable.path}}}`}</p>
-													<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{variable.label}</p>
-													<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{variable.description}</p>
+													<p class="text-primary-700 dark:text-primary-300 font-mono text-xs">
+														{`{{${variable.path}}}`}
+													</p>
+													<p class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+														{variable.label}
+													</p>
+													<p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+														{variable.description}
+													</p>
 												</div>
 											{/each}
 										</div>
@@ -1083,7 +1278,9 @@
 				</div>
 			</div>
 
-			<div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800">
+			<div
+				class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800"
+			>
 				<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Recursos compartidos</h2>
 				<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
 					La lesson tiene {data.files.length} recurso{data.files.length === 1 ? '' : 's'} globales.
