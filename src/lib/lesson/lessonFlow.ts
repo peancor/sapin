@@ -1,5 +1,10 @@
 import { MarkerType, Position, type XYPosition } from '@xyflow/svelte';
-import type { LessonBlock, LessonDefinition } from '../types/lesson';
+import {
+	getLessonAgentInteractionLabel,
+	getLessonAgentExecutionTriggerLabel,
+	type LessonBlock,
+	type LessonDefinition
+} from '../types/lesson';
 import type {
 	LessonFlowEdge,
 	LessonFlowEdgeData,
@@ -33,7 +38,7 @@ export function summarizeLessonBlock(block: LessonBlock): string {
 	}
 
 	if (block.kind === 'agent') {
-		return `${block.agentConfig.mode === 'mini_chat' ? 'Mini chat' : 'Turno guiado'}${block.next ? ` · siguiente ${block.next}` : ''}`;
+		return `${getLessonAgentInteractionLabel(block.agentConfig)} · ${getLessonAgentExecutionTriggerLabel(block.agentConfig)}${block.next ? ` · siguiente ${block.next}` : ''}`;
 	}
 
 	if (block.kind === 'end') {

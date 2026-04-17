@@ -40,6 +40,7 @@ import type {
 	LessonOutputField,
 	LessonTransition
 } from '$lib/types/lesson';
+import { isLessonAgentInteractive } from '$lib/types/lesson';
 import { and, desc, eq, max } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
@@ -80,97 +81,6 @@ const lessonTransitionSchema = z.object({
 			value: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional()
 		})
 		.optional()
-});
-
-const lessonOutputFieldSchema = z.object({
-	key: z
-		.string()
-		.min(1)
-		.regex(/^[a-zA-Z0-9_.-]+$/),
-	type: z.enum(['string', 'number', 'boolean', 'json']),
-	description: z.string().optional()
-});
-
-const lessonBlockGraphMetaSchema = z.object({
-	position: z
-		.object({
-			x: z.number(),
-			y: z.number()
-		})
-		.optional(),
-	incomingOrder: z.array(z.string().min(1)).optional()
-});
-
-const lessonBlockExposureSchema = z.object({
-	outputs: z.array(lessonOutputFieldSchema).optional()
-});
-
-const lessonAssetRefSchema = z.object({
-	fileId: z.string().min(1),
-	kind: z.enum(['image', 'video', 'audio', 'file']).optional(),
-	caption: z.string().optional()
-});
-
-const lessonChoiceOptionSchema = z.object({
-	id: z.string().min(1),
-	label: z.string().min(1),
-	value: z.string(),
-	description: z.string().optional(),
-	targetBlockId: z.string().min(1)
-});
-
-const lessonAgentConfigSchema = z.object({
-	mode: z.enum(['guided_turn', 'mini_chat']),
-	model: z.string().nullable().optional(),
-	systemPrompt: z.string().nullable().optional(),
-	promptTemplate: z.string(),
-	placeholder: z.string().optional(),
-	submitLabel: z.string().optional(),
-	continueLabel: z.string().optional(),
-	initialAssistantMessage: z.string().optional(),
-	maxTurns: z.number().nullable().optional(),
-	outputSchema: z.array(lessonOutputFieldSchema).optional()
-});
-
-const lessonBlockBaseSchema = z.object({
-	id: z.string().min(1),
-	title: z.string().min(1),
-	next: z.string().nullable().optional(),
-	branches: z.array(lessonTransitionSchema).optional(),
-	graph: lessonBlockGraphMetaSchema.optional(),
-	exposure: lessonBlockExposureSchema.optional()
-});
-
-const lessonBlockSchema = z.discriminatedUnion('kind', [
-	lessonBlockBaseSchema.extend({
-		kind: z.literal('content'),
-		body: z.string(),
-		continueLabel: z.string().optional(),
-		assetRefs: z.array(lessonAssetRefSchema).optional()
-	}),
-	lessonBlockBaseSchema.extend({
-		kind: z.literal('choice'),
-		body: z.string().optional(),
-		options: z.array(lessonChoiceOptionSchema).min(1),
-		outputKey: z.string().optional()
-	}),
-	lessonBlockBaseSchema.extend({
-		kind: z.literal('agent'),
-		body: z.string().optional(),
-		agentConfig: lessonAgentConfigSchema,
-		requiresResponse: z.boolean().optional()
-	}),
-	lessonBlockBaseSchema.extend({
-		kind: z.literal('end'),
-		body: z.string().optional(),
-		ctaLabel: z.string().optional()
-	})
-]);
-
-const lessonDefinitionSchema = z.object({
-	version: z.enum(['1', '2']).optional().default('1'),
-	entryBlockId: z.string().min(1),
-	blocks: z.array(lessonBlockSchema).min(1)
 });
 
 const DEFAULT_LESSON_DEFINITION: LessonDefinition = {
@@ -226,12 +136,6 @@ export interface LessonSessionView {
 	canRestart: boolean;
 	canInteract: boolean;
 	isReadOnly: boolean;
-}
-
-interface LessonDefinitionInput {
-	version?: '1' | '2';
-	entryBlockId: string;
-	blocks: LessonBlock[];
 }
 
 interface LessonReferenceGroups {
@@ -560,6 +464,7 @@ export class LessonService {
 		userId: string;
 		userRoleLevel: number;
 		interactiveLearningId?: string;
+		skipAutoAgentExecution?: boolean;
 	}): Promise<LessonSessionView> {
 		const session = await db
 			.select()
@@ -639,15 +544,62 @@ export class LessonService {
 		);
 		const resolvedCurrentBlock = this.resolveBlock(currentBlock, templateContext);
 		const currentAssets = this.resolveAssets(resolvedCurrentBlock, filesById);
-		const currentChatMessages =
-			currentBlock.kind === 'agent' && (currentVisit?.chatId || currentBlockState?.chatId)
-				? await this.loadBlockChatMessages(currentVisit?.chatId || currentBlockState?.chatId!)
-				: [];
 		const isReadOnly =
 			activityData.activity.status === 'closed' ||
 			activeSession.status === lessonAttemptStatus.COMPLETED;
 		const availableReferenceGroups = this.getAvailableReferenceGroups(definition);
 		const currentBlockContract = buildLessonBlockContract(currentBlock);
+		const currentChatId = currentVisit?.chatId ?? currentBlockState?.chatId ?? null;
+
+		if (
+			!input.skipAutoAgentExecution &&
+			currentBlock.kind === 'agent' &&
+			!isReadOnly &&
+			this.shouldAutoExecuteAgentBlock(currentBlock)
+		) {
+			const currentOutputs = normalizeOutputs(
+				currentVisit?.outputsJson ?? currentBlockState?.outputsJson
+			);
+
+			if (!currentOutputs.response) {
+				await this.executeAgentOnEnter({
+					activity: activityData.activity,
+					definition,
+					session: activeSession,
+					currentBlock,
+					resolvedCurrentBlock,
+					currentBlockState,
+					currentVisit,
+					blockStates,
+					blockVisits,
+					currentAssets,
+					currentChatMessages: [],
+					files,
+					filesById,
+					availableVariables: [],
+					availableReferenceGroups,
+					currentBlockContract,
+					currentVisitId: activeSession.currentVisitId ?? currentVisit?.id ?? null,
+					canRestart:
+						activityData.lesson.allowRestart &&
+						activeSession.userId === input.userId &&
+						activityData.activity.status === 'published',
+					canInteract: true,
+					isReadOnly: false,
+					lesson: activityData.lesson
+				});
+
+				return this.getSessionView({
+					...input,
+					skipAutoAgentExecution: true
+				});
+			}
+		}
+
+		const currentChatMessages =
+			currentBlock.kind === 'agent' && currentChatId
+				? await this.loadBlockChatMessages(currentChatId)
+				: [];
 
 		return {
 			activity: activityData.activity,
@@ -852,11 +804,21 @@ export class LessonService {
 			throw new LessonServiceError(409, 'El bloque activo no es un bloque IA.');
 		}
 
+		if (
+			view.currentBlock.agentConfig.executionTrigger !== 'on_user_submit' ||
+			!isLessonAgentInteractive(view.currentBlock.agentConfig)
+		) {
+			throw new LessonServiceError(
+				400,
+				'Este bloque IA se ejecuta automaticamente y no admite mensajes manuales.'
+			);
+		}
+
 		const currentOutputs = normalizeOutputs(
 			view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson
 		);
 		if (
-			view.currentBlock.agentConfig.mode === 'guided_turn' &&
+			view.currentBlock.agentConfig.interactionMode === 'single_turn' &&
 			currentOutputs.response &&
 			(view.currentVisit?.chatId || view.currentBlockState?.chatId)
 		) {
@@ -1245,7 +1207,10 @@ export class LessonService {
 			await AIUtils.saveMessage(chatId, baseSystemPrompt, 'SYSTEM');
 		}
 
-		if (resolvedBlock.agentConfig.initialAssistantMessage?.trim()) {
+		if (
+			isLessonAgentInteractive(resolvedBlock.agentConfig) &&
+			resolvedBlock.agentConfig.initialAssistantMessage?.trim()
+		) {
 			await AIUtils.saveMessage(
 				chatId,
 				resolvedBlock.agentConfig.initialAssistantMessage.trim(),
@@ -1302,7 +1267,8 @@ export class LessonService {
 		const baseOutputs: JsonRecord = {
 			response: input.assistantMessage,
 			lastUserMessage: input.userMessage,
-			mode: input.block.agentConfig.mode
+			interactionMode: input.block.agentConfig.interactionMode,
+			executionTrigger: input.block.agentConfig.executionTrigger
 		};
 		const outputSchema = input.block.agentConfig.outputSchema ?? [];
 
@@ -1614,6 +1580,187 @@ export class LessonService {
 		);
 	}
 
+	private static shouldAutoExecuteAgentBlock(block: LessonAgentBlock): boolean {
+		return (
+			block.agentConfig.interactionMode === 'none' &&
+			block.agentConfig.executionTrigger === 'on_enter'
+		);
+	}
+
+	private static async executeAgentOnEnter(view: LessonSessionView): Promise<void> {
+		if (view.currentBlock.kind !== 'agent' || view.resolvedCurrentBlock.kind !== 'agent') {
+			throw new LessonServiceError(400, 'El bloque activo no admite ejecucion automatica.');
+		}
+
+		if (!view.currentVisit) {
+			throw new LessonServiceError(409, 'No se pudo resolver la visita activa del bloque IA.');
+		}
+
+		const currentOutputs = normalizeOutputs(
+			view.currentVisit.outputsJson ?? view.currentBlockState?.outputsJson
+		);
+		if (currentOutputs.response) {
+			return;
+		}
+
+		const blockVisit = await this.ensureAgentBlockChat(view);
+		const modelName = await this.resolveLessonModel(view.currentBlock);
+		const launchMessage = await this.buildAutoAgentLaunchMessage(view);
+		const baseMessages = await this.loadModelMessages(blockVisit.chatId!);
+		const assistantMessage = await AIUtils.generateTextFromMessages(
+			[...baseMessages, { role: 'user' as const, content: launchMessage }],
+			modelName,
+			{
+				userId: view.session.userId,
+				courseId: view.session.courseId,
+				interactiveLearningId: view.activity.id,
+				chatId: blockVisit.chatId!
+			}
+		);
+
+		await AIUtils.saveMessage(blockVisit.chatId!, assistantMessage, 'ASSISTANT');
+
+		const extractedOutputs = await this.extractAgentOutputs({
+			block: view.currentBlock,
+			modelName,
+			assistantMessage,
+			userMessage: '',
+			messages: [...baseMessages, { role: 'assistant' as const, content: assistantMessage }],
+			context: {
+				userId: view.session.userId,
+				courseId: view.session.courseId,
+				interactiveLearningId: view.activity.id,
+				chatId: blockVisit.chatId!
+			}
+		});
+		const outputs = {
+			...currentOutputs,
+			...extractedOutputs
+		};
+
+		await this.updateBlockVisit({
+			visitId: blockVisit.id,
+			status: lessonBlockVisitStatus.ACTIVE,
+			outputs,
+			chatId: blockVisit.chatId!
+		});
+
+		await this.upsertBlockState({
+			sessionId: view.session.id,
+			blockId: view.currentBlock.id,
+			status: lessonBlockStateStatus.ACTIVE,
+			outputs,
+			chatId: blockVisit.chatId!,
+			lastVisitId: blockVisit.id
+		});
+	}
+
+	private static async buildAutoAgentLaunchMessage(view: LessonSessionView): Promise<string> {
+		if (view.resolvedCurrentBlock.kind !== 'agent') {
+			throw new LessonServiceError(400, 'El bloque resuelto no es un bloque IA.');
+		}
+
+		const templateContext = this.buildTemplateContext(
+			view.session,
+			view.activity,
+			view.blockStates
+		);
+		const visibleHistory = await this.buildSessionHistoryBundle(view, templateContext);
+		const launchTemplate =
+			view.resolvedCurrentBlock.agentConfig.launchMessageTemplate?.trim() ||
+			'Genera la respuesta prevista para este bloque usando todo el contexto previo de la lesson.';
+
+		return [
+			launchTemplate,
+			`Bloque actual: ${view.resolvedCurrentBlock.title}`,
+			view.resolvedCurrentBlock.body?.trim()
+				? `Contenido visible del bloque actual:\n${view.resolvedCurrentBlock.body.trim()}`
+				: null,
+			'Contexto estructurado disponible:',
+			JSON.stringify(templateContext, null, 2),
+			'Historial visible de la sesion hasta este punto:',
+			visibleHistory
+		]
+			.filter(Boolean)
+			.join('\n\n');
+	}
+
+	private static async buildSessionHistoryBundle(
+		view: LessonSessionView,
+		context: LessonTemplateContext
+	): Promise<string> {
+		const currentVisitNumber = view.currentVisit?.visitNumber ?? Number.POSITIVE_INFINITY;
+		const priorVisits = view.blockVisits.filter((visit) => visit.visitNumber < currentVisitNumber);
+
+		if (priorVisits.length === 0) {
+			return 'Todavia no hay historial previo en esta sesion.';
+		}
+
+		const sections: string[] = [];
+		for (const visit of priorVisits) {
+			const block = view.definition.blocks.find((candidate) => candidate.id === visit.blockId);
+			if (!block) continue;
+
+			const resolvedBlock = this.resolveBlock(block, context);
+			const outputs = normalizeOutputs(visit.outputsJson);
+			const heading = `Bloque ${visit.visitNumber}: ${resolvedBlock.title} (${block.kind})`;
+
+			if (resolvedBlock.kind === 'content') {
+				sections.push(
+					`${heading}\nContenido:\n${this.truncateForPrompt(resolvedBlock.body || 'Sin contenido visible.')}`
+				);
+				continue;
+			}
+
+			if (resolvedBlock.kind === 'choice') {
+				const selectedLabel = outputs.selectedLabel ?? outputs.selectedValue ?? visit.lastChoiceValue;
+				sections.push(
+					`${heading}\nSeleccion: ${selectedLabel || 'Sin seleccion registrada.'}`
+				);
+				continue;
+			}
+
+			if (resolvedBlock.kind === 'agent') {
+				const visibleMessages = visit.chatId
+					? (await this.loadBlockChatMessages(visit.chatId)).filter(
+							(message) => message.type !== 'SYSTEM'
+						)
+					: [];
+				const transcript =
+					visibleMessages.length > 0
+						? visibleMessages
+								.map((message) => {
+									const role =
+										message.type === 'USER'
+											? 'Alumno'
+											: message.type === 'ASSISTANT'
+												? 'IA'
+												: 'Sistema';
+									return `${role}: ${message.content}`;
+								})
+								.join('\n\n')
+						: outputs.response
+							? `IA: ${String(outputs.response)}`
+							: 'Sin transcript visible.';
+
+				sections.push(`${heading}\nTranscript:\n${this.truncateForPrompt(transcript)}`);
+				continue;
+			}
+
+			if (resolvedBlock.kind === 'end') {
+				sections.push(`${heading}\nSesion marcada como finalizada en este nodo.`);
+			}
+		}
+
+		return sections.join('\n\n---\n\n');
+	}
+
+	private static truncateForPrompt(value: string, limit = 2400): string {
+		const trimmed = value.trim();
+		if (trimmed.length <= limit) return trimmed;
+		return `${trimmed.slice(0, limit)}...`;
+	}
+
 	private static resolveBlock(block: LessonBlock, context: LessonTemplateContext): LessonBlock {
 		if (block.kind === 'agent') {
 			return {
@@ -1629,6 +1776,10 @@ export class LessonService {
 					promptTemplate: this.resolveStringTemplate(block.agentConfig.promptTemplate, context),
 					initialAssistantMessage: this.resolveStringTemplate(
 						block.agentConfig.initialAssistantMessage || '',
+						context
+					),
+					launchMessageTemplate: this.resolveStringTemplate(
+						block.agentConfig.launchMessageTemplate || '',
 						context
 					)
 				}
@@ -1959,7 +2110,14 @@ export class LessonService {
 	}
 
 	private static async resolveLessonModel(block: LessonAgentBlock): Promise<string> {
-		if (block.agentConfig.model) return block.agentConfig.model;
+		const configuredModel = block.agentConfig.model?.trim();
+		if (configuredModel) {
+			const availableModels = await AIUtils.getAvailableModels();
+			if (availableModels.some((model) => model.name === configuredModel)) {
+				return configuredModel;
+			}
+		}
+
 		return AIUtils.getDefaultModel();
 	}
 
@@ -2088,7 +2246,8 @@ export class LessonService {
 				next: defaultTarget ?? null,
 				requiresResponse: true,
 				agentConfig: {
-					mode: 'guided_turn',
+					interactionMode: 'single_turn',
+					executionTrigger: 'on_user_submit',
 					promptTemplate: '',
 					systemPrompt: '',
 					placeholder: 'Escribe tu respuesta',
@@ -2295,14 +2454,24 @@ export class LessonService {
 					availableWhen: 'after_visit'
 				},
 				{
-					path: `blocks.${block.id}.outputs.mode`,
-					key: 'mode',
-					label: `${block.title} · modo`,
-					description: 'Modo de conversación configurado para el bloque IA.',
+					path: `blocks.${block.id}.outputs.interactionMode`,
+					key: 'interactionMode',
+					label: `${block.title} · interaccion`,
+					description: 'Modo de interacción configurado para este bloque IA.',
 					type: 'string',
 					source: 'system',
 					namespace: 'outputs',
-					availableWhen: 'after_visit'
+					availableWhen: 'always'
+				},
+				{
+					path: `blocks.${block.id}.outputs.executionTrigger`,
+					key: 'executionTrigger',
+					label: `${block.title} · disparo`,
+					description: 'Momento en el que se ejecuta el bloque IA.',
+					type: 'string',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'always'
 				}
 			);
 		}
@@ -2531,7 +2700,8 @@ export class LessonService {
 				? [
 						...extractTemplateRefs(block.agentConfig.promptTemplate),
 						...extractTemplateRefs(block.agentConfig.systemPrompt),
-						...extractTemplateRefs(block.agentConfig.initialAssistantMessage)
+						...extractTemplateRefs(block.agentConfig.initialAssistantMessage),
+						...extractTemplateRefs(block.agentConfig.launchMessageTemplate)
 					]
 				: []),
 			...(block.kind === 'choice'

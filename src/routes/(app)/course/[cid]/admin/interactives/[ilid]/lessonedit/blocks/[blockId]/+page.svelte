@@ -5,7 +5,14 @@
 	import { resolve } from '$app/paths';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
-	import type { LessonAssetRef, LessonBlock, LessonTransition } from '$lib/types/lesson';
+	import {
+		normalizeLessonAgentConfig,
+		type LessonAgentExecutionTrigger,
+		type LessonAgentInteractionMode,
+		type LessonAssetRef,
+		type LessonBlock,
+		type LessonTransition
+	} from '$lib/types/lesson';
 	import {
 		ArrowRight,
 		BookOpenText,
@@ -31,7 +38,16 @@
 
 	let { data, form }: PageProps = $props();
 
-	const getInitialBlock = () => structuredClone(data.block) as LessonBlock;
+	const getInitialBlock = () => {
+		const block = structuredClone(data.block) as LessonBlock;
+		if (block.kind === 'agent') {
+			block.agentConfig = normalizeLessonAgentConfig(block.agentConfig);
+			if (block.agentConfig.interactionMode === 'none') {
+				block.requiresResponse = false;
+			}
+		}
+		return block;
+	};
 	const getActivityName = () => data.activity.name;
 
 	let workingBlock = $state(getInitialBlock());
@@ -52,6 +68,7 @@
 	const referenceGroups = $derived(data.availableReferenceGroups.byBlock);
 	const currentGraphSummary = $derived(data.graphSummary);
 	const currentBlockContract = $derived(data.graphSummary.contracts);
+	const availableModels = $derived(data.models);
 	const conditionOperators = [
 		'equals',
 		'not_equals',
@@ -66,6 +83,76 @@
 
 	function markDirty() {
 		isDirty = true;
+	}
+
+	function getValidExecutionTriggers(
+		interactionMode: LessonAgentInteractionMode
+	): Array<{ value: LessonAgentExecutionTrigger; label: string }> {
+		return interactionMode === 'none'
+			? [{ value: 'on_enter', label: 'Al entrar en el bloque' }]
+			: [{ value: 'on_user_submit', label: 'Cuando el alumno envía su respuesta' }];
+	}
+
+	function updateAgentInteractionMode(interactionMode: LessonAgentInteractionMode) {
+		if (workingBlock.kind !== 'agent') return;
+		workingBlock.agentConfig.interactionMode = interactionMode;
+		workingBlock.agentConfig.executionTrigger =
+			interactionMode === 'none' ? 'on_enter' : 'on_user_submit';
+
+		if (interactionMode === 'none') {
+			workingBlock.requiresResponse = false;
+		} else if (workingBlock.requiresResponse === undefined) {
+			workingBlock.requiresResponse = true;
+		}
+
+		markDirty();
+	}
+
+	function applyAgentPreset(
+		preset: 'feedback' | 'generated_content' | 'summary'
+	) {
+		if (workingBlock.kind !== 'agent') return;
+
+		if (preset === 'feedback') {
+			workingBlock.agentConfig.interactionMode = 'none';
+			workingBlock.agentConfig.executionTrigger = 'on_enter';
+			workingBlock.requiresResponse = false;
+			workingBlock.agentConfig.promptTemplate =
+				'Actúa como tutor académico. Analiza el trabajo previo del estudiante y genera feedback claro, específico y accionable.';
+			workingBlock.agentConfig.systemPrompt =
+				'Tu respuesta debe ser pedagógica, precisa, alentadora y orientada a mejora.';
+			workingBlock.agentConfig.launchMessageTemplate =
+				'Genera feedback académico usando el historial completo de la sesión y las salidas de bloques anteriores.';
+			workingBlock.agentConfig.initialAssistantMessage = '';
+		}
+
+		if (preset === 'generated_content') {
+			workingBlock.agentConfig.interactionMode = 'none';
+			workingBlock.agentConfig.executionTrigger = 'on_enter';
+			workingBlock.requiresResponse = false;
+			workingBlock.agentConfig.promptTemplate =
+				'Genera contenido breve y bien estructurado adaptado al progreso del estudiante y al contexto previo de la lesson.';
+			workingBlock.agentConfig.systemPrompt =
+				'Prioriza claridad docente, estructura y rigor académico.';
+			workingBlock.agentConfig.launchMessageTemplate =
+				'Produce el contenido que debe mostrarse ahora, apoyándote en la información reunida en bloques anteriores.';
+			workingBlock.agentConfig.initialAssistantMessage = '';
+		}
+
+		if (preset === 'summary') {
+			workingBlock.agentConfig.interactionMode = 'single_turn';
+			workingBlock.agentConfig.executionTrigger = 'on_user_submit';
+			workingBlock.requiresResponse = true;
+			workingBlock.agentConfig.promptTemplate =
+				'Pide al estudiante una síntesis y después genera una respuesta breve que valide, corrija y complete sus ideas.';
+			workingBlock.agentConfig.systemPrompt =
+				'Responde como tutor académico, ayudando a sintetizar y afinar conceptos clave.';
+			workingBlock.agentConfig.initialAssistantMessage =
+				'Cuando quieras, comparte tu síntesis y la revisamos juntos.';
+			workingBlock.agentConfig.launchMessageTemplate = '';
+		}
+
+		markDirty();
 	}
 
 	function blockKindLabel(block: LessonBlock) {
@@ -606,31 +693,93 @@
 						></textarea>
 					</label>
 
-					<div class="grid gap-4 md:grid-cols-2">
+					<div class="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/40 dark:bg-amber-950/10">
+						<div class="flex flex-wrap items-center justify-between gap-3">
+							<div>
+								<h2 class="text-base font-semibold text-gray-900 dark:text-white">Presets de arranque</h2>
+								<p class="text-sm text-gray-500 dark:text-gray-400">
+									Son puntos de partida rápidos. Después puedes ajustar el bloque libremente.
+								</p>
+							</div>
+							<div class="flex flex-wrap gap-2">
+								<button
+									type="button"
+									class="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-950/30"
+									onclick={() => applyAgentPreset('feedback')}
+								>
+									Feedback automático
+								</button>
+								<button
+									type="button"
+									class="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-950/30"
+									onclick={() => applyAgentPreset('generated_content')}
+								>
+									Contenido generado
+								</button>
+								<button
+									type="button"
+									class="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-950/30"
+									onclick={() => applyAgentPreset('summary')}
+								>
+									Resumen y síntesis
+								</button>
+							</div>
+						</div>
+					</div>
+
+					<div class="grid gap-4 md:grid-cols-3">
 						<label class="block">
 							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Modo</span
+								>Modelo</span
 							>
 							<select
 								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-								bind:value={workingBlock.agentConfig.mode}
-								onchange={markDirty}
+								value={workingBlock.agentConfig.model ?? ''}
+								onchange={(event) => {
+									workingBlock.agentConfig.model =
+										(event.currentTarget as HTMLSelectElement).value || null;
+									markDirty();
+								}}
 							>
-								<option value="guided_turn">Respuesta guiada</option>
-								<option value="mini_chat">Mini chat</option>
+								<option value="">{data.defaultModel} · modelo por defecto</option>
+								{#each availableModels as model (model.name)}
+									<option value={model.name}>{model.name} ({model.provider})</option>
+								{/each}
 							</select>
 						</label>
 
 						<label class="block">
 							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Modelo</span
+								>Interacción</span
 							>
-							<input
+							<select
 								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-								bind:value={workingBlock.agentConfig.model}
-								oninput={markDirty}
-								placeholder="Opcional"
-							/>
+								bind:value={workingBlock.agentConfig.interactionMode}
+								onchange={(event) =>
+									updateAgentInteractionMode(
+										(event.currentTarget as HTMLSelectElement)
+											.value as LessonAgentInteractionMode
+									)}
+							>
+								<option value="single_turn">Turno único guiado</option>
+								<option value="multi_turn">Mini chat</option>
+								<option value="none">Sin interacción, generación automática</option>
+							</select>
+						</label>
+
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Disparo</span
+							>
+							<select
+								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.agentConfig.executionTrigger}
+								onchange={markDirty}
+							>
+								{#each getValidExecutionTriggers(workingBlock.agentConfig.interactionMode) as trigger (trigger.value)}
+									<option value={trigger.value}>{trigger.label}</option>
+								{/each}
+							</select>
 						</label>
 					</div>
 
@@ -656,29 +805,7 @@
 						></textarea>
 					</label>
 
-					<div class="grid gap-4 md:grid-cols-3">
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Placeholder</span
-							>
-							<input
-								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-								bind:value={workingBlock.agentConfig.placeholder}
-								oninput={markDirty}
-							/>
-						</label>
-
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Botón enviar</span
-							>
-							<input
-								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-								bind:value={workingBlock.agentConfig.submitLabel}
-								oninput={markDirty}
-							/>
-						</label>
-
+					<div class="grid gap-4 md:grid-cols-2">
 						<label class="block">
 							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 								>Botón continuar</span
@@ -686,19 +813,6 @@
 							<input
 								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 								bind:value={workingBlock.agentConfig.continueLabel}
-								oninput={markDirty}
-							/>
-						</label>
-					</div>
-
-					<div class="grid gap-4 md:grid-cols-2">
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Mensaje inicial opcional</span
-							>
-							<input
-								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-								bind:value={workingBlock.agentConfig.initialAssistantMessage}
 								oninput={markDirty}
 							/>
 						</label>
@@ -721,24 +835,75 @@
 						</label>
 					</div>
 
-					<label
-						class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-					>
-						<input
-							type="checkbox"
-							class="text-primary-600 h-4 w-4 rounded border-gray-300"
-							bind:checked={workingBlock.requiresResponse}
-							onchange={markDirty}
-						/>
-						<div>
-							<p class="text-sm font-medium text-gray-900 dark:text-white">
-								Exigir respuesta del alumno
-							</p>
-							<p class="text-xs text-gray-500 dark:text-gray-400">
-								Si se desactiva, el alumno podrá continuar sin enviar mensaje.
-							</p>
+					{#if workingBlock.agentConfig.interactionMode !== 'none'}
+						<div class="grid gap-4 md:grid-cols-3">
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Placeholder</span
+								>
+								<input
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									bind:value={workingBlock.agentConfig.placeholder}
+									oninput={markDirty}
+								/>
+							</label>
+
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Botón enviar</span
+								>
+								<input
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									bind:value={workingBlock.agentConfig.submitLabel}
+									oninput={markDirty}
+								/>
+							</label>
+
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Mensaje inicial visible</span
+								>
+								<input
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									bind:value={workingBlock.agentConfig.initialAssistantMessage}
+									oninput={markDirty}
+								/>
+							</label>
 						</div>
-					</label>
+
+						<label
+							class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+						>
+							<input
+								type="checkbox"
+								class="text-primary-600 h-4 w-4 rounded border-gray-300"
+								bind:checked={workingBlock.requiresResponse}
+								onchange={markDirty}
+							/>
+							<div>
+								<p class="text-sm font-medium text-gray-900 dark:text-white">
+									Exigir respuesta del alumno
+								</p>
+								<p class="text-xs text-gray-500 dark:text-gray-400">
+									Si se desactiva, el alumno podrá continuar sin enviar mensaje.
+								</p>
+							</div>
+						</label>
+					{:else}
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Mensaje de lanzamiento interno</span
+							>
+							<textarea
+								class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.agentConfig.launchMessageTemplate}
+								oninput={markDirty}
+							></textarea>
+							<p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
+								Este mensaje se envía al modelo al entrar en el bloque, pero no se renderiza como mensaje visible del estudiante.
+							</p>
+						</label>
+					{/if}
 
 					<label class="block">
 						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"

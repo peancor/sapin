@@ -27,6 +27,9 @@
 	} from '$lib/lesson/lessonFlow';
 	import LessonFlowNodeComponent from '$lib/components/lesson/flow/LessonFlowNode.svelte';
 	import {
+		normalizeLessonAgentConfig,
+		type LessonAgentExecutionTrigger,
+		type LessonAgentInteractionMode,
 		lessonConditionOperators,
 		type LessonBlock,
 		type LessonDefinition
@@ -122,10 +125,32 @@
 			label: `${block.title} · ${block.id}`
 		}))
 	);
+	const availableModels = $derived(data.models);
 	const entryBlockTitle = $derived(
 		draftDefinition.blocks.find((block) => block.id === draftDefinition.entryBlockId)?.title ??
 			draftDefinition.entryBlockId
 	);
+
+	function getValidExecutionTriggers(
+		interactionMode: LessonAgentInteractionMode
+	): Array<{ value: LessonAgentExecutionTrigger; label: string }> {
+		return interactionMode === 'none'
+			? [{ value: 'on_enter', label: 'Al entrar' }]
+			: [{ value: 'on_user_submit', label: 'Al enviar' }];
+	}
+
+	function updateSelectedAgentInteractionMode(interactionMode: LessonAgentInteractionMode) {
+		updateSelectedBlock((block) => {
+			if (block.kind !== 'agent') return;
+
+			block.agentConfig = normalizeLessonAgentConfig({
+				...block.agentConfig,
+				interactionMode,
+				executionTrigger: interactionMode === 'none' ? 'on_enter' : 'on_user_submit'
+			});
+			block.requiresResponse = interactionMode === 'none' ? false : (block.requiresResponse ?? true);
+		});
+	}
 
 	function initializeCanvas(
 		definition: LessonDefinition,
@@ -1140,37 +1165,63 @@
 					{:else if selectedBlock.kind === 'agent'}
 						<label class="block">
 							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Modo de interacción</span
+								>Modelo</span
 							>
 							<select
 								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={selectedBlock.agentConfig.mode}
+								value={selectedBlock.agentConfig.model ?? ''}
 								onchange={(event) =>
 									updateSelectedBlock((block) => {
 										if (block.kind !== 'agent') return;
-										block.agentConfig.mode = (event.currentTarget as HTMLSelectElement).value as
-											| 'guided_turn'
-											| 'mini_chat';
+										block.agentConfig.model =
+											(event.currentTarget as HTMLSelectElement).value || null;
 									})}
 							>
-								<option value="guided_turn">Turno guiado</option>
-								<option value="mini_chat">Mini chat</option>
+								<option value="">{data.defaultModel} · modelo por defecto</option>
+								{#each availableModels as model (model.name)}
+									<option value={model.name}>{model.name} ({model.provider})</option>
+								{/each}
 							</select>
 						</label>
 
 						<label class="block">
 							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Placeholder</span
+								>Modo de interacción</span
 							>
-							<input
+							<select
 								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={selectedBlock.agentConfig.placeholder ?? ''}
-								oninput={(event) =>
+								value={selectedBlock.agentConfig.interactionMode}
+								onchange={(event) =>
+									updateSelectedAgentInteractionMode(
+										(event.currentTarget as HTMLSelectElement)
+											.value as LessonAgentInteractionMode
+									)}
+							>
+								<option value="single_turn">Turno guiado</option>
+								<option value="multi_turn">Mini chat</option>
+								<option value="none">Generación automática</option>
+							</select>
+						</label>
+
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+								>Disparo</span
+							>
+							<select
+								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+								value={selectedBlock.agentConfig.executionTrigger}
+								onchange={(event) =>
 									updateSelectedBlock((block) => {
 										if (block.kind !== 'agent') return;
-										block.agentConfig.placeholder = (event.currentTarget as HTMLInputElement).value;
+										block.agentConfig.executionTrigger = (
+											event.currentTarget as HTMLSelectElement
+										).value as LessonAgentExecutionTrigger;
 									})}
-							/>
+							>
+								{#each getValidExecutionTriggers(selectedBlock.agentConfig.interactionMode) as trigger (trigger.value)}
+									<option value={trigger.value}>{trigger.label}</option>
+								{/each}
+							</select>
 						</label>
 
 						<div class="grid gap-4 md:grid-cols-2">
@@ -1191,28 +1242,36 @@
 								/>
 							</label>
 
-							<label
-								class="flex items-center gap-3 rounded-2xl border border-stone-200 px-4 py-3 dark:border-stone-800"
-							>
-								<input
-									type="checkbox"
-									class="text-primary-600 h-4 w-4 rounded border-stone-300"
-									checked={selectedBlock.requiresResponse ?? true}
-									onchange={(event) =>
-										updateSelectedBlock((block) => {
-											if (block.kind !== 'agent') return;
-											block.requiresResponse = (event.currentTarget as HTMLInputElement).checked;
-										})}
-								/>
-								<div>
-									<p class="text-sm font-medium text-stone-900 dark:text-white">
-										Requiere respuesta
-									</p>
-									<p class="text-xs text-stone-500 dark:text-stone-400">
-										Impide avanzar si el estudiante aún no ha intervenido.
-									</p>
+							{#if selectedBlock.agentConfig.interactionMode !== 'none'}
+								<label
+									class="flex items-center gap-3 rounded-2xl border border-stone-200 px-4 py-3 dark:border-stone-800"
+								>
+									<input
+										type="checkbox"
+										class="text-primary-600 h-4 w-4 rounded border-stone-300"
+										checked={selectedBlock.requiresResponse ?? true}
+										onchange={(event) =>
+											updateSelectedBlock((block) => {
+												if (block.kind !== 'agent') return;
+												block.requiresResponse = (
+													event.currentTarget as HTMLInputElement
+												).checked;
+											})}
+									/>
+									<div>
+										<p class="text-sm font-medium text-stone-900 dark:text-white">
+											Requiere respuesta
+										</p>
+										<p class="text-xs text-stone-500 dark:text-stone-400">
+											Impide avanzar si el estudiante aún no ha intervenido.
+										</p>
+									</div>
+								</label>
+							{:else}
+								<div class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-200">
+									Este bloque se ejecutará automáticamente al entrar y mostrará la respuesta generada sin caja de texto.
 								</div>
-							</label>
+							{/if}
 						</div>
 
 						<label class="block">

@@ -60,7 +60,8 @@ function makeDefinition(): LessonDefinition {
 					}
 				],
 				agentConfig: {
-					mode: 'guided_turn',
+					interactionMode: 'single_turn',
+					executionTrigger: 'on_user_submit',
 					promptTemplate: 'Ayuda'
 				}
 			},

@@ -29,6 +29,12 @@ export type LessonOutputFieldType = (typeof lessonOutputFieldTypes)[number];
 export const lessonReferenceNamespaces = ['session', 'state', 'outputs'] as const;
 export type LessonReferenceNamespace = (typeof lessonReferenceNamespaces)[number];
 
+export const lessonAgentInteractionModes = ['single_turn', 'multi_turn', 'none'] as const;
+export type LessonAgentInteractionMode = (typeof lessonAgentInteractionModes)[number];
+
+export const lessonAgentExecutionTriggers = ['on_user_submit', 'on_enter'] as const;
+export type LessonAgentExecutionTrigger = (typeof lessonAgentExecutionTriggers)[number];
+
 export interface LessonVariableRef {
 	path: string;
 	source: 'session' | 'block-state' | 'block-output';
@@ -103,8 +109,9 @@ export interface LessonChoiceBlock extends LessonBlockBase {
 	outputKey?: string;
 }
 
-export interface LessonAgentConfig {
-	mode: 'guided_turn' | 'mini_chat';
+export interface LessonAgentConfigInput {
+	interactionMode?: LessonAgentInteractionMode;
+	executionTrigger?: LessonAgentExecutionTrigger;
 	model?: string | null;
 	systemPrompt?: string | null;
 	promptTemplate: string;
@@ -112,8 +119,14 @@ export interface LessonAgentConfig {
 	submitLabel?: string;
 	continueLabel?: string;
 	initialAssistantMessage?: string;
+	launchMessageTemplate?: string;
 	maxTurns?: number | null;
 	outputSchema?: LessonOutputField[];
+}
+
+export interface LessonAgentConfig extends Omit<LessonAgentConfigInput, 'interactionMode' | 'executionTrigger'> {
+	interactionMode: LessonAgentInteractionMode;
+	executionTrigger: LessonAgentExecutionTrigger;
 }
 
 export interface LessonAgentBlock extends LessonBlockBase {
@@ -181,4 +194,48 @@ export interface LessonBlockGraphSummary {
 	incomingBlockIds: string[];
 	outgoingBlockIds: string[];
 	contracts: LessonBlockContract;
+}
+
+export function normalizeLessonAgentConfig(input: LessonAgentConfigInput): LessonAgentConfig {
+	const interactionMode = input.interactionMode ?? 'single_turn';
+	const executionTrigger = input.executionTrigger ?? (interactionMode === 'none' ? 'on_enter' : 'on_user_submit');
+
+	return {
+		model: input.model ?? null,
+		systemPrompt: input.systemPrompt ?? null,
+		promptTemplate: input.promptTemplate,
+		placeholder: input.placeholder,
+		submitLabel: input.submitLabel,
+		continueLabel: input.continueLabel,
+		initialAssistantMessage: input.initialAssistantMessage,
+		launchMessageTemplate: input.launchMessageTemplate,
+		maxTurns: input.maxTurns ?? null,
+		outputSchema: input.outputSchema,
+		interactionMode,
+		executionTrigger
+	};
+}
+
+export function isValidLessonAgentConfig(config: Pick<LessonAgentConfig, 'interactionMode' | 'executionTrigger'>): boolean {
+	return (
+		(config.interactionMode === 'single_turn' && config.executionTrigger === 'on_user_submit') ||
+		(config.interactionMode === 'multi_turn' && config.executionTrigger === 'on_user_submit') ||
+		(config.interactionMode === 'none' && config.executionTrigger === 'on_enter')
+	);
+}
+
+export function isLessonAgentInteractive(config: Pick<LessonAgentConfig, 'interactionMode'>): boolean {
+	return config.interactionMode !== 'none';
+}
+
+export function getLessonAgentInteractionLabel(config: Pick<LessonAgentConfig, 'interactionMode'>): string {
+	if (config.interactionMode === 'multi_turn') return 'Mini chat';
+	if (config.interactionMode === 'single_turn') return 'Turno guiado';
+	return 'Generacion automatica';
+}
+
+export function getLessonAgentExecutionTriggerLabel(
+	config: Pick<LessonAgentConfig, 'executionTrigger'>
+): string {
+	return config.executionTrigger === 'on_enter' ? 'Al entrar' : 'Al enviar';
 }

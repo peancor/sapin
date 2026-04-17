@@ -32,7 +32,7 @@ function makeLinearDefinition(): LessonDefinition {
 	};
 }
 
-test('parseDefinition migrates legacy lesson JSON to graph v2 while preserving block metadata', () => {
+test('parseDefinition normalizes lesson JSON to graph v2 while preserving block metadata', () => {
 	const rawDefinition = JSON.stringify({
 		entryBlockId: 'intro',
 		blocks: [
@@ -58,6 +58,35 @@ test('parseDefinition migrates legacy lesson JSON to graph v2 while preserving b
 	assert.equal(definition.version, '2');
 	assert.equal(definition.entryBlockId, 'intro');
 	assert.deepEqual(definition.blocks[0]?.graph, { position: { x: 120, y: 80 } });
+});
+
+test('parseDefinition requires explicit interaction and trigger configuration in agent blocks', () => {
+	const rawDefinition = JSON.stringify({
+		entryBlockId: 'agent',
+		blocks: [
+			{
+				id: 'agent',
+				kind: 'agent',
+				title: 'Tutor',
+				body: 'Dialoga',
+				next: 'end',
+				agentConfig: {
+					promptTemplate: 'Acompana al estudiante'
+				}
+			},
+			{
+				id: 'end',
+				kind: 'end',
+				title: 'Fin',
+				body: 'Cierre'
+			}
+		]
+	});
+
+	assert.throws(
+		() => parseLessonDefinition(rawDefinition),
+		(error) => error instanceof LessonServiceError
+	);
 });
 
 test('validateDefinition allows loops and graph summaries reflect incoming and outgoing edges', () => {
@@ -135,7 +164,8 @@ test('validateDefinition stitches orphan linear blocks before the end node', () 
 				body: 'Segundo bloque intermedio',
 				next: 'end',
 				agentConfig: {
-					mode: 'guided_turn',
+					interactionMode: 'single_turn',
+					executionTrigger: 'on_user_submit',
 					promptTemplate: 'Continua'
 				}
 			},
@@ -194,7 +224,8 @@ test('reference groups expose state and outputs for content, choice and agent bl
 					outputs: [{ key: 'rubric', type: 'json', description: 'Rubrica publicada' }]
 				},
 				agentConfig: {
-					mode: 'guided_turn',
+					interactionMode: 'single_turn',
+					executionTrigger: 'on_user_submit',
 					promptTemplate: 'Usa {{blocks.choice.outputs.route}} y {{session.currentVisitId}}',
 					outputSchema: [{ key: 'mastery', type: 'number', description: 'Nivel de dominio' }]
 				}
@@ -224,6 +255,12 @@ test('reference groups expose state and outputs for content, choice and agent bl
 	assert.ok(
 		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.lastUserMessage')
 	);
+	assert.ok(
+		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.interactionMode')
+	);
+	assert.ok(
+		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.executionTrigger')
+	);
 	assert.ok(agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.mastery'));
 	assert.ok(agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.rubric'));
 });
@@ -247,7 +284,8 @@ test('validateDefinition accepts future block references but rejects missing tar
 				body: 'Resuelve {{blocks.intro.outputs.completed}}',
 				next: 'end',
 				agentConfig: {
-					mode: 'guided_turn',
+					interactionMode: 'single_turn',
+					executionTrigger: 'on_user_submit',
 					promptTemplate: 'Sesion {{session.currentVisitId}}'
 				}
 			},
@@ -287,5 +325,40 @@ test('validateDefinition accepts future block references but rejects missing tar
 			error instanceof LessonServiceError &&
 			error.message.includes('missing') &&
 			error.message.includes('no existe')
+	);
+});
+
+test('validateDefinition rejects unsupported agent interaction combinations', () => {
+	const invalidAgentDefinition: LessonDefinition = {
+		version: '2',
+		entryBlockId: 'agent',
+		blocks: [
+			{
+				id: 'agent',
+				kind: 'agent',
+				title: 'Tutor',
+				body: 'Dialoga',
+				next: 'end',
+				agentConfig: {
+					interactionMode: 'multi_turn',
+					executionTrigger: 'on_enter',
+					promptTemplate: 'No valido'
+				}
+			},
+			{
+				id: 'end',
+				kind: 'end',
+				title: 'Fin',
+				body: 'Cierre'
+			}
+		]
+	};
+
+	assert.throws(
+		() => validateLessonDefinition(invalidAgentDefinition),
+		(error) =>
+			error instanceof LessonServiceError &&
+			error.message.includes('combinacion') &&
+			error.message.includes('no soportada')
 	);
 });

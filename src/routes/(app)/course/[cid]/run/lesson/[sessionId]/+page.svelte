@@ -13,9 +13,6 @@
 	const resolvedChoiceBlock = $derived(
 		data.resolvedCurrentBlock.kind === 'choice' ? data.resolvedCurrentBlock : null
 	);
-	const resolvedAgentBlock = $derived(
-		data.resolvedCurrentBlock.kind === 'agent' ? data.resolvedCurrentBlock : null
-	);
 	const resolvedContentBlock = $derived(
 		data.resolvedCurrentBlock.kind === 'content' ? data.resolvedCurrentBlock : null
 	);
@@ -27,6 +24,22 @@
 	);
 	const hasAgentResponse = $derived(
 		data.currentChatMessages.some((message) => message.type === 'ASSISTANT')
+	);
+	const agentConfig = $derived(
+		data.resolvedCurrentBlock.kind === 'agent' ? data.resolvedCurrentBlock.agentConfig : null
+	);
+	const agentAllowsInput = $derived(
+		agentConfig !== null &&
+			agentConfig.interactionMode !== 'none' &&
+			agentConfig.executionTrigger === 'on_user_submit'
+	);
+	const agentCanContinue = $derived(
+		data.currentBlock.kind === 'agent'
+			? hasAgentResponse || !(data.currentBlock.requiresResponse ?? true)
+			: true
+	);
+	const agentInputLocked = $derived(
+		agentConfig?.interactionMode === 'single_turn' && hasAgentResponse
 	);
 
 	async function handleAction(callback: () => Promise<void>) {
@@ -214,7 +227,11 @@
 			<div class="mt-6 space-y-4">
 				<div class="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950/30">
 					{#if data.currentChatMessages.length === 0}
-						<p class="text-sm text-gray-500 dark:text-gray-400">Todavía no hay mensajes en este bloque.</p>
+						<p class="text-sm text-gray-500 dark:text-gray-400">
+							{agentConfig?.interactionMode === 'none'
+								? 'La respuesta automática aparecerá aquí en cuanto el bloque se inicialice.'
+								: 'Todavía no hay mensajes en este bloque.'}
+						</p>
 					{:else}
 						{#each data.currentChatMessages as message (message.id)}
 							<div class="rounded-lg px-4 py-3 {message.type === 'USER'
@@ -230,12 +247,12 @@
 					{/if}
 				</div>
 
-				{#if !data.isReadOnly}
+				{#if !data.isReadOnly && agentAllowsInput && !agentInputLocked}
 					<div class="flex gap-3">
 						<textarea
 							class="min-h-24 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
 							bind:value={agentInput}
-							placeholder={resolvedAgentBlock?.agentConfig.placeholder || 'Escribe tu respuesta'}
+							placeholder={agentConfig?.placeholder || 'Escribe tu respuesta'}
 						></textarea>
 						<button
 							class="inline-flex h-fit items-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
@@ -243,8 +260,16 @@
 							disabled={pending || !agentInput.trim()}
 						>
 							<SendHorizontal class="h-4 w-4" />
-							{resolvedAgentBlock?.agentConfig.submitLabel || 'Enviar'}
+							{agentConfig?.submitLabel || 'Enviar'}
 						</button>
+					</div>
+				{:else if !data.isReadOnly && agentInputLocked}
+					<div class="rounded-lg bg-primary-50 px-4 py-3 text-sm text-primary-800 dark:bg-primary-950/20 dark:text-primary-200">
+						Este bloque acepta una única intervención. Ya puedes continuar cuando revises la respuesta.
+					</div>
+				{:else if agentConfig?.interactionMode === 'none'}
+					<div class="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:bg-sky-950/20 dark:text-sky-200">
+						Este bloque IA se ejecuta automáticamente al entrar y muestra directamente la respuesta generada.
 					</div>
 				{/if}
 
@@ -252,9 +277,9 @@
 					<button
 						class="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
 						onclick={advance}
-						disabled={pending || data.isReadOnly || !hasAgentResponse}
+						disabled={pending || data.isReadOnly || !agentCanContinue}
 					>
-						{resolvedAgentBlock?.agentConfig.continueLabel || 'Continuar'}
+						{agentConfig?.continueLabel || 'Continuar'}
 					</button>
 				</div>
 			</div>

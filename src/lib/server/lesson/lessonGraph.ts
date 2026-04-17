@@ -1,18 +1,16 @@
 import { z } from 'zod';
 
 import type {
-	LessonAgentBlock,
 	LessonAvailableVariable,
 	LessonBlock,
 	LessonBlockContract,
 	LessonBlockContractField,
 	LessonBlockGraphSummary,
-	LessonBlockKind,
 	LessonBlockReferenceGroups,
-	LessonConditionOperator,
 	LessonDefinition,
 	LessonOutputField
 } from '../../types/lesson.ts';
+import { isValidLessonAgentConfig } from '../../types/lesson.ts';
 import { LessonServiceError } from './LessonServiceError.ts';
 
 export interface LessonReferenceGroups {
@@ -87,7 +85,8 @@ const lessonChoiceOptionSchema = z.object({
 });
 
 const lessonAgentConfigSchema = z.object({
-	mode: z.enum(['guided_turn', 'mini_chat']),
+	interactionMode: z.enum(['single_turn', 'multi_turn', 'none']),
+	executionTrigger: z.enum(['on_user_submit', 'on_enter']),
 	model: z.string().nullable().optional(),
 	systemPrompt: z.string().nullable().optional(),
 	promptTemplate: z.string(),
@@ -95,6 +94,7 @@ const lessonAgentConfigSchema = z.object({
 	submitLabel: z.string().optional(),
 	continueLabel: z.string().optional(),
 	initialAssistantMessage: z.string().optional(),
+	launchMessageTemplate: z.string().optional(),
 	maxTurns: z.number().int().positive().nullable().optional(),
 	outputSchema: z.array(lessonOutputFieldSchema).optional()
 });
@@ -493,10 +493,20 @@ export function buildLessonBlockContract(block: LessonBlock): LessonBlockContrac
 				availableWhen: 'after_visit'
 			},
 			{
-				path: `blocks.${block.id}.outputs.mode`,
-				key: 'mode',
-				label: `${block.title} · modo`,
-				description: 'Modo de interacción del bloque IA.',
+				path: `blocks.${block.id}.outputs.interactionMode`,
+				key: 'interactionMode',
+				label: `${block.title} · interaccion`,
+				description: 'Modo de interacción configurado para este bloque IA.',
+				type: 'string',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'always'
+			},
+			{
+				path: `blocks.${block.id}.outputs.executionTrigger`,
+				key: 'executionTrigger',
+				label: `${block.title} · disparo`,
+				description: 'Momento en el que se ejecuta el bloque IA.',
 				type: 'string',
 				source: 'system',
 				namespace: 'outputs',
@@ -544,7 +554,18 @@ function migrateLessonDefinition(definition: LessonDefinitionInput): LessonDefin
 }
 
 function normalizeLessonDefinition(definition: LessonDefinition): LessonDefinition {
-	return normalizeSimpleLinearOrphans(structuredClone(definition));
+	const nextDefinition = structuredClone(definition);
+
+	nextDefinition.blocks = nextDefinition.blocks.map((block) => {
+		if (block.kind !== 'agent') return block;
+
+		return {
+			...block,
+			requiresResponse: block.agentConfig.interactionMode === 'none' ? false : block.requiresResponse
+		};
+	});
+
+	return normalizeSimpleLinearOrphans(nextDefinition);
 }
 
 function normalizeSimpleLinearOrphans(definition: LessonDefinition): LessonDefinition {
@@ -676,6 +697,20 @@ function assertBlockConfiguration(block: LessonBlock): void {
 		const duplicatedKeys = (block.agentConfig.outputSchema ?? [])
 			.map((field) => field.key)
 			.filter((key, index, list) => list.indexOf(key) !== index);
+
+		if (!isValidLessonAgentConfig(block.agentConfig)) {
+			throw new LessonServiceError(
+				400,
+				`El bloque "${block.id}" usa una combinacion de interaccion y disparo no soportada en esta version.`
+			);
+		}
+
+		if (block.agentConfig.interactionMode === 'none' && block.requiresResponse) {
+			throw new LessonServiceError(
+				400,
+				`El bloque "${block.id}" no puede exigir respuesta del alumno si se ejecuta automaticamente al entrar.`
+			);
+		}
 
 		if (duplicatedKeys.length > 0) {
 			throw new LessonServiceError(
@@ -839,6 +874,7 @@ function extractBlockReferences(block: LessonBlock): string[] {
 		register(block.agentConfig.submitLabel);
 		register(block.agentConfig.continueLabel);
 		register(block.agentConfig.initialAssistantMessage);
+		register(block.agentConfig.launchMessageTemplate);
 	}
 
 	if (block.kind === 'end') {

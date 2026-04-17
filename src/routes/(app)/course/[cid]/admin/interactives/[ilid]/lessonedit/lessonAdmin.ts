@@ -15,6 +15,7 @@ import type {
 import { eq } from 'drizzle-orm';
 import { LessonService } from '$lib/server/lesson/LessonService';
 import { fileStorageService } from '$lib/server/files/FileStorageService';
+import { AIUtils } from '$lib/server/ai/AIUtils';
 import { nanoid } from 'nanoid';
 
 type LessonAdminUser = {
@@ -97,13 +98,19 @@ export async function loadLessonAdminData(
 	definition: ReturnType<typeof LessonService.parseDefinition>;
 	files: InteractiveLearningFile[];
 	graphSummaries: ReturnType<typeof LessonService.getGraphSummaries>;
+	models: Awaited<ReturnType<typeof AIUtils.getAvailableModels>>;
+	defaultModel: Awaited<ReturnType<typeof AIUtils.getDefaultModel>>;
 }> {
 	const { activity, lessonConfig } = await requireLessonAdminContext(cid, ilid, locals);
-	const files = await db
-		.select()
-		.from(interactiveLearningFile)
-		.where(eq(interactiveLearningFile.interactiveLearningId, ilid))
-		.all();
+	const [files, models, defaultModel] = await Promise.all([
+		db
+			.select()
+			.from(interactiveLearningFile)
+			.where(eq(interactiveLearningFile.interactiveLearningId, ilid))
+			.all(),
+		AIUtils.getAvailableModels(),
+		AIUtils.getDefaultModel()
+	]);
 	const definition = LessonService.parseDefinition(activity.content);
 
 	return {
@@ -111,7 +118,9 @@ export async function loadLessonAdminData(
 		lessonConfig,
 		definition,
 		files,
-		graphSummaries: LessonService.getGraphSummaries(definition)
+		graphSummaries: LessonService.getGraphSummaries(definition),
+		models,
+		defaultModel
 	};
 }
 
