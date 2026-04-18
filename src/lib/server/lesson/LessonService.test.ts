@@ -1,13 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { LessonDefinition } from '../../types/lesson.ts';
+import type { LessonCheckBlock, LessonDefinition } from '../../types/lesson.ts';
+import { normalizeLessonCheckConfig } from '../../types/lesson.ts';
 import {
 	getAvailableLessonReferenceGroups,
 	getLessonBlockGraphSummary,
 	parseLessonDefinition,
 	validateLessonDefinition
 } from './lessonGraph.ts';
+import { LessonService } from './LessonService.ts';
 import { LessonServiceError } from './LessonServiceError.ts';
 
 function makeLinearDefinition(): LessonDefinition {
@@ -263,6 +265,145 @@ test('reference groups expose state and outputs for content, choice and agent bl
 	);
 	assert.ok(agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.mastery'));
 	assert.ok(agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.rubric'));
+});
+
+test('reference groups expose evaluation outputs for check blocks', () => {
+	const definition: LessonDefinition = {
+		version: '2',
+		entryBlockId: 'intro',
+		blocks: [
+			{
+				id: 'intro',
+				kind: 'content',
+				title: 'Intro',
+				body: 'Empieza',
+				next: 'check'
+			},
+			{
+				id: 'check',
+				kind: 'check',
+				title: 'Diagnóstico',
+				body: 'Responde',
+				next: 'end',
+				checkConfig: normalizeLessonCheckConfig({
+					mode: 'single_choice',
+					options: [
+						{ id: 'a', label: 'A', value: 'a' },
+						{ id: 'b', label: 'B', value: 'b' }
+					],
+					correctOptionIds: ['a']
+				})
+			},
+			{
+				id: 'end',
+				kind: 'end',
+				title: 'Fin',
+				body: 'Terminado'
+			}
+		]
+	};
+
+	const groups = getAvailableLessonReferenceGroups(definition);
+	const checkGroup = groups.byBlock.find((group) => group.blockId === 'check');
+
+	assert.ok(checkGroup?.outputs.some((variable) => variable.path === 'blocks.check.outputs.score'));
+	assert.ok(checkGroup?.outputs.some((variable) => variable.path === 'blocks.check.outputs.passed'));
+	assert.ok(
+		checkGroup?.outputs.some((variable) => variable.path === 'blocks.check.outputs.selectedOptionIds')
+	);
+});
+
+test('validateDefinition accepts check blocks with numeric rules', () => {
+	const definition: LessonDefinition = {
+		version: '2',
+		entryBlockId: 'check',
+		blocks: [
+			{
+				id: 'check',
+				kind: 'check',
+				title: 'Cálculo',
+				body: 'Calcula',
+				next: 'end',
+				checkConfig: normalizeLessonCheckConfig({
+					mode: 'numeric',
+					acceptedExact: 42,
+					tolerance: 0
+				})
+			},
+			{
+				id: 'end',
+				kind: 'end',
+				title: 'Fin',
+				body: 'Cierre'
+			}
+		]
+	};
+
+	const validated = validateLessonDefinition(definition);
+	const checkBlock = validated.blocks.find((block) => block.id === 'check');
+
+	assert.equal(checkBlock?.kind, 'check');
+	if (!checkBlock || checkBlock.kind !== 'check') {
+		throw new Error('Expected check block');
+	}
+	assert.equal(checkBlock.checkConfig.mode, 'numeric');
+	assert.equal(checkBlock.checkConfig.acceptedExact, 42);
+});
+
+test('evaluateCheckSubmission scores multiple choice and closes after exhaustion', () => {
+	const block: LessonCheckBlock = {
+		id: 'check',
+		kind: 'check',
+		title: 'Selección',
+		body: 'Elige',
+		next: 'end',
+		checkConfig: normalizeLessonCheckConfig({
+			mode: 'multiple_choice',
+			maxAttempts: 2,
+			options: [
+				{ id: 'a', label: 'A', value: 'a' },
+				{ id: 'b', label: 'B', value: 'b' },
+				{ id: 'c', label: 'C', value: 'c' }
+			],
+			correctOptionIds: ['a', 'b']
+		})
+	};
+
+	const firstResult = (
+		LessonService as unknown as {
+			evaluateCheckSubmission(input: {
+				block: LessonCheckBlock;
+				rawOptionIds?: string[];
+				rawValue?: string | number;
+				currentOutputs: Record<string, unknown>;
+			}): { outputs: Record<string, unknown>; completed: boolean };
+		}
+	).evaluateCheckSubmission({
+		block,
+		rawOptionIds: ['a'],
+		currentOutputs: {}
+	});
+	const secondResult = (
+		LessonService as unknown as {
+			evaluateCheckSubmission(input: {
+				block: LessonCheckBlock;
+				rawOptionIds?: string[];
+				rawValue?: string | number;
+				currentOutputs: Record<string, unknown>;
+			}): { outputs: Record<string, unknown>; completed: boolean };
+		}
+	).evaluateCheckSubmission({
+		block,
+		rawOptionIds: ['c'],
+		currentOutputs: firstResult.outputs
+	});
+
+	assert.equal(firstResult.completed, false);
+	assert.equal(firstResult.outputs.attemptCount, 1);
+	assert.equal(firstResult.outputs.passed, false);
+	assert.equal(secondResult.completed, true);
+	assert.equal(secondResult.outputs.attemptCount, 2);
+	assert.equal(secondResult.outputs.attemptsRemaining, 0);
 });
 
 test('validateDefinition accepts future block references but rejects missing targets in templates', () => {

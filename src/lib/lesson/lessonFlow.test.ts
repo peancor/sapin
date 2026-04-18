@@ -103,8 +103,22 @@ test('createLessonFlowGraph serializes nodes and edges with correct metadata', (
 		)
 	);
 	assert.equal(introNextEdge?.sourceHandle, getLessonFlowNextHandleId());
-	assert.equal(introNextEdge?.targetHandle, 'in:open');
+	assert.equal(
+		introNextEdge?.targetHandle,
+		getLessonFlowIncomingHandleId(getLessonFlowNextEdgeId('intro'))
+	);
 	assert.equal(leftChoiceEdge?.sourceHandle, getLessonFlowChoiceHandleId('left'));
+	assert.deepEqual(
+		introNode?.data.incomingHandles.map((handle) => handle.id),
+		[getLessonFlowIncomingAddHandleId('intro')]
+	);
+	assert.deepEqual(
+		decisionNode?.data.incomingHandles.map((handle) => handle.id),
+		[
+			getLessonFlowIncomingHandleId(getLessonFlowNextEdgeId('intro')),
+			getLessonFlowIncomingAddHandleId('decision')
+		]
+	);
 });
 
 test('applyLessonFlowGraph preserves and updates graph positions', () => {
@@ -192,7 +206,7 @@ test('reconnected graph still respects entry block validation and rejects missin
 	);
 });
 
-test('dynamic incoming handles on end blocks preserve saved order and expose an add socket', () => {
+test('dynamic incoming handles preserve saved order and expose an add socket', () => {
 	const definition = makeDefinition();
 	const endBlock = definition.blocks.find((block) => block.id === 'end');
 	if (!endBlock) throw new Error('Missing end block');
@@ -257,26 +271,26 @@ test('missing incomingOrder entries are appended without breaking the graph', ()
 test('applyLessonFlowGraph persists incomingOrder from dynamic incoming handles', () => {
 	const definition = makeDefinition();
 	const graph = createLessonFlowGraph(definition);
-	const endNode = graph.nodes.find((node) => node.id === 'end');
-	if (!endNode) throw new Error('Missing end node');
+	const decisionNode = graph.nodes.find((node) => node.id === 'decision');
+	if (!decisionNode) throw new Error('Missing decision node');
 
-	endNode.data.incomingHandles = [
+	decisionNode.data.incomingHandles = [
 		{
-			id: getLessonFlowIncomingHandleId(getLessonFlowChoiceEdgeId('decision', 'right')),
+			id: getLessonFlowIncomingHandleId(getLessonFlowBranchEdgeId('agent', 0)),
 			label: 'Entrada 1',
 			edgeType: 'incoming',
 			incomingKind: 'occupied',
-			edgeId: getLessonFlowChoiceEdgeId('decision', 'right')
+			edgeId: getLessonFlowBranchEdgeId('agent', 0)
 		},
 		{
-			id: getLessonFlowIncomingHandleId(getLessonFlowNextEdgeId('agent')),
-			label: 'Entrada 2',
+			id: getLessonFlowIncomingHandleId(getLessonFlowNextEdgeId('intro')),
+			label: 'Entrada 1',
 			edgeType: 'incoming',
 			incomingKind: 'occupied',
-			edgeId: getLessonFlowNextEdgeId('agent')
+			edgeId: getLessonFlowNextEdgeId('intro')
 		},
 		{
-			id: getLessonFlowIncomingAddHandleId('end'),
+			id: getLessonFlowIncomingAddHandleId('decision'),
 			label: 'Añadir entrada',
 			edgeType: 'incoming',
 			incomingKind: 'add'
@@ -284,10 +298,10 @@ test('applyLessonFlowGraph persists incomingOrder from dynamic incoming handles'
 	];
 
 	const updated = applyLessonFlowGraph(definition, graph);
-	const updatedEnd = updated.blocks.find((block) => block.id === 'end');
+	const updatedDecision = updated.blocks.find((block) => block.id === 'decision');
 
-	assert.deepEqual(updatedEnd?.graph?.incomingOrder, [
-		getLessonFlowChoiceEdgeId('decision', 'right'),
-		getLessonFlowNextEdgeId('agent')
+	assert.deepEqual(updatedDecision?.graph?.incomingOrder, [
+		getLessonFlowBranchEdgeId('agent', 0),
+		getLessonFlowNextEdgeId('intro')
 	]);
 });

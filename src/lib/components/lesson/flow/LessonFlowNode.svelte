@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Handle, Position, type NodeProps } from '@xyflow/svelte';
-	import { BookOpenText, Bot, Flag, GitBranch, ListChecks } from 'lucide-svelte';
+	import { BookOpenText, Bot, CircleCheck, Flag, GitBranch, ListChecks } from 'lucide-svelte';
 	import type { LessonFlowNode } from '../../../types/lessonFlow';
 
 	let { data, selected = false }: NodeProps<LessonFlowNode> = $props();
@@ -17,6 +17,12 @@
 				'border-teal-300/90 bg-linear-to-br from-white via-teal-50/70 to-cyan-50/60 text-stone-900',
 			accent: 'bg-teal-100 text-teal-800 ring-teal-200',
 			handle: '!bg-teal-500'
+		},
+		check: {
+			surface:
+				'border-emerald-300/90 bg-linear-to-br from-white via-emerald-50/70 to-lime-50/60 text-stone-900',
+			accent: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+			handle: '!bg-emerald-500'
 		},
 		agent: {
 			surface:
@@ -35,6 +41,7 @@
 	function iconFor(kind: LessonFlowNode['data']['kind']) {
 		if (kind === 'content') return BookOpenText;
 		if (kind === 'choice') return ListChecks;
+		if (kind === 'check') return CircleCheck;
 		if (kind === 'agent') return Bot;
 		return Flag;
 	}
@@ -48,10 +55,10 @@
 
 	function handleClass(handle: LessonFlowNode['data']['incomingHandles'][number]) {
 		const baseClass =
-			'h-6 w-6 border-[3px] shadow-[0_10px_22px_-16px_rgba(24,24,27,0.65)] ring-4 ring-white/90 transition-transform hover:scale-110';
+			'h-8 w-8 border-[3px] shadow-[0_10px_22px_-16px_rgba(24,24,27,0.65)] ring-4 ring-white/90 transition-transform hover:scale-110';
 
 		if (handle.incomingKind === 'add') {
-			return `${baseClass} !border-stone-400 !bg-white/95`;
+			return `${baseClass} !h-10 !w-10 !border-dashed !border-stone-400 !bg-white/98 shadow-[0_16px_28px_-18px_rgba(24,24,27,0.7)]`;
 		}
 
 		return `${baseClass} ${style.handle}`;
@@ -59,9 +66,25 @@
 
 	let Icon = $derived(iconFor(data.kind));
 	let style = $derived(kindStyles[data.kind]);
+	let hasIncomingConnections = $derived(data.incomingCount > 0);
 </script>
 
 <div class="relative w-[280px] py-5">
+	<div
+		class={`pointer-events-none absolute inset-x-6 top-0 z-0 h-8 -translate-y-1/2 rounded-full border border-dashed ${
+			hasIncomingConnections
+				? 'border-stone-400/80 bg-white/85'
+				: 'border-stone-400/90 bg-white/96 shadow-[0_18px_30px_-24px_rgba(24,24,27,0.55)]'
+		}`}
+	></div>
+	{#if !hasIncomingConnections}
+		<div
+			class="pointer-events-none absolute inset-x-0 top-0 z-0 -translate-y-[180%] text-center text-[10px] font-semibold tracking-[0.18em] text-stone-500 uppercase"
+		>
+			Suelta aqui una conexion
+		</div>
+	{/if}
+
 	{#each data.incomingHandles as handle, index (handle.id)}
 		{@const left = handleOffset(index, data.incomingHandles.length)}
 		<Handle
@@ -73,7 +96,7 @@
 		/>
 		{#if handle.incomingKind === 'add'}
 			<div
-				class="pointer-events-none absolute z-10 flex h-6 w-6 items-center justify-center rounded-full border-[3px] border-stone-400 bg-white/95 text-[15px] font-bold text-stone-500 ring-4 ring-white/90"
+				class="pointer-events-none absolute z-10 flex h-10 w-10 items-center justify-center rounded-full border-[3px] border-dashed border-stone-400 bg-white/98 text-[18px] font-bold text-stone-500 ring-4 ring-white/90"
 				style={`left:${left};top:0;transform:translate(-50%,-50%);`}
 			>
 				+

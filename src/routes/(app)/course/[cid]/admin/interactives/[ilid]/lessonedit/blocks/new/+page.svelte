@@ -6,6 +6,7 @@
 	import {
 		BookOpenText,
 		Bot,
+		CircleCheck,
 		Flag,
 		ListChecks,
 		MoveLeft,
@@ -28,6 +29,12 @@
 			label: 'Bloque de decisión',
 			description: 'Opciones con branching explícito y salida estructurada.',
 			icon: ListChecks
+		},
+		{
+			kind: 'check',
+			label: 'Bloque de evaluación',
+			description: 'Corrección automática breve con score, feedback y branching pedagógico.',
+			icon: CircleCheck
 		},
 		{
 			kind: 'agent',

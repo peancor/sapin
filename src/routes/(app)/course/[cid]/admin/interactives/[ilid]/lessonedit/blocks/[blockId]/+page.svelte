@@ -6,17 +6,21 @@
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
 	import {
+		getLessonCheckModeLabel,
 		normalizeLessonAgentConfig,
+		normalizeLessonCheckConfig,
 		type LessonAgentExecutionTrigger,
 		type LessonAgentInteractionMode,
 		type LessonAssetRef,
 		type LessonBlock,
+		type LessonCheckMode,
 		type LessonTransition
 	} from '$lib/types/lesson';
 	import {
 		ArrowRight,
 		BookOpenText,
 		Bot,
+		CircleCheck,
 		Flag,
 		GitBranch,
 		ListChecks,
@@ -45,6 +49,9 @@
 			if (block.agentConfig.interactionMode === 'none') {
 				block.requiresResponse = false;
 			}
+		}
+		if (block.kind === 'check') {
+			block.checkConfig = normalizeLessonCheckConfig(block.checkConfig);
 		}
 		return block;
 	};
@@ -79,6 +86,18 @@
 		'gte',
 		'lt',
 		'lte'
+	] as const;
+	const checkModes: Array<{ value: LessonCheckMode; label: string }> = [
+		{ value: 'single_choice', label: 'Opción única' },
+		{ value: 'multiple_choice', label: 'Respuesta múltiple' },
+		{ value: 'true_false', label: 'Verdadero/Falso' },
+		{ value: 'numeric', label: 'Numérico' },
+		{ value: 'short_text', label: 'Texto corto' }
+	];
+	const checkTextMatchModes = [
+		{ value: 'exact', label: 'Coincidencia exacta' },
+		{ value: 'contains', label: 'Contiene' },
+		{ value: 'regex', label: 'Regex' }
 	] as const;
 
 	function markDirty() {
@@ -155,9 +174,82 @@
 		markDirty();
 	}
 
+	function updateCheckMode(mode: LessonCheckMode) {
+		if (workingBlock.kind !== 'check') return;
+		workingBlock.checkConfig = normalizeLessonCheckConfig({
+			...workingBlock.checkConfig,
+			mode
+		});
+		markDirty();
+	}
+
+	function addCheckOption() {
+		if (workingBlock.kind !== 'check') return;
+		const optionNumber = workingBlock.checkConfig.options.length + 1;
+		workingBlock.checkConfig.options = [
+			...workingBlock.checkConfig.options,
+			{
+				id: `option_${optionNumber}`,
+				label: `Opción ${optionNumber}`,
+				value: `option_${optionNumber}`,
+				description: ''
+			}
+		];
+		if (workingBlock.checkConfig.correctOptionIds.length === 0) {
+			workingBlock.checkConfig.correctOptionIds = [`option_${optionNumber}`];
+		}
+		markDirty();
+	}
+
+	function removeCheckOption(index: number) {
+		if (workingBlock.kind !== 'check') return;
+		const removedOptionId = workingBlock.checkConfig.options[index]?.id;
+		workingBlock.checkConfig.options = workingBlock.checkConfig.options.filter(
+			(_, optionIndex) => optionIndex !== index
+		);
+		if (removedOptionId) {
+			workingBlock.checkConfig.correctOptionIds = workingBlock.checkConfig.correctOptionIds.filter(
+				(optionId) => optionId !== removedOptionId
+			);
+		}
+		markDirty();
+	}
+
+	function applyCheckPreset(mode: LessonCheckMode) {
+		if (workingBlock.kind !== 'check') return;
+		workingBlock.checkConfig = normalizeLessonCheckConfig({
+			mode,
+			options:
+				mode === 'single_choice'
+					? [
+							{ id: 'option_1', label: 'Opción 1', value: 'option_1', description: '' },
+							{ id: 'option_2', label: 'Opción 2', value: 'option_2', description: '' }
+						]
+					: mode === 'multiple_choice'
+						? [
+								{ id: 'option_1', label: 'Opción 1', value: 'option_1', description: '' },
+								{ id: 'option_2', label: 'Opción 2', value: 'option_2', description: '' },
+								{ id: 'option_3', label: 'Opción 3', value: 'option_3', description: '' }
+							]
+						: undefined,
+			correctOptionIds:
+				mode === 'single_choice'
+					? ['option_1']
+					: mode === 'multiple_choice'
+						? ['option_1', 'option_2']
+						: undefined,
+			acceptedExact: mode === 'numeric' ? 10 : null,
+			tolerance: mode === 'numeric' ? 0 : null,
+			acceptedAnswers: mode === 'short_text' ? ['respuesta esperada'] : [],
+			matchMode: mode === 'short_text' ? 'exact' : undefined
+		});
+		markDirty();
+	}
+
 	function blockKindLabel(block: LessonBlock) {
 		if (block.kind === 'content') return 'Contenido';
 		if (block.kind === 'choice') return 'Decisión';
+		if (block.kind === 'check') return 'Evaluación';
 		if (block.kind === 'agent') return 'IA';
 		return 'Final';
 	}
@@ -165,6 +257,7 @@
 	function blockKindIcon(block: LessonBlock) {
 		if (block.kind === 'content') return BookOpenText;
 		if (block.kind === 'choice') return ListChecks;
+		if (block.kind === 'check') return CircleCheck;
 		if (block.kind === 'agent') return Bot;
 		return Flag;
 	}
@@ -174,7 +267,12 @@
 	}
 
 	function addBranch() {
-		if (workingBlock.kind !== 'content' && workingBlock.kind !== 'agent') return;
+		if (
+			workingBlock.kind !== 'content' &&
+			workingBlock.kind !== 'check' &&
+			workingBlock.kind !== 'agent'
+		)
+			return;
 		const nextBranch: LessonTransition = {
 			label: 'Nueva rama',
 			targetBlockId: data.definition.entryBlockId,
@@ -189,7 +287,12 @@
 	}
 
 	function removeBranch(index: number) {
-		if (workingBlock.kind !== 'content' && workingBlock.kind !== 'agent') return;
+		if (
+			workingBlock.kind !== 'content' &&
+			workingBlock.kind !== 'check' &&
+			workingBlock.kind !== 'agent'
+		)
+			return;
 		workingBlock.branches = (workingBlock.branches ?? []).filter(
 			(_, branchIndex) => branchIndex !== index
 		);
@@ -217,6 +320,18 @@
 				targetBlockId: data.definition.entryBlockId
 			}
 		];
+		markDirty();
+	}
+
+	function updateCheckCorrectOption(optionId: string, checked: boolean) {
+		if (workingBlock.kind !== 'check') return;
+		if (workingBlock.checkConfig.mode === 'multiple_choice') {
+			workingBlock.checkConfig.correctOptionIds = checked
+				? [...workingBlock.checkConfig.correctOptionIds, optionId]
+				: workingBlock.checkConfig.correctOptionIds.filter((id) => id !== optionId);
+		} else {
+			workingBlock.checkConfig.correctOptionIds = checked ? [optionId] : [];
+		}
 		markDirty();
 	}
 
@@ -680,6 +795,415 @@
 						{/each}
 					</div>
 				</div>
+			{:else if workingBlock.kind === 'check'}
+				<div class="space-y-5">
+					<label class="block">
+						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Introducción del bloque</span
+						>
+						<textarea
+							class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+							bind:value={workingBlock.body}
+							oninput={markDirty}
+						></textarea>
+					</label>
+
+					<div class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/10">
+						<div class="flex flex-wrap items-center justify-between gap-3">
+							<div>
+								<h2 class="text-base font-semibold text-gray-900 dark:text-white">Presets de evaluación</h2>
+								<p class="text-sm text-gray-500 dark:text-gray-400">
+									Arranca con una configuración base y afínala después.
+								</p>
+							</div>
+							<div class="flex flex-wrap gap-2">
+								{#each checkModes as modeOption (modeOption.value)}
+									<button
+										type="button"
+										class="rounded-xl border border-emerald-300 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 dark:border-emerald-900/40 dark:text-emerald-200 dark:hover:bg-emerald-950/30"
+										onclick={() => applyCheckPreset(modeOption.value)}
+									>
+										{modeOption.label}
+									</button>
+								{/each}
+							</div>
+						</div>
+					</div>
+
+					<div class="grid gap-4 md:grid-cols-3">
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Modo</span>
+							<select
+								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.checkConfig.mode}
+								onchange={(event) =>
+									updateCheckMode((event.currentTarget as HTMLSelectElement).value as LessonCheckMode)}
+							>
+								{#each checkModes as modeOption (modeOption.value)}
+									<option value={modeOption.value}>{modeOption.label}</option>
+								{/each}
+							</select>
+							<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+								Modo actual: {getLessonCheckModeLabel(workingBlock.checkConfig.mode)}
+							</p>
+						</label>
+
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Máx. intentos</span
+							>
+							<input
+								type="number"
+								min="1"
+								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								value={workingBlock.checkConfig.maxAttempts ?? ''}
+								oninput={(event) => {
+									const value = (event.currentTarget as HTMLInputElement).value;
+									workingBlock.checkConfig.maxAttempts = value ? Number(value) : null;
+									markDirty();
+								}}
+							/>
+						</label>
+
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Regla de cierre</span
+							>
+							<select
+								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.checkConfig.completionRule}
+								onchange={markDirty}
+							>
+								<option value="pass_or_exhaust">Aprobar o agotar intentos</option>
+								<option value="after_first_submit">Tras el primer envío</option>
+							</select>
+						</label>
+					</div>
+
+					<div class="grid gap-4 md:grid-cols-4">
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Score de aprobado</span
+							>
+							<input
+								type="number"
+								min="0"
+								max="1"
+								step="0.05"
+								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								value={workingBlock.checkConfig.passingScore}
+								oninput={(event) => {
+									workingBlock.checkConfig.passingScore = Number(
+										(event.currentTarget as HTMLInputElement).value || '0'
+									);
+									markDirty();
+								}}
+							/>
+						</label>
+
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Botón enviar</span
+							>
+							<input
+								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.checkConfig.submitLabel}
+								oninput={markDirty}
+							/>
+						</label>
+
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Botón reintentar</span
+							>
+							<input
+								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.checkConfig.retryLabel}
+								oninput={markDirty}
+							/>
+						</label>
+
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Botón continuar</span
+							>
+							<input
+								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.checkConfig.continueLabel}
+								oninput={markDirty}
+							/>
+						</label>
+					</div>
+
+					<label
+						class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+					>
+						<input
+							type="checkbox"
+							class="text-primary-600 h-4 w-4 rounded border-gray-300"
+							bind:checked={workingBlock.checkConfig.revealCorrectAnswer}
+							onchange={markDirty}
+						/>
+						<div>
+							<p class="text-sm font-medium text-gray-900 dark:text-white">Revelar respuesta correcta</p>
+							<p class="text-xs text-gray-500 dark:text-gray-400">
+								Permite mostrar la solución al alumno tras la corrección.
+							</p>
+						</div>
+					</label>
+
+					{#if workingBlock.checkConfig.mode === 'single_choice' || workingBlock.checkConfig.mode === 'multiple_choice' || workingBlock.checkConfig.mode === 'true_false'}
+						<div class="space-y-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+							<div class="flex flex-wrap items-center justify-between gap-3">
+								<div>
+									<h2 class="text-base font-semibold text-gray-900 dark:text-white">Opciones evaluables</h2>
+									<p class="text-sm text-gray-500 dark:text-gray-400">
+										Marca las respuestas correctas que debe aceptar el bloque.
+									</p>
+								</div>
+								{#if workingBlock.checkConfig.mode !== 'true_false'}
+									<button
+										type="button"
+										class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+										onclick={addCheckOption}
+									>
+										<Plus class="mr-1 inline h-4 w-4" />
+										Añadir opción
+									</button>
+								{/if}
+							</div>
+
+							{#each workingBlock.checkConfig.options as option, optionIndex (option.id)}
+								<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+									<div class="mb-3 flex items-start justify-between gap-3">
+										<label class="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+											<input
+												type={workingBlock.checkConfig.mode === 'multiple_choice' ? 'checkbox' : 'radio'}
+												name="correctOption"
+												class="text-primary-600 h-4 w-4 border-gray-300"
+												checked={workingBlock.checkConfig.correctOptionIds.includes(option.id)}
+												onchange={(event) =>
+													updateCheckCorrectOption(
+														option.id,
+														(event.currentTarget as HTMLInputElement).checked
+													)}
+											/>
+											Correcta
+										</label>
+
+										{#if workingBlock.checkConfig.mode !== 'true_false'}
+											<button
+												type="button"
+												class="rounded-xl border border-red-200 px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
+												onclick={() => removeCheckOption(optionIndex)}
+											>
+												<Trash2 class="mr-1 inline h-4 w-4" />
+												Eliminar
+											</button>
+										{/if}
+									</div>
+
+									<div class="grid gap-3 md:grid-cols-3">
+										<label class="block">
+											<span class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase">ID</span>
+											<input
+												class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+												bind:value={option.id}
+												oninput={markDirty}
+												disabled={workingBlock.checkConfig.mode === 'true_false'}
+											/>
+										</label>
+
+										<label class="block">
+											<span class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase">Etiqueta</span>
+											<input
+												class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+												bind:value={option.label}
+												oninput={markDirty}
+											/>
+										</label>
+
+										<label class="block">
+											<span class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase">Valor</span>
+											<input
+												class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+												bind:value={option.value}
+												oninput={markDirty}
+											/>
+										</label>
+									</div>
+
+									<label class="mt-3 block">
+										<span class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase">Descripción opcional</span>
+										<textarea
+											class="min-h-24 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+											bind:value={option.description}
+											oninput={markDirty}
+										></textarea>
+									</label>
+								</div>
+							{/each}
+						</div>
+					{:else if workingBlock.checkConfig.mode === 'numeric'}
+						<div class="grid gap-4 md:grid-cols-3">
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Valor exacto</span
+								>
+								<input
+									type="number"
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									value={workingBlock.checkConfig.acceptedExact ?? ''}
+									oninput={(event) => {
+										const value = (event.currentTarget as HTMLInputElement).value;
+										workingBlock.checkConfig.acceptedExact = value ? Number(value) : null;
+										markDirty();
+									}}
+								/>
+							</label>
+
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Mínimo</span>
+								<input
+									type="number"
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									value={workingBlock.checkConfig.acceptedRange?.min ?? ''}
+									oninput={(event) => {
+										const value = (event.currentTarget as HTMLInputElement).value;
+										workingBlock.checkConfig.acceptedRange = {
+											...(workingBlock.checkConfig.acceptedRange ?? {}),
+											min: value ? Number(value) : undefined
+										};
+										markDirty();
+									}}
+								/>
+							</label>
+
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Máximo</span>
+								<input
+									type="number"
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									value={workingBlock.checkConfig.acceptedRange?.max ?? ''}
+									oninput={(event) => {
+										const value = (event.currentTarget as HTMLInputElement).value;
+										workingBlock.checkConfig.acceptedRange = {
+											...(workingBlock.checkConfig.acceptedRange ?? {}),
+											max: value ? Number(value) : undefined
+										};
+										markDirty();
+									}}
+								/>
+							</label>
+						</div>
+					{:else if workingBlock.checkConfig.mode === 'short_text'}
+						<div class="space-y-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Respuestas aceptadas</span
+								>
+								<textarea
+									class="min-h-32 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									value={workingBlock.checkConfig.acceptedAnswers.join('\n')}
+									oninput={(event) => {
+										workingBlock.checkConfig.acceptedAnswers = (event.currentTarget as HTMLTextAreaElement).value
+											.split('\n')
+											.map((value) => value.trim())
+											.filter(Boolean);
+										markDirty();
+									}}
+								></textarea>
+							</label>
+
+							<div class="grid gap-4 md:grid-cols-3">
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+										>Modo de coincidencia</span
+									>
+									<select
+										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+										bind:value={workingBlock.checkConfig.matchMode}
+										onchange={markDirty}
+									>
+										{#each checkTextMatchModes as matchModeOption (matchModeOption.value)}
+											<option value={matchModeOption.value}>{matchModeOption.label}</option>
+										{/each}
+									</select>
+								</label>
+
+								<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+									<input
+										type="checkbox"
+										class="text-primary-600 h-4 w-4 rounded border-gray-300"
+										bind:checked={workingBlock.checkConfig.caseSensitive}
+										onchange={markDirty}
+									/>
+									<span class="text-sm text-gray-900 dark:text-white">Distinguir mayúsculas</span>
+								</label>
+
+								<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+									<input
+										type="checkbox"
+										class="text-primary-600 h-4 w-4 rounded border-gray-300"
+										bind:checked={workingBlock.checkConfig.trimWhitespace}
+										onchange={markDirty}
+									/>
+									<span class="text-sm text-gray-900 dark:text-white">Recortar espacios</span>
+								</label>
+							</div>
+						</div>
+					{/if}
+
+					<div class="grid gap-4 md:grid-cols-3">
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Feedback correcto</span
+							>
+							<textarea
+								class="min-h-24 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.checkConfig.feedbackCorrect}
+								oninput={markDirty}
+							></textarea>
+						</label>
+
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Feedback parcial</span
+							>
+							<textarea
+								class="min-h-24 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.checkConfig.feedbackPartial}
+								oninput={markDirty}
+							></textarea>
+						</label>
+
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Feedback incorrecto</span
+							>
+							<textarea
+								class="min-h-24 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.checkConfig.feedbackIncorrect}
+								oninput={markDirty}
+							></textarea>
+						</label>
+					</div>
+
+					<label class="block">
+						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Siguiente bloque por defecto</span
+						>
+						<select
+							class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+							bind:value={workingBlock.next}
+							onchange={markDirty}
+						>
+							{#each availableBlockIds as blockId (blockId)}
+								<option value={blockId}>{blockId}</option>
+							{/each}
+						</select>
+					</label>
+				</div>
 			{:else if workingBlock.kind === 'agent'}
 				<div class="space-y-5">
 					<label class="block">
@@ -1027,7 +1551,7 @@
 				</div>
 			{/if}
 
-			{#if workingBlock.kind === 'content' || workingBlock.kind === 'agent'}
+			{#if workingBlock.kind === 'content' || workingBlock.kind === 'check' || workingBlock.kind === 'agent'}
 				<div
 					class="space-y-4 rounded-2xl border border-dashed border-gray-300 p-4 dark:border-gray-700"
 				>

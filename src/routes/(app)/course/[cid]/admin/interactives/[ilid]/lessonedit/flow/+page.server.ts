@@ -61,6 +61,13 @@ function disconnectBlockForFlowDraft(block: LessonBlock): LessonBlock {
 		};
 	}
 
+	if (block.kind === 'check') {
+		return {
+			...block,
+			next: null
+		};
+	}
+
 	if (block.kind === 'choice') {
 		return {
 			...block,
@@ -142,7 +149,8 @@ export const actions = {
 
 			return {
 				success: true,
-				message: 'Bloque anadido al borrador. Guarda el mapa para aplicar el cambio.',
+				message:
+					'Bloque anadido al borrador. Queda desconectado para que puedas cablearlo desde la rail superior y luego guardar el mapa.',
 				definition: nextDefinition,
 				blockId: created.block.id
 			};

@@ -10,7 +10,7 @@ import type {
 	LessonDefinition,
 	LessonOutputField
 } from '../../types/lesson.ts';
-import { isValidLessonAgentConfig } from '../../types/lesson.ts';
+import { isValidLessonAgentConfig, normalizeLessonCheckConfig } from '../../types/lesson.ts';
 import { LessonServiceError } from './LessonServiceError.ts';
 
 export interface LessonReferenceGroups {
@@ -84,6 +84,41 @@ const lessonChoiceOptionSchema = z.object({
 	targetBlockId: z.string().min(1)
 });
 
+const lessonCheckOptionSchema = z.object({
+	id: z.string().min(1),
+	label: z.string().min(1),
+	value: z.string(),
+	description: z.string().optional()
+});
+
+const lessonCheckConfigSchema = z.object({
+	mode: z.enum(['single_choice', 'multiple_choice', 'true_false', 'numeric', 'short_text']),
+	submitLabel: z.string().optional(),
+	continueLabel: z.string().optional(),
+	retryLabel: z.string().optional(),
+	maxAttempts: z.number().int().positive().nullable().optional(),
+	completionRule: z.enum(['pass_or_exhaust', 'after_first_submit']).optional(),
+	passingScore: z.number().min(0).optional(),
+	feedbackCorrect: z.string().optional(),
+	feedbackIncorrect: z.string().optional(),
+	feedbackPartial: z.string().optional(),
+	revealCorrectAnswer: z.boolean().optional(),
+	options: z.array(lessonCheckOptionSchema).optional(),
+	correctOptionIds: z.array(z.string().min(1)).optional(),
+	acceptedRange: z
+		.object({
+			min: z.number().optional(),
+			max: z.number().optional()
+		})
+		.optional(),
+	acceptedExact: z.number().nullable().optional(),
+	tolerance: z.number().min(0).nullable().optional(),
+	acceptedAnswers: z.array(z.string()).optional(),
+	caseSensitive: z.boolean().optional(),
+	trimWhitespace: z.boolean().optional(),
+	matchMode: z.enum(['exact', 'contains', 'regex']).optional()
+});
+
 const lessonAgentConfigSchema = z.object({
 	interactionMode: z.enum(['single_turn', 'multi_turn', 'none']),
 	executionTrigger: z.enum(['on_user_submit', 'on_enter']),
@@ -136,6 +171,12 @@ const lessonDefinitionSchema = z.object({
 					body: z.string().optional(),
 					agentConfig: lessonAgentConfigSchema,
 					requiresResponse: z.boolean().optional(),
+					...lessonBlockBaseSchema
+				}),
+				z.object({
+					kind: z.literal('check'),
+					body: z.string().optional(),
+					checkConfig: lessonCheckConfigSchema,
 					...lessonBlockBaseSchema
 				}),
 				z.object({
@@ -470,6 +511,157 @@ export function buildLessonBlockContract(block: LessonBlock): LessonBlockContrac
 		);
 	}
 
+	if (block.kind === 'check') {
+		outputs.push(
+			{
+				path: `blocks.${block.id}.outputs.submitted`,
+				key: 'submitted',
+				label: `${block.title} · enviado`,
+				description: 'Indica si ya existe una respuesta registrada para este bloque.',
+				type: 'boolean',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.passed`,
+				key: 'passed',
+				label: `${block.title} · superado`,
+				description: 'Indica si el bloque quedó superado según el umbral configurado.',
+				type: 'boolean',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_completion'
+			},
+			{
+				path: `blocks.${block.id}.outputs.isCorrect`,
+				key: 'isCorrect',
+				label: `${block.title} · correcto`,
+				description: 'Booleano estricto del último resultado evaluado.',
+				type: 'boolean',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_completion'
+			},
+			{
+				path: `blocks.${block.id}.outputs.score`,
+				key: 'score',
+				label: `${block.title} · score`,
+				description: 'Puntuación normalizada entre 0 y 1 del último envío.',
+				type: 'number',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.attemptCount`,
+				key: 'attemptCount',
+				label: `${block.title} · intentos`,
+				description: 'Número de intentos registrados en este bloque.',
+				type: 'integer',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.attemptsRemaining`,
+				key: 'attemptsRemaining',
+				label: `${block.title} · intentos restantes`,
+				description: 'Intentos todavía disponibles antes de cerrar el bloque.',
+				type: 'integer',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.feedback`,
+				key: 'feedback',
+				label: `${block.title} · feedback`,
+				description: 'Feedback textual generado por las reglas del bloque.',
+				type: 'string',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.mode`,
+				key: 'mode',
+				label: `${block.title} · modo`,
+				description: 'Modo de evaluación configurado para este bloque.',
+				type: 'string',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'always'
+			}
+		);
+
+		const normalizedConfig = normalizeLessonCheckConfig(block.checkConfig);
+		if (
+			normalizedConfig.mode === 'single_choice' ||
+			normalizedConfig.mode === 'multiple_choice' ||
+			normalizedConfig.mode === 'true_false'
+		) {
+			outputs.push(
+				{
+					path: `blocks.${block.id}.outputs.selectedOptionIds`,
+					key: 'selectedOptionIds',
+					label: `${block.title} · opción IDs`,
+					description: 'IDs técnicos de las opciones elegidas.',
+					type: 'json',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_visit'
+				},
+				{
+					path: `blocks.${block.id}.outputs.selectedValues`,
+					key: 'selectedValues',
+					label: `${block.title} · valores`,
+					description: 'Valores asociados a las opciones elegidas.',
+					type: 'json',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_visit'
+				},
+				{
+					path: `blocks.${block.id}.outputs.selectedLabels`,
+					key: 'selectedLabels',
+					label: `${block.title} · etiquetas`,
+					description: 'Etiquetas visibles de las opciones elegidas.',
+					type: 'json',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_visit'
+				}
+			);
+		}
+
+		if (normalizedConfig.mode === 'numeric') {
+			outputs.push({
+				path: `blocks.${block.id}.outputs.answerNumber`,
+				key: 'answerNumber',
+				label: `${block.title} · respuesta numérica`,
+				description: 'Último valor numérico enviado en el bloque.',
+				type: 'number',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			});
+		}
+
+		if (normalizedConfig.mode === 'short_text') {
+			outputs.push({
+				path: `blocks.${block.id}.outputs.answerText`,
+				key: 'answerText',
+				label: `${block.title} · respuesta textual`,
+				description: 'Última respuesta textual enviada en el bloque.',
+				type: 'string',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			});
+		}
+	}
+
 	if (block.kind === 'agent') {
 		outputs.push(
 			{
@@ -557,12 +749,21 @@ function normalizeLessonDefinition(definition: LessonDefinition): LessonDefiniti
 	const nextDefinition = structuredClone(definition);
 
 	nextDefinition.blocks = nextDefinition.blocks.map((block) => {
-		if (block.kind !== 'agent') return block;
+		if (block.kind === 'agent') {
+			return {
+				...block,
+				requiresResponse: block.agentConfig.interactionMode === 'none' ? false : block.requiresResponse
+			};
+		}
 
-		return {
-			...block,
-			requiresResponse: block.agentConfig.interactionMode === 'none' ? false : block.requiresResponse
-		};
+		if (block.kind === 'check') {
+			return {
+				...block,
+				checkConfig: normalizeLessonCheckConfig(block.checkConfig)
+			};
+		}
+
+		return block;
 	});
 
 	return normalizeSimpleLinearOrphans(nextDefinition);
@@ -689,6 +890,98 @@ function assertBlockConfiguration(block: LessonBlock): void {
 				`El bloque "${block.id}" tiene opciones duplicadas: ${[
 					...new Set(duplicatedOptionIds)
 				].join(', ')}.`
+			);
+		}
+	}
+
+	if (block.kind === 'check') {
+		const normalizedConfig = normalizeLessonCheckConfig(block.checkConfig);
+		const usesChoiceOptions =
+			normalizedConfig.mode === 'single_choice' ||
+			normalizedConfig.mode === 'multiple_choice' ||
+			normalizedConfig.mode === 'true_false';
+
+		if (usesChoiceOptions) {
+			if (normalizedConfig.options.length === 0) {
+				throw new LessonServiceError(
+					400,
+					`El bloque "${block.id}" debe tener al menos una opción evaluable.`
+				);
+			}
+
+			const duplicatedOptionIds = normalizedConfig.options
+				.map((option) => option.id)
+				.filter((id, index, list) => list.indexOf(id) !== index);
+
+			if (duplicatedOptionIds.length > 0) {
+				throw new LessonServiceError(
+					400,
+					`El bloque "${block.id}" tiene opciones duplicadas: ${[
+						...new Set(duplicatedOptionIds)
+					].join(', ')}.`
+				);
+			}
+
+			const optionIds = new Set(normalizedConfig.options.map((option) => option.id));
+			if (normalizedConfig.correctOptionIds.length === 0) {
+				throw new LessonServiceError(
+					400,
+					`El bloque "${block.id}" debe definir al menos una respuesta correcta.`
+				);
+			}
+
+			for (const option of normalizedConfig.options) {
+				if (!option.id.trim()) {
+					throw new LessonServiceError(
+						400,
+						`Una opción del bloque "${block.id}" necesita un ID válido.`
+					);
+				}
+
+				if (!option.label.trim()) {
+					throw new LessonServiceError(
+						400,
+						`Una opción del bloque "${block.id}" necesita una etiqueta visible.`
+					);
+				}
+			}
+
+			for (const optionId of normalizedConfig.correctOptionIds) {
+				if (!optionIds.has(optionId)) {
+					throw new LessonServiceError(
+						400,
+						`El bloque "${block.id}" referencia una opción correcta inexistente: "${optionId}".`
+					);
+				}
+			}
+
+			if (
+				normalizedConfig.mode !== 'multiple_choice' &&
+				normalizedConfig.correctOptionIds.length !== 1
+			) {
+				throw new LessonServiceError(
+					400,
+					`El bloque "${block.id}" solo puede tener una respuesta correcta en este modo.`
+				);
+			}
+		}
+
+		if (normalizedConfig.mode === 'numeric') {
+			const hasRange =
+				normalizedConfig.acceptedRange?.min !== undefined ||
+				normalizedConfig.acceptedRange?.max !== undefined;
+			if (normalizedConfig.acceptedExact === null && !hasRange) {
+				throw new LessonServiceError(
+					400,
+					`El bloque "${block.id}" necesita un valor exacto o un rango para corregirse.`
+				);
+			}
+		}
+
+		if (normalizedConfig.mode === 'short_text' && normalizedConfig.acceptedAnswers.length === 0) {
+			throw new LessonServiceError(
+				400,
+				`El bloque "${block.id}" debe definir al menos una respuesta textual aceptada.`
 			);
 		}
 	}
@@ -862,6 +1155,19 @@ function extractBlockReferences(block: LessonBlock): string[] {
 
 	if (block.kind === 'choice') {
 		for (const option of block.options) {
+			register(option.label);
+			register(option.description);
+		}
+	}
+
+	if (block.kind === 'check') {
+		register(block.checkConfig.submitLabel);
+		register(block.checkConfig.continueLabel);
+		register(block.checkConfig.retryLabel);
+		register(block.checkConfig.feedbackCorrect);
+		register(block.checkConfig.feedbackIncorrect);
+		register(block.checkConfig.feedbackPartial);
+		for (const option of block.checkConfig.options) {
 			register(option.label);
 			register(option.description);
 		}

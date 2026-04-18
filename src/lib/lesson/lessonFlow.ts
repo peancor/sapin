@@ -2,6 +2,7 @@ import { MarkerType, Position, type XYPosition } from '@xyflow/svelte';
 import {
 	getLessonAgentInteractionLabel,
 	getLessonAgentExecutionTriggerLabel,
+	getLessonCheckModeLabel,
 	type LessonBlock,
 	type LessonDefinition
 } from '../types/lesson';
@@ -18,8 +19,6 @@ const FLOW_NODE_GAP_X = 360;
 const FLOW_NODE_GAP_Y = 260;
 const FLOW_EDGE_TYPE = 'smoothstep';
 const LESSON_NODE_TYPE = 'lesson-block';
-const OPEN_TARGET_HANDLE_ID = 'in:open';
-
 interface LessonFlowIncomingHandleState {
 	handles: LessonFlowHandleDescriptor[];
 	targetHandleByEdgeId: Map<string, string>;
@@ -28,6 +27,7 @@ interface LessonFlowIncomingHandleState {
 export function getLessonBlockKindLabel(kind: LessonBlock['kind']): string {
 	if (kind === 'content') return 'Contenido';
 	if (kind === 'choice') return 'Decision';
+	if (kind === 'check') return 'Evaluacion';
 	if (kind === 'agent') return 'Tutor IA';
 	return 'Final';
 }
@@ -39,6 +39,10 @@ export function summarizeLessonBlock(block: LessonBlock): string {
 
 	if (block.kind === 'agent') {
 		return `${getLessonAgentInteractionLabel(block.agentConfig)} · ${getLessonAgentExecutionTriggerLabel(block.agentConfig)}${block.next ? ` · siguiente ${block.next}` : ''}`;
+	}
+
+	if (block.kind === 'check') {
+		return `${getLessonCheckModeLabel(block.checkConfig.mode)} · aprobar ${block.checkConfig.passingScore}${block.next ? ` · siguiente ${block.next}` : ''}`;
 	}
 
 	if (block.kind === 'end') {
@@ -95,7 +99,9 @@ export function createLessonFlowGraph(definition: LessonDefinition): LessonFlowG
 		createLessonFlowEdge({
 			...edgeInput,
 			sourceHandle: getLessonFlowSourceHandleId(edgeInput),
-			targetHandle: targetHandleByEdgeId.get(edgeInput.id) ?? OPEN_TARGET_HANDLE_ID
+			targetHandle:
+				targetHandleByEdgeId.get(edgeInput.id) ??
+				getLessonFlowIncomingHandleId(edgeInput.id)
 		})
 	);
 
@@ -125,9 +131,11 @@ export function applyLessonFlowGraph(
 		const position = positionById.get(block.id);
 		const nextGraph = {
 			...(block.graph ?? {}),
-			...(supportsDynamicIncomingHandles(block)
-				? { incomingOrder: incomingOrderByBlockId.get(block.id) ?? [] }
-				: {})
+			...(() => {
+				if (!supportsDynamicIncomingHandles(block)) return {};
+				const incomingOrder = incomingOrderByBlockId.get(block.id) ?? [];
+				return incomingOrder.length > 0 ? { incomingOrder } : {};
+			})()
 		};
 
 		if (position) {
@@ -479,28 +487,14 @@ export function getLessonFlowIncomingAddHandleId(blockId: string): string {
 	return `in:add:${blockId}`;
 }
 
-function supportsDynamicIncomingHandles(block: Pick<LessonBlock, 'kind'>): boolean {
-	return block.kind === 'end';
+function supportsDynamicIncomingHandles(_block: Pick<LessonBlock, 'kind'>): boolean {
+	return true;
 }
 
 function createIncomingHandleState(
 	block: LessonBlock,
 	edgeIds: string[]
 ): LessonFlowIncomingHandleState {
-	if (!supportsDynamicIncomingHandles(block)) {
-		return {
-			handles: [
-				{
-					id: OPEN_TARGET_HANDLE_ID,
-					label: 'Entrada',
-					edgeType: 'incoming',
-					incomingKind: 'single'
-				}
-			],
-			targetHandleByEdgeId: new Map(edgeIds.map((edgeId) => [edgeId, OPEN_TARGET_HANDLE_ID]))
-		};
-	}
-
 	const orderedEdgeIds = orderIncomingEdgeIds(block, edgeIds);
 	const handles: LessonFlowHandleDescriptor[] = orderedEdgeIds.map((edgeId, index) => ({
 		id: getLessonFlowIncomingHandleId(edgeId),

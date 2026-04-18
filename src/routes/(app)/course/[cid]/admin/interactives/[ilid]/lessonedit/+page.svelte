@@ -43,6 +43,7 @@
 	function blockIcon(block: LessonBlock) {
 		if (block.kind === 'content') return BookOpenText;
 		if (block.kind === 'choice') return ListChecks;
+		if (block.kind === 'check') return CheckCircle2;
 		if (block.kind === 'agent') return Bot;
 		return Flag;
 	}
@@ -50,6 +51,7 @@
 	function blockKindLabel(block: LessonBlock) {
 		if (block.kind === 'content') return 'Contenido';
 		if (block.kind === 'choice') return 'Decisión';
+		if (block.kind === 'check') return 'Evaluación';
 		if (block.kind === 'agent') return 'IA';
 		return 'Final';
 	}
@@ -57,6 +59,10 @@
 	function blockSummary(block: LessonBlock) {
 		if (block.kind === 'choice') {
 			return `${block.options.length} opción${block.options.length === 1 ? '' : 'es'} · salida ${block.outputKey || 'selection'}`;
+		}
+
+		if (block.kind === 'check') {
+			return `${block.checkConfig.mode} · aprobar ${block.checkConfig.passingScore}`;
 		}
 
 		if (block.kind === 'end') {

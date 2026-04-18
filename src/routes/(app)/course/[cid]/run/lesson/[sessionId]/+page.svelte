@@ -9,6 +9,9 @@
 	let pending = $state(false);
 	let errorMessage = $state('');
 	let agentInput = $state('');
+	let checkOptionIds = $state<string[]>([]);
+	let checkNumericValue = $state('');
+	let checkTextValue = $state('');
 
 	const resolvedChoiceBlock = $derived(
 		data.resolvedCurrentBlock.kind === 'choice' ? data.resolvedCurrentBlock : null
@@ -19,8 +22,37 @@
 	const resolvedEndBlock = $derived(
 		data.resolvedCurrentBlock.kind === 'end' ? data.resolvedCurrentBlock : null
 	);
+	const resolvedCheckBlock = $derived(
+		data.resolvedCurrentBlock.kind === 'check' ? data.resolvedCurrentBlock : null
+	);
 	const bodyHtml = $derived(
 		renderMarkdownMath((data.resolvedCurrentBlock as { body?: string }).body ?? '')
+	);
+	const currentOutputs = $derived.by(() => {
+		const raw =
+			data.currentVisit?.outputsJson ?? data.currentBlockState?.outputsJson ?? null;
+		if (!raw) return {};
+		try {
+			return JSON.parse(raw) as Record<string, unknown>;
+		} catch {
+			return {};
+		}
+	});
+	const checkSubmitted = $derived(currentOutputs.submitted === true);
+	const checkPassed = $derived(currentOutputs.passed === true);
+	const checkScore = $derived(
+		typeof currentOutputs.score === 'number' ? currentOutputs.score : Number(currentOutputs.score ?? 0)
+	);
+	const checkAttemptCount = $derived(
+		typeof currentOutputs.attemptCount === 'number'
+			? currentOutputs.attemptCount
+			: Number(currentOutputs.attemptCount ?? 0)
+	);
+	const checkAttemptsRemaining = $derived(
+		typeof currentOutputs.attemptsRemaining === 'number' ? currentOutputs.attemptsRemaining : null
+	);
+	const checkFeedback = $derived(
+		typeof currentOutputs.feedback === 'string' ? currentOutputs.feedback : ''
 	);
 	const hasAgentResponse = $derived(
 		data.currentChatMessages.some((message) => message.type === 'ASSISTANT')
@@ -41,6 +73,30 @@
 	const agentInputLocked = $derived(
 		agentConfig?.interactionMode === 'single_turn' && hasAgentResponse
 	);
+	const checkCanRetry = $derived.by(() => {
+		if (data.currentBlock.kind !== 'check') return false;
+		const attemptsRemaining = currentOutputs.attemptsRemaining;
+		const visitCompleted =
+			data.currentVisit?.status === 'completed' || data.currentBlockState?.status === 'completed';
+		return !visitCompleted && typeof attemptsRemaining === 'number' && attemptsRemaining > 0;
+	});
+	const checkCanContinue = $derived.by(() => {
+		if (data.currentBlock.kind !== 'check') return true;
+		return (
+			data.currentVisit?.status === 'completed' || data.currentBlockState?.status === 'completed'
+		);
+	});
+
+	$effect(() => {
+		if (data.currentBlock.kind !== 'check') return;
+		const outputs = currentOutputs;
+		checkOptionIds = Array.isArray(outputs.selectedOptionIds)
+			? outputs.selectedOptionIds.filter((value): value is string => typeof value === 'string')
+			: [];
+		checkNumericValue =
+			typeof outputs.answerNumber === 'number' ? String(outputs.answerNumber) : '';
+		checkTextValue = typeof outputs.answerText === 'string' ? outputs.answerText : '';
+	});
 
 	async function handleAction(callback: () => Promise<void>) {
 		pending = true;
@@ -107,6 +163,61 @@
 			if (result.sessionId) {
 				goto(`/course/${data.session.courseId}/run/lesson/${result.sessionId}`);
 			}
+		});
+	}
+
+	function toggleCheckOption(optionId: string, checked: boolean) {
+		if (!resolvedCheckBlock) return;
+		if (resolvedCheckBlock.checkConfig.mode === 'multiple_choice') {
+			checkOptionIds = checked
+				? [...checkOptionIds, optionId]
+				: checkOptionIds.filter((value) => value !== optionId);
+			return;
+		}
+
+		checkOptionIds = checked ? [optionId] : [];
+	}
+
+	function getCheckPayload() {
+		if (!resolvedCheckBlock) return null;
+		if (
+			resolvedCheckBlock.checkConfig.mode === 'single_choice' ||
+			resolvedCheckBlock.checkConfig.mode === 'multiple_choice' ||
+			resolvedCheckBlock.checkConfig.mode === 'true_false'
+		) {
+			return { optionIds: checkOptionIds };
+		}
+		if (resolvedCheckBlock.checkConfig.mode === 'numeric') {
+			return { value: Number(checkNumericValue) };
+		}
+		return { value: checkTextValue };
+	}
+
+	const canSubmitCheck = $derived.by(() => {
+		if (!resolvedCheckBlock || data.isReadOnly) return false;
+		if (resolvedCheckBlock.checkConfig.mode === 'multiple_choice') {
+			return checkOptionIds.length > 0;
+		}
+		if (
+			resolvedCheckBlock.checkConfig.mode === 'single_choice' ||
+			resolvedCheckBlock.checkConfig.mode === 'true_false'
+		) {
+			return checkOptionIds.length === 1;
+		}
+		if (resolvedCheckBlock.checkConfig.mode === 'numeric') {
+			return checkNumericValue.trim() !== '' && Number.isFinite(Number(checkNumericValue));
+		}
+		return checkTextValue.trim().length > 0;
+	});
+
+	async function submitCheck() {
+		const payload = getCheckPayload();
+		if (!payload) return;
+		await handleAction(async () => {
+			await postJson(
+				`/api/lesson/${data.activity.id}/session/${data.session.id}/block/${data.currentBlock.id}/check`,
+				payload
+			);
 		});
 	}
 </script>
@@ -222,6 +333,159 @@
 						{/if}
 					</button>
 				{/each}
+			</div>
+		{:else if data.currentBlock.kind === 'check'}
+			<div class="mt-6 space-y-4">
+				{#if resolvedCheckBlock}
+					{#if resolvedCheckBlock.checkConfig.mode === 'single_choice' || resolvedCheckBlock.checkConfig.mode === 'true_false'}
+						<div class="grid gap-3">
+							{#each resolvedCheckBlock.checkConfig.options as option (option.id)}
+								<label class="rounded-xl border border-gray-200 px-4 py-4 transition hover:border-primary-400 hover:bg-primary-50 dark:border-gray-700 dark:hover:bg-primary-900/10">
+									<div class="flex items-start gap-3">
+										<input
+											type="radio"
+											name="check-single"
+											class="text-primary-600 mt-1 h-4 w-4 border-gray-300"
+											checked={checkOptionIds.includes(option.id)}
+											onchange={(event) =>
+												toggleCheckOption(
+													option.id,
+													(event.currentTarget as HTMLInputElement).checked
+												)}
+											disabled={pending || data.isReadOnly}
+										/>
+										<div>
+											<p class="font-medium text-gray-900 dark:text-white">{option.label}</p>
+											{#if option.description}
+												<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{option.description}</p>
+											{/if}
+										</div>
+									</div>
+								</label>
+							{/each}
+						</div>
+					{:else if resolvedCheckBlock.checkConfig.mode === 'multiple_choice'}
+						<div class="grid gap-3">
+							{#each resolvedCheckBlock.checkConfig.options as option (option.id)}
+								<label class="rounded-xl border border-gray-200 px-4 py-4 transition hover:border-primary-400 hover:bg-primary-50 dark:border-gray-700 dark:hover:bg-primary-900/10">
+									<div class="flex items-start gap-3">
+										<input
+											type="checkbox"
+											class="text-primary-600 mt-1 h-4 w-4 rounded border-gray-300"
+											checked={checkOptionIds.includes(option.id)}
+											onchange={(event) =>
+												toggleCheckOption(
+													option.id,
+													(event.currentTarget as HTMLInputElement).checked
+												)}
+											disabled={pending || data.isReadOnly}
+										/>
+										<div>
+											<p class="font-medium text-gray-900 dark:text-white">{option.label}</p>
+											{#if option.description}
+												<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{option.description}</p>
+											{/if}
+										</div>
+									</div>
+								</label>
+							{/each}
+						</div>
+					{:else if resolvedCheckBlock.checkConfig.mode === 'numeric'}
+						<input
+							type="number"
+							class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+							bind:value={checkNumericValue}
+							placeholder="Escribe tu respuesta numérica"
+							disabled={pending || data.isReadOnly}
+						/>
+					{:else}
+						<textarea
+							class="min-h-28 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+							bind:value={checkTextValue}
+							placeholder="Escribe tu respuesta"
+							disabled={pending || data.isReadOnly}
+						></textarea>
+					{/if}
+
+					{#if checkSubmitted}
+						<div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950/30">
+							<div class="flex flex-wrap items-center gap-2">
+								<span class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+									Score: {Number.isFinite(checkScore) ? checkScore.toFixed(2) : '0.00'}
+								</span>
+								<span class="rounded-full px-2.5 py-1 text-xs font-medium {(checkPassed
+									? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
+									: 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300')}">
+									{checkPassed ? 'Superado' : 'Pendiente'}
+								</span>
+								<span class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+									Intentos: {Number.isFinite(checkAttemptCount) ? checkAttemptCount : 0}
+								</span>
+								{#if checkAttemptsRemaining !== null}
+									<span class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+										Restantes: {checkAttemptsRemaining}
+									</span>
+								{/if}
+							</div>
+
+							{#if checkFeedback}
+								<p class="mt-3 text-sm text-gray-700 dark:text-gray-300">{checkFeedback}</p>
+							{/if}
+
+							{#if resolvedCheckBlock.checkConfig.revealCorrectAnswer}
+								<div class="mt-3 text-sm text-gray-600 dark:text-gray-300">
+									<p class="font-medium text-gray-900 dark:text-white">Respuesta correcta</p>
+									{#if resolvedCheckBlock.checkConfig.mode === 'numeric'}
+										<p class="mt-1">
+											{resolvedCheckBlock.checkConfig.acceptedExact ?? 'Rango configurado'}
+										</p>
+									{:else if resolvedCheckBlock.checkConfig.mode === 'short_text'}
+										<p class="mt-1">{resolvedCheckBlock.checkConfig.acceptedAnswers.join(', ')}</p>
+									{:else}
+										<p class="mt-1">
+											{resolvedCheckBlock.checkConfig.options
+												.filter((option) =>
+													resolvedCheckBlock.checkConfig.correctOptionIds.includes(option.id)
+												)
+												.map((option) => option.label)
+												.join(', ')}
+										</p>
+									{/if}
+								</div>
+							{/if}
+						</div>
+					{/if}
+
+					<div class="flex flex-wrap justify-end gap-3">
+						{#if checkCanRetry}
+							<button
+								class="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+								onclick={submitCheck}
+								disabled={pending || !canSubmitCheck}
+							>
+								{resolvedCheckBlock.checkConfig.retryLabel || 'Reintentar'}
+							</button>
+						{:else if !checkCanContinue}
+							<button
+								class="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+								onclick={submitCheck}
+								disabled={pending || !canSubmitCheck}
+							>
+								{resolvedCheckBlock.checkConfig.submitLabel || 'Enviar'}
+							</button>
+						{/if}
+
+						{#if checkCanContinue}
+							<button
+								class="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+								onclick={advance}
+								disabled={pending || data.isReadOnly}
+							>
+								{resolvedCheckBlock.checkConfig.continueLabel || 'Continuar'}
+							</button>
+						{/if}
+					</div>
+				{/if}
 			</div>
 		{:else if data.currentBlock.kind === 'agent'}
 			<div class="mt-6 space-y-4">

@@ -73,6 +73,13 @@ export function parseLessonFlowDraft(content: string): LessonDefinition {
 				'La definición actual del grafo no tiene opciones válidas para el bloque de decisión.'
 			);
 		}
+
+		if (block.kind === 'check' && !isRecord(block.checkConfig)) {
+			throw new LessonServiceError(
+				400,
+				'La definición actual del grafo no tiene configuración válida para el bloque de evaluación.'
+			);
+		}
 	}
 
 	return parsed as unknown as LessonDefinition;

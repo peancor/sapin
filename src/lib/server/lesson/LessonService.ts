@@ -34,13 +34,16 @@ import type {
 	LessonBlockContractField,
 	LessonBlockGraphSummary,
 	LessonBlockReferenceGroups,
+	LessonCheckBlock,
+	LessonCheckMode,
+	LessonCheckTextMatchMode,
 	LessonBlockKind,
 	LessonConditionOperator,
 	LessonDefinition,
 	LessonOutputField,
 	LessonTransition
 } from '$lib/types/lesson';
-import { isLessonAgentInteractive } from '$lib/types/lesson';
+import { isLessonAgentInteractive, normalizeLessonCheckConfig } from '$lib/types/lesson';
 import { and, desc, eq, max } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
@@ -184,6 +187,55 @@ function coerceOutputValue(raw: unknown, field: LessonOutputField): unknown {
 		return typeof raw === 'boolean' ? raw : String(raw).toLowerCase() === 'true';
 	if (field.type === 'string') return String(raw);
 	return raw;
+}
+
+interface LessonCheckSubmissionResult {
+	outputs: JsonRecord;
+	metadata: JsonRecord;
+	completed: boolean;
+}
+
+function normalizeCheckTextValue(
+	value: string,
+	options: { trimWhitespace: boolean; caseSensitive: boolean }
+): string {
+	const trimmed = options.trimWhitespace ? value.trim() : value;
+	return options.caseSensitive ? trimmed : trimmed.toLowerCase();
+}
+
+function scoreCheckOptionSelection(
+	selectedOptionIds: string[],
+	correctOptionIds: string[],
+	mode: Extract<LessonCheckMode, 'single_choice' | 'multiple_choice' | 'true_false'>
+): number {
+	const selected = new Set(selectedOptionIds);
+	const correct = new Set(correctOptionIds);
+	if (mode !== 'multiple_choice') {
+		return selectedOptionIds.length === 1 && correct.has(selectedOptionIds[0]!) ? 1 : 0;
+	}
+
+	const intersection = [...selected].filter((optionId) => correct.has(optionId)).length;
+	const wrongSelections = [...selected].filter((optionId) => !correct.has(optionId)).length;
+	const denominator = Math.max(correct.size, 1);
+	return Math.max(0, (intersection - wrongSelections) / denominator);
+}
+
+function matchShortTextAnswer(
+	candidate: string,
+	acceptedAnswer: string,
+	mode: LessonCheckTextMatchMode
+): boolean {
+	if (mode === 'contains') {
+		return candidate.includes(acceptedAnswer);
+	}
+	if (mode === 'regex') {
+		try {
+			return new RegExp(acceptedAnswer).test(candidate);
+		} catch {
+			return false;
+		}
+	}
+	return candidate === acceptedAnswer;
 }
 
 export class LessonService {
@@ -659,6 +711,17 @@ export class LessonService {
 		}
 
 		if (
+			view.currentBlock.kind === 'check' &&
+			view.currentVisit?.status !== lessonBlockVisitStatus.COMPLETED &&
+			view.currentBlockState?.status !== lessonBlockStateStatus.COMPLETED
+		) {
+			throw new LessonServiceError(
+				400,
+				'Este bloque de evaluación debe corregirse antes de continuar.'
+			);
+		}
+
+		if (
 			view.currentBlock.kind === 'agent' &&
 			(view.currentBlock.requiresResponse ?? true) &&
 			!normalizeOutputs(view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson)
@@ -775,6 +838,116 @@ export class LessonService {
 			view.lesson,
 			view.definition
 		);
+	}
+
+	static async submitCheck(input: {
+		sessionId: string;
+		blockId: string;
+		optionIds?: string[];
+		value?: string | number;
+		userId: string;
+		userRoleLevel: number;
+		interactiveLearningId?: string;
+	}): Promise<{
+		session: InteractiveLessonSession;
+		outputs: JsonRecord;
+		completed: boolean;
+	}> {
+		const view = await this.getSessionView(input);
+
+		if (!view.canInteract) {
+			throw new LessonServiceError(403, 'La sesión está en modo solo lectura.');
+		}
+
+		if (view.currentBlock.id !== input.blockId || view.currentBlock.kind !== 'check') {
+			throw new LessonServiceError(409, 'El bloque activo no es un bloque de evaluación.');
+		}
+
+		const resolvedBlock =
+			view.resolvedCurrentBlock.kind === 'check' ? view.resolvedCurrentBlock : null;
+		if (!resolvedBlock) {
+			throw new LessonServiceError(
+				409,
+				'No se pudo resolver el bloque de evaluación actual.'
+			);
+		}
+
+		if (!view.currentVisit) {
+			throw new LessonServiceError(
+				409,
+				'No se pudo resolver la visita activa del bloque de evaluación.'
+			);
+		}
+
+		if (
+			view.currentVisit.status === lessonBlockVisitStatus.COMPLETED ||
+			view.currentBlockState?.status === lessonBlockStateStatus.COMPLETED
+		) {
+			throw new LessonServiceError(
+				400,
+				'Este bloque de evaluación ya está cerrado. Pulsa continuar para seguir.'
+			);
+		}
+
+		const currentOutputs = normalizeOutputs(
+			view.currentVisit.outputsJson ?? view.currentBlockState?.outputsJson
+		);
+		const result = this.evaluateCheckSubmission({
+			block: resolvedBlock,
+			rawOptionIds: input.optionIds,
+			rawValue: input.value,
+			currentOutputs
+		});
+
+		await this.updateBlockVisit({
+			visitId: view.currentVisit.id,
+			status: result.completed ? lessonBlockVisitStatus.COMPLETED : lessonBlockVisitStatus.ACTIVE,
+			outputs: result.outputs,
+			completedAt: result.completed ? new Date() : null,
+			metadata: result.metadata
+		});
+
+		await this.upsertBlockState({
+			sessionId: view.session.id,
+			blockId: view.currentBlock.id,
+			status: result.completed ? lessonBlockStateStatus.COMPLETED : lessonBlockStateStatus.ACTIVE,
+			outputs: result.outputs,
+			lastVisitId: view.currentVisit.id,
+			completedAt: result.completed ? new Date() : null
+		});
+
+		if (result.completed) {
+			await this.logEvent({
+				interactiveLearningId: view.activity.id,
+				sessionId: view.session.id,
+				userId: view.session.userId,
+				courseId: view.session.courseId,
+				visitId: view.currentVisit.id,
+				blockId: view.currentBlock.id,
+				eventType: lessonEventType.BLOCK_COMPLETED,
+				payload: {
+					kind: 'check',
+					mode: resolvedBlock.checkConfig.mode,
+					score: result.outputs.score ?? 0,
+					passed: result.outputs.passed ?? false,
+					attemptCount: result.outputs.attemptCount ?? 0
+				}
+			});
+		}
+
+		await markActivityInProgress({
+			userId: view.session.userId,
+			courseId: view.session.courseId,
+			activityId: view.activity.id,
+			activityType: 'lesson',
+			source: 'lesson:check-submit'
+		});
+
+		return {
+			session: view.session,
+			outputs: result.outputs,
+			completed: result.completed
+		};
 	}
 
 	static async submitAgentTurn(input: {
@@ -905,6 +1078,165 @@ export class LessonService {
 			session: view.session,
 			assistantMessage,
 			outputs
+		};
+	}
+
+	private static evaluateCheckSubmission(input: {
+		block: LessonCheckBlock;
+		rawOptionIds?: string[];
+		rawValue?: string | number;
+		currentOutputs: JsonRecord;
+	}): LessonCheckSubmissionResult {
+		const config = normalizeLessonCheckConfig(input.block.checkConfig);
+		const previousAttemptCount =
+			typeof input.currentOutputs.attemptCount === 'number'
+				? input.currentOutputs.attemptCount
+				: Number(input.currentOutputs.attemptCount ?? 0);
+		const attemptCount = Number.isFinite(previousAttemptCount) ? previousAttemptCount + 1 : 1;
+		let score = 0;
+		let feedback = '';
+		let answerOutputs: JsonRecord = {};
+		let metadata: JsonRecord = {};
+
+		if (
+			config.mode === 'single_choice' ||
+			config.mode === 'multiple_choice' ||
+			config.mode === 'true_false'
+		) {
+			const selectedOptionIds = [...new Set(input.rawOptionIds ?? [])];
+			const optionMap = new Map(config.options.map((option) => [option.id, option]));
+			for (const optionId of selectedOptionIds) {
+				if (!optionMap.has(optionId)) {
+					throw new LessonServiceError(
+						400,
+						`La opción "${optionId}" no existe en este bloque de evaluación.`
+					);
+				}
+			}
+
+			if (selectedOptionIds.length === 0) {
+				throw new LessonServiceError(400, 'Debes enviar al menos una respuesta.');
+			}
+
+			if (config.mode !== 'multiple_choice' && selectedOptionIds.length !== 1) {
+				throw new LessonServiceError(
+					400,
+					'Este bloque de evaluación solo acepta una respuesta.'
+				);
+			}
+
+			score = scoreCheckOptionSelection(selectedOptionIds, config.correctOptionIds, config.mode);
+			answerOutputs = {
+				selectedOptionIds,
+				selectedValues: selectedOptionIds
+					.map((optionId) => optionMap.get(optionId)?.value)
+					.filter((value): value is string => typeof value === 'string'),
+				selectedLabels: selectedOptionIds
+					.map((optionId) => optionMap.get(optionId)?.label)
+					.filter((value): value is string => typeof value === 'string')
+			};
+			metadata = {
+				...metadata,
+				correctOptionIds: config.correctOptionIds
+			};
+		}
+
+		if (config.mode === 'numeric') {
+			const numericValue =
+				typeof input.rawValue === 'number' ? input.rawValue : Number(String(input.rawValue ?? ''));
+			if (!Number.isFinite(numericValue)) {
+				throw new LessonServiceError(400, 'Debes enviar un valor numérico válido.');
+			}
+
+			const tolerance = config.tolerance ?? 0;
+			const exactMatch =
+				config.acceptedExact !== null &&
+				Math.abs(numericValue - config.acceptedExact) <= tolerance;
+			const rangeMatch =
+				config.acceptedRange &&
+				(config.acceptedRange.min === undefined || numericValue >= config.acceptedRange.min) &&
+				(config.acceptedRange.max === undefined || numericValue <= config.acceptedRange.max);
+			score = exactMatch || rangeMatch ? 1 : 0;
+			answerOutputs = {
+				answerNumber: numericValue
+			};
+			metadata = {
+				...metadata,
+				acceptedExact: config.acceptedExact,
+				acceptedRange: config.acceptedRange ?? null,
+				tolerance
+			};
+		}
+
+		if (config.mode === 'short_text') {
+			const rawText = String(input.rawValue ?? '');
+			if (!rawText.trim()) {
+				throw new LessonServiceError(400, 'Debes escribir una respuesta antes de enviar.');
+			}
+
+			const normalizedCandidate = normalizeCheckTextValue(rawText, {
+				trimWhitespace: config.trimWhitespace,
+				caseSensitive: config.caseSensitive
+			});
+			const acceptedAnswers = config.acceptedAnswers.map((answer) =>
+				normalizeCheckTextValue(answer, {
+					trimWhitespace: config.trimWhitespace,
+					caseSensitive: config.caseSensitive
+				})
+			);
+			score = acceptedAnswers.some((acceptedAnswer) =>
+				matchShortTextAnswer(normalizedCandidate, acceptedAnswer, config.matchMode)
+			)
+				? 1
+				: 0;
+			answerOutputs = {
+				answerText: rawText
+			};
+			metadata = {
+				...metadata,
+				matchMode: config.matchMode
+			};
+		}
+
+		const passed = score >= config.passingScore;
+		const isCorrect = score >= 1;
+		const exhausted =
+			config.maxAttempts !== null ? attemptCount >= Math.max(config.maxAttempts, 1) : false;
+		const completed =
+			config.completionRule === 'after_first_submit' ? true : passed || exhausted;
+		const attemptsRemaining =
+			config.maxAttempts === null ? null : Math.max(config.maxAttempts - attemptCount, 0);
+
+		if (passed) {
+			feedback =
+				config.feedbackCorrect?.trim() || 'Respuesta correcta. Puedes continuar cuando quieras.';
+		} else if (completed && attemptsRemaining === 0) {
+			feedback =
+				config.feedbackIncorrect?.trim() ||
+				'La respuesta no es correcta y ya no quedan más intentos en este bloque.';
+		} else if (score > 0 && score < 1) {
+			feedback =
+				config.feedbackPartial?.trim() || 'Respuesta parcialmente correcta. Revisa tu selección.';
+		} else {
+			feedback =
+				config.feedbackIncorrect?.trim() || 'La respuesta no es correcta. Puedes intentarlo de nuevo.';
+		}
+
+		return {
+			outputs: {
+				...input.currentOutputs,
+				submitted: true,
+				passed,
+				isCorrect,
+				score,
+				attemptCount,
+				attemptsRemaining,
+				feedback,
+				mode: config.mode,
+				...answerOutputs
+			},
+			metadata,
+			completed
 		};
 	}
 
@@ -1720,6 +2052,16 @@ export class LessonService {
 				continue;
 			}
 
+			if (resolvedBlock.kind === 'check') {
+				const score =
+					typeof outputs.score === 'number' ? outputs.score : Number(outputs.score ?? 0);
+				const feedback = typeof outputs.feedback === 'string' ? outputs.feedback : '';
+				sections.push(
+					`${heading}\nResultado: ${outputs.passed ? 'superado' : 'no superado'} · score ${Number.isFinite(score) ? score : 0}\nFeedback:\n${feedback || 'Sin feedback visible.'}`
+				);
+				continue;
+			}
+
 			if (resolvedBlock.kind === 'agent') {
 				const visibleMessages = visit.chatId
 					? (await this.loadBlockChatMessages(visit.chatId)).filter(
@@ -1796,6 +2138,40 @@ export class LessonService {
 					label: this.resolveStringTemplate(option.label, context),
 					description: this.resolveStringTemplate(option.description || '', context)
 				}))
+			};
+		}
+
+		if (block.kind === 'check') {
+			return {
+				...block,
+				title: this.resolveStringTemplate(block.title, context),
+				body: this.resolveStringTemplate(block.body || '', context),
+				checkConfig: {
+					...block.checkConfig,
+					submitLabel: this.resolveStringTemplate(block.checkConfig.submitLabel || '', context),
+					continueLabel: this.resolveStringTemplate(
+						block.checkConfig.continueLabel || '',
+						context
+					),
+					retryLabel: this.resolveStringTemplate(block.checkConfig.retryLabel || '', context),
+					feedbackCorrect: this.resolveStringTemplate(
+						block.checkConfig.feedbackCorrect || '',
+						context
+					),
+					feedbackIncorrect: this.resolveStringTemplate(
+						block.checkConfig.feedbackIncorrect || '',
+						context
+					),
+					feedbackPartial: this.resolveStringTemplate(
+						block.checkConfig.feedbackPartial || '',
+						context
+					),
+					options: block.checkConfig.options.map((option) => ({
+						...option,
+						label: this.resolveStringTemplate(option.label, context),
+						description: this.resolveStringTemplate(option.description || '', context)
+					}))
+				}
 			};
 		}
 
@@ -2190,6 +2566,8 @@ export class LessonService {
 				? 'content'
 				: kind === 'choice'
 					? 'choice'
+					: kind === 'check'
+						? 'check'
 					: kind === 'agent'
 						? 'agent'
 						: 'end';
@@ -2234,6 +2612,37 @@ export class LessonService {
 						targetBlockId: defaultTarget ?? ''
 					}
 				]
+			};
+		}
+
+		if (kind === 'check') {
+			return {
+				id: blockId,
+				kind,
+				title: 'Nueva evaluación',
+				body: '',
+				next: defaultTarget ?? null,
+				checkConfig: normalizeLessonCheckConfig({
+					mode: 'single_choice',
+					submitLabel: 'Enviar',
+					retryLabel: 'Reintentar',
+					continueLabel: 'Continuar',
+					options: [
+						{
+							id: 'option_1',
+							label: 'Opción 1',
+							value: 'option_1',
+							description: ''
+						},
+						{
+							id: 'option_2',
+							label: 'Opción 2',
+							value: 'option_2',
+							description: ''
+						}
+					],
+					correctOptionIds: ['option_1']
+				})
 			};
 		}
 
@@ -2709,6 +3118,20 @@ export class LessonService {
 						...extractTemplateRefs(option.label),
 						...extractTemplateRefs(option.description)
 					])
+				: []),
+			...(block.kind === 'check'
+				? [
+						...extractTemplateRefs(block.checkConfig.submitLabel),
+						...extractTemplateRefs(block.checkConfig.continueLabel),
+						...extractTemplateRefs(block.checkConfig.retryLabel),
+						...extractTemplateRefs(block.checkConfig.feedbackCorrect),
+						...extractTemplateRefs(block.checkConfig.feedbackIncorrect),
+						...extractTemplateRefs(block.checkConfig.feedbackPartial),
+						...block.checkConfig.options.flatMap((option) => [
+							...extractTemplateRefs(option.label),
+							...extractTemplateRefs(option.description)
+						])
+					]
 				: []),
 			...(block.kind === 'content' ? extractTemplateRefs(block.continueLabel) : []),
 			...(block.kind === 'end' ? extractTemplateRefs(block.ctaLabel) : [])

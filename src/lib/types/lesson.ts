@@ -1,4 +1,4 @@
-export const lessonBlockKinds = ['content', 'choice', 'agent', 'end'] as const;
+export const lessonBlockKinds = ['content', 'choice', 'check', 'agent', 'end'] as const;
 export type LessonBlockKind = (typeof lessonBlockKinds)[number];
 
 export const lessonDefinitionVersions = ['1', '2'] as const;
@@ -34,6 +34,21 @@ export type LessonAgentInteractionMode = (typeof lessonAgentInteractionModes)[nu
 
 export const lessonAgentExecutionTriggers = ['on_user_submit', 'on_enter'] as const;
 export type LessonAgentExecutionTrigger = (typeof lessonAgentExecutionTriggers)[number];
+
+export const lessonCheckModes = [
+	'single_choice',
+	'multiple_choice',
+	'true_false',
+	'numeric',
+	'short_text'
+] as const;
+export type LessonCheckMode = (typeof lessonCheckModes)[number];
+
+export const lessonCheckCompletionRules = ['pass_or_exhaust', 'after_first_submit'] as const;
+export type LessonCheckCompletionRule = (typeof lessonCheckCompletionRules)[number];
+
+export const lessonCheckTextMatchModes = ['exact', 'contains', 'regex'] as const;
+export type LessonCheckTextMatchMode = (typeof lessonCheckTextMatchModes)[number];
 
 export interface LessonVariableRef {
 	path: string;
@@ -109,6 +124,63 @@ export interface LessonChoiceBlock extends LessonBlockBase {
 	outputKey?: string;
 }
 
+export interface LessonCheckOption {
+	id: string;
+	label: string;
+	value: string;
+	description?: string;
+}
+
+export interface LessonCheckAcceptedRange {
+	min?: number;
+	max?: number;
+}
+
+export interface LessonCheckConfigInput {
+	mode?: LessonCheckMode;
+	submitLabel?: string;
+	continueLabel?: string;
+	retryLabel?: string;
+	maxAttempts?: number | null;
+	completionRule?: LessonCheckCompletionRule;
+	passingScore?: number;
+	feedbackCorrect?: string;
+	feedbackIncorrect?: string;
+	feedbackPartial?: string;
+	revealCorrectAnswer?: boolean;
+	options?: LessonCheckOption[];
+	correctOptionIds?: string[];
+	acceptedRange?: LessonCheckAcceptedRange;
+	acceptedExact?: number | null;
+	tolerance?: number | null;
+	acceptedAnswers?: string[];
+	caseSensitive?: boolean;
+	trimWhitespace?: boolean;
+	matchMode?: LessonCheckTextMatchMode;
+}
+
+export interface LessonCheckConfig extends Omit<LessonCheckConfigInput, 'mode'> {
+	mode: LessonCheckMode;
+	maxAttempts: number | null;
+	completionRule: LessonCheckCompletionRule;
+	passingScore: number;
+	revealCorrectAnswer: boolean;
+	options: LessonCheckOption[];
+	correctOptionIds: string[];
+	acceptedExact: number | null;
+	tolerance: number | null;
+	acceptedAnswers: string[];
+	caseSensitive: boolean;
+	trimWhitespace: boolean;
+	matchMode: LessonCheckTextMatchMode;
+}
+
+export interface LessonCheckBlock extends LessonBlockBase {
+	kind: 'check';
+	body?: string;
+	checkConfig: LessonCheckConfig;
+}
+
 export interface LessonAgentConfigInput {
 	interactionMode?: LessonAgentInteractionMode;
 	executionTrigger?: LessonAgentExecutionTrigger;
@@ -145,6 +217,7 @@ export interface LessonEndBlock extends LessonBlockBase {
 export type LessonBlock =
 	| LessonContentBlock
 	| LessonChoiceBlock
+	| LessonCheckBlock
 	| LessonAgentBlock
 	| LessonEndBlock;
 
@@ -216,6 +289,66 @@ export function normalizeLessonAgentConfig(input: LessonAgentConfigInput): Lesso
 	};
 }
 
+export function createLessonCheckTrueFalseOptions(): LessonCheckOption[] {
+	return [
+		{
+			id: 'true',
+			label: 'Verdadero',
+			value: 'true',
+			description: ''
+		},
+		{
+			id: 'false',
+			label: 'Falso',
+			value: 'false',
+			description: ''
+		}
+	];
+}
+
+export function normalizeLessonCheckConfig(input: LessonCheckConfigInput): LessonCheckConfig {
+	const mode = input.mode ?? 'single_choice';
+	const normalizedOptions =
+		mode === 'true_false'
+			? createLessonCheckTrueFalseOptions()
+			: (input.options ?? []).map((option) => ({
+					id: option.id,
+					label: option.label,
+					value: option.value,
+					description: option.description
+				}));
+	const correctOptionIds =
+		mode === 'true_false' ? [input.correctOptionIds?.[0] ?? 'true'] : [...(input.correctOptionIds ?? [])];
+
+	return {
+		mode,
+		submitLabel: input.submitLabel,
+		continueLabel: input.continueLabel,
+		retryLabel: input.retryLabel,
+		maxAttempts: input.maxAttempts ?? 1,
+		completionRule: input.completionRule ?? 'pass_or_exhaust',
+		passingScore: input.passingScore ?? 1,
+		feedbackCorrect: input.feedbackCorrect,
+		feedbackIncorrect: input.feedbackIncorrect,
+		feedbackPartial: input.feedbackPartial,
+		revealCorrectAnswer: input.revealCorrectAnswer ?? false,
+		options: normalizedOptions,
+		correctOptionIds,
+		acceptedRange: input.acceptedRange
+			? {
+					...(input.acceptedRange.min !== undefined ? { min: input.acceptedRange.min } : {}),
+					...(input.acceptedRange.max !== undefined ? { max: input.acceptedRange.max } : {})
+				}
+			: undefined,
+		acceptedExact: input.acceptedExact ?? null,
+		tolerance: input.tolerance ?? null,
+		acceptedAnswers: [...(input.acceptedAnswers ?? [])],
+		caseSensitive: input.caseSensitive ?? false,
+		trimWhitespace: input.trimWhitespace ?? true,
+		matchMode: input.matchMode ?? 'exact'
+	};
+}
+
 export function isValidLessonAgentConfig(config: Pick<LessonAgentConfig, 'interactionMode' | 'executionTrigger'>): boolean {
 	return (
 		(config.interactionMode === 'single_turn' && config.executionTrigger === 'on_user_submit') ||
@@ -232,6 +365,14 @@ export function getLessonAgentInteractionLabel(config: Pick<LessonAgentConfig, '
 	if (config.interactionMode === 'multi_turn') return 'Mini chat';
 	if (config.interactionMode === 'single_turn') return 'Turno guiado';
 	return 'Generacion automatica';
+}
+
+export function getLessonCheckModeLabel(mode: LessonCheckMode): string {
+	if (mode === 'single_choice') return 'Opción única';
+	if (mode === 'multiple_choice') return 'Respuesta múltiple';
+	if (mode === 'true_false') return 'Verdadero/Falso';
+	if (mode === 'numeric') return 'Numérico';
+	return 'Texto corto';
 }
 
 export function getLessonAgentExecutionTriggerLabel(

@@ -28,6 +28,7 @@
 	} from '$lib/lesson/lessonFlow';
 	import LessonFlowNodeComponent from '$lib/components/lesson/flow/LessonFlowNode.svelte';
 	import {
+		getLessonCheckModeLabel,
 		normalizeLessonAgentConfig,
 		type LessonAgentExecutionTrigger,
 		type LessonAgentInteractionMode,
@@ -44,7 +45,9 @@
 		ArrowLeft,
 		BookOpenText,
 		Bot,
+		CircleCheck,
 		ChevronRight,
+		Eye,
 		Flag,
 		GitBranch,
 		LayoutTemplate,
@@ -79,6 +82,7 @@
 	const createButtons = [
 		{ kind: 'content', label: 'Contenido', icon: BookOpenText },
 		{ kind: 'choice', label: 'Decisión', icon: ListChecks },
+		{ kind: 'check', label: 'Evaluación', icon: CircleCheck },
 		{ kind: 'agent', label: 'Tutor IA', icon: Bot },
 		{ kind: 'end', label: 'Final', icon: Flag }
 	] as const;
@@ -102,6 +106,7 @@
 
 	const cid = $derived(page.params.cid);
 	const ilid = $derived(page.params.ilid);
+	const previewHref = $derived(resolve(`/lesson/${ilid}`));
 	const selectedBlock = $derived.by(() => {
 		const currentSelection = selection;
 		if (currentSelection?.kind !== 'node') return null;
@@ -315,7 +320,7 @@
 	}
 
 	function supportsDynamicIncomingOrder(block: LessonBlock | null | undefined) {
-		return block?.kind === 'end';
+		return block != null;
 	}
 
 	function appendIncomingOrder(
@@ -382,11 +387,21 @@
 	}
 
 	function addBranchToSelectedBlock() {
-		if (!selectedBlock || (selectedBlock.kind !== 'content' && selectedBlock.kind !== 'agent'))
+		if (
+			!selectedBlock ||
+			(selectedBlock.kind !== 'content' &&
+				selectedBlock.kind !== 'check' &&
+				selectedBlock.kind !== 'agent')
+		)
 			return;
 
 		updateSelectedBlock((block) => {
-			if (block.kind !== 'content' && block.kind !== 'agent') return;
+			if (
+				block.kind !== 'content' &&
+				block.kind !== 'check' &&
+				block.kind !== 'agent'
+			)
+				return;
 
 			block.branches = [
 				...(block.branches ?? []),
@@ -430,7 +445,11 @@
 		updateSelectedEdge((definition, edge) => {
 			removeIncomingOrder(definition, edge.target, edge.id);
 			const block = definition.blocks.find((candidate) => candidate.id === edge.source);
-			if (!block || (block.kind !== 'content' && block.kind !== 'agent')) return;
+			if (
+				!block ||
+				(block.kind !== 'content' && block.kind !== 'check' && block.kind !== 'agent')
+			)
+				return;
 			block.branches = (block.branches ?? []).filter((_, index) => index !== branchIndex);
 		});
 	}
@@ -474,7 +493,12 @@
 			}
 
 			if (edge.data?.edgeType === 'branch') {
-				if (block.kind !== 'content' && block.kind !== 'agent') return;
+				if (
+					block.kind !== 'content' &&
+					block.kind !== 'check' &&
+					block.kind !== 'agent'
+				)
+					return;
 				const branchIndex = edge.data.branchIndex;
 				if (branchIndex === undefined || !block.branches?.[branchIndex]) return;
 				block.branches[branchIndex].targetBlockId = '';
@@ -551,6 +575,24 @@
 	}
 
 	function getSuggestedPosition() {
+		const anchorBlockId =
+			selection?.kind === 'node'
+				? selection.id
+				: selection?.kind === 'edge'
+					? selectedEdge?.source
+					: null;
+		const anchorNode = anchorBlockId
+			? flowNodes.find((node) => node.id === anchorBlockId) ?? null
+			: null;
+		const stagger = ((draftDefinition.blocks.length % 4) - 1.5) * 52;
+
+		if (anchorNode) {
+			return {
+				x: Math.round(anchorNode.position.x + 430),
+				y: Math.round(anchorNode.position.y + stagger)
+			};
+		}
+
 		const viewport = flowViewport ?? { x: 0, y: 0, zoom: 1 };
 		const width = canvasElement?.clientWidth ?? 960;
 		const height = canvasElement?.clientHeight ?? 640;
@@ -847,7 +889,7 @@
 			</div>
 		</div>
 
-		<div class="grid gap-3 sm:grid-cols-2">
+		<div class="grid gap-3 sm:grid-cols-3">
 			<a
 				href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit`)}
 				class="inline-flex items-center justify-center rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm font-medium text-stone-700 shadow-sm hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-950/50 dark:text-stone-200 dark:hover:bg-stone-900"
@@ -860,6 +902,15 @@
 				class="inline-flex items-center justify-center rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm font-medium text-stone-700 shadow-sm hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-950/50 dark:text-stone-200 dark:hover:bg-stone-900"
 			>
 				Ficha de actividad
+			</a>
+			<a
+				href={previewHref}
+				target="_blank"
+				rel="noreferrer"
+				class="inline-flex items-center justify-center rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 shadow-sm hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
+			>
+				<Eye class="mr-2 h-4 w-4" />
+				Lanzar preview
 			</a>
 		</div>
 
@@ -975,6 +1026,15 @@
 
 			<div class="flex items-center gap-2">
 				<a
+					href={previewHref}
+					target="_blank"
+					rel="noreferrer"
+					class="inline-flex items-center rounded-2xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-sm font-medium text-emerald-800 shadow-sm transition hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
+				>
+					<Eye class="mr-1.5 h-4 w-4" />
+					Preview
+				</a>
+				<a
 					href={resolve(`/course/${cid}/admin/interactives/${ilid}`)}
 					class="inline-flex items-center rounded-2xl border border-stone-300 bg-white px-3.5 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
 				>
@@ -1061,6 +1121,10 @@
 					<div class="flex items-center gap-2">
 						<span class="h-2.5 w-2.5 rounded-full bg-teal-500"></span>
 						<span>Decisión</span>
+					</div>
+					<div class="flex items-center gap-2">
+						<span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+						<span>Evaluación</span>
 					</div>
 					<div class="flex items-center gap-2">
 						<span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span>
@@ -1271,7 +1335,9 @@
 											? 'Contenido'
 											: selectedBlock.kind === 'choice'
 												? 'Decisión'
-												: selectedBlock.kind === 'agent'
+												: selectedBlock.kind === 'check'
+													? 'Evaluación'
+													: selectedBlock.kind === 'agent'
 													? 'Tutor IA'
 													: 'Final'}
 									</p>
@@ -1395,6 +1461,80 @@
 										>
 											<Plus class="mr-1 inline h-4 w-4" />
 											Añadir opción
+										</button>
+									</div>
+								</div>
+							{:else if selectedBlock.kind === 'check'}
+								<div class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Modo</span
+									>
+									<p class="rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm font-medium text-stone-900 dark:border-stone-700 dark:bg-gray-950 dark:text-white">
+										{getLessonCheckModeLabel(selectedBlock.checkConfig.mode)}
+									</p>
+								</div>
+
+								<div class="grid gap-4 md:grid-cols-2">
+									<label class="block">
+										<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+											>Botón continuar</span
+										>
+										<input
+											class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+											value={selectedBlock.checkConfig.continueLabel ?? ''}
+											oninput={(event) =>
+												updateSelectedBlock((block) => {
+													if (block.kind !== 'check') return;
+													block.checkConfig.continueLabel = (
+														event.currentTarget as HTMLInputElement
+													).value;
+												})}
+										/>
+									</label>
+
+									<label class="block">
+										<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+											>Siguiente bloque</span
+										>
+										<select
+											class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+											value={selectedBlock.next ?? ''}
+											onchange={(event) =>
+												updateSelectedBlock((block) => {
+													if (block.kind !== 'check') return;
+													block.next = (event.currentTarget as HTMLSelectElement).value || null;
+												})}
+										>
+											<option value="">Sin siguiente</option>
+											{#each availableBlocks as blockOption (blockOption.id)}
+												<option value={blockOption.id}>{blockOption.label}</option>
+											{/each}
+										</select>
+									</label>
+								</div>
+
+								<div
+									class="rounded-2xl border border-dashed border-stone-300 px-4 py-4 dark:border-stone-700"
+								>
+									<div class="flex items-center justify-between gap-3">
+										<div>
+											<p class="text-sm font-medium text-stone-900 dark:text-white">
+												Ramas condicionales
+											</p>
+											<p class="text-xs text-stone-500 dark:text-stone-400">
+												{selectedBlock.branches?.length ?? 0} rama{(selectedBlock.branches
+													?.length ?? 0) === 1
+													? ''
+													: 's'} activa{(selectedBlock.branches?.length ?? 0) === 1 ? '' : 's'}
+											</p>
+										</div>
+										<button
+											type="button"
+											class="rounded-2xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
+											onclick={addBranchToSelectedBlock}
+										>
+											<GitBranch class="mr-1 inline h-4 w-4" />
+											Añadir rama
 										</button>
 									</div>
 								</div>
@@ -1646,7 +1786,13 @@
 												const block = definition.blocks.find(
 													(candidate) => candidate.id === edge.source
 												);
-												if (!block || (block.kind !== 'content' && block.kind !== 'agent')) return;
+												if (
+													!block ||
+													(block.kind !== 'content' &&
+														block.kind !== 'check' &&
+														block.kind !== 'agent')
+												)
+													return;
 												const branch = block.branches?.[edge.data?.branchIndex ?? -1];
 												if (!branch) return;
 												branch.label = (event.currentTarget as HTMLInputElement).value;
@@ -1667,7 +1813,12 @@
 													const block = definition.blocks.find(
 														(candidate) => candidate.id === edge.source
 													);
-													if (!block || (block.kind !== 'content' && block.kind !== 'agent'))
+													if (
+														!block ||
+														(block.kind !== 'content' &&
+															block.kind !== 'check' &&
+															block.kind !== 'agent')
+													)
 														return;
 													const branch = block.branches?.[edge.data?.branchIndex ?? -1];
 													if (!branch) return;
@@ -1693,7 +1844,12 @@
 													const block = definition.blocks.find(
 														(candidate) => candidate.id === edge.source
 													);
-													if (!block || (block.kind !== 'content' && block.kind !== 'agent'))
+													if (
+														!block ||
+														(block.kind !== 'content' &&
+															block.kind !== 'check' &&
+															block.kind !== 'agent')
+													)
 														return;
 													const branch = block.branches?.[edge.data?.branchIndex ?? -1];
 													if (!branch) return;
@@ -1725,7 +1881,13 @@
 												const block = definition.blocks.find(
 													(candidate) => candidate.id === edge.source
 												);
-												if (!block || (block.kind !== 'content' && block.kind !== 'agent')) return;
+												if (
+													!block ||
+													(block.kind !== 'content' &&
+														block.kind !== 'check' &&
+														block.kind !== 'agent')
+												)
+													return;
 												const branch = block.branches?.[edge.data?.branchIndex ?? -1];
 												if (!branch) return;
 												branch.condition ??= {
