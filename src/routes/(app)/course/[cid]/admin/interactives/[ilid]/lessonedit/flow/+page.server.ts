@@ -3,6 +3,7 @@ import { fail } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { interactiveLearning } from '$lib/server/db/schema';
+import { parseLessonFlowDraft } from '$lib/server/lesson/lessonFlowDraft';
 import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
 import { lessonBlockKinds, type LessonBlock, type LessonBlockKind } from '$lib/types/lesson';
 import { loadLessonAdminData, requireLessonAdminContext } from '../lessonAdmin';
@@ -31,11 +32,15 @@ function parseCoordinate(value: FormDataEntryValue | null): number {
 	return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function parseDefinitionPayload(formData: FormData) {
+function parseDefinitionPayload(formData: FormData, options?: { allowDraft?: boolean }) {
 	const definitionJson = formData.get('definitionJson')?.toString();
 
 	if (!definitionJson) {
 		throw new LessonServiceError(400, 'No se recibio la definicion actual del grafo.');
+	}
+
+	if (options?.allowDraft) {
+		return parseLessonFlowDraft(definitionJson);
 	}
 
 	return LessonService.validateDefinition(LessonService.parseDefinition(definitionJson));
@@ -114,7 +119,7 @@ export const actions = {
 		const formData = await request.formData();
 
 		try {
-			const definition = parseDefinitionPayload(formData);
+			const definition = parseDefinitionPayload(formData, { allowDraft: true });
 			const kind = parseRequestedKind(formData.get('kind'));
 			const position = {
 				x: parseCoordinate(formData.get('positionX')),
@@ -162,7 +167,7 @@ export const actions = {
 		}
 
 		try {
-			const definition = parseDefinitionPayload(formData);
+			const definition = parseDefinitionPayload(formData, { allowDraft: true });
 			const nextDefinition = LessonService.deleteBlock(definition, blockId);
 
 			return {

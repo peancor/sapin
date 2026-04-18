@@ -2,6 +2,7 @@
 	import '@xyflow/svelte/dist/style.css';
 
 	import type { PageProps } from './$types';
+	import { beforeNavigate } from '$app/navigation';
 	import { deserialize } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -43,7 +44,7 @@
 		ArrowLeft,
 		BookOpenText,
 		Bot,
-		CheckCircle2,
+		ChevronRight,
 		Flag,
 		GitBranch,
 		LayoutTemplate,
@@ -55,6 +56,7 @@
 		SquarePen,
 		Trash2
 	} from 'lucide-svelte';
+	import { onMount } from 'svelte';
 
 	type FlowActionSuccess = {
 		success: true;
@@ -96,6 +98,7 @@
 	let hasUnsavedChanges = $state(false);
 	let actionMessage = $state('');
 	let actionError = $state('');
+	let isInspectorCollapsed = $state(false);
 
 	const cid = $derived(page.params.cid);
 	const ilid = $derived(page.params.ilid);
@@ -148,7 +151,8 @@
 				interactionMode,
 				executionTrigger: interactionMode === 'none' ? 'on_enter' : 'on_user_submit'
 			});
-			block.requiresResponse = interactionMode === 'none' ? false : (block.requiresResponse ?? true);
+			block.requiresResponse =
+				interactionMode === 'none' ? false : (block.requiresResponse ?? true);
 		});
 	}
 
@@ -728,6 +732,29 @@
 		clearSelectedEdgeConnection();
 	}
 
+	onMount(() => {
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			if (!hasUnsavedChanges) return;
+			event.preventDefault();
+			event.returnValue = '';
+		};
+
+		window.addEventListener('beforeunload', handleBeforeUnload);
+
+		return () => {
+			window.removeEventListener('beforeunload', handleBeforeUnload);
+		};
+	});
+
+	beforeNavigate((navigation) => {
+		if (
+			hasUnsavedChanges &&
+			!window.confirm('Hay cambios sin guardar. ¿Deseas salir de todas formas?')
+		) {
+			navigation.cancel();
+		}
+	});
+
 	$effect(() => {
 		breadcrumb.set([
 			{ label: 'Inicio', href: '/' },
@@ -751,852 +778,1075 @@
 
 <svelte:window onkeydown={handleWindowKeydown} />
 
-<div class="lesson-flow-shell space-y-6">
-	<div
-		class="rounded-[30px] bg-linear-to-br from-stone-100 via-orange-50 to-white p-6 shadow-sm ring-1 ring-stone-200/80 dark:from-stone-950 dark:via-gray-900 dark:to-gray-900 dark:ring-stone-800"
-	>
-		<div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-			<div class="max-w-3xl">
-				<div class="mb-4 flex items-center gap-3">
-					<div class="bg-primary-500/10 text-primary-700 dark:text-primary-300 rounded-2xl p-3">
-						<LayoutTemplate class="h-5 w-5" />
+<div
+	class="min-h-dvh bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.16),_transparent_28%),linear-gradient(180deg,_#f8f5ef_0%,_#efe8dc_100%)] p-4 text-stone-900 sm:p-6 xl:hidden dark:bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.12),_transparent_24%),linear-gradient(180deg,_#111315_0%,_#191c20_100%)] dark:text-stone-100"
+>
+	<div class="mx-auto max-w-3xl space-y-5">
+		<div
+			class="rounded-[28px] border border-white/70 bg-white/90 p-6 shadow-[0_30px_80px_-50px_rgba(24,24,27,0.55)] backdrop-blur dark:border-white/10 dark:bg-[#16181b]/90"
+		>
+			<div class="flex items-start justify-between gap-4">
+				<div class="max-w-xl">
+					<div class="mb-3 flex items-center gap-3">
+						<div class="rounded-2xl bg-amber-500/15 p-3 text-amber-700 dark:text-amber-300">
+							<LayoutTemplate class="h-5 w-5" />
+						</div>
+						<div>
+							<p
+								class="text-xs font-semibold tracking-[0.24em] text-stone-500 uppercase dark:text-stone-400"
+							>
+								Studio lesson
+							</p>
+							<h1 class="mt-1 text-2xl font-semibold">{data.activity.name}</h1>
+						</div>
 					</div>
-					<div>
-						<p
-							class="text-sm font-medium tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
-						>
-							Autoría visual
-						</p>
-						<h1 class="text-2xl font-semibold text-stone-900 dark:text-white">
-							Editor avanzado de {data.activity.name}
-						</h1>
-					</div>
+					<p class="text-sm leading-6 text-stone-600 dark:text-stone-300">
+						El editor visual está optimizado para escritorio para evitar scroll vertical y conservar
+						una lectura clara del grafo. En esta anchura te dejamos un fallback editorial para
+						seguir trabajando sin una experiencia comprimida.
+					</p>
 				</div>
-
-				<p class="text-sm leading-6 text-stone-600 dark:text-stone-300">
-					Organiza el recorrido de la lesson como un mapa visual. Aquí ajustas la estructura, las
-					rutas y las decisiones; el contenido rico de cada bloque sigue en su editor especializado.
-				</p>
-
-				<div class="mt-4 flex flex-wrap gap-2">
-					<span
-						class="rounded-full bg-white/85 px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-200 dark:bg-gray-900/60 dark:text-stone-300 dark:ring-stone-700"
-					>
-						<Route class="mr-1 inline h-3.5 w-3.5" />
-						Entrada: {entryBlockTitle}
-					</span>
-					<span
-						class="rounded-full bg-white/85 px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-200 dark:bg-gray-900/60 dark:text-stone-300 dark:ring-stone-700"
-					>
-						{draftDefinition.blocks.length} bloque{draftDefinition.blocks.length === 1 ? '' : 's'}
-					</span>
-					<span
-						class="rounded-full bg-white/85 px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-200 dark:bg-gray-900/60 dark:text-stone-300 dark:ring-stone-700"
-					>
-						{flowEdges.length} conexión{flowEdges.length === 1 ? '' : 'es'}
-					</span>
-				</div>
+				<span
+					class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
+				>
+					Fallback responsive
+				</span>
 			</div>
 
-			<div class="flex flex-wrap gap-2">
-				<a
-					href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit`)}
-					class="rounded-2xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:bg-gray-950/40 dark:text-stone-200 dark:hover:bg-gray-800"
+			<div class="mt-5 grid gap-3 sm:grid-cols-3">
+				<div
+					class="rounded-2xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/60"
 				>
-					<ArrowLeft class="mr-1 inline h-4 w-4" />
-					Volver a portada
-				</a>
-				<a
-					href={resolve(`/course/${cid}/admin/interactives/${ilid}`)}
-					class="rounded-2xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:bg-gray-950/40 dark:text-stone-200 dark:hover:bg-gray-800"
+					<p
+						class="text-[11px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
+					>
+						Entrada
+					</p>
+					<p class="mt-2 text-sm font-semibold">{entryBlockTitle}</p>
+				</div>
+				<div
+					class="rounded-2xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/60"
 				>
-					Ficha de actividad
-				</a>
+					<p
+						class="text-[11px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
+					>
+						Bloques
+					</p>
+					<p class="mt-2 text-2xl font-semibold">{draftDefinition.blocks.length}</p>
+				</div>
+				<div
+					class="rounded-2xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/60"
+				>
+					<p
+						class="text-[11px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
+					>
+						Conexiones
+					</p>
+					<p class="mt-2 text-2xl font-semibold">{flowEdges.length}</p>
+				</div>
 			</div>
+		</div>
+
+		<div class="grid gap-3 sm:grid-cols-2">
+			<a
+				href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit`)}
+				class="inline-flex items-center justify-center rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm font-medium text-stone-700 shadow-sm hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-950/50 dark:text-stone-200 dark:hover:bg-stone-900"
+			>
+				<ArrowLeft class="mr-2 h-4 w-4" />
+				Volver al editor lesson
+			</a>
+			<a
+				href={resolve(`/course/${cid}/admin/interactives/${ilid}`)}
+				class="inline-flex items-center justify-center rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm font-medium text-stone-700 shadow-sm hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-950/50 dark:text-stone-200 dark:hover:bg-stone-900"
+			>
+				Ficha de actividad
+			</a>
+		</div>
+
+		<div
+			class="rounded-[28px] border border-stone-200/80 bg-white/90 p-5 shadow-sm dark:border-stone-800 dark:bg-[#16181b]/90"
+		>
+			<p
+				class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
+			>
+				Qué puedes hacer desde aquí
+			</p>
+			<ul
+				class="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-stone-600 dark:text-stone-300"
+			>
+				<li>Revisar la estructura actual de la lesson sin perder el contexto.</li>
+				<li>Volver a la portada de lesson para editar bloques y configuración.</li>
+				<li>Usar escritorio para el canvas inmersivo con inspector acoplado.</li>
+			</ul>
 		</div>
 	</div>
+</div>
 
-	<div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-		<div class="space-y-4">
-			<div
-				class="rounded-[30px] bg-white p-5 shadow-sm ring-1 ring-stone-200/80 dark:bg-gray-900/40 dark:ring-stone-800"
-			>
-				<div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-					<div>
-						<h2 class="text-lg font-semibold text-stone-900 dark:text-white">Mapa de bloques</h2>
-						<p class="text-sm text-stone-500 dark:text-stone-400">
-							Crea bloques, mueve nodos y revisa cada ruta desde el inspector lateral.
+<div
+	class="lesson-flow-shell hidden h-dvh min-h-dvh overflow-hidden bg-[#ebe7e0] text-stone-900 xl:flex xl:flex-col dark:bg-[#141516] dark:text-stone-100"
+>
+	<header
+		class="studio-topbar shrink-0 border-b border-stone-300/80 bg-[#f7f3ec]/92 px-4 py-3 backdrop-blur-xl dark:border-stone-800 dark:bg-[#16181b]/92"
+	>
+		<div class="flex items-center gap-3">
+			<div class="flex min-w-0 flex-1 items-center gap-3">
+				<a
+					href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit`)}
+					class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-stone-300 bg-white text-stone-700 shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+					aria-label="Volver al editor lesson"
+				>
+					<ArrowLeft class="h-4 w-4" />
+				</a>
+
+				<div class="min-w-0">
+					<div class="flex items-center gap-2">
+						<div class="rounded-xl bg-amber-500/15 p-2 text-amber-700 dark:text-amber-300">
+							<LayoutTemplate class="h-4 w-4" />
+						</div>
+						<p
+							class="truncate text-sm font-semibold tracking-[0.22em] text-stone-500 uppercase dark:text-stone-400"
+						>
+							Visual lesson studio
 						</p>
 					</div>
-
-					<div class="flex flex-wrap gap-2">
-						{#each createButtons as button (button.kind)}
-							<button
-								type="button"
-								class="rounded-2xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
-								onclick={() => createBlock(button.kind)}
-								disabled={isSubmitting}
+					<div class="mt-1 flex items-center gap-2">
+						<h1 class="truncate text-lg font-semibold">{data.activity.name}</h1>
+						{#if actionError}
+							<span
+								class="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200"
 							>
-								<button.icon class="mr-1 inline h-4 w-4" />
-								{button.label}
-							</button>
-						{/each}
-
-						<button
-							type="button"
-							class="rounded-2xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
-							onclick={centerCanvas}
-						>
-							<MoveRight class="mr-1 inline h-4 w-4" />
-							Centrar vista
-						</button>
-
-						<button
-							type="button"
-							class="bg-primary-600 hover:bg-primary-700 rounded-2xl px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
-							onclick={saveFlow}
-							disabled={isSubmitting}
-						>
-							<Save class="mr-1 inline h-4 w-4" />
-							Guardar mapa
-						</button>
+								{actionError}
+							</span>
+						{:else if actionMessage}
+							<span
+								class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200"
+							>
+								{actionMessage}
+							</span>
+						{:else if hasUnsavedChanges}
+							<span
+								class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
+							>
+								Cambios sin guardar
+							</span>
+						{:else}
+							<span
+								class="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
+							>
+								Sincronizado
+							</span>
+						{/if}
 					</div>
 				</div>
-
-				<div class="mt-4 flex flex-wrap gap-2 text-xs text-stone-500 dark:text-stone-400">
-					<span
-						class="rounded-full bg-amber-50 px-3 py-1.5 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-200 dark:ring-amber-900/40"
-					>
-						Contenido: recorrido principal
-					</span>
-					<span
-						class="rounded-full bg-teal-50 px-3 py-1.5 text-teal-800 ring-1 ring-teal-200 dark:bg-teal-950/30 dark:text-teal-200 dark:ring-teal-900/40"
-					>
-						Decisión: opciones de salida
-					</span>
-					<span
-						class="rounded-full bg-indigo-50 px-3 py-1.5 text-indigo-800 ring-1 ring-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-200 dark:ring-indigo-900/40"
-					>
-						Tutor IA: diálogo y branching
-					</span>
-				</div>
-
-				{#if actionError}
-					<div
-						class="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200"
-					>
-						{actionError}
-					</div>
-				{/if}
-
-				{#if actionMessage}
-					<div
-						class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200"
-					>
-						<CheckCircle2 class="mr-1 inline h-4 w-4" />
-						{actionMessage}
-					</div>
-				{:else if hasUnsavedChanges}
-					<div
-						class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
-					>
-						Hay cambios sin guardar en el mapa visual.
-					</div>
-				{/if}
 			</div>
 
-			<div
-				bind:this={canvasElement}
-				class="h-[72vh] min-h-[620px] overflow-hidden rounded-[30px] bg-white shadow-sm ring-1 ring-stone-200/80 dark:bg-gray-900/40 dark:ring-stone-800"
-			>
-				{#key flowRenderVersion}
-					<SvelteFlow
-						bind:nodes={flowNodes}
-						bind:edges={flowEdges}
-						bind:viewport={flowViewport}
-						{nodeTypes}
-						class="h-full w-full"
-						style="background: radial-gradient(circle at top left, rgba(255,246,237,0.85), rgba(246,244,240,0.9) 38%, rgba(255,255,255,0.98));"
-						fitView
-						minZoom={0.35}
-						maxZoom={1.7}
-						panOnDrag={true}
-						panOnScroll={true}
-						zoomOnScroll={false}
-						selectNodesOnDrag={false}
-						connectionLineType={ConnectionLineType.SmoothStep}
-						onnodeclick={({ node }) => selectNode(node.id)}
-						onedgeclick={({ edge }) => selectEdge(edge.id)}
-						onpaneclick={clearSelection}
-						onselectionchange={({ nodes, edges }) =>
-							handleSelectionChange(nodes as LessonFlowGraphNode[], edges as LessonFlowEdge[])}
-						onnodedragstop={() => {
-							commitCanvasGraph();
-							hasUnsavedChanges = true;
-							actionMessage = '';
-							actionError = '';
-						}}
-						onconnect={handleConnect}
+			<div class="hidden items-center gap-3 2xl:flex">
+				<div
+					class="rounded-2xl border border-stone-300/80 bg-white/85 px-3 py-2 text-sm shadow-sm dark:border-stone-700 dark:bg-stone-900/80"
+				>
+					<p
+						class="text-[10px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
 					>
-						<Background
-							bgColor="#fbf7f1"
-							patternColor="#d6c8b8"
-							variant={BackgroundVariant.Dots}
-							gap={28}
-							size={1.05}
-						/>
-						<Controls />
-						<MiniMap />
-					</SvelteFlow>
-				{/key}
+						Entrada
+					</p>
+					<p class="mt-1 max-w-44 truncate font-semibold">{entryBlockTitle}</p>
+				</div>
+				<div
+					class="rounded-2xl border border-stone-300/80 bg-white/85 px-3 py-2 text-sm shadow-sm dark:border-stone-700 dark:bg-stone-900/80"
+				>
+					<p
+						class="text-[10px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
+					>
+						Bloques
+					</p>
+					<p class="mt-1 font-semibold">{draftDefinition.blocks.length}</p>
+				</div>
+				<div
+					class="rounded-2xl border border-stone-300/80 bg-white/85 px-3 py-2 text-sm shadow-sm dark:border-stone-700 dark:bg-stone-900/80"
+				>
+					<p
+						class="text-[10px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
+					>
+						Conexiones
+					</p>
+					<p class="mt-1 font-semibold">{flowEdges.length}</p>
+				</div>
+			</div>
+
+			<div class="flex items-center gap-2">
+				<a
+					href={resolve(`/course/${cid}/admin/interactives/${ilid}`)}
+					class="inline-flex items-center rounded-2xl border border-stone-300 bg-white px-3.5 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+				>
+					Ficha
+				</a>
+				<button
+					type="button"
+					class="inline-flex items-center rounded-2xl border border-stone-300 bg-white px-3.5 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+					onclick={centerCanvas}
+				>
+					<MoveRight class="mr-1.5 h-4 w-4" />
+					Centrar
+				</button>
+				<button
+					type="button"
+					class="bg-primary-600 hover:bg-primary-700 inline-flex items-center rounded-2xl px-4 py-2.5 text-sm font-medium text-white shadow-sm transition disabled:opacity-50"
+					onclick={saveFlow}
+					disabled={isSubmitting}
+				>
+					<Save class="mr-1.5 h-4 w-4" />
+					Guardar mapa
+				</button>
 			</div>
 		</div>
+	</header>
 
+	<div class="flex min-h-0 flex-1 overflow-hidden">
 		<aside
-			class="rounded-[30px] bg-white p-5 shadow-sm ring-1 ring-stone-200/80 dark:bg-gray-900/40 dark:ring-stone-800"
+			class="studio-rail flex w-[112px] shrink-0 flex-col gap-4 border-r border-stone-300/80 bg-[#f5f0e7] px-3 py-4 dark:border-stone-800 dark:bg-[#17191c]"
 		>
-			<div class="mb-5">
+			<div>
 				<p
-					class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
+					class="text-[10px] font-semibold tracking-[0.22em] text-stone-500 uppercase dark:text-stone-400"
 				>
-					Inspector
+					Tool rail
 				</p>
-				<h2 class="mt-2 text-lg font-semibold text-stone-900 dark:text-white">
-					{#if selectedBlock}
-						{selectedBlock.title}
-					{:else if selectedEdge}
-						{selectedEdge.label ??
-							getLessonFlowEdgeTypeLabel(selectedEdge.data?.edgeType ?? 'next')}
-					{:else}
-						Sin selección
-					{/if}
-				</h2>
-				<p class="mt-2 text-sm leading-6 text-stone-500 dark:text-stone-400">
-					{#if selectedBlock}
-						Ajusta los campos esenciales del bloque y abre el editor profundo si necesitas trabajar
-						el contenido completo.
-					{:else if selectedEdge}
-						Edita la ruta seleccionada, su destino y los metadatos que la acompañan.
-					{:else}
-						Selecciona un bloque o una conexión en el canvas para editarla aquí.
-					{/if}
+				<p class="mt-2 text-xs leading-5 text-stone-500 dark:text-stone-400">
+					Acciones rápidas para ampliar el mapa sin perder altura de canvas.
 				</p>
 			</div>
 
-			{#if selectedBlock}
-				<div class="space-y-5">
-					<div
-						class="rounded-2xl border border-stone-200 bg-stone-50/80 px-4 py-4 dark:border-stone-800 dark:bg-stone-950/30"
+			<div class="grid gap-2">
+				{#each createButtons as button (button.kind)}
+					<button
+						type="button"
+						class="group flex flex-col items-center gap-2 rounded-[24px] border border-stone-300/90 bg-white px-2 py-3 text-center text-[11px] font-medium text-stone-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-stone-50 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+						onclick={() => createBlock(button.kind)}
+						disabled={isSubmitting}
 					>
-						<div class="flex items-center justify-between gap-3">
-							<div>
-								<p
-									class="text-xs font-semibold tracking-[0.14em] text-stone-500 uppercase dark:text-stone-400"
-								>
-									ID técnico
-								</p>
-								<p class="mt-1 font-mono text-sm text-stone-700 dark:text-stone-200">
-									{selectedBlock.id}
-								</p>
-							</div>
-							{#if draftDefinition.entryBlockId === selectedBlock.id}
-								<span
-									class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
-								>
-									Entrada actual
-								</span>
-							{/if}
-						</div>
-					</div>
-
-					<label class="block">
-						<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-							>Título</span
+						<span
+							class="flex h-10 w-10 items-center justify-center rounded-2xl bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-200"
 						>
-						<input
-							class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-							value={selectedBlock.title}
-							oninput={(event) =>
-								updateSelectedBlock((block) => {
-									block.title = (event.currentTarget as HTMLInputElement).value;
-								})}
-						/>
-					</label>
+							<button.icon class="h-4 w-4" />
+						</span>
+						<span>{button.label}</span>
+					</button>
+				{/each}
+			</div>
 
-					<div class="grid gap-4 md:grid-cols-2">
-						<div class="rounded-2xl border border-stone-200 px-4 py-3 dark:border-stone-800">
-							<p
-								class="text-xs font-semibold tracking-[0.14em] text-stone-500 uppercase dark:text-stone-400"
-							>
-								Tipo
-							</p>
-							<p class="mt-1 text-sm font-medium text-stone-900 dark:text-white">
-								{selectedBlock.kind === 'content'
-									? 'Contenido'
-									: selectedBlock.kind === 'choice'
-										? 'Decisión'
-										: selectedBlock.kind === 'agent'
-											? 'Tutor IA'
-											: 'Final'}
-							</p>
+			<button
+				type="button"
+				class="flex flex-col items-center gap-2 rounded-[24px] border border-dashed border-stone-300 bg-transparent px-2 py-3 text-center text-[11px] font-medium text-stone-600 transition hover:bg-white/70 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-900/70"
+				onclick={centerCanvas}
+			>
+				<span
+					class="flex h-10 w-10 items-center justify-center rounded-2xl bg-stone-200/70 dark:bg-stone-800"
+				>
+					<MoveRight class="h-4 w-4" />
+				</span>
+				<span>Centrar</span>
+			</button>
+
+			<div
+				class="mt-auto space-y-2 rounded-[26px] border border-stone-300/80 bg-white/80 p-3 text-[11px] shadow-sm dark:border-stone-700 dark:bg-stone-900/80"
+			>
+				<p class="font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400">
+					Leyenda
+				</p>
+				<div class="space-y-2 text-stone-600 dark:text-stone-300">
+					<div class="flex items-center gap-2">
+						<span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
+						<span>Contenido</span>
+					</div>
+					<div class="flex items-center gap-2">
+						<span class="h-2.5 w-2.5 rounded-full bg-teal-500"></span>
+						<span>Decisión</span>
+					</div>
+					<div class="flex items-center gap-2">
+						<span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span>
+						<span>Tutor IA</span>
+					</div>
+					<div class="flex items-center gap-2">
+						<span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span>
+						<span>Final</span>
+					</div>
+				</div>
+			</div>
+		</aside>
+
+		<section class="flex min-h-0 flex-1 flex-col overflow-hidden">
+			<div class="flex min-h-0 flex-1 overflow-hidden p-4">
+				<div
+					class="studio-stage relative min-h-0 flex-1 overflow-hidden rounded-[32px] border border-stone-300/80 bg-[#f8f4ec] shadow-[0_30px_70px_-45px_rgba(24,24,27,0.65)] dark:border-stone-700 dark:bg-[#111315]"
+				>
+					<div
+						class="pointer-events-none absolute inset-x-0 top-0 z-10 h-24 bg-linear-to-b from-[#f8f4ec] via-[#f8f4ec]/65 to-transparent dark:from-[#111315] dark:via-[#111315]/65"
+					></div>
+
+					<div class="pointer-events-none absolute top-5 left-5 z-20 flex flex-wrap gap-2">
+						<div
+							class="rounded-full border border-white/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-stone-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-stone-900/90 dark:text-stone-300"
+						>
+							Panea con arrastre, edita con el inspector y usa zoom para recorrer el grafo.
 						</div>
-						<div class="rounded-2xl border border-stone-200 px-4 py-3 dark:border-stone-800">
-							<p
-								class="text-xs font-semibold tracking-[0.14em] text-stone-500 uppercase dark:text-stone-400"
+						{#if selection?.kind === 'node' && selectedBlock}
+							<div
+								class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
 							>
-								Posición
-							</p>
-							<p class="mt-1 text-sm font-medium text-stone-900 dark:text-white">
-								{Math.round(selectedBlock.graph?.position?.x ?? 0)},
-								{Math.round(selectedBlock.graph?.position?.y ?? 0)}
-							</p>
-						</div>
+								Bloque activo: {selectedBlock.title}
+							</div>
+						{:else if selection?.kind === 'edge' && selectedEdge}
+							<div
+								class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-800 shadow-sm dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-200"
+							>
+								Ruta activa: {selectedEdge.label ??
+									getLessonFlowEdgeTypeLabel(selectedEdge.data?.edgeType ?? 'next')}
+							</div>
+						{/if}
 					</div>
 
-					{#if draftDefinition.entryBlockId !== selectedBlock.id}
+					<div bind:this={canvasElement} class="h-full w-full overflow-hidden">
+						{#key flowRenderVersion}
+							<SvelteFlow
+								bind:nodes={flowNodes}
+								bind:edges={flowEdges}
+								bind:viewport={flowViewport}
+								{nodeTypes}
+								class="h-full w-full"
+								style="background:
+									radial-gradient(circle at top left, rgba(255,246,237,0.9), rgba(248,244,236,0.82) 32%, rgba(236,229,217,0.65) 100%),
+									linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0));"
+								fitView
+								minZoom={0.35}
+								maxZoom={1.7}
+								panOnDrag={true}
+								panOnScroll={true}
+								zoomOnScroll={false}
+								selectNodesOnDrag={false}
+								connectionLineType={ConnectionLineType.SmoothStep}
+								onnodeclick={({ node }) => selectNode(node.id)}
+								onedgeclick={({ edge }) => selectEdge(edge.id)}
+								onpaneclick={clearSelection}
+								onselectionchange={({ nodes, edges }) =>
+									handleSelectionChange(nodes as LessonFlowGraphNode[], edges as LessonFlowEdge[])}
+								onnodedragstop={() => {
+									commitCanvasGraph();
+									hasUnsavedChanges = true;
+									actionMessage = '';
+									actionError = '';
+								}}
+								onconnect={handleConnect}
+							>
+								<Background
+									bgColor="#f7f1e8"
+									patternColor="#d5c5b2"
+									variant={BackgroundVariant.Dots}
+									gap={28}
+									size={1.05}
+								/>
+								<Controls />
+								<MiniMap />
+							</SvelteFlow>
+						{/key}
+					</div>
+				</div>
+			</div>
+		</section>
+
+		{#if isInspectorCollapsed}
+			<aside
+				class="flex w-16 shrink-0 flex-col items-center gap-4 border-l border-stone-300/80 bg-[#f5f0e7] px-2 py-4 dark:border-stone-800 dark:bg-[#17191c]"
+			>
+				<button
+					type="button"
+					class="flex h-10 w-10 items-center justify-center rounded-2xl border border-stone-300 bg-white text-stone-700 shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+					onclick={() => {
+						isInspectorCollapsed = false;
+					}}
+					aria-label="Abrir inspector"
+				>
+					<ChevronRight class="h-4 w-4" />
+				</button>
+				<div
+					class="inspector-tab rounded-full border border-stone-300/80 bg-white/80 px-2 py-3 text-[11px] font-semibold tracking-[0.2em] text-stone-500 uppercase shadow-sm dark:border-stone-700 dark:bg-stone-900/80 dark:text-stone-400"
+				>
+					Inspector
+				</div>
+			</aside>
+		{:else}
+			<aside
+				class="flex w-[380px] shrink-0 flex-col overflow-hidden border-l border-stone-300/80 bg-[#f5f0e7] dark:border-stone-800 dark:bg-[#17191c]"
+			>
+				<div class="shrink-0 border-b border-stone-300/80 px-5 py-4 dark:border-stone-800">
+					<div class="flex items-start justify-between gap-3">
+						<div>
+							<p
+								class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
+							>
+								Inspector
+							</p>
+							<h2 class="mt-2 text-lg font-semibold text-stone-900 dark:text-white">
+								{#if selectedBlock}
+									{selectedBlock.title}
+								{:else if selectedEdge}
+									{selectedEdge.label ??
+										getLessonFlowEdgeTypeLabel(selectedEdge.data?.edgeType ?? 'next')}
+								{:else}
+									Sin selección
+								{/if}
+							</h2>
+							<p class="mt-2 text-sm leading-6 text-stone-500 dark:text-stone-400">
+								{#if selectedBlock}
+									Ajusta los campos esenciales del bloque y abre el editor profundo si necesitas
+									trabajar el contenido completo.
+								{:else if selectedEdge}
+									Edita la ruta seleccionada, su destino y los metadatos que la acompañan.
+								{:else}
+									Selecciona un bloque o una conexión en el canvas para editarla aquí.
+								{/if}
+							</p>
+						</div>
 						<button
 							type="button"
-							class="w-full rounded-2xl border border-emerald-300 px-4 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-950/20"
-							onclick={() => setEntryBlock(selectedBlock.id)}
+							class="inline-flex items-center rounded-2xl border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+							onclick={() => {
+								isInspectorCollapsed = true;
+							}}
 						>
-							<Route class="mr-1 inline h-4 w-4" />
-							Marcar como bloque de entrada
+							Ocultar
 						</button>
-					{/if}
+					</div>
+				</div>
 
-					{#if selectedBlock.kind === 'content'}
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Texto del botón</span
+				<div class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+					{#if selectedBlock}
+						<div class="space-y-5">
+							<div
+								class="rounded-2xl border border-stone-200 bg-stone-50/80 px-4 py-4 dark:border-stone-800 dark:bg-stone-950/30"
 							>
-							<input
-								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={selectedBlock.continueLabel ?? ''}
-								oninput={(event) =>
-									updateSelectedBlock((block) => {
-										if (block.kind !== 'content') return;
-										block.continueLabel = (event.currentTarget as HTMLInputElement).value;
-									})}
-							/>
-						</label>
-
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Siguiente bloque</span
-							>
-							<select
-								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={selectedBlock.next ?? ''}
-								onchange={(event) =>
-									updateSelectedBlock((block) => {
-										if (block.kind !== 'content') return;
-										block.next = (event.currentTarget as HTMLSelectElement).value || null;
-									})}
-							>
-								<option value="">Sin siguiente</option>
-								{#each availableBlocks as blockOption (blockOption.id)}
-									<option value={blockOption.id}>{blockOption.label}</option>
-								{/each}
-							</select>
-						</label>
-
-						<div
-							class="rounded-2xl border border-dashed border-stone-300 px-4 py-4 dark:border-stone-700"
-						>
-							<div class="flex items-center justify-between gap-3">
-								<div>
-									<p class="text-sm font-medium text-stone-900 dark:text-white">
-										Ramas condicionales
-									</p>
-									<p class="text-xs text-stone-500 dark:text-stone-400">
-										{selectedBlock.branches?.length ?? 0} rama{(selectedBlock.branches?.length ??
-											0) === 1
-											? ''
-											: 's'} activa{(selectedBlock.branches?.length ?? 0) === 1 ? '' : 's'}
-									</p>
+								<div class="flex items-center justify-between gap-3">
+									<div>
+										<p
+											class="text-xs font-semibold tracking-[0.14em] text-stone-500 uppercase dark:text-stone-400"
+										>
+											ID técnico
+										</p>
+										<p class="mt-1 font-mono text-sm text-stone-700 dark:text-stone-200">
+											{selectedBlock.id}
+										</p>
+									</div>
+									{#if draftDefinition.entryBlockId === selectedBlock.id}
+										<span
+											class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+										>
+											Entrada actual
+										</span>
+									{/if}
 								</div>
-								<button
-									type="button"
-									class="rounded-2xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
-									onclick={addBranchToSelectedBlock}
-								>
-									<GitBranch class="mr-1 inline h-4 w-4" />
-									Añadir rama
-								</button>
 							</div>
-						</div>
-					{:else if selectedBlock.kind === 'choice'}
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Clave de salida</span
-							>
-							<input
-								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 font-mono text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={selectedBlock.outputKey ?? ''}
-								oninput={(event) =>
-									updateSelectedBlock((block) => {
-										if (block.kind !== 'choice') return;
-										block.outputKey = (event.currentTarget as HTMLInputElement).value;
-									})}
-							/>
-						</label>
 
-						<div
-							class="rounded-2xl border border-dashed border-stone-300 px-4 py-4 dark:border-stone-700"
-						>
-							<div class="flex items-center justify-between gap-3">
-								<div>
-									<p class="text-sm font-medium text-stone-900 dark:text-white">Opciones</p>
-									<p class="text-xs text-stone-500 dark:text-stone-400">
-										Cada opción nueva aparece sin cable. Arrastra desde su salida o selecciona su
-										conexión para editarla.
-									</p>
-								</div>
-								<button
-									type="button"
-									class="rounded-2xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
-									onclick={addChoiceOptionToSelectedBlock}
-								>
-									<Plus class="mr-1 inline h-4 w-4" />
-									Añadir opción
-								</button>
-							</div>
-						</div>
-					{:else if selectedBlock.kind === 'agent'}
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Modelo</span
-							>
-							<select
-								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={selectedBlock.agentConfig.model ?? ''}
-								onchange={(event) =>
-									updateSelectedBlock((block) => {
-										if (block.kind !== 'agent') return;
-										block.agentConfig.model =
-											(event.currentTarget as HTMLSelectElement).value || null;
-									})}
-							>
-								<option value="">{data.defaultModel} · modelo por defecto</option>
-								{#each availableModels as model (model.name)}
-									<option value={model.name}>{model.name} ({model.provider})</option>
-								{/each}
-							</select>
-						</label>
-
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Modo de interacción</span
-							>
-							<select
-								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={selectedBlock.agentConfig.interactionMode}
-								onchange={(event) =>
-									updateSelectedAgentInteractionMode(
-										(event.currentTarget as HTMLSelectElement)
-											.value as LessonAgentInteractionMode
-									)}
-							>
-								<option value="single_turn">Turno guiado</option>
-								<option value="multi_turn">Mini chat</option>
-								<option value="none">Generación automática</option>
-							</select>
-						</label>
-
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Disparo</span
-							>
-							<select
-								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={selectedBlock.agentConfig.executionTrigger}
-								onchange={(event) =>
-									updateSelectedBlock((block) => {
-										if (block.kind !== 'agent') return;
-										block.agentConfig.executionTrigger = (
-											event.currentTarget as HTMLSelectElement
-										).value as LessonAgentExecutionTrigger;
-									})}
-							>
-								{#each getValidExecutionTriggers(selectedBlock.agentConfig.interactionMode) as trigger (trigger.value)}
-									<option value={trigger.value}>{trigger.label}</option>
-								{/each}
-							</select>
-						</label>
-
-						<div class="grid gap-4 md:grid-cols-2">
 							<label class="block">
 								<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-									>Botón continuar</span
+									>Título</span
 								>
 								<input
 									class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-									value={selectedBlock.agentConfig.continueLabel ?? ''}
+									value={selectedBlock.title}
 									oninput={(event) =>
 										updateSelectedBlock((block) => {
-											if (block.kind !== 'agent') return;
-											block.agentConfig.continueLabel = (
-												event.currentTarget as HTMLInputElement
-											).value;
+											block.title = (event.currentTarget as HTMLInputElement).value;
 										})}
 								/>
 							</label>
 
-							{#if selectedBlock.agentConfig.interactionMode !== 'none'}
-								<label
-									class="flex items-center gap-3 rounded-2xl border border-stone-200 px-4 py-3 dark:border-stone-800"
+							<div class="grid gap-4 md:grid-cols-2">
+								<div class="rounded-2xl border border-stone-200 px-4 py-3 dark:border-stone-800">
+									<p
+										class="text-xs font-semibold tracking-[0.14em] text-stone-500 uppercase dark:text-stone-400"
+									>
+										Tipo
+									</p>
+									<p class="mt-1 text-sm font-medium text-stone-900 dark:text-white">
+										{selectedBlock.kind === 'content'
+											? 'Contenido'
+											: selectedBlock.kind === 'choice'
+												? 'Decisión'
+												: selectedBlock.kind === 'agent'
+													? 'Tutor IA'
+													: 'Final'}
+									</p>
+								</div>
+								<div class="rounded-2xl border border-stone-200 px-4 py-3 dark:border-stone-800">
+									<p
+										class="text-xs font-semibold tracking-[0.14em] text-stone-500 uppercase dark:text-stone-400"
+									>
+										Posición
+									</p>
+									<p class="mt-1 text-sm font-medium text-stone-900 dark:text-white">
+										{Math.round(selectedBlock.graph?.position?.x ?? 0)},
+										{Math.round(selectedBlock.graph?.position?.y ?? 0)}
+									</p>
+								</div>
+							</div>
+
+							{#if draftDefinition.entryBlockId !== selectedBlock.id}
+								<button
+									type="button"
+									class="w-full rounded-2xl border border-emerald-300 px-4 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-950/20"
+									onclick={() => setEntryBlock(selectedBlock.id)}
 								>
+									<Route class="mr-1 inline h-4 w-4" />
+									Marcar como bloque de entrada
+								</button>
+							{/if}
+
+							{#if selectedBlock.kind === 'content'}
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Texto del botón</span
+									>
 									<input
-										type="checkbox"
-										class="text-primary-600 h-4 w-4 rounded border-stone-300"
-										checked={selectedBlock.requiresResponse ?? true}
+										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										value={selectedBlock.continueLabel ?? ''}
+										oninput={(event) =>
+											updateSelectedBlock((block) => {
+												if (block.kind !== 'content') return;
+												block.continueLabel = (event.currentTarget as HTMLInputElement).value;
+											})}
+									/>
+								</label>
+
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Siguiente bloque</span
+									>
+									<select
+										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										value={selectedBlock.next ?? ''}
+										onchange={(event) =>
+											updateSelectedBlock((block) => {
+												if (block.kind !== 'content') return;
+												block.next = (event.currentTarget as HTMLSelectElement).value || null;
+											})}
+									>
+										<option value="">Sin siguiente</option>
+										{#each availableBlocks as blockOption (blockOption.id)}
+											<option value={blockOption.id}>{blockOption.label}</option>
+										{/each}
+									</select>
+								</label>
+
+								<div
+									class="rounded-2xl border border-dashed border-stone-300 px-4 py-4 dark:border-stone-700"
+								>
+									<div class="flex items-center justify-between gap-3">
+										<div>
+											<p class="text-sm font-medium text-stone-900 dark:text-white">
+												Ramas condicionales
+											</p>
+											<p class="text-xs text-stone-500 dark:text-stone-400">
+												{selectedBlock.branches?.length ?? 0} rama{(selectedBlock.branches
+													?.length ?? 0) === 1
+													? ''
+													: 's'} activa{(selectedBlock.branches?.length ?? 0) === 1 ? '' : 's'}
+											</p>
+										</div>
+										<button
+											type="button"
+											class="rounded-2xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
+											onclick={addBranchToSelectedBlock}
+										>
+											<GitBranch class="mr-1 inline h-4 w-4" />
+											Añadir rama
+										</button>
+									</div>
+								</div>
+							{:else if selectedBlock.kind === 'choice'}
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Clave de salida</span
+									>
+									<input
+										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 font-mono text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										value={selectedBlock.outputKey ?? ''}
+										oninput={(event) =>
+											updateSelectedBlock((block) => {
+												if (block.kind !== 'choice') return;
+												block.outputKey = (event.currentTarget as HTMLInputElement).value;
+											})}
+									/>
+								</label>
+
+								<div
+									class="rounded-2xl border border-dashed border-stone-300 px-4 py-4 dark:border-stone-700"
+								>
+									<div class="flex items-center justify-between gap-3">
+										<div>
+											<p class="text-sm font-medium text-stone-900 dark:text-white">Opciones</p>
+											<p class="text-xs text-stone-500 dark:text-stone-400">
+												Cada opción nueva aparece sin cable. Arrastra desde su salida o selecciona
+												su conexión para editarla.
+											</p>
+										</div>
+										<button
+											type="button"
+											class="rounded-2xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
+											onclick={addChoiceOptionToSelectedBlock}
+										>
+											<Plus class="mr-1 inline h-4 w-4" />
+											Añadir opción
+										</button>
+									</div>
+								</div>
+							{:else if selectedBlock.kind === 'agent'}
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Modelo</span
+									>
+									<select
+										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										value={selectedBlock.agentConfig.model ?? ''}
 										onchange={(event) =>
 											updateSelectedBlock((block) => {
 												if (block.kind !== 'agent') return;
-												block.requiresResponse = (
-													event.currentTarget as HTMLInputElement
-												).checked;
+												block.agentConfig.model =
+													(event.currentTarget as HTMLSelectElement).value || null;
+											})}
+									>
+										<option value="">{data.defaultModel} · modelo por defecto</option>
+										{#each availableModels as model (model.name)}
+											<option value={model.name}>{model.name} ({model.provider})</option>
+										{/each}
+									</select>
+								</label>
+
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Modo de interacción</span
+									>
+									<select
+										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										value={selectedBlock.agentConfig.interactionMode}
+										onchange={(event) =>
+											updateSelectedAgentInteractionMode(
+												(event.currentTarget as HTMLSelectElement)
+													.value as LessonAgentInteractionMode
+											)}
+									>
+										<option value="single_turn">Turno guiado</option>
+										<option value="multi_turn">Mini chat</option>
+										<option value="none">Generación automática</option>
+									</select>
+								</label>
+
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Disparo</span
+									>
+									<select
+										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										value={selectedBlock.agentConfig.executionTrigger}
+										onchange={(event) =>
+											updateSelectedBlock((block) => {
+												if (block.kind !== 'agent') return;
+												block.agentConfig.executionTrigger = (
+													event.currentTarget as HTMLSelectElement
+												).value as LessonAgentExecutionTrigger;
+											})}
+									>
+										{#each getValidExecutionTriggers(selectedBlock.agentConfig.interactionMode) as trigger (trigger.value)}
+											<option value={trigger.value}>{trigger.label}</option>
+										{/each}
+									</select>
+								</label>
+
+								<div class="grid gap-4 md:grid-cols-2">
+									<label class="block">
+										<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+											>Botón continuar</span
+										>
+										<input
+											class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+											value={selectedBlock.agentConfig.continueLabel ?? ''}
+											oninput={(event) =>
+												updateSelectedBlock((block) => {
+													if (block.kind !== 'agent') return;
+													block.agentConfig.continueLabel = (
+														event.currentTarget as HTMLInputElement
+													).value;
+												})}
+										/>
+									</label>
+
+									{#if selectedBlock.agentConfig.interactionMode !== 'none'}
+										<label
+											class="flex items-center gap-3 rounded-2xl border border-stone-200 px-4 py-3 dark:border-stone-800"
+										>
+											<input
+												type="checkbox"
+												class="text-primary-600 h-4 w-4 rounded border-stone-300"
+												checked={selectedBlock.requiresResponse ?? true}
+												onchange={(event) =>
+													updateSelectedBlock((block) => {
+														if (block.kind !== 'agent') return;
+														block.requiresResponse = (
+															event.currentTarget as HTMLInputElement
+														).checked;
+													})}
+											/>
+											<div>
+												<p class="text-sm font-medium text-stone-900 dark:text-white">
+													Requiere respuesta
+												</p>
+												<p class="text-xs text-stone-500 dark:text-stone-400">
+													Impide avanzar si el estudiante aún no ha intervenido.
+												</p>
+											</div>
+										</label>
+									{:else}
+										<div
+											class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-200"
+										>
+											Este bloque se ejecutará automáticamente al entrar y mostrará la respuesta
+											generada sin caja de texto.
+										</div>
+									{/if}
+								</div>
+
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Siguiente bloque</span
+									>
+									<select
+										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										value={selectedBlock.next ?? ''}
+										onchange={(event) =>
+											updateSelectedBlock((block) => {
+												if (block.kind !== 'agent') return;
+												block.next = (event.currentTarget as HTMLSelectElement).value || null;
+											})}
+									>
+										<option value="">Sin siguiente</option>
+										{#each availableBlocks as blockOption (blockOption.id)}
+											<option value={blockOption.id}>{blockOption.label}</option>
+										{/each}
+									</select>
+								</label>
+
+								<div
+									class="rounded-2xl border border-dashed border-stone-300 px-4 py-4 dark:border-stone-700"
+								>
+									<div class="flex items-center justify-between gap-3">
+										<div>
+											<p class="text-sm font-medium text-stone-900 dark:text-white">
+												Ramas condicionales
+											</p>
+											<p class="text-xs text-stone-500 dark:text-stone-400">
+												{selectedBlock.branches?.length ?? 0} rama{(selectedBlock.branches
+													?.length ?? 0) === 1
+													? ''
+													: 's'} activa{(selectedBlock.branches?.length ?? 0) === 1 ? '' : 's'}
+											</p>
+										</div>
+										<button
+											type="button"
+											class="rounded-2xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
+											onclick={addBranchToSelectedBlock}
+										>
+											<GitBranch class="mr-1 inline h-4 w-4" />
+											Añadir rama
+										</button>
+									</div>
+								</div>
+							{:else if selectedBlock.kind === 'end'}
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Texto CTA</span
+									>
+									<input
+										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										value={selectedBlock.ctaLabel ?? ''}
+										oninput={(event) =>
+											updateSelectedBlock((block) => {
+												if (block.kind !== 'end') return;
+												block.ctaLabel = (event.currentTarget as HTMLInputElement).value;
 											})}
 									/>
-									<div>
-										<p class="text-sm font-medium text-stone-900 dark:text-white">
-											Requiere respuesta
-										</p>
-										<p class="text-xs text-stone-500 dark:text-stone-400">
-											Impide avanzar si el estudiante aún no ha intervenido.
-										</p>
-									</div>
 								</label>
-							{:else}
-								<div class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-200">
-									Este bloque se ejecutará automáticamente al entrar y mostrará la respuesta generada sin caja de texto.
-								</div>
 							{/if}
-						</div>
 
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Siguiente bloque</span
-							>
-							<select
-								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={selectedBlock.next ?? ''}
-								onchange={(event) =>
-									updateSelectedBlock((block) => {
-										if (block.kind !== 'agent') return;
-										block.next = (event.currentTarget as HTMLSelectElement).value || null;
-									})}
-							>
-								<option value="">Sin siguiente</option>
-								{#each availableBlocks as blockOption (blockOption.id)}
-									<option value={blockOption.id}>{blockOption.label}</option>
-								{/each}
-							</select>
-						</label>
+							<div class="grid gap-3">
+								<a
+									href={resolve(
+										`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${selectedBlock.id}`
+									)}
+									class="inline-flex items-center justify-center rounded-2xl border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
+								>
+									<SquarePen class="mr-1 h-4 w-4" />
+									Editar bloque en detalle
+								</a>
 
-						<div
-							class="rounded-2xl border border-dashed border-stone-300 px-4 py-4 dark:border-stone-700"
-						>
-							<div class="flex items-center justify-between gap-3">
-								<div>
-									<p class="text-sm font-medium text-stone-900 dark:text-white">
-										Ramas condicionales
-									</p>
-									<p class="text-xs text-stone-500 dark:text-stone-400">
-										{selectedBlock.branches?.length ?? 0} rama{(selectedBlock.branches?.length ??
-											0) === 1
-											? ''
-											: 's'} activa{(selectedBlock.branches?.length ?? 0) === 1 ? '' : 's'}
-									</p>
-								</div>
 								<button
 									type="button"
-									class="rounded-2xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
-									onclick={addBranchToSelectedBlock}
+									class="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
+									onclick={deleteSelectedBlock}
+									disabled={isSubmitting}
 								>
-									<GitBranch class="mr-1 inline h-4 w-4" />
-									Añadir rama
+									<Trash2 class="mr-1 h-4 w-4" />
+									Eliminar bloque
 								</button>
 							</div>
 						</div>
-					{:else if selectedBlock.kind === 'end'}
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Texto CTA</span
+					{:else if selectedEdge}
+						<div class="space-y-5">
+							<div
+								class="rounded-2xl border border-stone-200 bg-stone-50/80 px-4 py-4 dark:border-stone-800 dark:bg-stone-950/30"
 							>
-							<input
-								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={selectedBlock.ctaLabel ?? ''}
-								oninput={(event) =>
-									updateSelectedBlock((block) => {
-										if (block.kind !== 'end') return;
-										block.ctaLabel = (event.currentTarget as HTMLInputElement).value;
-									})}
-							/>
-						</label>
-					{/if}
-
-					<div class="grid gap-3">
-						<a
-							href={resolve(
-								`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${selectedBlock.id}`
-							)}
-							class="inline-flex items-center justify-center rounded-2xl border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
-						>
-							<SquarePen class="mr-1 h-4 w-4" />
-							Editar bloque en detalle
-						</a>
-
-						<button
-							type="button"
-							class="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
-							onclick={deleteSelectedBlock}
-							disabled={isSubmitting}
-						>
-							<Trash2 class="mr-1 h-4 w-4" />
-							Eliminar bloque
-						</button>
-					</div>
-				</div>
-			{:else if selectedEdge}
-				<div class="space-y-5">
-					<div
-						class="rounded-2xl border border-stone-200 bg-stone-50/80 px-4 py-4 dark:border-stone-800 dark:bg-stone-950/30"
-					>
-						<p
-							class="text-xs font-semibold tracking-[0.14em] text-stone-500 uppercase dark:text-stone-400"
-						>
-							Tipo de ruta
-						</p>
-						<p class="mt-1 text-sm font-medium text-stone-900 dark:text-white">
-							{getLessonFlowEdgeTypeLabel(selectedEdge.data?.edgeType ?? 'next')}
-						</p>
-						<p class="mt-3 text-xs leading-5 text-stone-500 dark:text-stone-400">
-							Desde <strong>{selectedEdgeSourceBlock?.title ?? selectedEdge.source}</strong> hacia
-							<strong> {selectedEdgeTargetBlock?.title ?? selectedEdge.target}</strong>.
-						</p>
-					</div>
-
-					<label class="block">
-						<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-							>Destino</span
-						>
-						<select
-							class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-							value={selectedEdge.target}
-							onchange={(event) =>
-								updateEdgeTarget((event.currentTarget as HTMLSelectElement).value)}
-						>
-							{#each availableBlocks as blockOption (blockOption.id)}
-								<option value={blockOption.id}>{blockOption.label}</option>
-							{/each}
-						</select>
-					</label>
-
-					{#if selectedEdge.data?.edgeType === 'branch' && selectedEdge.data.branchIndex !== undefined}
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Etiqueta</span
-							>
-							<input
-								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={selectedEdge.label ?? ''}
-								oninput={(event) =>
-									updateSelectedEdge((definition, edge) => {
-										const block = definition.blocks.find(
-											(candidate) => candidate.id === edge.source
-										);
-										if (!block || (block.kind !== 'content' && block.kind !== 'agent')) return;
-										const branch = block.branches?.[edge.data?.branchIndex ?? -1];
-										if (!branch) return;
-										branch.label = (event.currentTarget as HTMLInputElement).value;
-									})}
-							/>
-						</label>
-
-						<div class="grid gap-4 md:grid-cols-2">
-							<label class="block">
-								<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-									>Variable origen</span
+								<p
+									class="text-xs font-semibold tracking-[0.14em] text-stone-500 uppercase dark:text-stone-400"
 								>
-								<input
-									class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 font-mono text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-									value={selectedEdge.data?.conditionSource ?? ''}
-									oninput={(event) =>
-										updateSelectedEdge((definition, edge) => {
-											const block = definition.blocks.find(
-												(candidate) => candidate.id === edge.source
-											);
-											if (!block || (block.kind !== 'content' && block.kind !== 'agent')) return;
-											const branch = block.branches?.[edge.data?.branchIndex ?? -1];
-											if (!branch) return;
-											branch.condition ??= {
-												source: 'session.attemptNumber',
-												operator: 'equals',
-												value: 1
-											};
-											branch.condition.source = (event.currentTarget as HTMLInputElement).value;
-										})}
-								/>
-							</label>
+									Tipo de ruta
+								</p>
+								<p class="mt-1 text-sm font-medium text-stone-900 dark:text-white">
+									{getLessonFlowEdgeTypeLabel(selectedEdge.data?.edgeType ?? 'next')}
+								</p>
+								<p class="mt-3 text-xs leading-5 text-stone-500 dark:text-stone-400">
+									Desde <strong>{selectedEdgeSourceBlock?.title ?? selectedEdge.source}</strong>
+									hacia
+									<strong> {selectedEdgeTargetBlock?.title ?? selectedEdge.target}</strong>.
+								</p>
+							</div>
 
 							<label class="block">
 								<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-									>Operador</span
+									>Destino</span
 								>
 								<select
 									class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-									value={selectedEdge.data?.conditionOperator ?? 'equals'}
+									value={selectedEdge.target}
 									onchange={(event) =>
-										updateSelectedEdge((definition, edge) => {
-											const block = definition.blocks.find(
-												(candidate) => candidate.id === edge.source
-											);
-											if (!block || (block.kind !== 'content' && block.kind !== 'agent')) return;
-											const branch = block.branches?.[edge.data?.branchIndex ?? -1];
-											if (!branch) return;
-											branch.condition ??= {
-												source: 'session.attemptNumber',
-												operator: 'equals',
-												value: 1
-											};
-											branch.condition.operator = (event.currentTarget as HTMLSelectElement)
-												.value as (typeof lessonConditionOperators)[number];
-										})}
+										updateEdgeTarget((event.currentTarget as HTMLSelectElement).value)}
 								>
-									{#each lessonConditionOperators as operator (operator)}
-										<option value={operator}>{operator}</option>
+									{#each availableBlocks as blockOption (blockOption.id)}
+										<option value={blockOption.id}>{blockOption.label}</option>
 									{/each}
 								</select>
 							</label>
+
+							{#if selectedEdge.data?.edgeType === 'branch' && selectedEdge.data.branchIndex !== undefined}
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Etiqueta</span
+									>
+									<input
+										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										value={selectedEdge.label ?? ''}
+										oninput={(event) =>
+											updateSelectedEdge((definition, edge) => {
+												const block = definition.blocks.find(
+													(candidate) => candidate.id === edge.source
+												);
+												if (!block || (block.kind !== 'content' && block.kind !== 'agent')) return;
+												const branch = block.branches?.[edge.data?.branchIndex ?? -1];
+												if (!branch) return;
+												branch.label = (event.currentTarget as HTMLInputElement).value;
+											})}
+									/>
+								</label>
+
+								<div class="grid gap-4 md:grid-cols-2">
+									<label class="block">
+										<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+											>Variable origen</span
+										>
+										<input
+											class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 font-mono text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+											value={selectedEdge.data?.conditionSource ?? ''}
+											oninput={(event) =>
+												updateSelectedEdge((definition, edge) => {
+													const block = definition.blocks.find(
+														(candidate) => candidate.id === edge.source
+													);
+													if (!block || (block.kind !== 'content' && block.kind !== 'agent'))
+														return;
+													const branch = block.branches?.[edge.data?.branchIndex ?? -1];
+													if (!branch) return;
+													branch.condition ??= {
+														source: 'session.attemptNumber',
+														operator: 'equals',
+														value: 1
+													};
+													branch.condition.source = (event.currentTarget as HTMLInputElement).value;
+												})}
+										/>
+									</label>
+
+									<label class="block">
+										<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+											>Operador</span
+										>
+										<select
+											class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+											value={selectedEdge.data?.conditionOperator ?? 'equals'}
+											onchange={(event) =>
+												updateSelectedEdge((definition, edge) => {
+													const block = definition.blocks.find(
+														(candidate) => candidate.id === edge.source
+													);
+													if (!block || (block.kind !== 'content' && block.kind !== 'agent'))
+														return;
+													const branch = block.branches?.[edge.data?.branchIndex ?? -1];
+													if (!branch) return;
+													branch.condition ??= {
+														source: 'session.attemptNumber',
+														operator: 'equals',
+														value: 1
+													};
+													branch.condition.operator = (event.currentTarget as HTMLSelectElement)
+														.value as (typeof lessonConditionOperators)[number];
+												})}
+										>
+											{#each lessonConditionOperators as operator (operator)}
+												<option value={operator}>{operator}</option>
+											{/each}
+										</select>
+									</label>
+								</div>
+
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Valor esperado</span
+									>
+									<input
+										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										value={String(selectedEdge.data?.conditionValue ?? '')}
+										oninput={(event) =>
+											updateSelectedEdge((definition, edge) => {
+												const block = definition.blocks.find(
+													(candidate) => candidate.id === edge.source
+												);
+												if (!block || (block.kind !== 'content' && block.kind !== 'agent')) return;
+												const branch = block.branches?.[edge.data?.branchIndex ?? -1];
+												if (!branch) return;
+												branch.condition ??= {
+													source: 'session.attemptNumber',
+													operator: 'equals',
+													value: 1
+												};
+												branch.condition.value = updateConditionValue(
+													(event.currentTarget as HTMLInputElement).value
+												);
+											})}
+									/>
+								</label>
+
+								<button
+									type="button"
+									class="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
+									onclick={removeSelectedBranch}
+								>
+									<Trash2 class="mr-1 h-4 w-4" />
+									Eliminar rama
+								</button>
+							{:else if selectedEdge.data?.edgeType === 'choice-option'}
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Etiqueta visible</span
+									>
+									<input
+										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										value={selectedEdge.label ?? ''}
+										oninput={(event) =>
+											updateSelectedEdge((definition, edge) => {
+												const block = definition.blocks.find(
+													(candidate) => candidate.id === edge.source
+												);
+												if (!block || block.kind !== 'choice') return;
+												const option = block.options.find(
+													(candidate) => candidate.id === edge.data?.optionId
+												);
+												if (!option) return;
+												option.label = (event.currentTarget as HTMLInputElement).value;
+											})}
+									/>
+								</label>
+
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Valor</span
+									>
+									<input
+										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 font-mono text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										value={selectedEdge.data?.optionValue ?? ''}
+										oninput={(event) =>
+											updateSelectedEdge((definition, edge) => {
+												const block = definition.blocks.find(
+													(candidate) => candidate.id === edge.source
+												);
+												if (!block || block.kind !== 'choice') return;
+												const option = block.options.find(
+													(candidate) => candidate.id === edge.data?.optionId
+												);
+												if (!option) return;
+												option.value = (event.currentTarget as HTMLInputElement).value;
+											})}
+									/>
+								</label>
+
+								<button
+									type="button"
+									class="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
+									onclick={removeSelectedChoiceOption}
+								>
+									<Trash2 class="mr-1 h-4 w-4" />
+									Eliminar opción
+								</button>
+							{:else}
+								<div
+									class="rounded-2xl border border-dashed border-stone-300 px-4 py-4 text-sm text-stone-600 dark:border-stone-700 dark:text-stone-300"
+								>
+									Esta ruta pertenece al recorrido principal del bloque. Si la quitas, asegúrate de
+									dejar alguna salida alternativa antes de guardar.
+								</div>
+
+								<button
+									type="button"
+									class="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
+									onclick={clearSelectedNextEdge}
+								>
+									<Trash2 class="mr-1 h-4 w-4" />
+									Quitar siguiente por defecto
+								</button>
+							{/if}
 						</div>
-
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Valor esperado</span
-							>
-							<input
-								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={String(selectedEdge.data?.conditionValue ?? '')}
-								oninput={(event) =>
-									updateSelectedEdge((definition, edge) => {
-										const block = definition.blocks.find(
-											(candidate) => candidate.id === edge.source
-										);
-										if (!block || (block.kind !== 'content' && block.kind !== 'agent')) return;
-										const branch = block.branches?.[edge.data?.branchIndex ?? -1];
-										if (!branch) return;
-										branch.condition ??= {
-											source: 'session.attemptNumber',
-											operator: 'equals',
-											value: 1
-										};
-										branch.condition.value = updateConditionValue(
-											(event.currentTarget as HTMLInputElement).value
-										);
-									})}
-							/>
-						</label>
-
-						<button
-							type="button"
-							class="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
-							onclick={removeSelectedBranch}
-						>
-							<Trash2 class="mr-1 h-4 w-4" />
-							Eliminar rama
-						</button>
-					{:else if selectedEdge.data?.edgeType === 'choice-option'}
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Etiqueta visible</span
-							>
-							<input
-								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={selectedEdge.label ?? ''}
-								oninput={(event) =>
-									updateSelectedEdge((definition, edge) => {
-										const block = definition.blocks.find(
-											(candidate) => candidate.id === edge.source
-										);
-										if (!block || block.kind !== 'choice') return;
-										const option = block.options.find(
-											(candidate) => candidate.id === edge.data?.optionId
-										);
-										if (!option) return;
-										option.label = (event.currentTarget as HTMLInputElement).value;
-									})}
-							/>
-						</label>
-
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-								>Valor</span
-							>
-							<input
-								class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 font-mono text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
-								value={selectedEdge.data?.optionValue ?? ''}
-								oninput={(event) =>
-									updateSelectedEdge((definition, edge) => {
-										const block = definition.blocks.find(
-											(candidate) => candidate.id === edge.source
-										);
-										if (!block || block.kind !== 'choice') return;
-										const option = block.options.find(
-											(candidate) => candidate.id === edge.data?.optionId
-										);
-										if (!option) return;
-										option.value = (event.currentTarget as HTMLInputElement).value;
-									})}
-							/>
-						</label>
-
-						<button
-							type="button"
-							class="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
-							onclick={removeSelectedChoiceOption}
-						>
-							<Trash2 class="mr-1 h-4 w-4" />
-							Eliminar opción
-						</button>
 					{:else}
 						<div
-							class="rounded-2xl border border-dashed border-stone-300 px-4 py-4 text-sm text-stone-600 dark:border-stone-700 dark:text-stone-300"
+							class="rounded-2xl border border-dashed border-stone-300 px-4 py-6 text-sm leading-6 text-stone-500 dark:border-stone-700 dark:text-stone-400"
 						>
-							Esta ruta pertenece al recorrido principal del bloque. Si la quitas, asegúrate de
-							dejar alguna salida alternativa antes de guardar.
+							<p class="font-medium text-stone-700 dark:text-stone-200">Qué puedes hacer aquí</p>
+							<ul class="mt-3 list-disc space-y-2 pl-5">
+								<li>Crear bloques nuevos desde la rail izquierda.</li>
+								<li>Mover nodos para organizar el mapa pedagógico.</li>
+								<li>Seleccionar una conexión para editar su destino o su condición.</li>
+								<li>
+									Abrir el editor profundo del bloque cuando necesites tocar prompts o contenido
+									rico.
+								</li>
+							</ul>
 						</div>
-
-						<button
-							type="button"
-							class="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
-							onclick={clearSelectedNextEdge}
-						>
-							<Trash2 class="mr-1 h-4 w-4" />
-							Quitar siguiente por defecto
-						</button>
 					{/if}
 				</div>
-			{:else}
-				<div
-					class="rounded-2xl border border-dashed border-stone-300 px-4 py-6 text-sm leading-6 text-stone-500 dark:border-stone-700 dark:text-stone-400"
-				>
-					<p class="font-medium text-stone-700 dark:text-stone-200">Qué puedes hacer aquí</p>
-					<ul class="mt-3 list-disc space-y-2 pl-5">
-						<li>Crear bloques nuevos desde la barra superior.</li>
-						<li>Mover nodos para organizar el mapa pedagógico.</li>
-						<li>Seleccionar una conexión para editar su destino o su condición.</li>
-						<li>
-							Abrir el editor profundo del bloque cuando necesites tocar prompts o contenido rico.
-						</li>
-					</ul>
-				</div>
-			{/if}
-		</aside>
+			</aside>
+		{/if}
 	</div>
 </div>
 
 <style>
+	.inspector-tab {
+		writing-mode: vertical-rl;
+		text-orientation: mixed;
+	}
+
 	:global(.lesson-flow-shell .svelte-flow__controls) {
 		border-radius: 1.25rem;
 		overflow: hidden;
@@ -1633,5 +1883,13 @@
 		background: rgba(255, 251, 245, 0.9);
 		border-radius: 999px;
 		padding: 0.25rem 0.55rem;
+	}
+
+	:global(.lesson-flow-shell .svelte-flow__panel) {
+		margin: 1rem;
+	}
+
+	:global(.lesson-flow-shell .svelte-flow__minimap-mask) {
+		fill: rgba(120, 113, 108, 0.08);
 	}
 </style>
