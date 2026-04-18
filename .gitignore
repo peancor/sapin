@@ -31,3 +31,5 @@ vite.config.ts.timestamp-*
 
 # tikzjax
 .generated
+static/vendor/tikzjax-browser
+static/vendor/node-tikzjax
