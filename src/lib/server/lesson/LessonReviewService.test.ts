@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildLessonReviewAttemptSummary } from './LessonReviewUtils';
+import {
+	buildLessonReviewStudentDetail,
+	buildLessonReviewStudentDirectory,
+	buildLessonReviewStudentRows,
+	requireLessonReviewStudent
+} from './LessonReviewService.ts';
+import { buildLessonReviewAttemptSummary } from './LessonReviewUtils.ts';
 import type { LessonDefinition } from '$lib/types/lesson';
+import type { LessonReviewAttemptSummary, LessonReviewStudent } from '$lib/types/lessonReview';
 
 const definition: LessonDefinition = {
 	version: '2',
@@ -177,4 +184,216 @@ test('buildLessonReviewAttemptSummary marks branching complexity for long branch
 
 	assert.equal(summary.reviewStatus, 'completed');
 	assert.ok(summary.alerts.some((alert) => alert.kind === 'branch_complexity'));
+});
+
+function createStudent(input: {
+	id: string;
+	username: string;
+	audience: 'student' | 'staff';
+	courseRole?: string;
+}): LessonReviewStudent {
+	return {
+		id: input.id,
+		username: input.username,
+		email: `${input.id}@example.com`,
+		image: null,
+		alias: null,
+		courseRole: input.courseRole ?? (input.audience === 'student' ? 'student' : 'teacher'),
+		courseRoleLevel: input.audience === 'student' ? 10 : 50,
+		audience: input.audience
+	};
+}
+
+function createAttempt(input: {
+	sessionId: string;
+	userId: string;
+	attemptNumber: number;
+	reviewStatus: LessonReviewAttemptSummary['reviewStatus'];
+	lastActiveAt: string;
+	alertKinds?: LessonReviewAttemptSummary['alerts'][number]['kind'][];
+	visitedBlocksCount?: number;
+	totalBlocks?: number;
+	checksPassed?: number;
+	checksPending?: number;
+	branchCount?: number;
+	revisitedBlocks?: number;
+	checkRetryBlocks?: number;
+}): LessonReviewAttemptSummary {
+	return {
+		sessionId: input.sessionId,
+		userId: input.userId,
+		attemptNumber: input.attemptNumber,
+		sessionStatus: input.reviewStatus === 'completed' ? 'completed' : 'active',
+		reviewStatus: input.reviewStatus,
+		currentBlockId: 'block-1',
+		currentBlockTitle: 'Bloque',
+		currentBlockKind: 'content',
+		startedAt: new Date('2026-04-19T08:00:00Z'),
+		lastActiveAt: new Date(input.lastActiveAt),
+		completedAt: input.reviewStatus === 'completed' ? new Date(input.lastActiveAt) : null,
+		visitedBlocksCount: input.visitedBlocksCount ?? 3,
+		completedBlocksCount: input.reviewStatus === 'completed' ? input.visitedBlocksCount ?? 3 : 1,
+		totalBlocks: input.totalBlocks ?? 5,
+		totalVisits: input.visitedBlocksCount ?? 3,
+		branchCount: input.branchCount ?? 0,
+		checksPassed: input.checksPassed ?? 0,
+		checksPending: input.checksPending ?? 0,
+		checkRetryBlocks: input.checkRetryBlocks ?? 0,
+		revisitedBlocks: input.revisitedBlocks ?? 0,
+		hasAgentBlocks: false,
+		alerts: (input.alertKinds ?? []).map((kind) => ({
+			kind,
+			label: kind,
+			description: kind,
+			severity: kind === 'checkpoint_blocked' ? 'critical' : 'warning'
+		}))
+	};
+}
+
+test('buildLessonReviewStudentDirectory keeps only alumnado rows and summarizes attempts', () => {
+	const studentA = createStudent({ id: 'student-a', username: 'Ada', audience: 'student' });
+	const studentB = createStudent({ id: 'student-b', username: 'Beto', audience: 'student' });
+	const staff = createStudent({ id: 'staff-1', username: 'Staff', audience: 'staff' });
+	const rows = buildLessonReviewStudentRows({
+		participants: [studentB, staff, studentA],
+		attemptsByUser: new Map([
+			[
+				studentA.id,
+				[
+					createAttempt({
+						sessionId: 's-1',
+						userId: studentA.id,
+						attemptNumber: 1,
+						reviewStatus: 'completed',
+						lastActiveAt: '2026-04-19T10:00:00Z'
+					})
+				]
+			],
+			[
+				staff.id,
+				[
+					createAttempt({
+						sessionId: 's-staff',
+						userId: staff.id,
+						attemptNumber: 1,
+						reviewStatus: 'attention',
+						lastActiveAt: '2026-04-19T12:00:00Z',
+						alertKinds: ['checkpoint_blocked']
+					})
+				]
+			],
+			[
+				studentB.id,
+				[
+					createAttempt({
+						sessionId: 's-2',
+						userId: studentB.id,
+						attemptNumber: 2,
+						reviewStatus: 'active',
+						lastActiveAt: '2026-04-19T11:00:00Z'
+					}),
+					createAttempt({
+						sessionId: 's-3',
+						userId: studentB.id,
+						attemptNumber: 1,
+						reviewStatus: 'attention',
+						lastActiveAt: '2026-04-18T11:00:00Z',
+						alertKinds: ['repeated_retry']
+					})
+				]
+			]
+		])
+	});
+	const directory = buildLessonReviewStudentDirectory(rows);
+
+	assert.deepEqual(
+		directory.students.map((row) => row.student.id),
+		['student-b', 'student-a']
+	);
+	assert.equal(directory.summary.totalStudents, 2);
+	assert.equal(directory.summary.studentsWithAttempts, 2);
+	assert.equal(directory.summary.studentsCompleted, 1);
+	assert.equal(directory.summary.studentsWithAlerts, 0);
+	assert.equal(directory.summary.totalAttempts, 3);
+	assert.equal(
+		directory.summary.lastActivityAt?.toISOString(),
+		'2026-04-19T11:00:00.000Z'
+	);
+});
+
+test('buildLessonReviewStudentDetail orders attempts and aggregates summary metrics', () => {
+	const student = createStudent({ id: 'student-a', username: 'Ada', audience: 'student' });
+	const detail = buildLessonReviewStudentDetail({
+		student,
+		attempts: [
+			createAttempt({
+				sessionId: 's-old',
+				userId: student.id,
+				attemptNumber: 1,
+				reviewStatus: 'completed',
+				lastActiveAt: '2026-04-18T10:00:00Z',
+				visitedBlocksCount: 4,
+				checksPassed: 2,
+				branchCount: 1
+			}),
+			createAttempt({
+				sessionId: 's-new',
+				userId: student.id,
+				attemptNumber: 3,
+				reviewStatus: 'attention',
+				lastActiveAt: '2026-04-19T12:00:00Z',
+				alertKinds: ['checkpoint_blocked', 'repeated_retry'],
+				visitedBlocksCount: 5,
+				checksPassed: 1,
+				checksPending: 1,
+				branchCount: 2,
+				revisitedBlocks: 1,
+				checkRetryBlocks: 1
+			}),
+			createAttempt({
+				sessionId: 's-mid',
+				userId: student.id,
+				attemptNumber: 2,
+				reviewStatus: 'active',
+				lastActiveAt: '2026-04-19T09:00:00Z',
+				visitedBlocksCount: 2,
+				checksPending: 1
+			})
+		]
+	});
+
+	assert.deepEqual(detail.attempts.map((attempt) => attempt.sessionId), ['s-new', 's-mid', 's-old']);
+	assert.equal(detail.latestAttempt?.sessionId, 's-new');
+	assert.equal(detail.summary.totalAttempts, 3);
+	assert.equal(detail.summary.completedAttempts, 1);
+	assert.equal(detail.summary.activeAttempts, 1);
+	assert.equal(detail.summary.attemptsWithAlerts, 1);
+	assert.equal(detail.summary.totalAlerts, 2);
+	assert.equal(detail.summary.totalVisitedBlocks, 11);
+	assert.equal(detail.summary.totalChecksPassed, 3);
+	assert.equal(detail.summary.totalChecksPending, 2);
+	assert.equal(detail.summary.totalBranches, 3);
+	assert.equal(detail.summary.totalRevisitedBlocks, 1);
+	assert.equal(detail.summary.totalCheckRetryBlocks, 1);
+	assert.equal(detail.summary.lastActivityAt?.toISOString(), '2026-04-19T12:00:00.000Z');
+});
+
+test('requireLessonReviewStudent rejects missing or staff participants with 404', () => {
+	const student = createStudent({ id: 'student-a', username: 'Ada', audience: 'student' });
+	const staff = createStudent({ id: 'staff-1', username: 'Staff', audience: 'staff' });
+
+	assert.throws(
+		() => requireLessonReviewStudent([student, staff], 'missing'),
+		(error) =>
+			error instanceof Error &&
+			'status' in error &&
+			error.status === 404
+	);
+	assert.throws(
+		() => requireLessonReviewStudent([student, staff], staff.id),
+		(error) =>
+			error instanceof Error &&
+			'status' in error &&
+			error.status === 404
+	);
 });

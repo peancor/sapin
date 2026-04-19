@@ -159,22 +159,24 @@
 		<div class="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
 			<h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Acciones rápidas</h2>
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-				{#if !isLesson}
-					<a
-						href={resolve(`/course/${cid}/admin/interactives/${ilid}/students`)}
-						class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-blue-300 hover:bg-blue-50 dark:border-gray-700 dark:hover:border-blue-800 dark:hover:bg-blue-900/20"
+				<a
+					href={resolve(`/course/${cid}/admin/interactives/${ilid}/students`)}
+					class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-blue-300 hover:bg-blue-50 dark:border-gray-700 dark:hover:border-blue-800 dark:hover:bg-blue-900/20"
+				>
+					<div
+						class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400"
 					>
-						<div
-							class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400"
-						>
-							<Users class="h-5 w-5" />
-						</div>
-						<h3 class="font-medium text-gray-900 dark:text-white">Ver estudiantes</h3>
-						<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-							Ver el progreso de cada estudiante
-						</p>
-					</a>
+						<Users class="h-5 w-5" />
+					</div>
+					<h3 class="font-medium text-gray-900 dark:text-white">Ver estudiantes</h3>
+					<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+						{isLesson
+							? 'Seguir intentos, alertas y progreso por alumno'
+							: 'Ver el progreso de cada estudiante'}
+					</p>
+				</a>
 
+				{#if !isLesson}
 					<a
 						href={resolve(
 							`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agent-review' : 'chat-review'}`

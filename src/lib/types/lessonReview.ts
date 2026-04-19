@@ -5,6 +5,7 @@ import type {
 } from '$lib/types/lesson';
 
 export type LessonReviewAttemptStatus = 'completed' | 'active' | 'attention';
+export type LessonReviewAudience = 'student' | 'staff';
 
 export type LessonReviewAlertKind =
 	| 'checkpoint_blocked'
@@ -51,6 +52,9 @@ export interface LessonReviewStudent {
 	email: string | null;
 	image: string | null;
 	alias: string | null;
+	courseRole: string;
+	courseRoleLevel: number;
+	audience: LessonReviewAudience;
 }
 
 export interface LessonReviewStudentRow {
@@ -59,6 +63,30 @@ export interface LessonReviewStudentRow {
 	previousAttempts: LessonReviewAttemptSummary[];
 	totalAttempts: number;
 	hasAnyActivity: boolean;
+}
+
+export interface LessonReviewStudentDirectorySummary {
+	totalStudents: number;
+	studentsWithAttempts: number;
+	studentsCompleted: number;
+	studentsWithAlerts: number;
+	totalAttempts: number;
+	lastActivityAt: Date | null;
+}
+
+export interface LessonReviewStudentDetailSummary {
+	totalAttempts: number;
+	completedAttempts: number;
+	activeAttempts: number;
+	attemptsWithAlerts: number;
+	totalAlerts: number;
+	totalVisitedBlocks: number;
+	totalChecksPassed: number;
+	totalChecksPending: number;
+	totalBranches: number;
+	totalRevisitedBlocks: number;
+	totalCheckRetryBlocks: number;
+	lastActivityAt: Date | null;
 }
 
 export interface LessonReviewVisitAgentMessage {
@@ -109,4 +137,11 @@ export interface LessonReviewAttemptDetail {
 	attempt: LessonReviewAttemptSummary;
 	history: LessonReviewAttemptSummary[];
 	timeline: LessonReviewVisitDetail[];
+}
+
+export interface LessonReviewStudentDetail {
+	student: LessonReviewStudent;
+	latestAttempt: LessonReviewAttemptSummary | null;
+	attempts: LessonReviewAttemptSummary[];
+	summary: LessonReviewStudentDetailSummary;
 }

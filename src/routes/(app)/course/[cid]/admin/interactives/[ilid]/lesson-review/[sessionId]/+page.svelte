@@ -73,6 +73,20 @@
 	function messageRoleLabel(message: LessonReviewVisitAgentMessage): string {
 		return message.role === 'USER' ? 'Alumno' : 'IA';
 	}
+
+	function audienceBadgeClasses(): string {
+		if (data.detail.student.audience === 'student') {
+			return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300';
+		}
+
+		return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300';
+	}
+
+	function audienceLabel(): string {
+		return data.detail.student.audience === 'student'
+			? 'Alumno'
+			: `Staff · ${data.detail.student.courseRole}`;
+	}
 </script>
 
 <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.08),_transparent_22%),radial-gradient(circle_at_top_right,_rgba(56,189,248,0.08),_transparent_22%),linear-gradient(180deg,_#fffaf0_0%,_#f8fafc_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.08),_transparent_24%),radial-gradient(circle_at_top_right,_rgba(56,189,248,0.06),_transparent_22%),linear-gradient(180deg,_#020617_0%,_#111827_100%)]">
@@ -109,6 +123,9 @@
 							<span class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusClasses(data.detail.attempt)}`}>
 								{statusLabel(data.detail.attempt)}
 							</span>
+							<span class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${audienceBadgeClasses()}`}>
+								{audienceLabel()}
+							</span>
 						</div>
 						{#if data.detail.student.alias}
 							<p class="mt-1 text-sm italic text-slate-500 dark:text-slate-400">
@@ -118,6 +135,11 @@
 						{#if data.detail.student.email}
 							<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
 								{data.detail.student.email}
+							</p>
+						{/if}
+						{#if data.detail.student.audience === 'staff'}
+							<p class="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-200">
+								Intento de depuración del staff. Se muestra para validar la lectura de revisión, pero no cuenta dentro de la interpretación pedagógica del alumnado.
 							</p>
 						{/if}
 						<div class="mt-4 flex flex-wrap gap-2">
@@ -181,7 +203,12 @@
 			</div>
 
 			<aside class="rounded-[30px] border border-slate-200/80 bg-white/92 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/88">
-				<h2 class="text-lg font-semibold text-slate-900 dark:text-white">Historial del estudiante</h2>
+				<div class="flex flex-wrap items-center gap-2">
+					<h2 class="text-lg font-semibold text-slate-900 dark:text-white">Historial del participante</h2>
+					<span class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${audienceBadgeClasses()}`}>
+						{audienceLabel()}
+					</span>
+				</div>
 				<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
 					Acceso rápido a otros intentos de esta misma lesson.
 				</p>

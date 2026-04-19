@@ -57,6 +57,12 @@
 		...(isLesson
 			? [
 					{
+						id: 'students',
+						label: 'Estudiantes',
+						href: resolve(`/course/${cid}/admin/interactives/${ilid}/students`),
+						icon: Users
+					},
+					{
 						id: 'review',
 						label: 'Revisión',
 						href: resolve(`/course/${cid}/admin/interactives/${ilid}/lesson-review`),

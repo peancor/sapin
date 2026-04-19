@@ -5,6 +5,7 @@ import { interactiveLearning, userInteractiveLearningChat, agentMessage, learnin
 import type { PageServerLoad } from './$types';
 import DBChatUtils from '$lib/server/db/DBChatUtils';
 import { ACTIVITY_COMPLETION_MIN_MESSAGES } from '$lib/constants';
+import { LessonReviewService } from '$lib/server/lesson/LessonReviewService';
 
 export const load = (async ({ params, locals }) => {
     // Verificación de seguridad (defensa en profundidad)
@@ -28,12 +29,28 @@ export const load = (async ({ params, locals }) => {
         .where(eq(interactiveLearning.id, ilid))
         .get();
 
-    if (!interactive) {
-        throw error(404, 'Actividad no encontrada');
-    }
+	if (!interactive) {
+		throw error(404, 'Actividad no encontrada');
+	}
 
-    // Obtener todos los estudiantes inscritos en el curso usando CourseRoleUtils
-    const courseUsers = await CourseRoleUtils.getCourseUsers(cid);
+	if (interactive.type === 'lesson') {
+		const lessonDirectory = await LessonReviewService.getStudentDirectory({
+			courseId: cid,
+			activity: interactive
+		});
+
+		return {
+			interactive,
+			interactiveChat: null,
+			students: null,
+			requiresMinMessages: 0,
+			lessonStudents: lessonDirectory.students,
+			lessonSummary: lessonDirectory.summary
+		};
+	}
+
+	// Obtener todos los estudiantes inscritos en el curso usando CourseRoleUtils
+	const courseUsers = await CourseRoleUtils.getCourseUsers(cid);
     const enrolledStudents = courseUsers
         .filter(u => u.role === 'student')
         .map(u => ({
@@ -109,13 +126,15 @@ export const load = (async ({ params, locals }) => {
             };
         });
 
-        return {
-            interactive,
-            interactiveChat: null,
-            students: studentsWithActivity,
-            requiresMinMessages: ACTIVITY_COMPLETION_MIN_MESSAGES
-        };
-    }
+		return {
+			interactive,
+			interactiveChat: null,
+			students: studentsWithActivity,
+			requiresMinMessages: ACTIVITY_COMPLETION_MIN_MESSAGES,
+			lessonStudents: null,
+			lessonSummary: null
+		};
+	}
 
     // === Actividad de tipo CHAT (lógica existente) ===
     const interactiveChat = await DBChatUtils.loadInteractiveChatFromInteractiveId(ilid, { bypassStatusCheck: true });
@@ -176,10 +195,12 @@ export const load = (async ({ params, locals }) => {
         };
     });
 
-    return {
-        interactive,
-        interactiveChat,
-        students: studentsWithActivity,
-        requiresMinMessages: ACTIVITY_COMPLETION_MIN_MESSAGES
-    };
+	return {
+		interactive,
+		interactiveChat,
+		students: studentsWithActivity,
+		requiresMinMessages: ACTIVITY_COMPLETION_MIN_MESSAGES,
+		lessonStudents: null,
+		lessonSummary: null
+	};
 }) satisfies PageServerLoad;

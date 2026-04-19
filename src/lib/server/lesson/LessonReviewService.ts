@@ -15,7 +15,11 @@ import type {
 import type { LessonDefinition } from '$lib/types/lesson';
 import type {
 	LessonReviewAttemptDetail,
+	LessonReviewAudience,
 	LessonReviewAttemptSummary,
+	LessonReviewStudentDetail,
+	LessonReviewStudentDetailSummary,
+	LessonReviewStudentDirectorySummary,
 	LessonReviewStudent,
 	LessonReviewStudentRow,
 	LessonReviewVisitAgentMessage,
@@ -30,7 +34,12 @@ import {
 	parseJsonRecord
 } from './LessonReviewUtils';
 
-type CourseStudent = LessonReviewStudent;
+type CourseParticipant = LessonReviewStudent;
+
+type AttemptHistoryLoadResult = {
+	definition: LessonDefinition;
+	attempts: LessonReviewAttemptSummary[];
+};
 
 function stripMarkdown(value: string): string {
 	return value
@@ -51,6 +60,146 @@ function createSnippet(value: string | null | undefined, maxLength = 180): strin
 	return clean.length > maxLength ? `${clean.slice(0, maxLength - 1).trim()}…` : clean;
 }
 
+function sortAttemptsDescending(
+	left: LessonReviewAttemptSummary,
+	right: LessonReviewAttemptSummary
+): number {
+	return (
+		right.attemptNumber - left.attemptNumber ||
+		right.lastActiveAt.getTime() - left.lastActiveAt.getTime()
+	);
+}
+
+export function buildLessonReviewStudentRows(input: {
+	participants: LessonReviewStudent[];
+	attemptsByUser: Map<string, LessonReviewAttemptSummary[]>;
+}): LessonReviewStudentRow[] {
+	return input.participants
+		.map((student) => {
+			const attempts = [...(input.attemptsByUser.get(student.id) ?? [])].sort(sortAttemptsDescending);
+
+			return {
+				student,
+				latestAttempt: attempts[0] ?? null,
+				previousAttempts: attempts.slice(1),
+				totalAttempts: attempts.length,
+				hasAnyActivity: attempts.length > 0
+			} satisfies LessonReviewStudentRow;
+		})
+		.sort((left, right) => {
+			const rightTime =
+				right.latestAttempt?.lastActiveAt.getTime() ?? Number.NEGATIVE_INFINITY;
+			const leftTime =
+				left.latestAttempt?.lastActiveAt.getTime() ?? Number.NEGATIVE_INFINITY;
+			if (rightTime !== leftTime) return rightTime - leftTime;
+			return left.student.username.localeCompare(right.student.username, 'es');
+		});
+}
+
+export function buildLessonReviewStudentDirectory(
+	rows: LessonReviewStudentRow[]
+): {
+	students: LessonReviewStudentRow[];
+	summary: LessonReviewStudentDirectorySummary;
+} {
+	const students = rows.filter((row) => row.student.audience === 'student');
+	const attempts = students.flatMap((row) =>
+		row.latestAttempt ? [row.latestAttempt, ...row.previousAttempts] : row.previousAttempts
+	);
+	const lastActivityAt = students.reduce<Date | null>((latest, row) => {
+		const candidate = row.latestAttempt?.lastActiveAt ?? null;
+		if (!candidate) return latest;
+		if (!latest || candidate.getTime() > latest.getTime()) return candidate;
+		return latest;
+	}, null);
+
+	return {
+		students,
+		summary: {
+			totalStudents: students.length,
+			studentsWithAttempts: students.filter((student) => student.hasAnyActivity).length,
+			studentsCompleted: students.filter(
+				(student) => student.latestAttempt?.reviewStatus === 'completed'
+			).length,
+			studentsWithAlerts: students.filter(
+				(student) => (student.latestAttempt?.alerts.length ?? 0) > 0
+			).length,
+			totalAttempts: attempts.length,
+			lastActivityAt
+		}
+	};
+}
+
+export function requireLessonReviewStudent(
+	participants: LessonReviewStudent[],
+	studentId: string
+): LessonReviewStudent {
+	const participant = participants.find((entry) => entry.id === studentId);
+
+	if (!participant) {
+		throw new LessonServiceError(404, 'Alumno no encontrado.');
+	}
+
+	if (participant.audience !== 'student') {
+		throw new LessonServiceError(
+			404,
+			'El participante no forma parte del alumnado de esta lesson.'
+		);
+	}
+
+	return participant;
+}
+
+export function buildLessonReviewStudentDetail(input: {
+	student: LessonReviewStudent;
+	attempts: LessonReviewAttemptSummary[];
+}): LessonReviewStudentDetail {
+	const attempts = [...input.attempts].sort(sortAttemptsDescending);
+	const summary = attempts.reduce<LessonReviewStudentDetailSummary>(
+		(accumulator, attempt) => {
+			accumulator.totalAttempts += 1;
+			if (attempt.reviewStatus === 'completed') accumulator.completedAttempts += 1;
+			if (attempt.reviewStatus === 'active') accumulator.activeAttempts += 1;
+			if (attempt.alerts.length > 0) accumulator.attemptsWithAlerts += 1;
+			accumulator.totalAlerts += attempt.alerts.length;
+			accumulator.totalVisitedBlocks += attempt.visitedBlocksCount;
+			accumulator.totalChecksPassed += attempt.checksPassed;
+			accumulator.totalChecksPending += attempt.checksPending;
+			accumulator.totalBranches += attempt.branchCount;
+			accumulator.totalRevisitedBlocks += attempt.revisitedBlocks;
+			accumulator.totalCheckRetryBlocks += attempt.checkRetryBlocks;
+			if (
+				!accumulator.lastActivityAt ||
+				attempt.lastActiveAt.getTime() > accumulator.lastActivityAt.getTime()
+			) {
+				accumulator.lastActivityAt = attempt.lastActiveAt;
+			}
+			return accumulator;
+		},
+		{
+			totalAttempts: 0,
+			completedAttempts: 0,
+			activeAttempts: 0,
+			attemptsWithAlerts: 0,
+			totalAlerts: 0,
+			totalVisitedBlocks: 0,
+			totalChecksPassed: 0,
+			totalChecksPending: 0,
+			totalBranches: 0,
+			totalRevisitedBlocks: 0,
+			totalCheckRetryBlocks: 0,
+			lastActivityAt: null
+		}
+	);
+
+	return {
+		student: input.student,
+		latestAttempt: attempts[0] ?? null,
+		attempts,
+		summary
+	};
+}
+
 export class LessonReviewService {
 	static async getCohortOverview(input: {
 		courseId: string;
@@ -66,101 +215,59 @@ export class LessonReviewService {
 			studentsWithAlerts: number;
 		};
 	}> {
-		const definition = LessonService.parseDefinition(input.activity.content);
-		const courseStudents = await this.getCourseStudents(input.courseId);
-		const sessions = await db
-			.select()
-			.from(interactiveLessonSession)
-			.where(
-				and(
-					eq(interactiveLessonSession.courseId, input.courseId),
-					eq(interactiveLessonSession.interactiveLearningId, input.activity.id)
-				)
-			)
-			.all();
-
-		const sessionIds = sessions.map((session) => session.id);
-		const [blockStates, blockVisits, events] = await Promise.all([
-			sessionIds.length
-				? db
-						.select()
-						.from(interactiveLessonBlockState)
-						.where(inArray(interactiveLessonBlockState.sessionId, sessionIds))
-						.all()
-				: [],
-			sessionIds.length
-				? db
-						.select()
-						.from(interactiveLessonBlockVisit)
-						.where(inArray(interactiveLessonBlockVisit.sessionId, sessionIds))
-						.all()
-				: [],
-			sessionIds.length
-				? db
-						.select()
-						.from(interactiveLessonEvent)
-						.where(inArray(interactiveLessonEvent.sessionId, sessionIds))
-						.all()
-				: []
-		]);
-
-		const statesBySession = this.groupBy(blockStates, (item) => item.sessionId);
-		const visitsBySession = this.groupBy(blockVisits, (item) => item.sessionId);
-		const eventsBySession = this.groupBy(events, (item) => item.sessionId);
-		const attemptsByUser = new Map<string, LessonReviewAttemptSummary[]>();
-
-		for (const session of sessions) {
-			const attempt = buildLessonReviewAttemptSummary({
-				definition,
-				session,
-				blockStates: statesBySession.get(session.id) ?? [],
-				blockVisits: (visitsBySession.get(session.id) ?? []).sort(
-					(left, right) => left.visitNumber - right.visitNumber
-				),
-				events: eventsBySession.get(session.id) ?? []
-			});
-			const bucket = attemptsByUser.get(session.userId) ?? [];
-			bucket.push(attempt);
-			attemptsByUser.set(session.userId, bucket);
-		}
-
-		const students = courseStudents.map((student) => {
-			const attempts = (attemptsByUser.get(student.id) ?? []).sort(
-				(left, right) =>
-					right.attemptNumber - left.attemptNumber ||
-					right.lastActiveAt.getTime() - left.lastActiveAt.getTime()
-			);
-
-			return {
-				student,
-				latestAttempt: attempts[0] ?? null,
-				previousAttempts: attempts.slice(1),
-				totalAttempts: attempts.length,
-				hasAnyActivity: attempts.length > 0
-			} satisfies LessonReviewStudentRow;
-		})
-		.sort((left, right) => {
-			const rightTime = right.latestAttempt?.lastActiveAt.getTime() ?? Number.NEGATIVE_INFINITY;
-			const leftTime = left.latestAttempt?.lastActiveAt.getTime() ?? Number.NEGATIVE_INFINITY;
-			if (rightTime !== leftTime) return rightTime - leftTime;
-			return left.student.username.localeCompare(right.student.username, 'es');
-		});
+		const { definition, rows } = await this.loadActivityRows(input.courseId, input.activity);
+		const directory = buildLessonReviewStudentDirectory(rows);
 
 		return {
 			activity: input.activity,
 			definition,
-			students,
+			students: rows,
 			summary: {
-				totalStudents: students.length,
-				studentsWithAttempts: students.filter((student) => student.hasAnyActivity).length,
-				studentsCompleted: students.filter(
-					(student) => student.latestAttempt?.reviewStatus === 'completed'
-				).length,
-				studentsWithAlerts: students.filter(
-					(student) => (student.latestAttempt?.alerts.length ?? 0) > 0
-				).length
+				totalStudents: directory.summary.totalStudents,
+				studentsWithAttempts: directory.summary.studentsWithAttempts,
+				studentsCompleted: directory.summary.studentsCompleted,
+				studentsWithAlerts: directory.summary.studentsWithAlerts
 			}
 		};
+	}
+
+	static async getStudentDirectory(input: {
+		courseId: string;
+		activity: InteractiveLearning;
+	}): Promise<{
+		activity: InteractiveLearning;
+		definition: LessonDefinition;
+		students: LessonReviewStudentRow[];
+		summary: LessonReviewStudentDirectorySummary;
+	}> {
+		const { definition, rows } = await this.loadActivityRows(input.courseId, input.activity);
+		const directory = buildLessonReviewStudentDirectory(rows);
+
+		return {
+			activity: input.activity,
+			definition,
+			students: directory.students,
+			summary: directory.summary
+		};
+	}
+
+	static async getStudentDetail(input: {
+		courseId: string;
+		activity: InteractiveLearning;
+		studentId: string;
+	}): Promise<LessonReviewStudentDetail> {
+		const participants = await this.getCourseParticipants(input.courseId);
+		const student = requireLessonReviewStudent(participants, input.studentId);
+		const { attempts } = await this.loadAttemptHistoryForUser({
+			courseId: input.courseId,
+			activity: input.activity,
+			userId: input.studentId
+		});
+
+		return buildLessonReviewStudentDetail({
+			student,
+			attempts
+		});
 	}
 
 	static async getAttemptDetail(input: {
@@ -168,7 +275,6 @@ export class LessonReviewService {
 		activity: InteractiveLearning;
 		sessionId: string;
 	}): Promise<LessonReviewAttemptDetail> {
-		const definition = LessonService.parseDefinition(input.activity.content);
 		const session = await db
 			.select()
 			.from(interactiveLessonSession)
@@ -186,77 +292,38 @@ export class LessonReviewService {
 			throw new LessonServiceError(404, 'El intento no pertenece a esta lesson.');
 		}
 
-		const studentRecord = await db
-			.select()
-			.from(user)
-			.where(eq(user.id, session.userId))
-			.get();
+		const participants = await this.getCourseParticipants(input.courseId);
+		const participantById = new Map(participants.map((participant) => [participant.id, participant]));
+		const studentRecord = participantById.get(session.userId) ?? (await this.getFallbackParticipant(session.userId));
 
 		if (!studentRecord) {
 			throw new LessonServiceError(404, 'Alumno no encontrado.');
 		}
 
-		const historySessions = await db
-			.select()
-			.from(interactiveLessonSession)
-			.where(
-				and(
-					eq(interactiveLessonSession.courseId, input.courseId),
-					eq(interactiveLessonSession.interactiveLearningId, input.activity.id),
-					eq(interactiveLessonSession.userId, session.userId)
-				)
-			)
-			.all();
+		const { definition, attempts } = await this.loadAttemptHistoryForUser({
+			courseId: input.courseId,
+			activity: input.activity,
+			userId: session.userId
+		});
 
-		const historySessionIds = historySessions.map((item) => item.id);
-		const [blockStates, blockVisits, events] = await Promise.all([
-			db
-				.select()
-				.from(interactiveLessonBlockState)
-				.where(inArray(interactiveLessonBlockState.sessionId, historySessionIds))
-				.all(),
-			db
-				.select()
-				.from(interactiveLessonBlockVisit)
-				.where(inArray(interactiveLessonBlockVisit.sessionId, historySessionIds))
-				.all(),
-			db
-				.select()
-				.from(interactiveLessonEvent)
-				.where(inArray(interactiveLessonEvent.sessionId, historySessionIds))
-				.all()
-		]);
-
-		const statesBySession = this.groupBy(blockStates, (item) => item.sessionId);
-		const visitsBySession = this.groupBy(blockVisits, (item) => item.sessionId);
-		const eventsBySession = this.groupBy(events, (item) => item.sessionId);
-		const attemptHistory = historySessions
-			.map((historySession) =>
-				buildLessonReviewAttemptSummary({
-					definition,
-					session: historySession,
-					blockStates: statesBySession.get(historySession.id) ?? [],
-					blockVisits: (visitsBySession.get(historySession.id) ?? []).sort(
-						(left, right) => left.visitNumber - right.visitNumber
-					),
-					events: eventsBySession.get(historySession.id) ?? []
-				})
-			)
-			.sort(
-				(left, right) =>
-					right.attemptNumber - left.attemptNumber ||
-					right.lastActiveAt.getTime() - left.lastActiveAt.getTime()
-			);
-
-		const attempt = attemptHistory.find((item) => item.sessionId === input.sessionId);
+		const attempt = attempts.find((item) => item.sessionId === input.sessionId);
 		if (!attempt) {
 			throw new LessonServiceError(404, 'No se pudo reconstruir el intento solicitado.');
 		}
 
-		const sessionVisits = (visitsBySession.get(input.sessionId) ?? []).sort(
-			(left, right) => left.visitNumber - right.visitNumber
-		);
-		const sessionEvents = eventsBySession.get(input.sessionId) ?? [];
+		const [sessionVisitsRaw, sessionEvents] = await Promise.all([
+			db
+				.select()
+				.from(interactiveLessonBlockVisit)
+				.where(eq(interactiveLessonBlockVisit.sessionId, input.sessionId))
+				.all(),
+			db
+				.select()
+				.from(interactiveLessonEvent)
+				.where(eq(interactiveLessonEvent.sessionId, input.sessionId))
+				.all()
+		]);
+		const sessionVisits = sessionVisitsRaw.sort((left, right) => left.visitNumber - right.visitNumber);
 		const branchEventByVisitId = new Map(
 			sessionEvents
 				.filter((event) => event.eventType === 'branch_taken' && event.visitId)
@@ -266,15 +333,9 @@ export class LessonReviewService {
 		const blockMap = new Map(definition.blocks.map((block) => [block.id, block]));
 
 		return {
-			student: {
-				id: studentRecord.id,
-				username: studentRecord.username || studentRecord.alias || 'Sin nombre',
-				email: studentRecord.email,
-				image: studentRecord.image,
-				alias: studentRecord.alias
-			},
+			student: studentRecord,
 			attempt,
-			history: attemptHistory,
+			history: attempts,
 			timeline: sessionVisits.map((visit) => {
 				const block = blockMap.get(visit.blockId);
 				const outputs = parseJsonRecord(visit.outputsJson);
@@ -341,17 +402,188 @@ export class LessonReviewService {
 		};
 	}
 
-	private static async getCourseStudents(courseId: string): Promise<CourseStudent[]> {
+	private static async loadActivityRows(
+		courseId: string,
+		activity: InteractiveLearning
+	): Promise<{
+		definition: LessonDefinition;
+		rows: LessonReviewStudentRow[];
+	}> {
+		const definition = LessonService.parseDefinition(activity.content);
+		const courseParticipants = await this.getCourseParticipants(courseId);
+		const sessions = await db
+			.select()
+			.from(interactiveLessonSession)
+			.where(
+				and(
+					eq(interactiveLessonSession.courseId, courseId),
+					eq(interactiveLessonSession.interactiveLearningId, activity.id)
+				)
+			)
+			.all();
+
+		const sessionIds = sessions.map((session) => session.id);
+		const [blockStates, blockVisits, events] = await Promise.all([
+			sessionIds.length
+				? db
+						.select()
+						.from(interactiveLessonBlockState)
+						.where(inArray(interactiveLessonBlockState.sessionId, sessionIds))
+						.all()
+				: [],
+			sessionIds.length
+				? db
+						.select()
+						.from(interactiveLessonBlockVisit)
+						.where(inArray(interactiveLessonBlockVisit.sessionId, sessionIds))
+						.all()
+				: [],
+			sessionIds.length
+				? db
+						.select()
+						.from(interactiveLessonEvent)
+						.where(inArray(interactiveLessonEvent.sessionId, sessionIds))
+						.all()
+				: []
+		]);
+
+		const statesBySession = this.groupBy(blockStates, (item) => item.sessionId);
+		const visitsBySession = this.groupBy(blockVisits, (item) => item.sessionId);
+		const eventsBySession = this.groupBy(events, (item) => item.sessionId);
+		const attemptsByUser = new Map<string, LessonReviewAttemptSummary[]>();
+
+		for (const session of sessions) {
+			const attempt = buildLessonReviewAttemptSummary({
+				definition,
+				session,
+				blockStates: statesBySession.get(session.id) ?? [],
+				blockVisits: (visitsBySession.get(session.id) ?? []).sort(
+					(left, right) => left.visitNumber - right.visitNumber
+				),
+				events: eventsBySession.get(session.id) ?? []
+			});
+			const bucket = attemptsByUser.get(session.userId) ?? [];
+			bucket.push(attempt);
+			attemptsByUser.set(session.userId, bucket);
+		}
+
+		return {
+			definition,
+			rows: buildLessonReviewStudentRows({
+				participants: courseParticipants,
+				attemptsByUser
+			})
+		};
+	}
+
+	private static async loadAttemptHistoryForUser(input: {
+		courseId: string;
+		activity: InteractiveLearning;
+		userId: string;
+	}): Promise<AttemptHistoryLoadResult> {
+		const definition = LessonService.parseDefinition(input.activity.content);
+		const historySessions = await db
+			.select()
+			.from(interactiveLessonSession)
+			.where(
+				and(
+					eq(interactiveLessonSession.courseId, input.courseId),
+					eq(interactiveLessonSession.interactiveLearningId, input.activity.id),
+					eq(interactiveLessonSession.userId, input.userId)
+				)
+			)
+			.all();
+
+		if (historySessions.length === 0) {
+			return {
+				definition,
+				attempts: []
+			};
+		}
+
+		const historySessionIds = historySessions.map((item) => item.id);
+		const [blockStates, blockVisits, events] = await Promise.all([
+			db
+				.select()
+				.from(interactiveLessonBlockState)
+				.where(inArray(interactiveLessonBlockState.sessionId, historySessionIds))
+				.all(),
+			db
+				.select()
+				.from(interactiveLessonBlockVisit)
+				.where(inArray(interactiveLessonBlockVisit.sessionId, historySessionIds))
+				.all(),
+			db
+				.select()
+				.from(interactiveLessonEvent)
+				.where(inArray(interactiveLessonEvent.sessionId, historySessionIds))
+				.all()
+		]);
+
+		const statesBySession = this.groupBy(blockStates, (item) => item.sessionId);
+		const visitsBySession = this.groupBy(blockVisits, (item) => item.sessionId);
+		const eventsBySession = this.groupBy(events, (item) => item.sessionId);
+		const attempts = historySessions
+			.map((historySession) =>
+				buildLessonReviewAttemptSummary({
+					definition,
+					session: historySession,
+					blockStates: statesBySession.get(historySession.id) ?? [],
+					blockVisits: (visitsBySession.get(historySession.id) ?? []).sort(
+						(left, right) => left.visitNumber - right.visitNumber
+					),
+					events: eventsBySession.get(historySession.id) ?? []
+				})
+			)
+			.sort(sortAttemptsDescending);
+
+		return {
+			definition,
+			attempts
+		};
+	}
+
+	private static async getCourseParticipants(courseId: string): Promise<CourseParticipant[]> {
 		const courseUsers = await CourseRoleUtils.getCourseUsers(courseId);
-		return courseUsers
-			.filter((userRecord) => userRecord.role === 'student')
-			.map((userRecord) => ({
+		const participantById = new Map<string, CourseParticipant>();
+
+		for (const userRecord of courseUsers) {
+			const existing = participantById.get(userRecord.userId);
+			if (existing && existing.courseRoleLevel >= userRecord.level) continue;
+
+			participantById.set(userRecord.userId, {
 				id: userRecord.userId,
 				username: userRecord.username || userRecord.alias || 'Sin nombre',
 				email: userRecord.email,
 				image: userRecord.image,
-				alias: userRecord.alias
-			}));
+				alias: userRecord.alias,
+				courseRole: userRecord.role,
+				courseRoleLevel: userRecord.level,
+				audience: this.resolveAudience(userRecord.role, userRecord.level)
+			});
+		}
+
+		return [...participantById.values()];
+	}
+
+	private static async getFallbackParticipant(userId: string): Promise<CourseParticipant | null> {
+		const userRecord = await db.select().from(user).where(eq(user.id, userId)).get();
+		if (!userRecord) return null;
+
+		return {
+			id: userRecord.id,
+			username: userRecord.username || userRecord.alias || 'Sin nombre',
+			email: userRecord.email,
+			image: userRecord.image,
+			alias: userRecord.alias,
+			courseRole: 'sin_rol_activo',
+			courseRoleLevel: 0,
+			audience: 'student'
+		};
+	}
+
+	private static resolveAudience(role: string, level: number): LessonReviewAudience {
+		return role === 'student' || level <= 10 ? 'student' : 'staff';
 	}
 
 	private static async loadVisitTranscripts(

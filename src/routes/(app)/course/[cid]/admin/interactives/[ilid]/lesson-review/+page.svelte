@@ -13,10 +13,15 @@
 		GitBranch,
 		ListFilter,
 		Search,
+		Shield,
 		Users
 	} from 'lucide-svelte';
 	import type { PageProps } from './$types';
-	import type { LessonReviewAlertKind, LessonReviewAttemptSummary } from '$lib/types/lessonReview';
+	import type {
+		LessonReviewAlertKind,
+		LessonReviewAttemptSummary,
+		LessonReviewStudentRow
+	} from '$lib/types/lessonReview';
 	import { formatDate } from '$lib/helpers/dateUtils';
 
 	let { data }: PageProps = $props();
@@ -32,12 +37,18 @@
 	let searchTerm = $state(page.url.searchParams.get('search') ?? '');
 	let statusFilter = $state(page.url.searchParams.get('status') ?? 'all');
 	let alertFilter = $state(page.url.searchParams.get('alert') ?? 'all');
+	let showStaffAttempts = $state(page.url.searchParams.get('staff') === '1');
 	let expandedStudents = $state<Record<string, boolean>>({});
+
+	const staffRows = $derived(data.students.filter((row) => row.student.audience === 'staff'));
 
 	const filteredStudents = $derived.by(() => {
 		const query = searchTerm.trim().toLowerCase();
 
 		return data.students.filter((row) => {
+			const matchesAudience =
+				row.student.audience === 'student' || (showStaffAttempts && row.hasAnyActivity);
+
 			const matchesSearch =
 				query.length === 0 ||
 				row.student.username.toLowerCase().includes(query) ||
@@ -52,9 +63,21 @@
 				alertFilter === 'all' ||
 				Boolean(row.latestAttempt?.alerts.some((alert) => alert.kind === alertFilter));
 
-			return matchesSearch && matchesStatus && matchesAlert;
+			return matchesAudience && matchesSearch && matchesStatus && matchesAlert;
 		});
 	});
+
+	function roleBadgeClasses(row: LessonReviewStudentRow): string {
+		if (row.student.audience === 'student') {
+			return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300';
+		}
+
+		return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300';
+	}
+
+	function audienceLabel(row: LessonReviewStudentRow): string {
+		return row.student.audience === 'student' ? 'Alumno' : `Staff · ${row.student.courseRole}`;
+	}
 
 	function syncFilters() {
 		const params = new URLSearchParams(page.url.search);
@@ -77,6 +100,12 @@
 			params.delete('alert');
 		}
 
+		if (showStaffAttempts) {
+			params.set('staff', '1');
+		} else {
+			params.delete('staff');
+		}
+
 		const query = params.toString();
 		goto(query ? `${page.url.pathname}?${query}` : page.url.pathname, {
 			replaceState: true,
@@ -89,6 +118,7 @@
 		searchTerm = '';
 		statusFilter = 'all';
 		alertFilter = 'all';
+		showStaffAttempts = false;
 		syncFilters();
 	}
 
@@ -262,6 +292,19 @@
 						</select>
 					</label>
 
+					<label class="inline-flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-200">
+						<input
+							bind:checked={showStaffAttempts}
+							type="checkbox"
+							class="h-4 w-4 rounded border-sky-300 text-sky-600 focus:ring-sky-500 dark:border-sky-700 dark:bg-slate-900"
+							onchange={syncFilters}
+						/>
+						<span class="inline-flex items-center gap-2">
+							<Shield class="h-4 w-4" />
+							Mostrar intentos del staff
+						</span>
+					</label>
+
 					<button
 						type="button"
 						onclick={resetFilters}
@@ -271,13 +314,22 @@
 					</button>
 				</div>
 			</div>
+
+			{#if showStaffAttempts}
+				<p class="mt-4 text-sm text-sky-700 dark:text-sky-300">
+					Los intentos del staff se muestran solo para depuración y no alteran las métricas pedagógicas superiores.
+					{#if staffRows.length > 0}
+						<span class="font-medium"> Staff con actividad detectado: {staffRows.filter((row) => row.hasAnyActivity).length}.</span>
+					{/if}
+				</p>
+			{/if}
 		</section>
 
 		<section class="space-y-4">
 			{#if filteredStudents.length === 0}
 				<div class="rounded-[30px] border border-slate-200/80 bg-white/92 px-6 py-16 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/88">
 					<h2 class="text-lg font-semibold text-slate-900 dark:text-white">
-						No hay estudiantes que coincidan con los filtros
+						No hay participantes que coincidan con los filtros
 					</h2>
 					<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
 						Ajusta la búsqueda o limpia los filtros para volver a ver la cohorte completa.
@@ -299,6 +351,9 @@
 									{/if}
 									<span class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusClasses(row.latestAttempt)}`}>
 										{statusLabel(row.latestAttempt)}
+									</span>
+									<span class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${roleBadgeClasses(row)}`}>
+										{audienceLabel(row)}
 									</span>
 								</div>
 
@@ -365,7 +420,7 @@
 									</p>
 								{:else}
 									<p class="mt-4 text-sm text-slate-600 dark:text-slate-300">
-										Este estudiante aún no ha iniciado ningún intento de la lesson.
+										Este alumno aún no ha iniciado ningún intento de la lesson.
 									</p>
 								{/if}
 							</div>
