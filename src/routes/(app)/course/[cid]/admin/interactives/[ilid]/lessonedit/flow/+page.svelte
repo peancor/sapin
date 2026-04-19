@@ -27,6 +27,11 @@
 		getLessonFlowNextHandleId
 	} from '$lib/lesson/lessonFlow';
 	import LessonFlowNodeComponent from '$lib/components/lesson/flow/LessonFlowNode.svelte';
+	import LessonFlowQuickMenu from '$lib/components/lesson/flow/LessonFlowQuickMenu.svelte';
+	import type {
+		LessonFlowQuickMenuContext,
+		LessonFlowQuickMenuItem
+	} from '$lib/lesson/lessonFlowQuickMenu';
 	import {
 		getLessonCheckModeLabel,
 		normalizeLessonAgentConfig,
@@ -59,7 +64,7 @@
 		SquarePen,
 		Trash2
 	} from 'lucide-svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 
 	type FlowActionSuccess = {
 		success: true;
@@ -72,6 +77,17 @@
 	type SelectionState = { kind: 'node'; id: string } | { kind: 'edge'; id: string } | null;
 
 	type ConditionValue = string | number | boolean | null | undefined;
+	type QuickMenuPayload = {
+		nodeId?: string;
+		edgeId?: string;
+		sourceBlockId?: string;
+		sourceHandle?: string | null;
+		flowPosition?: { x: number; y: number } | null;
+	};
+	type CreateBlockOptions = {
+		position?: { x: number; y: number };
+		connectFrom?: { sourceBlockId: string; sourceHandle: string | null };
+	};
 
 	let { data }: PageProps = $props();
 
@@ -96,6 +112,7 @@
 	let flowEdges: LessonFlowEdge[] = $state.raw([]);
 	let flowViewport: Viewport | undefined = $state.raw(undefined);
 	let canvasElement: HTMLDivElement | null = $state.raw(null);
+	let stageElement: HTMLDivElement | null = $state.raw(null);
 	let selection = $state<SelectionState>(null);
 	let flowRenderVersion = $state(0);
 	let isSubmitting = $state(false);
@@ -103,10 +120,23 @@
 	let actionMessage = $state('');
 	let actionError = $state('');
 	let isInspectorCollapsed = $state(false);
+	let quickMenuContext = $state<LessonFlowQuickMenuContext>('closed');
+	let quickMenuQuery = $state('');
+	let quickMenuPosition = $state.raw({ x: 28, y: 28 });
+	let quickMenuPayload = $state.raw<QuickMenuPayload>({});
+	let lastCanvasPointer = $state.raw<{ clientX: number; clientY: number } | null>(null);
+	let pendingConnectionSource = $state.raw<{
+		sourceBlockId: string;
+		sourceHandle: string | null;
+	} | null>(null);
+	let isRenamingSelectedBlock = $state(false);
+	let renameDraft = $state('');
+	let renameInputElement: HTMLInputElement | null = $state.raw(null);
 
 	const cid = $derived(page.params.cid);
 	const ilid = $derived(page.params.ilid);
 	const previewHref = $derived(resolve(`/lesson/${ilid}`));
+	const isQuickMenuOpen = $derived(quickMenuContext !== 'closed');
 	const selectedBlock = $derived.by(() => {
 		const currentSelection = selection;
 		if (currentSelection?.kind !== 'node') return null;
@@ -138,6 +168,37 @@
 		draftDefinition.blocks.find((block) => block.id === draftDefinition.entryBlockId)?.title ??
 			draftDefinition.entryBlockId
 	);
+	const quickMenuTitle = $derived.by(() => {
+		if (quickMenuContext === 'canvas') return 'Quick Add';
+		if (quickMenuContext === 'node') return 'Acciones del bloque';
+		if (quickMenuContext === 'edge') return 'Acciones de la ruta';
+		if (quickMenuContext === 'connect-from-handle') return 'Crear y conectar';
+		return 'Acciones rapidas';
+	});
+	const quickMenuSubtitle = $derived.by(() => {
+		if (quickMenuContext === 'canvas') {
+			return 'Crea bloques justo donde los necesitas o lanza acciones globales del studio.';
+		}
+
+		if (quickMenuContext === 'node') {
+			return selectedBlock
+				? `Trabajando sobre "${selectedBlock.title}".`
+				: 'Acciones contextuales para el bloque seleccionado.';
+		}
+
+		if (quickMenuContext === 'edge') {
+			return selectedEdge
+				? `Ruta ${selectedEdge.label ?? getLessonFlowEdgeTypeLabel(selectedEdge.data?.edgeType ?? 'next')}.`
+				: 'Acciones contextuales para la conexion seleccionada.';
+		}
+
+		if (quickMenuContext === 'connect-from-handle') {
+			return 'Elige un tipo y el bloque nuevo quedara cableado automaticamente desde esa salida.';
+		}
+
+		return '';
+	});
+	const quickMenuItems = $derived.by(() => getQuickMenuItems());
 
 	function getValidExecutionTriggers(
 		interactionMode: LessonAgentInteractionMode
@@ -254,21 +315,26 @@
 	}
 
 	function selectNode(blockId: string) {
+		isRenamingSelectedBlock = false;
 		selection = { kind: 'node', id: blockId };
 		syncCanvasFromDraft();
 	}
 
 	function selectEdge(edgeId: string) {
+		isRenamingSelectedBlock = false;
 		selection = { kind: 'edge', id: edgeId };
 		syncCanvasFromDraft();
 	}
 
 	function clearSelection() {
+		isRenamingSelectedBlock = false;
 		selection = null;
 		syncCanvasFromDraft();
 	}
 
 	function handleSelectionChange(nodes: LessonFlowGraphNode[], edges: LessonFlowEdge[]) {
+		isRenamingSelectedBlock = false;
+
 		if (nodes.length === 1 && edges.length === 0) {
 			selection = { kind: 'node', id: nodes[0].id };
 			return;
@@ -386,6 +452,382 @@
 		return getLessonFlowNextEdgeId(connection.source);
 	}
 
+	function closeQuickMenu() {
+		quickMenuContext = 'closed';
+		quickMenuQuery = '';
+		quickMenuPayload = {};
+	}
+
+	function clampQuickMenuPosition(position: { x: number; y: number }) {
+		const width = stageElement?.clientWidth ?? 1100;
+		const height = stageElement?.clientHeight ?? 720;
+
+		return {
+			x: Math.max(16, Math.min(position.x, Math.max(16, width - 380))),
+			y: Math.max(16, Math.min(position.y, Math.max(16, height - 340)))
+		};
+	}
+
+	function clientToStagePosition(clientX: number, clientY: number) {
+		const rect = stageElement?.getBoundingClientRect() ?? canvasElement?.getBoundingClientRect();
+		if (!rect) {
+			return clampQuickMenuPosition({ x: clientX, y: clientY });
+		}
+
+		return clampQuickMenuPosition({
+			x: clientX - rect.left,
+			y: clientY - rect.top
+		});
+	}
+
+	function clientToFlowPosition(clientX: number, clientY: number) {
+		const rect = stageElement?.getBoundingClientRect() ?? canvasElement?.getBoundingClientRect();
+		const viewport = flowViewport ?? { x: 0, y: 0, zoom: 1 };
+
+		if (!rect) {
+			return getSuggestedPosition();
+		}
+
+		return {
+			x: Math.round((clientX - rect.left - viewport.x) / viewport.zoom),
+			y: Math.round((clientY - rect.top - viewport.y) / viewport.zoom)
+		};
+	}
+
+	function getClientPoint(event: MouseEvent | TouchEvent) {
+		if ('changedTouches' in event) {
+			const touch = event.changedTouches[0] ?? event.touches[0];
+			if (!touch) return null;
+			return { x: touch.clientX, y: touch.clientY };
+		}
+
+		return { x: event.clientX, y: event.clientY };
+	}
+
+	function rememberCanvasPointer(event: PointerEvent | MouseEvent) {
+		lastCanvasPointer = { clientX: event.clientX, clientY: event.clientY };
+	}
+
+	function getNodeQuickMenuPosition(blockId: string) {
+		const node = flowNodes.find((candidate) => candidate.id === blockId);
+		const viewport = flowViewport ?? { x: 0, y: 0, zoom: 1 };
+
+		if (!node) {
+			return clampQuickMenuPosition({
+				x: (stageElement?.clientWidth ?? 960) / 2 - 160,
+				y: (stageElement?.clientHeight ?? 640) / 2 - 140
+			});
+		}
+
+		return clampQuickMenuPosition({
+			x: node.position.x * viewport.zoom + viewport.x + 168,
+			y: node.position.y * viewport.zoom + viewport.y + 36
+		});
+	}
+
+	function openQuickMenu(
+		context: Exclude<LessonFlowQuickMenuContext, 'closed'>,
+		position: { x: number; y: number },
+		payload: QuickMenuPayload = {}
+	) {
+		quickMenuContext = context;
+		quickMenuPosition = clampQuickMenuPosition(position);
+		quickMenuPayload = payload;
+		quickMenuQuery = '';
+	}
+
+	function createQuickMenuItem(
+		id: string,
+		label: string,
+		description: string,
+		options: Partial<LessonFlowQuickMenuItem> = {}
+	): LessonFlowQuickMenuItem {
+		return {
+			id,
+			label,
+			description,
+			...options
+		};
+	}
+
+	function buildCreateBlockQuickMenuItems(
+		prefix: 'create' | 'create-connected',
+		descriptionPrefix: string
+	) {
+		return [
+			createQuickMenuItem(
+				`${prefix}:content`,
+				'Contenido',
+				`${descriptionPrefix} un bloque narrativo o explicativo.`,
+				{ keywords: ['texto', 'contenido', 'lecture'] }
+			),
+			createQuickMenuItem(
+				`${prefix}:choice`,
+				'Decision',
+				`${descriptionPrefix} una decision con opciones ramificadas.`,
+				{ keywords: ['decision', 'choice', 'branch'] }
+			),
+			createQuickMenuItem(
+				`${prefix}:check`,
+				'Evaluacion',
+				`${descriptionPrefix} un bloque de comprobacion automatica.`,
+				{ keywords: ['check', 'quiz', 'assessment'] }
+			),
+			createQuickMenuItem(
+				`${prefix}:agent`,
+				'Tutor IA',
+				`${descriptionPrefix} una intervencion agéntica.`,
+				{ keywords: ['agent', 'ia', 'assistant'] }
+			),
+			createQuickMenuItem(
+				`${prefix}:end`,
+				'Final',
+				`${descriptionPrefix} un cierre o hito final.`,
+				{ keywords: ['end', 'final', 'finish'] }
+			)
+		] satisfies LessonFlowQuickMenuItem[];
+	}
+
+	function getQuickMenuItems(): LessonFlowQuickMenuItem[] {
+		if (quickMenuContext === 'canvas') {
+			return [
+				...buildCreateBlockQuickMenuItems('create', 'Anade'),
+				createQuickMenuItem('center-canvas', 'Centrar vista', 'Reencuadra el mapa completo.', {
+					shortcut: 'Home',
+					keywords: ['fit', 'center', 'view'],
+					tone: 'accent'
+				}),
+				createQuickMenuItem('save-flow', 'Guardar mapa', 'Persistir los cambios del studio.', {
+					shortcut: 'Ctrl+S',
+					keywords: ['save', 'guardar'],
+					tone: 'accent'
+				})
+			];
+		}
+
+		if (quickMenuContext === 'connect-from-handle') {
+			return buildCreateBlockQuickMenuItems('create-connected', 'Crea y conecta');
+		}
+
+		if (quickMenuContext === 'node' && selectedBlock) {
+			const items: LessonFlowQuickMenuItem[] = [
+				createQuickMenuItem('rename-node', 'Renombrar', 'Edita el titulo sin salir del canvas.', {
+					shortcut: 'F2',
+					keywords: ['rename', 'title']
+				}),
+				createQuickMenuItem(
+					'duplicate-node',
+					'Duplicar',
+					'Crea una copia desconectada y desplazada del bloque.',
+					{ shortcut: 'Ctrl+D', keywords: ['duplicate', 'copy'] }
+				),
+				createQuickMenuItem(
+					'open-detail-editor',
+					'Abrir editor detallado',
+					'Salta a la ficha completa del bloque.',
+					{
+						keywords: ['detail', 'editor', 'open'],
+						tone: 'accent'
+					}
+				)
+			];
+
+			if (selectedBlock.id !== draftDefinition.entryBlockId) {
+				items.push(
+					createQuickMenuItem(
+						'set-entry',
+						'Convertir en entrada',
+						'Haz que este bloque sea el punto de inicio de la lesson.',
+						{ keywords: ['entry', 'start'] }
+					)
+				);
+			}
+
+			if (selectedBlock.kind !== 'choice' && selectedBlock.kind !== 'end') {
+				items.push(...buildCreateBlockQuickMenuItems('create-connected', 'Crea y conecta'));
+			}
+
+			if (
+				selectedBlock.kind === 'content' ||
+				selectedBlock.kind === 'check' ||
+				selectedBlock.kind === 'agent'
+			) {
+				items.push(
+					createQuickMenuItem(
+						'add-branch',
+						'Anadir rama',
+						'Agrega una rama condicional al bloque activo.',
+						{ keywords: ['branch', 'condition'] }
+					)
+				);
+			}
+
+			if (selectedBlock.kind === 'choice') {
+				items.push(
+					createQuickMenuItem(
+						'add-option',
+						'Anadir opcion',
+						'Agrega una opcion nueva a la decision.',
+						{ keywords: ['option', 'choice'] }
+					)
+				);
+			}
+
+			items.push(
+				createQuickMenuItem(
+					'delete-node',
+					'Eliminar bloque',
+					'Borra el bloque seleccionado del borrador actual.',
+					{ shortcut: 'Delete', keywords: ['delete', 'remove'], tone: 'danger' }
+				)
+			);
+
+			return items;
+		}
+
+		if (quickMenuContext === 'edge' && selectedEdge) {
+			const items: LessonFlowQuickMenuItem[] = [
+				createQuickMenuItem(
+					'edit-edge-target',
+					'Cambiar destino',
+					'La ruta queda seleccionada para ajustar su destino desde el inspector.',
+					{ keywords: ['target', 'destination', 'edge'] }
+				),
+				createQuickMenuItem(
+					'disconnect-edge',
+					'Desconectar',
+					'Quita el enlace pero conserva el bloque de origen.',
+					{ keywords: ['disconnect', 'unlink'], tone: 'accent' }
+				)
+			];
+
+			if (selectedEdge.data?.edgeType === 'branch') {
+				items.push(
+					createQuickMenuItem(
+						'remove-branch',
+						'Eliminar rama',
+						'Borra la rama condicional completa del bloque.',
+						{ keywords: ['branch', 'remove'], tone: 'danger' }
+					)
+				);
+			}
+
+			if (selectedEdge.data?.edgeType === 'choice-option') {
+				items.push(
+					createQuickMenuItem(
+						'remove-choice-option',
+						'Eliminar opcion',
+						'Borra la opcion completa de la decision.',
+						{ keywords: ['option', 'choice', 'remove'], tone: 'danger' }
+					)
+				);
+			}
+
+			return items;
+		}
+
+		return [];
+	}
+
+	function createUniqueBlockId(definition: LessonDefinition, kind: LessonBlock['kind']) {
+		const baseByKind = {
+			content: 'content',
+			choice: 'choice',
+			check: 'check',
+			agent: 'agent',
+			end: 'end'
+		} satisfies Record<LessonBlock['kind'], string>;
+		const existingIds = new Set(definition.blocks.map((block) => block.id));
+		const base = baseByKind[kind];
+
+		if (!existingIds.has(base)) return base;
+
+		let counter = 2;
+		let nextId = `${base}_${counter}`;
+		while (existingIds.has(nextId)) {
+			counter += 1;
+			nextId = `${base}_${counter}`;
+		}
+
+		return nextId;
+	}
+
+	function disconnectBlockCopy(block: LessonBlock) {
+		if (block.kind !== 'choice' && block.kind !== 'end') {
+			block.next = null;
+		}
+
+		if (block.branches?.length) {
+			block.branches = block.branches.map((branch) => ({
+				...branch,
+				targetBlockId: ''
+			}));
+		}
+
+		if (block.kind === 'choice') {
+			block.options = block.options.map((option) => ({
+				...option,
+				targetBlockId: ''
+			}));
+		}
+
+		if (block.graph?.incomingOrder) {
+			delete block.graph.incomingOrder;
+		}
+	}
+
+	function applyConnectionToDefinition(definition: LessonDefinition, connection: Connection) {
+		if (!connection.source || !connection.target) return false;
+
+		const sourceBlock = definition.blocks.find((block) => block.id === connection.source);
+		const targetBlock = definition.blocks.find((block) => block.id === connection.target);
+		if (!sourceBlock || !targetBlock || sourceBlock.kind === 'end') return false;
+
+		const edgeId = getEdgeIdFromConnection(connection);
+		if (!edgeId) return false;
+
+		let previousTargetId: string | null = null;
+
+		if (sourceBlock.kind === 'choice') {
+			if (!connection.sourceHandle?.startsWith('out:choice:')) return false;
+			const optionId = connection.sourceHandle.slice(getLessonFlowChoiceHandleId('').length);
+			const option = sourceBlock.options.find((candidate) => candidate.id === optionId);
+			if (!option) return false;
+			previousTargetId = option.targetBlockId || null;
+			option.targetBlockId = connection.target;
+		} else if (
+			!connection.sourceHandle ||
+			connection.sourceHandle === getLessonFlowNextHandleId()
+		) {
+			previousTargetId = sourceBlock.next ?? null;
+			sourceBlock.next = connection.target;
+		} else if (connection.sourceHandle.startsWith('out:branch:')) {
+			const branchIndex = Number(connection.sourceHandle.split(':').at(-1) ?? '-1');
+			if (
+				!Number.isInteger(branchIndex) ||
+				branchIndex < 0 ||
+				!sourceBlock.branches?.[branchIndex]
+			) {
+				return false;
+			}
+
+			previousTargetId = sourceBlock.branches[branchIndex].targetBlockId || null;
+			sourceBlock.branches[branchIndex].targetBlockId = connection.target;
+		} else {
+			return false;
+		}
+
+		if (previousTargetId && previousTargetId !== connection.target) {
+			removeIncomingOrder(definition, previousTargetId, edgeId);
+		}
+
+		if (supportsDynamicIncomingOrder(targetBlock)) {
+			appendIncomingOrder(definition, connection.target, edgeId);
+		}
+
+		return true;
+	}
+
 	function addBranchToSelectedBlock() {
 		if (
 			!selectedBlock ||
@@ -396,12 +838,7 @@
 			return;
 
 		updateSelectedBlock((block) => {
-			if (
-				block.kind !== 'content' &&
-				block.kind !== 'check' &&
-				block.kind !== 'agent'
-			)
-				return;
+			if (block.kind !== 'content' && block.kind !== 'check' && block.kind !== 'agent') return;
 
 			block.branches = [
 				...(block.branches ?? []),
@@ -437,6 +874,71 @@
 		});
 	}
 
+	function duplicateSelectedBlock() {
+		if (!selectedBlock || isSubmitting) return;
+
+		let duplicatedBlockId = '';
+
+		mutateDefinition(
+			(definition) => {
+				const block = definition.blocks.find((candidate) => candidate.id === selectedBlock.id);
+				if (!block) return;
+
+				const duplicate = structuredClone(block);
+				duplicatedBlockId = createUniqueBlockId(definition, duplicate.kind);
+				duplicate.id = duplicatedBlockId;
+				duplicate.title = `${duplicate.title} copia`;
+				duplicate.graph = {
+					...(duplicate.graph ?? {}),
+					position: {
+						x: (duplicate.graph?.position?.x ?? 0) + 72,
+						y: (duplicate.graph?.position?.y ?? 0) + 56
+					}
+				};
+				disconnectBlockCopy(duplicate);
+				definition.blocks.push(duplicate);
+			},
+			duplicatedBlockId ? { kind: 'node', id: duplicatedBlockId } : selection
+		);
+
+		if (duplicatedBlockId) {
+			selection = { kind: 'node', id: duplicatedBlockId };
+			actionMessage = 'Se ha creado una copia desconectada del bloque seleccionado.';
+			actionError = '';
+			syncCanvasFromDraft();
+		}
+	}
+
+	async function startRenameSelectedBlock() {
+		if (!selectedBlock) return;
+		isRenamingSelectedBlock = true;
+		renameDraft = selectedBlock.title;
+		await tick();
+		renameInputElement?.focus();
+		renameInputElement?.select();
+	}
+
+	function cancelRenameSelectedBlock() {
+		isRenamingSelectedBlock = false;
+		renameDraft = '';
+	}
+
+	function commitRenameSelectedBlock() {
+		if (!selectedBlock) {
+			cancelRenameSelectedBlock();
+			return;
+		}
+
+		const nextTitle = renameDraft.trim();
+		if (nextTitle && nextTitle !== selectedBlock.title) {
+			updateSelectedBlock((block) => {
+				block.title = nextTitle;
+			});
+		}
+
+		isRenamingSelectedBlock = false;
+	}
+
 	function removeSelectedBranch() {
 		if (selection?.kind !== 'edge' || selectedEdge?.data?.edgeType !== 'branch') return;
 		const branchIndex = selectedEdge.data.branchIndex;
@@ -445,10 +947,7 @@
 		updateSelectedEdge((definition, edge) => {
 			removeIncomingOrder(definition, edge.target, edge.id);
 			const block = definition.blocks.find((candidate) => candidate.id === edge.source);
-			if (
-				!block ||
-				(block.kind !== 'content' && block.kind !== 'check' && block.kind !== 'agent')
-			)
+			if (!block || (block.kind !== 'content' && block.kind !== 'check' && block.kind !== 'agent'))
 				return;
 			block.branches = (block.branches ?? []).filter((_, index) => index !== branchIndex);
 		});
@@ -493,12 +992,7 @@
 			}
 
 			if (edge.data?.edgeType === 'branch') {
-				if (
-					block.kind !== 'content' &&
-					block.kind !== 'check' &&
-					block.kind !== 'agent'
-				)
-					return;
+				if (block.kind !== 'content' && block.kind !== 'check' && block.kind !== 'agent') return;
 				const branchIndex = edge.data.branchIndex;
 				if (branchIndex === undefined || !block.branches?.[branchIndex]) return;
 				block.branches[branchIndex].targetBlockId = '';
@@ -517,9 +1011,7 @@
 		if (!connection.source || !connection.target) return;
 
 		const sourceBlock = draftDefinition.blocks.find((block) => block.id === connection.source);
-		const targetBlock = draftDefinition.blocks.find((block) => block.id === connection.target);
 		if (!sourceBlock) return;
-		if (!targetBlock) return;
 
 		if (sourceBlock.kind === 'end') {
 			actionError = 'Un bloque final no puede abrir nuevas salidas.';
@@ -527,43 +1019,9 @@
 			return;
 		}
 
-		const edgeId = getEdgeIdFromConnection(connection);
-		const previousEdge = edgeId ? (flowEdges.find((edge) => edge.id === edgeId) ?? null) : null;
-		const previousTargetId = previousEdge?.target ?? null;
 		mutateDefinition(
 			(definition) => {
-				const block = definition.blocks.find((candidate) => candidate.id === connection.source);
-				if (!block || block.kind === 'end') return;
-
-				if (block.kind === 'choice') {
-					if (!connection.sourceHandle?.startsWith('out:choice:')) return;
-					const optionId = connection.sourceHandle.slice(getLessonFlowChoiceHandleId('').length);
-					const option = block.options.find((candidate) => candidate.id === optionId);
-					if (!option) return;
-					option.targetBlockId = connection.target;
-					return;
-				}
-
-				if (!connection.sourceHandle || connection.sourceHandle === getLessonFlowNextHandleId()) {
-					block.next = connection.target;
-					return;
-				}
-
-				if (connection.sourceHandle.startsWith('out:branch:')) {
-					const branchIndex = Number(connection.sourceHandle.split(':').at(-1) ?? '-1');
-					if (!Number.isInteger(branchIndex) || branchIndex < 0 || !block.branches?.[branchIndex]) {
-						return;
-					}
-					block.branches[branchIndex].targetBlockId = connection.target;
-				}
-
-				if (previousTargetId && previousTargetId !== connection.target) {
-					removeIncomingOrder(definition, previousTargetId, edgeId);
-				}
-
-				if (supportsDynamicIncomingOrder(targetBlock)) {
-					appendIncomingOrder(definition, connection.target, edgeId);
-				}
+				applyConnectionToDefinition(definition, connection);
 			},
 			{ kind: 'node', id: connection.source }
 		);
@@ -574,15 +1032,26 @@
 		flowRenderVersion += 1;
 	}
 
-	function getSuggestedPosition() {
-		const anchorBlockId =
-			selection?.kind === 'node'
+	function getSuggestedPosition(
+		anchorBlockId: string | null = null,
+		explicitPosition: { x: number; y: number } | null = null
+	) {
+		if (explicitPosition) {
+			return {
+				x: Math.round(explicitPosition.x),
+				y: Math.round(explicitPosition.y)
+			};
+		}
+
+		const activeAnchorBlockId =
+			anchorBlockId ??
+			(selection?.kind === 'node'
 				? selection.id
 				: selection?.kind === 'edge'
 					? selectedEdge?.source
-					: null;
-		const anchorNode = anchorBlockId
-			? flowNodes.find((node) => node.id === anchorBlockId) ?? null
+					: null);
+		const anchorNode = activeAnchorBlockId
+			? (flowNodes.find((node) => node.id === activeAnchorBlockId) ?? null)
 			: null;
 		const stagger = ((draftDefinition.blocks.length % 4) - 1.5) * 52;
 
@@ -652,14 +1121,20 @@
 		}
 	}
 
-	async function createBlock(kind: (typeof createButtons)[number]['kind']) {
+	async function createBlock(
+		kind: (typeof createButtons)[number]['kind'],
+		options: CreateBlockOptions = {}
+	) {
 		isSubmitting = true;
 		actionError = '';
 		actionMessage = '';
 
 		try {
 			const synced = commitCanvasGraph();
-			const position = getSuggestedPosition();
+			const position = getSuggestedPosition(
+				options.connectFrom?.sourceBlockId ?? null,
+				options.position ?? null
+			);
 			const formData = new FormData();
 			formData.set('definitionJson', JSON.stringify(synced));
 			formData.set('kind', kind);
@@ -667,10 +1142,27 @@
 			formData.set('positionY', String(position.y));
 
 			const result = await postAction('createBlock', formData);
+
+			let nextDefinition = result.definition;
+			if (result.blockId && options.connectFrom) {
+				const connected = applyConnectionToDefinition(nextDefinition, {
+					source: options.connectFrom.sourceBlockId,
+					target: result.blockId,
+					sourceHandle: options.connectFrom.sourceHandle,
+					targetHandle: null
+				});
+
+				if (connected) {
+					actionMessage = '';
+				}
+			}
+
 			applyActionDraft(
-				result.definition,
+				nextDefinition,
 				result.blockId ? { kind: 'node', id: result.blockId } : selection,
-				result.message
+				result.blockId && options.connectFrom
+					? 'Bloque creado y conectado desde la salida activa.'
+					: result.message
 			);
 		} catch (errorValue) {
 			actionError =
@@ -725,30 +1217,12 @@
 		if (!selectedEdge) return;
 
 		updateSelectedEdge((definition, edge) => {
-			const sourceBlock = definition.blocks.find((block) => block.id === edge.source);
-			if (!sourceBlock) return;
-
-			if (edge.data?.edgeType === 'next') {
-				if (sourceBlock.kind === 'choice' || sourceBlock.kind === 'end') return;
-				sourceBlock.next = nextTargetId || null;
-				return;
-			}
-
-			if (edge.data?.edgeType === 'branch') {
-				if (sourceBlock.kind !== 'content' && sourceBlock.kind !== 'agent') return;
-				const branchIndex = edge.data.branchIndex;
-				if (branchIndex === undefined || !sourceBlock.branches?.[branchIndex]) return;
-				sourceBlock.branches[branchIndex].targetBlockId = nextTargetId;
-				return;
-			}
-
-			if (edge.data?.edgeType === 'choice-option') {
-				if (sourceBlock.kind !== 'choice') return;
-				const optionId = edge.data.optionId;
-				const option = sourceBlock.options.find((candidate) => candidate.id === optionId);
-				if (!option) return;
-				option.targetBlockId = nextTargetId;
-			}
+			applyConnectionToDefinition(definition, {
+				source: edge.source,
+				target: nextTargetId,
+				sourceHandle: edge.sourceHandle ?? null,
+				targetHandle: null
+			});
 		});
 	}
 
@@ -760,18 +1234,278 @@
 		return Number.isFinite(numericValue) && value.trim() !== '' ? numericValue : value;
 	}
 
+	async function executeQuickMenuAction(actionId: string) {
+		const quickContext = quickMenuContext;
+		const payload = quickMenuPayload;
+		closeQuickMenu();
+
+		if (actionId === 'center-canvas') {
+			centerCanvas();
+			return;
+		}
+
+		if (actionId === 'save-flow') {
+			await saveFlow();
+			return;
+		}
+
+		if (actionId === 'rename-node') {
+			await startRenameSelectedBlock();
+			return;
+		}
+
+		if (actionId === 'duplicate-node') {
+			duplicateSelectedBlock();
+			return;
+		}
+
+		if (actionId === 'delete-node') {
+			await deleteSelectedBlock();
+			return;
+		}
+
+		if (actionId === 'set-entry' && selectedBlock) {
+			setEntryBlock(selectedBlock.id);
+			return;
+		}
+
+		if (actionId === 'open-detail-editor' && selectedBlock) {
+			window.location.href = resolve(
+				`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${selectedBlock.id}`
+			);
+			return;
+		}
+
+		if (actionId === 'add-branch') {
+			addBranchToSelectedBlock();
+			return;
+		}
+
+		if (actionId === 'add-option') {
+			addChoiceOptionToSelectedBlock();
+			return;
+		}
+
+		if (actionId === 'disconnect-edge') {
+			clearSelectedEdgeConnection();
+			return;
+		}
+
+		if (actionId === 'remove-branch') {
+			removeSelectedBranch();
+			return;
+		}
+
+		if (actionId === 'remove-choice-option') {
+			removeSelectedChoiceOption();
+			return;
+		}
+
+		if (actionId === 'edit-edge-target') {
+			return;
+		}
+
+		if (actionId.startsWith('create-connected:')) {
+			const kind = actionId.slice(
+				'create-connected:'.length
+			) as (typeof createButtons)[number]['kind'];
+			const connectFrom =
+				quickContext === 'connect-from-handle'
+					? payload.sourceBlockId
+						? {
+								sourceBlockId: payload.sourceBlockId,
+								sourceHandle: payload.sourceHandle ?? null
+							}
+						: null
+					: selectedBlock && selectedBlock.kind !== 'choice' && selectedBlock.kind !== 'end'
+						? {
+								sourceBlockId: selectedBlock.id,
+								sourceHandle: getLessonFlowNextHandleId()
+							}
+						: null;
+
+			if (!connectFrom) return;
+
+			await createBlock(kind, {
+				position: payload.flowPosition ?? undefined,
+				connectFrom
+			});
+			return;
+		}
+
+		if (actionId.startsWith('create:')) {
+			const kind = actionId.slice('create:'.length) as (typeof createButtons)[number]['kind'];
+			await createBlock(kind, {
+				position: payload.flowPosition ?? undefined
+			});
+		}
+	}
+
+	function openCanvasQuickMenuFromKeyboard() {
+		if (lastCanvasPointer) {
+			openQuickMenu(
+				'canvas',
+				clientToStagePosition(lastCanvasPointer.clientX, lastCanvasPointer.clientY),
+				{
+					flowPosition: clientToFlowPosition(lastCanvasPointer.clientX, lastCanvasPointer.clientY)
+				}
+			);
+			return;
+		}
+
+		if (selectedBlock) {
+			openQuickMenu('canvas', getNodeQuickMenuPosition(selectedBlock.id), {
+				flowPosition: getSuggestedPosition(selectedBlock.id)
+			});
+			return;
+		}
+
+		const fallbackPosition = clampQuickMenuPosition({
+			x: (stageElement?.clientWidth ?? 960) / 2 - 180,
+			y: (stageElement?.clientHeight ?? 680) / 2 - 180
+		});
+		openQuickMenu('canvas', fallbackPosition, {
+			flowPosition: getSuggestedPosition()
+		});
+	}
+
+	function handlePaneContextMenu(event: MouseEvent) {
+		event.preventDefault();
+		rememberCanvasPointer(event);
+		clearSelection();
+		openQuickMenu('canvas', clientToStagePosition(event.clientX, event.clientY), {
+			flowPosition: clientToFlowPosition(event.clientX, event.clientY)
+		});
+	}
+
+	function handleNodeContextMenu(nodeId: string, event: MouseEvent) {
+		event.preventDefault();
+		rememberCanvasPointer(event);
+		selectNode(nodeId);
+		openQuickMenu('node', clientToStagePosition(event.clientX, event.clientY), {
+			nodeId,
+			flowPosition: getSuggestedPosition(nodeId)
+		});
+	}
+
+	function handleEdgeContextMenu(edgeId: string, event: MouseEvent) {
+		event.preventDefault();
+		rememberCanvasPointer(event);
+		selectEdge(edgeId);
+		openQuickMenu('edge', clientToStagePosition(event.clientX, event.clientY), {
+			edgeId
+		});
+	}
+
+	function handleConnectStart(
+		event: MouseEvent | TouchEvent,
+		params: { nodeId: string | null; handleId: string | null }
+	) {
+		const point = getClientPoint(event);
+		if (point) {
+			lastCanvasPointer = { clientX: point.x, clientY: point.y };
+		}
+
+		pendingConnectionSource =
+			params.nodeId && params.handleId
+				? {
+						sourceBlockId: params.nodeId,
+						sourceHandle: params.handleId
+					}
+				: null;
+	}
+
+	function handleConnectEnd(
+		event: MouseEvent | TouchEvent,
+		connectionState: { toNode?: unknown | null; toHandle?: unknown | null }
+	) {
+		const point = getClientPoint(event);
+		const connectFrom = pendingConnectionSource;
+		pendingConnectionSource = null;
+
+		if (!point) return;
+
+		lastCanvasPointer = { clientX: point.x, clientY: point.y };
+
+		if (!connectFrom) return;
+		if (connectionState.toNode || connectionState.toHandle) return;
+
+		openQuickMenu('connect-from-handle', clientToStagePosition(point.x, point.y), {
+			sourceBlockId: connectFrom.sourceBlockId,
+			sourceHandle: connectFrom.sourceHandle,
+			flowPosition: clientToFlowPosition(point.x, point.y)
+		});
+	}
+
 	function isEditableKeyboardTarget(target: EventTarget | null) {
 		if (!(target instanceof HTMLElement)) return false;
 		return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent) {
-		if (event.key !== 'Delete' && event.key !== 'Del') return;
-		if (selection?.kind !== 'edge' || !selectedEdge || isSubmitting) return;
+		if (isQuickMenuOpen) {
+			if (event.key === 'Escape') {
+				event.preventDefault();
+				closeQuickMenu();
+			}
+			return;
+		}
+
 		if (isEditableKeyboardTarget(event.target)) return;
 
+		const normalizedKey = event.key.toLowerCase();
+		const hasModifier = event.metaKey || event.ctrlKey;
+
+		if (event.key === 'Escape' && isRenamingSelectedBlock) {
+			event.preventDefault();
+			cancelRenameSelectedBlock();
+			return;
+		}
+
+		if (event.shiftKey && normalizedKey === 'a') {
+			event.preventDefault();
+			openCanvasQuickMenuFromKeyboard();
+			return;
+		}
+
+		if (hasModifier && normalizedKey === 's') {
+			event.preventDefault();
+			if (!isSubmitting) {
+				void saveFlow();
+			}
+			return;
+		}
+
+		if (hasModifier && normalizedKey === 'd') {
+			event.preventDefault();
+			duplicateSelectedBlock();
+			return;
+		}
+
+		if (event.key === 'F2') {
+			event.preventDefault();
+			void startRenameSelectedBlock();
+			return;
+		}
+
+		if (event.key === 'Home') {
+			event.preventDefault();
+			centerCanvas();
+			return;
+		}
+
+		if (event.key !== 'Delete' && event.key !== 'Del' && event.key !== 'Backspace') return;
+		if (isSubmitting) return;
+
 		event.preventDefault();
-		clearSelectedEdgeConnection();
+		if (selection?.kind === 'edge' && selectedEdge) {
+			clearSelectedEdgeConnection();
+			return;
+		}
+
+		if (selection?.kind === 'node' && selectedBlock) {
+			void deleteSelectedBlock();
+		}
 	}
 
 	onMount(() => {
@@ -1141,6 +1875,7 @@
 		<section class="flex min-h-0 flex-1 flex-col overflow-hidden">
 			<div class="flex min-h-0 flex-1 overflow-hidden p-4">
 				<div
+					bind:this={stageElement}
 					class="studio-stage relative min-h-0 flex-1 overflow-hidden rounded-[32px] border border-stone-300/80 bg-[#f8f4ec] shadow-[0_30px_70px_-45px_rgba(24,24,27,0.65)] dark:border-stone-700 dark:bg-[#111315]"
 				>
 					<div
@@ -1152,6 +1887,11 @@
 							class="rounded-full border border-white/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-stone-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-stone-900/90 dark:text-stone-300"
 						>
 							Panea con arrastre, edita con el inspector y usa zoom para recorrer el grafo.
+						</div>
+						<div
+							class="rounded-full border border-white/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-stone-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-stone-900/90 dark:text-stone-300"
+						>
+							Shift + A anade, F2 renombra, Ctrl/Cmd + D duplica, Home centra.
 						</div>
 						{#if selection?.kind === 'node' && selectedBlock}
 							<div
@@ -1169,7 +1909,13 @@
 						{/if}
 					</div>
 
-					<div bind:this={canvasElement} class="h-full w-full overflow-hidden">
+					<div
+						bind:this={canvasElement}
+						class="h-full w-full overflow-hidden"
+						onpointermove={(event) => {
+							rememberCanvasPointer(event);
+						}}
+					>
 						{#key flowRenderVersion}
 							<SvelteFlow
 								bind:nodes={flowNodes}
@@ -1189,8 +1935,14 @@
 								selectNodesOnDrag={false}
 								connectionLineType={ConnectionLineType.SmoothStep}
 								onnodeclick={({ node }) => selectNode(node.id)}
+								onnodecontextmenu={({ node, event }) => handleNodeContextMenu(node.id, event)}
 								onedgeclick={({ edge }) => selectEdge(edge.id)}
-								onpaneclick={clearSelection}
+								onedgecontextmenu={({ edge, event }) => handleEdgeContextMenu(edge.id, event)}
+								onpaneclick={() => {
+									closeQuickMenu();
+									clearSelection();
+								}}
+								onpanecontextmenu={({ event }) => handlePaneContextMenu(event)}
 								onselectionchange={({ nodes, edges }) =>
 									handleSelectionChange(nodes as LessonFlowGraphNode[], edges as LessonFlowEdge[])}
 								onnodedragstop={() => {
@@ -1199,6 +1951,8 @@
 									actionMessage = '';
 									actionError = '';
 								}}
+								onconnectstart={handleConnectStart}
+								onconnectend={handleConnectEnd}
 								onconnect={handleConnect}
 							>
 								<Background
@@ -1213,6 +1967,23 @@
 							</SvelteFlow>
 						{/key}
 					</div>
+
+					<LessonFlowQuickMenu
+						open={isQuickMenuOpen}
+						x={quickMenuPosition.x}
+						y={quickMenuPosition.y}
+						title={quickMenuTitle}
+						subtitle={quickMenuSubtitle}
+						query={quickMenuQuery}
+						items={quickMenuItems}
+						onquerychange={(value) => {
+							quickMenuQuery = value;
+						}}
+						onclose={closeQuickMenu}
+						onselect={(actionId) => {
+							void executeQuickMenuAction(actionId);
+						}}
+					/>
 				</div>
 			</div>
 		</section>
@@ -1249,16 +2020,39 @@
 							>
 								Inspector
 							</p>
-							<h2 class="mt-2 text-lg font-semibold text-stone-900 dark:text-white">
-								{#if selectedBlock}
-									{selectedBlock.title}
-								{:else if selectedEdge}
-									{selectedEdge.label ??
-										getLessonFlowEdgeTypeLabel(selectedEdge.data?.edgeType ?? 'next')}
-								{:else}
-									Sin selección
-								{/if}
-							</h2>
+							{#if selectedBlock && isRenamingSelectedBlock}
+								<input
+									bind:this={renameInputElement}
+									value={renameDraft}
+									class="mt-2 w-full rounded-2xl border border-amber-300 bg-white px-3 py-2 text-lg font-semibold text-stone-900 outline-hidden focus:border-amber-500 dark:border-amber-700 dark:bg-stone-950 dark:text-white"
+									oninput={(event) => {
+										renameDraft = (event.currentTarget as HTMLInputElement).value;
+									}}
+									onkeydown={(event) => {
+										if (event.key === 'Enter') {
+											event.preventDefault();
+											commitRenameSelectedBlock();
+										}
+
+										if (event.key === 'Escape') {
+											event.preventDefault();
+											cancelRenameSelectedBlock();
+										}
+									}}
+									onblur={commitRenameSelectedBlock}
+								/>
+							{:else}
+								<h2 class="mt-2 text-lg font-semibold text-stone-900 dark:text-white">
+									{#if selectedBlock}
+										{selectedBlock.title}
+									{:else if selectedEdge}
+										{selectedEdge.label ??
+											getLessonFlowEdgeTypeLabel(selectedEdge.data?.edgeType ?? 'next')}
+									{:else}
+										Sin selección
+									{/if}
+								</h2>
+							{/if}
 							<p class="mt-2 text-sm leading-6 text-stone-500 dark:text-stone-400">
 								{#if selectedBlock}
 									Ajusta los campos esenciales del bloque y abre el editor profundo si necesitas
@@ -1338,8 +2132,8 @@
 												: selectedBlock.kind === 'check'
 													? 'Evaluación'
 													: selectedBlock.kind === 'agent'
-													? 'Tutor IA'
-													: 'Final'}
+														? 'Tutor IA'
+														: 'Final'}
 									</p>
 								</div>
 								<div class="rounded-2xl border border-stone-200 px-4 py-3 dark:border-stone-800">
@@ -1469,7 +2263,9 @@
 									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
 										>Modo</span
 									>
-									<p class="rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm font-medium text-stone-900 dark:border-stone-700 dark:bg-gray-950 dark:text-white">
+									<p
+										class="rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm font-medium text-stone-900 dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+									>
 										{getLessonCheckModeLabel(selectedBlock.checkConfig.mode)}
 									</p>
 								</div>
