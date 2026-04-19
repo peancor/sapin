@@ -481,6 +481,7 @@ Rutas y APIs relacionadas viven en:
 
 - `src/routes/(app)/course/[cid]/run/lesson/...`
 - `src/routes/api/lesson/...`
+- `src/routes/(app)/course/[cid]/admin/interactives/[ilid]/lesson-review/...`
 
 ## Ficheros, imágenes y Qdrant
 
@@ -637,6 +638,7 @@ No editar a mano salvo que el flujo lo requiera explícitamente:
 - insights agent: `src/lib/server/insights-agent/`, `src/lib/server/db/schema/insightsAgent.ts`
 - staff agent: `src/lib/server/staff-agent/`, `src/lib/server/db/schema/agentWorkspace.ts`
 - lecciones: `src/lib/server/db/schema/lesson.ts`, rutas `lesson`
+- revisión pedagógica de lessons: `src/lib/server/lesson/LessonReviewService.ts`, rutas `lesson-review`
 - ficheros y RAG: `src/lib/server/files/`, `src/lib/server/qdrant/`, `src/lib/server/ai/services/RagService.ts`
 - notificaciones: `src/lib/server/notifications/`, `src/lib/server/notifier/`
 - analítica pedagógica: `src/lib/server/learning-evidence/`

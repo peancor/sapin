@@ -54,8 +54,16 @@
 			href: resolve(`/course/${cid}/admin/interactives/${ilid}/${isLesson ? 'lessonedit' : isAgent ? 'agentedit' : 'chatedit'}`),
 			icon: Edit
 		},
-		...(!isLesson
+		...(isLesson
 			? [
+					{
+						id: 'review',
+						label: 'Revisión',
+						href: resolve(`/course/${cid}/admin/interactives/${ilid}/lesson-review`),
+						icon: Eye
+					}
+				]
+			: [
 					{
 						id: 'review',
 						label: 'Revisión',
@@ -70,8 +78,7 @@
 						href: resolve(`/course/${cid}/admin/interactives/${ilid}/students`),
 						icon: Users
 					}
-				]
-			: [])
+				])
 	]);
 	const diagnosticItems = $derived([
 		...(!isAgent && !isLesson

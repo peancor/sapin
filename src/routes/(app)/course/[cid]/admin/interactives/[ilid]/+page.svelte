@@ -213,10 +213,25 @@
 							: isAgent
 								? 'Modificar la configuración del agente'
 								: 'Modificar la configuración del chat'}
-					</p>
-				</a>
+						</p>
+					</a>
 
 				{#if isLesson}
+					<a
+						href={resolve(`/course/${cid}/admin/interactives/${ilid}/lesson-review`)}
+						class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-green-300 hover:bg-green-50 dark:border-gray-700 dark:hover:border-green-800 dark:hover:bg-green-900/20"
+					>
+						<div
+							class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400"
+						>
+							<Eye class="h-5 w-5" />
+						</div>
+						<h3 class="font-medium text-gray-900 dark:text-white">Revisar lecciones</h3>
+						<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+							Leer intentos, checkpoints, ramas y bloques IA en modo solo revisión
+						</p>
+					</a>
+
 					<a
 						href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit/flow`)}
 						class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:hover:border-orange-800 dark:hover:bg-orange-900/20"

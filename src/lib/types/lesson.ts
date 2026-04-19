@@ -10,6 +10,12 @@ export type LessonSessionPolicy = (typeof lessonSessionPolicies)[number];
 export const lessonAttemptStatuses = ['active', 'completed', 'restarted', 'abandoned'] as const;
 export type LessonAttemptStatus = (typeof lessonAttemptStatuses)[number];
 
+export const lessonBlockStateStatuses = ['pending', 'active', 'completed', 'skipped'] as const;
+export type LessonBlockStateStatus = (typeof lessonBlockStateStatuses)[number];
+
+export const lessonBlockVisitStatuses = ['active', 'completed', 'skipped', 'abandoned'] as const;
+export type LessonBlockVisitStatus = (typeof lessonBlockVisitStatuses)[number];
+
 export const lessonConditionOperators = [
 	'equals',
 	'not_equals',
