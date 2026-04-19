@@ -114,13 +114,15 @@
 
 	function updateAgentInteractionMode(interactionMode: LessonAgentInteractionMode) {
 		if (workingBlock.kind !== 'agent') return;
+		const previousInteractionMode = workingBlock.agentConfig.interactionMode;
 		workingBlock.agentConfig.interactionMode = interactionMode;
 		workingBlock.agentConfig.executionTrigger =
 			interactionMode === 'none' ? 'on_enter' : 'on_user_submit';
 
 		if (interactionMode === 'none') {
+			workingBlock.agentConfig.autoStartOnEnter = true;
 			workingBlock.requiresResponse = false;
-		} else if (workingBlock.requiresResponse === undefined) {
+		} else if (workingBlock.requiresResponse === undefined || previousInteractionMode === 'none') {
 			workingBlock.requiresResponse = true;
 		}
 
@@ -135,6 +137,7 @@
 		if (preset === 'feedback') {
 			workingBlock.agentConfig.interactionMode = 'none';
 			workingBlock.agentConfig.executionTrigger = 'on_enter';
+			workingBlock.agentConfig.autoStartOnEnter = true;
 			workingBlock.requiresResponse = false;
 			workingBlock.agentConfig.promptTemplate =
 				'Actúa como tutor académico. Analiza el trabajo previo del estudiante y genera feedback claro, específico y accionable.';
@@ -148,6 +151,7 @@
 		if (preset === 'generated_content') {
 			workingBlock.agentConfig.interactionMode = 'none';
 			workingBlock.agentConfig.executionTrigger = 'on_enter';
+			workingBlock.agentConfig.autoStartOnEnter = true;
 			workingBlock.requiresResponse = false;
 			workingBlock.agentConfig.promptTemplate =
 				'Genera contenido breve y bien estructurado adaptado al progreso del estudiante y al contexto previo de la lesson.';
@@ -161,14 +165,15 @@
 		if (preset === 'summary') {
 			workingBlock.agentConfig.interactionMode = 'single_turn';
 			workingBlock.agentConfig.executionTrigger = 'on_user_submit';
+			workingBlock.agentConfig.autoStartOnEnter = true;
 			workingBlock.requiresResponse = true;
 			workingBlock.agentConfig.promptTemplate =
 				'Pide al estudiante una síntesis y después genera una respuesta breve que valide, corrija y complete sus ideas.';
 			workingBlock.agentConfig.systemPrompt =
 				'Responde como tutor académico, ayudando a sintetizar y afinar conceptos clave.';
-			workingBlock.agentConfig.initialAssistantMessage =
-				'Cuando quieras, comparte tu síntesis y la revisamos juntos.';
-			workingBlock.agentConfig.launchMessageTemplate = '';
+			workingBlock.agentConfig.initialAssistantMessage = '';
+			workingBlock.agentConfig.launchMessageTemplate =
+				'Abre el bloque con una pregunta breve que pida al alumno una síntesis de lo aprendido hasta ahora.';
 		}
 
 		markDirty();
@@ -1307,6 +1312,29 @@
 						</label>
 					</div>
 
+					{#if workingBlock.agentConfig.interactionMode !== 'none'}
+						<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+							<input
+								type="checkbox"
+								class="text-primary-600 h-4 w-4 rounded border-gray-300"
+								bind:checked={workingBlock.agentConfig.autoStartOnEnter}
+								onchange={markDirty}
+							/>
+							<div>
+								<p class="text-sm font-medium text-gray-900 dark:text-white">
+									Autoarrancar al entrar
+								</p>
+								<p class="text-xs text-gray-500 dark:text-gray-400">
+									La IA puede abrir el bloque automáticamente al entrar y después seguir con el modo interactivo configurado.
+								</p>
+							</div>
+						</label>
+					{:else}
+						<div class="rounded-2xl border border-sky-200 bg-sky-50/80 px-4 py-3 text-sm text-sky-900 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-100">
+							Este modo siempre se autoarranca al entrar porque no espera una intervención del alumno.
+						</div>
+					{/if}
+
 					<label class="block">
 						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 							>Prompt base</span
@@ -1392,6 +1420,9 @@
 									bind:value={workingBlock.agentConfig.initialAssistantMessage}
 									oninput={markDirty}
 								/>
+								<p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
+									Mensaje fijo opcional. Si además activas el autoarranque, este texto se mostrará antes de la primera respuesta generada.
+								</p>
 							</label>
 						</div>
 
@@ -1413,7 +1444,9 @@
 								</p>
 							</div>
 						</label>
-					{:else}
+					{/if}
+
+					{#if workingBlock.agentConfig.interactionMode === 'none' || workingBlock.agentConfig.autoStartOnEnter}
 						<label class="block">
 							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 								>Mensaje de lanzamiento interno</span
@@ -1424,7 +1457,7 @@
 								oninput={markDirty}
 							></textarea>
 							<p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
-								Este mensaje se envía al modelo al entrar en el bloque, pero no se renderiza como mensaje visible del estudiante.
+								Este mensaje se envía al modelo al entrar en el bloque, pero no se renderiza como mensaje visible del estudiante. Úsalo para indicar cómo debe arrancar la interacción.
 							</p>
 						</label>
 					{/if}

@@ -184,6 +184,7 @@ export interface LessonCheckBlock extends LessonBlockBase {
 export interface LessonAgentConfigInput {
 	interactionMode?: LessonAgentInteractionMode;
 	executionTrigger?: LessonAgentExecutionTrigger;
+	autoStartOnEnter?: boolean;
 	model?: string | null;
 	systemPrompt?: string | null;
 	promptTemplate: string;
@@ -199,6 +200,7 @@ export interface LessonAgentConfigInput {
 export interface LessonAgentConfig extends Omit<LessonAgentConfigInput, 'interactionMode' | 'executionTrigger'> {
 	interactionMode: LessonAgentInteractionMode;
 	executionTrigger: LessonAgentExecutionTrigger;
+	autoStartOnEnter: boolean;
 }
 
 export interface LessonAgentBlock extends LessonBlockBase {
@@ -272,6 +274,8 @@ export interface LessonBlockGraphSummary {
 export function normalizeLessonAgentConfig(input: LessonAgentConfigInput): LessonAgentConfig {
 	const interactionMode = input.interactionMode ?? 'single_turn';
 	const executionTrigger = input.executionTrigger ?? (interactionMode === 'none' ? 'on_enter' : 'on_user_submit');
+	const autoStartOnEnter =
+		interactionMode === 'none' ? true : (input.autoStartOnEnter ?? false);
 
 	return {
 		model: input.model ?? null,
@@ -285,7 +289,8 @@ export function normalizeLessonAgentConfig(input: LessonAgentConfigInput): Lesso
 		maxTurns: input.maxTurns ?? null,
 		outputSchema: input.outputSchema,
 		interactionMode,
-		executionTrigger
+		executionTrigger,
+		autoStartOnEnter
 	};
 }
 

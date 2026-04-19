@@ -62,6 +62,7 @@ function makeDefinition(): LessonDefinition {
 				agentConfig: {
 					interactionMode: 'single_turn',
 					executionTrigger: 'on_user_submit',
+					autoStartOnEnter: true,
 					promptTemplate: 'Ayuda'
 				}
 			},

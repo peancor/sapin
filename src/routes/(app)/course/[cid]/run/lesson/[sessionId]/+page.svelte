@@ -54,8 +54,24 @@
 	const checkFeedback = $derived(
 		typeof currentOutputs.feedback === 'string' ? currentOutputs.feedback : ''
 	);
+	const agentUserTurnCount = $derived(
+		data.currentChatMessages.filter((message) => message.type === 'USER').length
+	);
+	const agentAssistantTurnCount = $derived(
+		data.currentChatMessages.filter((message) => message.type === 'ASSISTANT').length
+	);
 	const hasAgentResponse = $derived(
 		data.currentChatMessages.some((message) => message.type === 'ASSISTANT')
+	);
+	const agentHasGeneratedResponse = $derived(
+		typeof currentOutputs.response === 'string'
+			? currentOutputs.response.trim().length > 0
+			: hasAgentResponse
+	);
+	const agentHasUserResponse = $derived(
+		agentUserTurnCount > 0 ||
+			currentOutputs.hasUserResponse === true ||
+			(typeof currentOutputs.userTurnCount === 'number' && currentOutputs.userTurnCount > 0)
 	);
 	const agentConfig = $derived(
 		data.resolvedCurrentBlock.kind === 'agent' ? data.resolvedCurrentBlock.agentConfig : null
@@ -67,11 +83,13 @@
 	);
 	const agentCanContinue = $derived(
 		data.currentBlock.kind === 'agent'
-			? hasAgentResponse || !(data.currentBlock.requiresResponse ?? true)
+			? (data.currentBlock.requiresResponse ?? true)
+				? agentHasUserResponse
+				: (!agentConfig?.autoStartOnEnter || agentHasGeneratedResponse)
 			: true
 	);
 	const agentInputLocked = $derived(
-		agentConfig?.interactionMode === 'single_turn' && hasAgentResponse
+		agentConfig?.interactionMode === 'single_turn' && agentUserTurnCount > 0
 	);
 	const checkCanRetry = $derived.by(() => {
 		if (data.currentBlock.kind !== 'check') return false;
@@ -529,11 +547,19 @@
 					</div>
 				{:else if !data.isReadOnly && agentInputLocked}
 					<div class="rounded-lg bg-primary-50 px-4 py-3 text-sm text-primary-800 dark:bg-primary-950/20 dark:text-primary-200">
-						Este bloque acepta una única intervención. Ya puedes continuar cuando revises la respuesta.
+						Este bloque acepta una única intervención del alumno. Ya puedes continuar cuando revises la respuesta.
 					</div>
 				{:else if agentConfig?.interactionMode === 'none'}
 					<div class="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:bg-sky-950/20 dark:text-sky-200">
 						Este bloque IA se ejecuta automáticamente al entrar y muestra directamente la respuesta generada.
+					</div>
+				{:else if agentConfig?.autoStartOnEnter && agentAssistantTurnCount === 0}
+					<div class="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:bg-sky-950/20 dark:text-sky-200">
+						La IA está preparando el arranque automático de este bloque.
+					</div>
+				{:else if agentConfig?.autoStartOnEnter}
+					<div class="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:bg-sky-950/20 dark:text-sky-200">
+						La conversación se abrió automáticamente al entrar en el bloque. Ahora puedes continuar respondiendo.
 					</div>
 				{/if}
 

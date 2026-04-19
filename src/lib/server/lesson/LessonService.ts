@@ -43,7 +43,11 @@ import type {
 	LessonOutputField,
 	LessonTransition
 } from '$lib/types/lesson';
-import { isLessonAgentInteractive, normalizeLessonCheckConfig } from '$lib/types/lesson';
+import {
+	isLessonAgentInteractive,
+	normalizeLessonAgentConfig,
+	normalizeLessonCheckConfig
+} from '$lib/types/lesson';
 import { and, desc, eq, max } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
@@ -650,7 +654,9 @@ export class LessonService {
 
 		const currentChatMessages =
 			currentBlock.kind === 'agent' && currentChatId
-				? await this.loadBlockChatMessages(currentChatId)
+				? (await this.loadBlockChatMessages(currentChatId)).filter(
+						(message) => message.type !== 'SYSTEM'
+					)
 				: [];
 
 		return {
@@ -723,13 +729,27 @@ export class LessonService {
 
 		if (
 			view.currentBlock.kind === 'agent' &&
-			(view.currentBlock.requiresResponse ?? true) &&
-			!normalizeOutputs(view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson)
-				.response
+			(view.currentBlock.requiresResponse ?? true)
+		) {
+			const conversationStats = await this.getAgentConversationStats(
+				view.currentVisit?.chatId ?? view.currentBlockState?.chatId
+			);
+			if (conversationStats.userTurns === 0) {
+				throw new LessonServiceError(
+					400,
+					'Este bloque IA necesita al menos una intervención del alumno antes de continuar.'
+				);
+			}
+		}
+
+		if (
+			view.currentBlock.kind === 'agent' &&
+			view.currentBlock.agentConfig.autoStartOnEnter &&
+			!normalizeOutputs(view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson).response
 		) {
 			throw new LessonServiceError(
 				400,
-				'Este bloque IA necesita al menos una respuesta antes de continuar.'
+				'Este bloque IA todavía no ha generado su arranque automático. Inténtalo de nuevo en unos segundos.'
 			);
 		}
 
@@ -1006,13 +1026,8 @@ export class LessonService {
 		const maxTurns = view.currentBlock.agentConfig.maxTurns ?? null;
 
 		if (maxTurns && blockState.chatId) {
-			const records = await db
-				.select()
-				.from(message)
-				.where(eq(message.chatId, blockState.chatId))
-				.all();
-			const userTurns = records.filter((item) => item.type === 'USER').length;
-			if (userTurns >= maxTurns) {
+			const conversationStats = await this.getAgentConversationStats(blockState.chatId);
+			if (conversationStats.userTurns >= maxTurns) {
 				throw new LessonServiceError(400, 'Este bloque ya alcanzó el máximo de turnos permitidos.');
 			}
 		}
@@ -1037,6 +1052,8 @@ export class LessonService {
 			assistantMessage,
 			userMessage,
 			messages: updatedModelMessages,
+			currentOutputs,
+			autoStarted: false,
 			context: {
 				userId: view.session.userId,
 				courseId: view.session.courseId,
@@ -1589,6 +1606,8 @@ export class LessonService {
 		assistantMessage: string;
 		userMessage: string;
 		messages: ModelMessage[];
+		currentOutputs: JsonRecord;
+		autoStarted: boolean;
 		context: {
 			userId?: string;
 			courseId?: string;
@@ -1596,11 +1615,20 @@ export class LessonService {
 			chatId?: string;
 		};
 	}): Promise<JsonRecord> {
+		const conversationStats = this.countAgentConversationStats(input.messages);
 		const baseOutputs: JsonRecord = {
 			response: input.assistantMessage,
-			lastUserMessage: input.userMessage,
+			lastUserMessage:
+				input.userMessage || (typeof input.currentOutputs.lastUserMessage === 'string'
+					? input.currentOutputs.lastUserMessage
+					: ''),
 			interactionMode: input.block.agentConfig.interactionMode,
-			executionTrigger: input.block.agentConfig.executionTrigger
+			executionTrigger: input.block.agentConfig.executionTrigger,
+			autoStartOnEnter: input.block.agentConfig.autoStartOnEnter,
+			hasUserResponse: conversationStats.userTurns > 0,
+			userTurnCount: conversationStats.userTurns,
+			assistantTurnCount: conversationStats.assistantTurns,
+			autoStarted: Boolean(input.currentOutputs.autoStarted) || input.autoStarted
 		};
 		const outputSchema = input.block.agentConfig.outputSchema ?? [];
 
@@ -1913,10 +1941,7 @@ export class LessonService {
 	}
 
 	private static shouldAutoExecuteAgentBlock(block: LessonAgentBlock): boolean {
-		return (
-			block.agentConfig.interactionMode === 'none' &&
-			block.agentConfig.executionTrigger === 'on_enter'
-		);
+		return block.agentConfig.autoStartOnEnter;
 	}
 
 	private static async executeAgentOnEnter(view: LessonSessionView): Promise<void> {
@@ -1958,6 +1983,8 @@ export class LessonService {
 			assistantMessage,
 			userMessage: '',
 			messages: [...baseMessages, { role: 'assistant' as const, content: assistantMessage }],
+			currentOutputs,
+			autoStarted: true,
 			context: {
 				userId: view.session.userId,
 				courseId: view.session.courseId,
@@ -2485,6 +2512,30 @@ export class LessonService {
 		}));
 	}
 
+	private static countAgentConversationStats(
+		messages: Array<Pick<ModelMessage, 'role'>>
+	): { userTurns: number; assistantTurns: number } {
+		return messages.reduce(
+			(stats, message) => {
+				if (message.role === 'user') stats.userTurns += 1;
+				if (message.role === 'assistant') stats.assistantTurns += 1;
+				return stats;
+			},
+			{ userTurns: 0, assistantTurns: 0 }
+		);
+	}
+
+	private static async getAgentConversationStats(
+		chatId: string | null | undefined
+	): Promise<{ userTurns: number; assistantTurns: number }> {
+		if (!chatId) {
+			return { userTurns: 0, assistantTurns: 0 };
+		}
+
+		const messages = await this.loadModelMessages(chatId);
+		return this.countAgentConversationStats(messages);
+	}
+
 	private static async resolveLessonModel(block: LessonAgentBlock): Promise<string> {
 		const configuredModel = block.agentConfig.model?.trim();
 		if (configuredModel) {
@@ -2657,6 +2708,7 @@ export class LessonService {
 				agentConfig: {
 					interactionMode: 'single_turn',
 					executionTrigger: 'on_user_submit',
+					autoStartOnEnter: false,
 					promptTemplate: '',
 					systemPrompt: '',
 					placeholder: 'Escribe tu respuesta',
@@ -2872,17 +2924,67 @@ export class LessonService {
 					namespace: 'outputs',
 					availableWhen: 'always'
 				},
-				{
-					path: `blocks.${block.id}.outputs.executionTrigger`,
-					key: 'executionTrigger',
-					label: `${block.title} · disparo`,
-					description: 'Momento en el que se ejecuta el bloque IA.',
-					type: 'string',
-					source: 'system',
-					namespace: 'outputs',
-					availableWhen: 'always'
-				}
-			);
+			{
+				path: `blocks.${block.id}.outputs.executionTrigger`,
+				key: 'executionTrigger',
+				label: `${block.title} · disparo`,
+				description: 'Momento en el que se ejecuta el bloque IA.',
+				type: 'string',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'always'
+			},
+			{
+				path: `blocks.${block.id}.outputs.autoStartOnEnter`,
+				key: 'autoStartOnEnter',
+				label: `${block.title} · autoarranque`,
+				description: 'Indica si el bloque IA se inicia automáticamente al entrar.',
+				type: 'boolean',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'always'
+			},
+			{
+				path: `blocks.${block.id}.outputs.hasUserResponse`,
+				key: 'hasUserResponse',
+				label: `${block.title} · respondió el alumno`,
+				description: 'Indica si ya existe al menos una intervención del alumno en este bloque.',
+				type: 'boolean',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.userTurnCount`,
+				key: 'userTurnCount',
+				label: `${block.title} · turnos del alumno`,
+				description: 'Número de mensajes enviados por el alumno en este bloque.',
+				type: 'number',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.assistantTurnCount`,
+				key: 'assistantTurnCount',
+				label: `${block.title} · turnos IA`,
+				description: 'Número de mensajes visibles emitidos por la IA en este bloque.',
+				type: 'number',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.autoStarted`,
+				key: 'autoStarted',
+				label: `${block.title} · autoarrancado`,
+				description: 'Indica si esta visita ya ejecutó el arranque automático del bloque.',
+				type: 'boolean',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			}
+		);
 		}
 
 		if (block.kind === 'end') {
@@ -3052,6 +3154,19 @@ export class LessonService {
 						`La opción "${option.id}" del bloque "${block.id}" no tiene bloque de destino.`
 					);
 				}
+			}
+		}
+
+		if (block.kind === 'agent') {
+			const normalizedAgentConfig = normalizeLessonAgentConfig(block.agentConfig);
+			if (
+				normalizedAgentConfig.interactionMode === 'none' &&
+				(block.requiresResponse ?? false)
+			) {
+				throw new LessonServiceError(
+					400,
+					`El bloque IA "${block.id}" no puede exigir respuesta del alumno si no admite interacción.`
+				);
 			}
 		}
 	}

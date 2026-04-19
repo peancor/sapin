@@ -10,7 +10,11 @@ import type {
 	LessonDefinition,
 	LessonOutputField
 } from '../../types/lesson.ts';
-import { isValidLessonAgentConfig, normalizeLessonCheckConfig } from '../../types/lesson.ts';
+import {
+	isValidLessonAgentConfig,
+	normalizeLessonAgentConfig,
+	normalizeLessonCheckConfig
+} from '../../types/lesson.ts';
 import { LessonServiceError } from './LessonServiceError.ts';
 
 export interface LessonReferenceGroups {
@@ -122,6 +126,7 @@ const lessonCheckConfigSchema = z.object({
 const lessonAgentConfigSchema = z.object({
 	interactionMode: z.enum(['single_turn', 'multi_turn', 'none']),
 	executionTrigger: z.enum(['on_user_submit', 'on_enter']),
+	autoStartOnEnter: z.boolean().optional(),
 	model: z.string().nullable().optional(),
 	systemPrompt: z.string().nullable().optional(),
 	promptTemplate: z.string(),
@@ -703,6 +708,56 @@ export function buildLessonBlockContract(block: LessonBlock): LessonBlockContrac
 				source: 'system',
 				namespace: 'outputs',
 				availableWhen: 'always'
+			},
+			{
+				path: `blocks.${block.id}.outputs.autoStartOnEnter`,
+				key: 'autoStartOnEnter',
+				label: `${block.title} · autoarranque`,
+				description: 'Indica si el bloque IA se inicia automáticamente al entrar.',
+				type: 'boolean',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'always'
+			},
+			{
+				path: `blocks.${block.id}.outputs.hasUserResponse`,
+				key: 'hasUserResponse',
+				label: `${block.title} · respondió el alumno`,
+				description: 'Indica si ya existe al menos una intervención del alumno en este bloque.',
+				type: 'boolean',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.userTurnCount`,
+				key: 'userTurnCount',
+				label: `${block.title} · turnos del alumno`,
+				description: 'Número de mensajes enviados por el alumno en este bloque.',
+				type: 'integer',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.assistantTurnCount`,
+				key: 'assistantTurnCount',
+				label: `${block.title} · turnos IA`,
+				description: 'Número de mensajes visibles emitidos por la IA en este bloque.',
+				type: 'integer',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.autoStarted`,
+				key: 'autoStarted',
+				label: `${block.title} · autoarrancado`,
+				description: 'Indica si esta visita ya ejecutó el arranque automático del bloque.',
+				type: 'boolean',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
 			}
 		);
 
@@ -750,9 +805,14 @@ function normalizeLessonDefinition(definition: LessonDefinition): LessonDefiniti
 
 	nextDefinition.blocks = nextDefinition.blocks.map((block) => {
 		if (block.kind === 'agent') {
+			const normalizedAgentConfig = normalizeLessonAgentConfig(block.agentConfig);
 			return {
 				...block,
-				requiresResponse: block.agentConfig.interactionMode === 'none' ? false : block.requiresResponse
+				agentConfig: normalizedAgentConfig,
+				requiresResponse:
+					normalizedAgentConfig.interactionMode === 'none'
+						? false
+						: (block.requiresResponse ?? true)
 			};
 		}
 
@@ -987,18 +1047,19 @@ function assertBlockConfiguration(block: LessonBlock): void {
 	}
 
 	if (block.kind === 'agent') {
+		const normalizedAgentConfig = normalizeLessonAgentConfig(block.agentConfig);
 		const duplicatedKeys = (block.agentConfig.outputSchema ?? [])
 			.map((field) => field.key)
 			.filter((key, index, list) => list.indexOf(key) !== index);
 
-		if (!isValidLessonAgentConfig(block.agentConfig)) {
+		if (!isValidLessonAgentConfig(normalizedAgentConfig)) {
 			throw new LessonServiceError(
 				400,
 				`El bloque "${block.id}" usa una combinacion de interaccion y disparo no soportada en esta version.`
 			);
 		}
 
-		if (block.agentConfig.interactionMode === 'none' && block.requiresResponse) {
+		if (normalizedAgentConfig.interactionMode === 'none' && block.requiresResponse) {
 			throw new LessonServiceError(
 				400,
 				`El bloque "${block.id}" no puede exigir respuesta del alumno si se ejecuta automaticamente al entrar.`

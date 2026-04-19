@@ -168,6 +168,7 @@ test('validateDefinition stitches orphan linear blocks before the end node', () 
 				agentConfig: {
 					interactionMode: 'single_turn',
 					executionTrigger: 'on_user_submit',
+					autoStartOnEnter: false,
 					promptTemplate: 'Continua'
 				}
 			},
@@ -228,6 +229,7 @@ test('reference groups expose state and outputs for content, choice and agent bl
 				agentConfig: {
 					interactionMode: 'single_turn',
 					executionTrigger: 'on_user_submit',
+					autoStartOnEnter: true,
 					promptTemplate: 'Usa {{blocks.choice.outputs.route}} y {{session.currentVisitId}}',
 					outputSchema: [{ key: 'mastery', type: 'number', description: 'Nivel de dominio' }]
 				}
@@ -262,6 +264,12 @@ test('reference groups expose state and outputs for content, choice and agent bl
 	);
 	assert.ok(
 		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.executionTrigger')
+	);
+	assert.ok(
+		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.autoStartOnEnter')
+	);
+	assert.ok(
+		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.hasUserResponse')
 	);
 	assert.ok(agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.mastery'));
 	assert.ok(agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.rubric'));
@@ -427,6 +435,7 @@ test('validateDefinition accepts future block references but rejects missing tar
 				agentConfig: {
 					interactionMode: 'single_turn',
 					executionTrigger: 'on_user_submit',
+					autoStartOnEnter: false,
 					promptTemplate: 'Sesion {{session.currentVisitId}}'
 				}
 			},
@@ -469,7 +478,37 @@ test('validateDefinition accepts future block references but rejects missing tar
 	);
 });
 
-test('validateDefinition rejects unsupported agent interaction combinations', () => {
+test('validateDefinition accepts auto start on enter for interactive agent blocks', () => {
+	const validAgentDefinition: LessonDefinition = {
+		version: '2',
+		entryBlockId: 'agent',
+		blocks: [
+			{
+				id: 'agent',
+				kind: 'agent',
+				title: 'Tutor',
+				body: 'Dialoga',
+				next: 'end',
+				agentConfig: {
+					interactionMode: 'multi_turn',
+					executionTrigger: 'on_user_submit',
+					autoStartOnEnter: true,
+					promptTemplate: 'Abre la conversación y continúa con mini chat'
+				}
+			},
+			{
+				id: 'end',
+				kind: 'end',
+				title: 'Fin',
+				body: 'Cierre'
+			}
+		]
+	};
+
+	assert.doesNotThrow(() => validateLessonDefinition(validAgentDefinition));
+});
+
+test('validateDefinition rejects on_enter as the primary trigger for interactive agent blocks', () => {
 	const invalidAgentDefinition: LessonDefinition = {
 		version: '2',
 		entryBlockId: 'agent',
@@ -483,6 +522,7 @@ test('validateDefinition rejects unsupported agent interaction combinations', ()
 				agentConfig: {
 					interactionMode: 'multi_turn',
 					executionTrigger: 'on_enter',
+					autoStartOnEnter: true,
 					promptTemplate: 'No valido'
 				}
 			},

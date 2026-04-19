@@ -38,7 +38,11 @@ export function summarizeLessonBlock(block: LessonBlock): string {
 	}
 
 	if (block.kind === 'agent') {
-		return `${getLessonAgentInteractionLabel(block.agentConfig)} · ${getLessonAgentExecutionTriggerLabel(block.agentConfig)}${block.next ? ` · siguiente ${block.next}` : ''}`;
+		const autoStartLabel =
+			block.agentConfig.autoStartOnEnter && block.agentConfig.interactionMode !== 'none'
+				? ' · auto al entrar'
+				: '';
+		return `${getLessonAgentInteractionLabel(block.agentConfig)} · ${getLessonAgentExecutionTriggerLabel(block.agentConfig)}${autoStartLabel}${block.next ? ` · siguiente ${block.next}` : ''}`;
 	}
 
 	if (block.kind === 'check') {
