@@ -2,6 +2,77 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
 
+export const GET: RequestHandler = async ({ params, url, locals }) => {
+	const user = locals.user;
+	if (!user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
+	try {
+		const autoStart = url.searchParams.get('autoStart') === 'true';
+		const message = url.searchParams.get('message') ?? undefined;
+		if (!autoStart && !message?.trim()) {
+			return createLessonSseError('Missing message');
+		}
+
+		const streamSession = await LessonService.createAgentResponseStream({
+			sessionId: params.sessionId,
+			blockId: params.blockId,
+			message,
+			autoStart,
+			userId: user.id,
+			userRoleLevel: user.highestRoleLevel,
+			interactiveLearningId: params.ilid
+		});
+
+		const encoder = new TextEncoder();
+		let assistantMessage = '';
+
+		const stream = new ReadableStream({
+			async start(controller) {
+				try {
+					controller.enqueue(encoder.encode('data: {"text":""}\n\n'));
+
+					for await (const chunk of streamSession.textStream) {
+						assistantMessage += chunk;
+						controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`));
+					}
+
+					await streamSession.complete(assistantMessage);
+					controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+				} catch (error) {
+					const message =
+						error instanceof LessonServiceError
+							? error.message
+							: error instanceof Error
+								? error.message
+								: 'Error procesando la respuesta del bloque IA';
+					controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`));
+					controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+				} finally {
+					controller.close();
+				}
+			}
+		});
+
+		return new Response(stream, {
+			headers: {
+				'Content-Type': 'text/event-stream',
+				'Cache-Control': 'no-cache',
+				Connection: 'keep-alive',
+				'X-Accel-Buffering': 'no'
+			}
+		});
+	} catch (error) {
+		if (error instanceof LessonServiceError) {
+			return createLessonSseError(error.message);
+		}
+
+		console.error('[lesson] agent stream error', error);
+		return createLessonSseError('Internal server error');
+	}
+};
+
 export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const user = locals.user;
 	if (!user) {
@@ -37,3 +108,22 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		return json({ error: 'Internal server error' }, { status: 500 });
 	}
 };
+
+function createLessonSseError(message: string): Response {
+	const encoder = new TextEncoder();
+	const stream = new ReadableStream({
+		start(controller) {
+			controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`));
+			controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+			controller.close();
+		}
+	});
+
+	return new Response(stream, {
+		headers: {
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache',
+			Connection: 'keep-alive'
+		}
+	});
+}

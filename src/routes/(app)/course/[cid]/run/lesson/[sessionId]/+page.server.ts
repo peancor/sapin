@@ -17,7 +17,8 @@ export const load = (async ({ params, locals }) => {
 	const lessonView = await LessonService.getSessionView({
 		sessionId: params.sessionId,
 		userId: user.id,
-		userRoleLevel: user.highestRoleLevel
+		userRoleLevel: user.highestRoleLevel,
+		skipAutoAgentExecution: true
 	});
 
 	if (lessonView.session.courseId !== params.cid) {

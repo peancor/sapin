@@ -1,17 +1,32 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto, invalidateAll } from '$app/navigation';
+	import LessonAgentChat from '$lib/components/lesson/LessonAgentChat.svelte';
 	import { renderMarkdownMath } from '$lib/utils';
-	import { ArrowLeft, RotateCcw, SendHorizontal } from 'lucide-svelte';
+	import { ArrowLeft, RotateCcw } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 
+	interface AgentRuntimeState {
+		userTurnCount: number;
+		assistantTurnCount: number;
+		hasUserResponse: boolean;
+		hasGeneratedResponse: boolean;
+		isStreaming: boolean;
+	}
+
 	let pending = $state(false);
 	let errorMessage = $state('');
-	let agentInput = $state('');
 	let checkOptionIds = $state<string[]>([]);
 	let checkNumericValue = $state('');
 	let checkTextValue = $state('');
+	let agentRuntimeState = $state<AgentRuntimeState>({
+		userTurnCount: 0,
+		assistantTurnCount: 0,
+		hasUserResponse: false,
+		hasGeneratedResponse: false,
+		isStreaming: false
+	});
 
 	const resolvedChoiceBlock = $derived(
 		data.resolvedCurrentBlock.kind === 'choice' ? data.resolvedCurrentBlock : null
@@ -54,28 +69,12 @@
 	const checkFeedback = $derived(
 		typeof currentOutputs.feedback === 'string' ? currentOutputs.feedback : ''
 	);
-	const agentUserTurnCount = $derived(
-		data.currentChatMessages.filter((message) => message.type === 'USER').length
-	);
-	const agentAssistantTurnCount = $derived(
-		data.currentChatMessages.filter((message) => message.type === 'ASSISTANT').length
-	);
-	const hasAgentResponse = $derived(
-		data.currentChatMessages.some((message) => message.type === 'ASSISTANT')
-	);
-	const agentHasGeneratedResponse = $derived(
-		typeof currentOutputs.response === 'string'
-			? currentOutputs.response.trim().length > 0
-			: hasAgentResponse
-	);
-	const agentHasUserResponse = $derived(
-		agentUserTurnCount > 0 ||
-			currentOutputs.hasUserResponse === true ||
-			(typeof currentOutputs.userTurnCount === 'number' && currentOutputs.userTurnCount > 0)
-	);
 	const agentConfig = $derived(
 		data.resolvedCurrentBlock.kind === 'agent' ? data.resolvedCurrentBlock.agentConfig : null
 	);
+	const agentUserTurnCount = $derived(agentRuntimeState.userTurnCount);
+	const agentHasGeneratedResponse = $derived(agentRuntimeState.hasGeneratedResponse);
+	const agentHasUserResponse = $derived(agentRuntimeState.hasUserResponse);
 	const agentAllowsInput = $derived(
 		agentConfig !== null &&
 			agentConfig.interactionMode !== 'none' &&
@@ -87,9 +86,6 @@
 				? agentHasUserResponse
 				: (!agentConfig?.autoStartOnEnter || agentHasGeneratedResponse)
 			: true
-	);
-	const agentInputLocked = $derived(
-		agentConfig?.interactionMode === 'single_turn' && agentUserTurnCount > 0
 	);
 	const checkCanRetry = $derived.by(() => {
 		if (data.currentBlock.kind !== 'check') return false;
@@ -114,6 +110,42 @@
 		checkNumericValue =
 			typeof outputs.answerNumber === 'number' ? String(outputs.answerNumber) : '';
 		checkTextValue = typeof outputs.answerText === 'string' ? outputs.answerText : '';
+	});
+
+	$effect(() => {
+		if (data.currentBlock.kind !== 'agent') {
+			agentRuntimeState = {
+				userTurnCount: 0,
+				assistantTurnCount: 0,
+				hasUserResponse: false,
+				hasGeneratedResponse: false,
+				isStreaming: false
+			};
+			return;
+		}
+
+		const serverUserTurnCount = data.currentChatMessages.filter(
+			(message) => message.type === 'USER'
+		).length;
+		const serverAssistantTurnCount = data.currentChatMessages.filter(
+			(message) => message.type === 'ASSISTANT'
+		).length;
+		const serverHasGeneratedResponse =
+			typeof currentOutputs.response === 'string'
+				? currentOutputs.response.trim().length > 0
+				: data.currentChatMessages.some((message) => message.type === 'ASSISTANT');
+		const serverHasUserResponse =
+			serverUserTurnCount > 0 ||
+			currentOutputs.hasUserResponse === true ||
+			(typeof currentOutputs.userTurnCount === 'number' && currentOutputs.userTurnCount > 0);
+
+		agentRuntimeState = {
+			userTurnCount: serverUserTurnCount,
+			assistantTurnCount: serverAssistantTurnCount,
+			hasUserResponse: serverHasUserResponse,
+			hasGeneratedResponse: serverHasGeneratedResponse,
+			isStreaming: false
+		};
 	});
 
 	async function handleAction(callback: () => Promise<void>) {
@@ -159,18 +191,6 @@
 			await postJson(
 				`/api/lesson/${data.activity.id}/session/${data.session.id}/block/${data.currentBlock.id}/choice`,
 				{ optionId }
-			);
-		});
-	}
-
-	async function sendAgentMessage() {
-		if (!agentInput.trim()) return;
-		const message = agentInput;
-		agentInput = '';
-		await handleAction(async () => {
-			await postJson(
-				`/api/lesson/${data.activity.id}/session/${data.session.id}/block/${data.currentBlock.id}/agent`,
-				{ message }
 			);
 		});
 	}
@@ -507,67 +527,28 @@
 			</div>
 		{:else if data.currentBlock.kind === 'agent'}
 			<div class="mt-6 space-y-4">
-				<div class="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950/30">
-					{#if data.currentChatMessages.length === 0}
-						<p class="text-sm text-gray-500 dark:text-gray-400">
-							{agentConfig?.interactionMode === 'none'
-								? 'La respuesta automática aparecerá aquí en cuanto el bloque se inicialice.'
-								: 'Todavía no hay mensajes en este bloque.'}
-						</p>
-					{:else}
-						{#each data.currentChatMessages as message (message.id)}
-							<div class="rounded-lg px-4 py-3 {message.type === 'USER'
-								? 'ml-10 bg-primary-600 text-white'
-								: message.type === 'ASSISTANT'
-									? 'mr-10 bg-white text-gray-900 dark:bg-gray-800 dark:text-white'
-									: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200'}">
-								<div class="prose max-w-none dark:prose-invert">
-									{@html renderMarkdownMath(message.content)}
-								</div>
-							</div>
-						{/each}
-					{/if}
-				</div>
-
-				{#if !data.isReadOnly && agentAllowsInput && !agentInputLocked}
-					<div class="flex gap-3">
-						<textarea
-							class="min-h-24 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-							bind:value={agentInput}
-							placeholder={agentConfig?.placeholder || 'Escribe tu respuesta'}
-						></textarea>
-						<button
-							class="inline-flex h-fit items-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
-							onclick={sendAgentMessage}
-							disabled={pending || !agentInput.trim()}
-						>
-							<SendHorizontal class="h-4 w-4" />
-							{agentConfig?.submitLabel || 'Enviar'}
-						</button>
-					</div>
-				{:else if !data.isReadOnly && agentInputLocked}
-					<div class="rounded-lg bg-primary-50 px-4 py-3 text-sm text-primary-800 dark:bg-primary-950/20 dark:text-primary-200">
-						Este bloque acepta una única intervención del alumno. Ya puedes continuar cuando revises la respuesta.
-					</div>
-				{:else if agentConfig?.interactionMode === 'none'}
-					<div class="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:bg-sky-950/20 dark:text-sky-200">
-						Este bloque IA se ejecuta automáticamente al entrar y muestra directamente la respuesta generada.
-					</div>
-				{:else if agentConfig?.autoStartOnEnter && agentAssistantTurnCount === 0}
-					<div class="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:bg-sky-950/20 dark:text-sky-200">
-						La IA está preparando el arranque automático de este bloque.
-					</div>
-				{:else if agentConfig?.autoStartOnEnter}
-					<div class="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:bg-sky-950/20 dark:text-sky-200">
-						La conversación se abrió automáticamente al entrar en el bloque. Ahora puedes continuar respondiendo.
-					</div>
+				{#if agentConfig}
+					<LessonAgentChat
+						initialMessages={data.currentChatMessages}
+						activityId={data.activity.id}
+						sessionId={data.session.id}
+						blockId={data.currentBlock.id}
+						visitId={data.currentVisitId}
+						{agentConfig}
+						canInteract={agentAllowsInput || agentConfig.interactionMode === 'none'}
+						isReadOnly={data.isReadOnly}
+						initialHasGeneratedResponse={agentHasGeneratedResponse}
+						onStateChange={(state) => {
+							agentRuntimeState = state;
+						}}
+					/>
 				{/if}
 
 				<div class="flex justify-end">
 					<button
 						class="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
 						onclick={advance}
-						disabled={pending || data.isReadOnly || !agentCanContinue}
+						disabled={pending || data.isReadOnly || agentRuntimeState.isStreaming || !agentCanContinue}
 					>
 						{agentConfig?.continueLabel || 'Continuar'}
 					</button>

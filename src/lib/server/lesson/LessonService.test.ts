@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { LessonCheckBlock, LessonDefinition } from '../../types/lesson.ts';
+import type { LessonAgentBlock, LessonCheckBlock, LessonDefinition } from '../../types/lesson.ts';
 import { normalizeLessonCheckConfig } from '../../types/lesson.ts';
 import {
 	getAvailableLessonReferenceGroups,
@@ -412,6 +412,61 @@ test('evaluateCheckSubmission scores multiple choice and closes after exhaustion
 	assert.equal(secondResult.completed, true);
 	assert.equal(secondResult.outputs.attemptCount, 2);
 	assert.equal(secondResult.outputs.attemptsRemaining, 0);
+});
+
+test('extractAgentOutputs preserves auto-start semantics without counting hidden launch messages', async () => {
+	const block: LessonAgentBlock = {
+		id: 'agent',
+		kind: 'agent',
+		title: 'Tutor',
+		body: 'Dialoga',
+		next: 'end',
+		agentConfig: {
+			interactionMode: 'single_turn',
+			executionTrigger: 'on_user_submit',
+			autoStartOnEnter: true,
+			promptTemplate: 'Abre la conversación',
+			maxTurns: null,
+			model: null,
+			systemPrompt: null,
+			outputSchema: []
+		}
+	};
+
+	const outputs = await (
+		LessonService as unknown as {
+			extractAgentOutputs(input: {
+				block: LessonAgentBlock;
+				modelName: string;
+				assistantMessage: string;
+				userMessage: string;
+				messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+				currentOutputs: Record<string, unknown>;
+				autoStarted: boolean;
+				context: Record<string, unknown>;
+			}): Promise<Record<string, unknown>>;
+		}
+	).extractAgentOutputs({
+		block,
+		modelName: 'mock-model',
+		assistantMessage: 'Pregunta inicial',
+		userMessage: '',
+		messages: [
+			{ role: 'system', content: 'Instrucciones' },
+			{ role: 'assistant', content: 'Pregunta inicial' }
+		],
+		currentOutputs: {},
+		autoStarted: true,
+		context: {}
+	});
+
+	assert.equal(outputs.response, 'Pregunta inicial');
+	assert.equal(outputs.lastUserMessage, '');
+	assert.equal(outputs.hasUserResponse, false);
+	assert.equal(outputs.userTurnCount, 0);
+	assert.equal(outputs.assistantTurnCount, 1);
+	assert.equal(outputs.autoStarted, true);
+	assert.equal(outputs.autoStartOnEnter, true);
 });
 
 test('validateDefinition accepts future block references but rejects missing targets in templates', () => {

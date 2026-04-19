@@ -157,6 +157,19 @@ interface LessonTemplateContext {
 	blocks: Record<string, { state: JsonRecord; outputs: JsonRecord }>;
 }
 
+type LessonAgentStreamResult = Awaited<ReturnType<typeof AIUtils.streamTextFromMessages>>;
+
+interface PreparedLessonAgentExecution {
+	view: LessonSessionView;
+	blockVisit: InteractiveLessonBlockVisit;
+	modelName: string;
+	currentOutputs: JsonRecord;
+	generationMessages: ModelMessage[];
+	outputMessagesBase: ModelMessage[];
+	userMessage: string;
+	autoStarted: boolean;
+}
+
 function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
 	if (!value) return fallback;
 
@@ -982,21 +995,243 @@ export class LessonService {
 		assistantMessage: string;
 		outputs: JsonRecord;
 	}> {
+		const prepared = await this.prepareManualAgentExecution(input);
+		const assistantMessage = await AIUtils.generateTextFromMessages(
+			prepared.generationMessages,
+			prepared.modelName,
+			this.buildAgentExecutionContext(prepared.view, prepared.blockVisit.chatId!)
+		);
+
+		return this.completePreparedAgentExecution(prepared, assistantMessage);
+	}
+
+	static async createAgentResponseStream(input: {
+		sessionId: string;
+		blockId: string;
+		userId: string;
+		userRoleLevel: number;
+		interactiveLearningId?: string;
+		message?: string;
+		autoStart?: boolean;
+	}): Promise<{
+		textStream: LessonAgentStreamResult['textStream'];
+		complete: (assistantMessage: string) => Promise<{
+			session: InteractiveLessonSession;
+			assistantMessage: string;
+			outputs: JsonRecord;
+		}>;
+	}> {
+		const prepared = input.autoStart
+			? await this.prepareAutoAgentExecution(input)
+			: await this.prepareManualAgentExecution({
+					...input,
+					message: input.message ?? ''
+				});
+		const streamResult = await AIUtils.streamTextFromMessages(
+			prepared.generationMessages,
+			prepared.modelName,
+			this.buildAgentExecutionContext(prepared.view, prepared.blockVisit.chatId!)
+		);
+
+		return {
+			textStream: streamResult.textStream,
+			complete: async (assistantMessage: string) =>
+				this.completePreparedAgentExecution(prepared, assistantMessage)
+		};
+	}
+
+	private static async prepareManualAgentExecution(input: {
+		sessionId: string;
+		blockId: string;
+		message: string;
+		userId: string;
+		userRoleLevel: number;
+		interactiveLearningId?: string;
+	}): Promise<PreparedLessonAgentExecution> {
 		const userMessage = input.message.trim();
 		if (!userMessage) {
 			throw new LessonServiceError(400, 'El mensaje no puede estar vacío.');
 		}
 
-		const view = await this.getSessionView(input);
+		const view = await this.getSessionView({
+			...input,
+			skipAutoAgentExecution: true
+		});
 
+		this.assertAgentBlockInteractionAccess(view, input.blockId);
+		this.assertManualAgentExecutionAllowed(view);
+
+		const currentOutputs = normalizeOutputs(
+			view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson
+		);
+		if (view.currentBlock.agentConfig.autoStartOnEnter && !currentOutputs.response) {
+			throw new LessonServiceError(
+				409,
+				'Este bloque IA debe completar antes su arranque automático.'
+			);
+		}
+
+		await this.assertManualAgentTurnCapacity(view);
+
+		const blockVisit = await this.ensureAgentBlockChat(view);
+		const modelName = await this.resolveLessonModel(view.currentBlock);
+
+		await this.assertAgentTurnLimit(view.currentBlock, blockVisit.chatId);
+		await AIUtils.saveMessage(blockVisit.chatId!, userMessage, 'USER');
+		const generationMessages = await this.loadModelMessages(blockVisit.chatId!);
+
+		return {
+			view,
+			blockVisit,
+			modelName,
+			currentOutputs,
+			generationMessages,
+			outputMessagesBase: generationMessages,
+			userMessage,
+			autoStarted: false
+		};
+	}
+
+	private static async prepareAutoAgentExecution(input: {
+		sessionId: string;
+		blockId: string;
+		userId: string;
+		userRoleLevel: number;
+		interactiveLearningId?: string;
+	}): Promise<PreparedLessonAgentExecution> {
+		const view = await this.getSessionView({
+			...input,
+			skipAutoAgentExecution: true
+		});
+
+		this.assertAgentBlockInteractionAccess(view, input.blockId);
+		this.assertAutoAgentExecutionAllowed(view);
+
+		const currentOutputs = normalizeOutputs(
+			view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson
+		);
+		const blockVisit = await this.ensureAgentBlockChat(view);
+		const modelName = await this.resolveLessonModel(view.currentBlock);
+		const outputMessagesBase = await this.loadModelMessages(blockVisit.chatId!);
+		const launchMessage = await this.buildAutoAgentLaunchMessage(view);
+
+		return {
+			view,
+			blockVisit,
+			modelName,
+			currentOutputs,
+			generationMessages: [
+				...outputMessagesBase,
+				{ role: 'user' as const, content: launchMessage }
+			],
+			outputMessagesBase,
+			userMessage: '',
+			autoStarted: true
+		};
+	}
+
+	private static async completePreparedAgentExecution(
+		prepared: PreparedLessonAgentExecution,
+		assistantMessage: string
+	): Promise<{
+		session: InteractiveLessonSession;
+		assistantMessage: string;
+		outputs: JsonRecord;
+	}> {
+		await AIUtils.saveMessage(prepared.blockVisit.chatId!, assistantMessage, 'ASSISTANT');
+
+		const updatedOutputMessages = [
+			...prepared.outputMessagesBase,
+			{ role: 'assistant' as const, content: assistantMessage }
+		];
+		const extractedOutputs = await this.extractAgentOutputs({
+			block: prepared.view.currentBlock as LessonAgentBlock,
+			modelName: prepared.modelName,
+			assistantMessage,
+			userMessage: prepared.userMessage,
+			messages: updatedOutputMessages,
+			currentOutputs: prepared.currentOutputs,
+			autoStarted: prepared.autoStarted,
+			context: this.buildAgentExecutionContext(prepared.view, prepared.blockVisit.chatId!)
+		});
+		const outputs = {
+			...prepared.currentOutputs,
+			...extractedOutputs
+		};
+
+		await this.updateBlockVisit({
+			visitId: prepared.blockVisit.id,
+			status: lessonBlockVisitStatus.ACTIVE,
+			outputs,
+			chatId: prepared.blockVisit.chatId!
+		});
+
+		await this.upsertBlockState({
+			sessionId: prepared.view.session.id,
+			blockId: prepared.view.currentBlock.id,
+			status: lessonBlockStateStatus.ACTIVE,
+			outputs,
+			chatId: prepared.blockVisit.chatId!,
+			lastVisitId: prepared.blockVisit.id
+		});
+
+		if (!prepared.autoStarted) {
+			await markActivityInProgress({
+				userId: prepared.view.session.userId,
+				courseId: prepared.view.session.courseId,
+				activityId: prepared.view.activity.id,
+				activityType: 'lesson',
+				source: 'lesson:agent-turn'
+			});
+		}
+
+		return {
+			session: prepared.view.session,
+			assistantMessage,
+			outputs
+		};
+	}
+
+	private static buildAgentExecutionContext(
+		view: LessonSessionView,
+		chatId: string
+	): {
+		userId: string;
+		courseId: string;
+		interactiveLearningId: string;
+		chatId: string;
+	} {
+		return {
+			userId: view.session.userId,
+			courseId: view.session.courseId,
+			interactiveLearningId: view.activity.id,
+			chatId
+		};
+	}
+
+	private static assertAgentBlockInteractionAccess(
+		view: LessonSessionView,
+		blockId: string
+	): asserts view is LessonSessionView & {
+		currentBlock: LessonAgentBlock;
+		resolvedCurrentBlock: LessonAgentBlock;
+	} {
 		if (!view.canInteract) {
 			throw new LessonServiceError(403, 'La sesión está en modo solo lectura.');
 		}
 
-		if (view.currentBlock.id !== input.blockId || view.currentBlock.kind !== 'agent') {
+		if (view.currentBlock.id !== blockId || view.currentBlock.kind !== 'agent') {
 			throw new LessonServiceError(409, 'El bloque activo no es un bloque IA.');
 		}
 
+		if (view.resolvedCurrentBlock.kind !== 'agent') {
+			throw new LessonServiceError(409, 'No se pudo resolver el bloque IA actual.');
+		}
+	}
+
+	private static assertManualAgentExecutionAllowed(view: LessonSessionView & {
+		currentBlock: LessonAgentBlock;
+	}): void {
 		if (
 			view.currentBlock.agentConfig.executionTrigger !== 'on_user_submit' ||
 			!isLessonAgentInteractive(view.currentBlock.agentConfig)
@@ -1006,97 +1241,55 @@ export class LessonService {
 				'Este bloque IA se ejecuta automaticamente y no admite mensajes manuales.'
 			);
 		}
+	}
+
+	private static assertAutoAgentExecutionAllowed(view: LessonSessionView & {
+		currentBlock: LessonAgentBlock;
+	}): void {
+		if (!this.shouldAutoExecuteAgentBlock(view.currentBlock)) {
+			throw new LessonServiceError(400, 'Este bloque IA no se autoarranca al entrar.');
+		}
 
 		const currentOutputs = normalizeOutputs(
 			view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson
 		);
-		if (view.currentBlock.agentConfig.interactionMode === 'single_turn') {
-			const conversationStats = await this.getAgentConversationStats(
-				view.currentVisit?.chatId ?? view.currentBlockState?.chatId
+		if (currentOutputs.response) {
+			throw new LessonServiceError(
+				409,
+				'Este bloque IA ya completó su arranque automático en esta visita.'
 			);
-			if (conversationStats.userTurns >= 1) {
-				throw new LessonServiceError(
-					400,
-					'Este bloque de respuesta guiada ya consumió la única intervención del alumno. Pulsa continuar para seguir.'
-				);
-			}
+		}
+	}
+
+	private static async assertManualAgentTurnCapacity(view: LessonSessionView & {
+		currentBlock: LessonAgentBlock;
+	}): Promise<void> {
+		if (view.currentBlock.agentConfig.interactionMode !== 'single_turn') {
+			return;
 		}
 
-		const blockState = await this.ensureAgentBlockChat(view);
-		const modelName = await this.resolveLessonModel(view.currentBlock);
-		const maxTurns = view.currentBlock.agentConfig.maxTurns ?? null;
-
-		if (maxTurns && blockState.chatId) {
-			const conversationStats = await this.getAgentConversationStats(blockState.chatId);
-			if (conversationStats.userTurns >= maxTurns) {
-				throw new LessonServiceError(400, 'Este bloque ya alcanzó el máximo de turnos permitidos.');
-			}
+		const conversationStats = await this.getAgentConversationStats(
+			view.currentVisit?.chatId ?? view.currentBlockState?.chatId
+		);
+		if (conversationStats.userTurns >= 1) {
+			throw new LessonServiceError(
+				400,
+				'Este bloque de respuesta guiada ya consumió la única intervención del alumno. Pulsa continuar para seguir.'
+			);
 		}
+	}
 
-		await AIUtils.saveMessage(blockState.chatId!, userMessage, 'USER');
-		const aiMessages = await this.loadModelMessages(blockState.chatId!);
-		const assistantMessage = await AIUtils.generateTextFromMessages(aiMessages, modelName, {
-			userId: view.session.userId,
-			courseId: view.session.courseId,
-			interactiveLearningId: view.activity.id,
-			chatId: blockState.chatId!
-		});
-		await AIUtils.saveMessage(blockState.chatId!, assistantMessage, 'ASSISTANT');
+	private static async assertAgentTurnLimit(
+		block: LessonAgentBlock,
+		chatId: string | null | undefined
+	): Promise<void> {
+		const maxTurns = block.agentConfig.maxTurns ?? null;
+		if (!maxTurns || !chatId) return;
 
-		const updatedModelMessages = [
-			...aiMessages,
-			{ role: 'assistant' as const, content: assistantMessage }
-		];
-		const extractedOutputs = await this.extractAgentOutputs({
-			block: view.currentBlock,
-			modelName,
-			assistantMessage,
-			userMessage,
-			messages: updatedModelMessages,
-			currentOutputs,
-			autoStarted: false,
-			context: {
-				userId: view.session.userId,
-				courseId: view.session.courseId,
-				interactiveLearningId: view.activity.id,
-				chatId: blockState.chatId!
-			}
-		});
-
-		const outputs = {
-			...currentOutputs,
-			...extractedOutputs
-		};
-
-		await this.updateBlockVisit({
-			visitId: blockState.id,
-			status: lessonBlockVisitStatus.ACTIVE,
-			outputs,
-			chatId: blockState.chatId!
-		});
-
-		await this.upsertBlockState({
-			sessionId: view.session.id,
-			blockId: view.currentBlock.id,
-			status: lessonBlockStateStatus.ACTIVE,
-			outputs,
-			chatId: blockState.chatId!,
-			lastVisitId: blockState.id
-		});
-
-		await markActivityInProgress({
-			userId: view.session.userId,
-			courseId: view.session.courseId,
-			activityId: view.activity.id,
-			activityType: 'lesson',
-			source: 'lesson:agent-turn'
-		});
-
-		return {
-			session: view.session,
-			assistantMessage,
-			outputs
-		};
+		const conversationStats = await this.getAgentConversationStats(chatId);
+		if (conversationStats.userTurns >= maxTurns) {
+			throw new LessonServiceError(400, 'Este bloque ya alcanzó el máximo de turnos permitidos.');
+		}
 	}
 
 	private static evaluateCheckSubmission(input: {
@@ -1946,73 +2139,20 @@ export class LessonService {
 	}
 
 	private static async executeAgentOnEnter(view: LessonSessionView): Promise<void> {
-		if (view.currentBlock.kind !== 'agent' || view.resolvedCurrentBlock.kind !== 'agent') {
-			throw new LessonServiceError(400, 'El bloque activo no admite ejecucion automatica.');
-		}
-
-		if (!view.currentVisit) {
-			throw new LessonServiceError(409, 'No se pudo resolver la visita activa del bloque IA.');
-		}
-
-		const currentOutputs = normalizeOutputs(
-			view.currentVisit.outputsJson ?? view.currentBlockState?.outputsJson
-		);
-		if (currentOutputs.response) {
-			return;
-		}
-
-		const blockVisit = await this.ensureAgentBlockChat(view);
-		const modelName = await this.resolveLessonModel(view.currentBlock);
-		const launchMessage = await this.buildAutoAgentLaunchMessage(view);
-		const baseMessages = await this.loadModelMessages(blockVisit.chatId!);
-		const assistantMessage = await AIUtils.generateTextFromMessages(
-			[...baseMessages, { role: 'user' as const, content: launchMessage }],
-			modelName,
-			{
-				userId: view.session.userId,
-				courseId: view.session.courseId,
-				interactiveLearningId: view.activity.id,
-				chatId: blockVisit.chatId!
-			}
-		);
-
-		await AIUtils.saveMessage(blockVisit.chatId!, assistantMessage, 'ASSISTANT');
-
-		const extractedOutputs = await this.extractAgentOutputs({
-			block: view.currentBlock,
-			modelName,
-			assistantMessage,
-			userMessage: '',
-			messages: [...baseMessages, { role: 'assistant' as const, content: assistantMessage }],
-			currentOutputs,
-			autoStarted: true,
-			context: {
-				userId: view.session.userId,
-				courseId: view.session.courseId,
-				interactiveLearningId: view.activity.id,
-				chatId: blockVisit.chatId!
-			}
-		});
-		const outputs = {
-			...currentOutputs,
-			...extractedOutputs
-		};
-
-		await this.updateBlockVisit({
-			visitId: blockVisit.id,
-			status: lessonBlockVisitStatus.ACTIVE,
-			outputs,
-			chatId: blockVisit.chatId!
-		});
-
-		await this.upsertBlockState({
+		const prepared = await this.prepareAutoAgentExecution({
 			sessionId: view.session.id,
 			blockId: view.currentBlock.id,
-			status: lessonBlockStateStatus.ACTIVE,
-			outputs,
-			chatId: blockVisit.chatId!,
-			lastVisitId: blockVisit.id
+			userId: view.session.userId,
+			userRoleLevel: Number.MAX_SAFE_INTEGER,
+			interactiveLearningId: view.activity.id
 		});
+		const assistantMessage = await AIUtils.generateTextFromMessages(
+			prepared.generationMessages,
+			prepared.modelName,
+			this.buildAgentExecutionContext(prepared.view, prepared.blockVisit.chatId!)
+		);
+
+		await this.completePreparedAgentExecution(prepared, assistantMessage);
 	}
 
 	private static async buildAutoAgentLaunchMessage(view: LessonSessionView): Promise<string> {
