@@ -372,6 +372,24 @@ export function getLessonAgentInteractionLabel(config: Pick<LessonAgentConfig, '
 	return 'Generacion automatica';
 }
 
+export function getLessonAgentInteractionDescription(
+	config: Pick<LessonAgentConfig, 'interactionMode' | 'autoStartOnEnter'>
+): string {
+	if (config.interactionMode === 'single_turn') {
+		return config.autoStartOnEnter
+			? 'La IA puede abrir el bloque automáticamente. El alumno puede intervenir una sola vez y la IA puede cerrar con feedback u otra respuesta final.'
+			: 'El bloque espera una única intervención del alumno y después la IA responde para cerrar el intercambio.';
+	}
+
+	if (config.interactionMode === 'multi_turn') {
+		return config.autoStartOnEnter
+			? 'La IA puede abrir la conversación al entrar y después continuar en formato mini chat con varias intervenciones del alumno.'
+			: 'La conversación empieza cuando el alumno envía su primer mensaje y puede continuar en formato mini chat.';
+	}
+
+	return 'El bloque no admite mensajes del alumno. La IA genera la respuesta automáticamente al entrar.';
+}
+
 export function getLessonCheckModeLabel(mode: LessonCheckMode): string {
 	if (mode === 'single_choice') return 'Opción única';
 	if (mode === 'multiple_choice') return 'Respuesta múltiple';

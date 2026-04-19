@@ -6,6 +6,7 @@
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
 	import {
+		getLessonAgentInteractionDescription,
 		getLessonCheckModeLabel,
 		normalizeLessonAgentConfig,
 		normalizeLessonCheckConfig,
@@ -1312,6 +1313,10 @@
 						</label>
 					</div>
 
+					<div class="rounded-2xl border border-gray-200 bg-gray-50/80 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-950/20 dark:text-gray-200">
+						{getLessonAgentInteractionDescription(workingBlock.agentConfig)}
+					</div>
+
 					{#if workingBlock.agentConfig.interactionMode !== 'none'}
 						<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
 							<input
@@ -1368,10 +1373,12 @@
 								oninput={markDirty}
 							/>
 						</label>
+					</div>
 
+					{#if workingBlock.agentConfig.interactionMode === 'multi_turn'}
 						<label class="block">
 							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Máx. turnos</span
+								>Máx. turnos del alumno</span
 							>
 							<input
 								type="number"
@@ -1385,7 +1392,11 @@
 								}}
 							/>
 						</label>
-					</div>
+					{:else if workingBlock.agentConfig.interactionMode === 'single_turn'}
+						<div class="rounded-2xl border border-primary-200 bg-primary-50/80 px-4 py-3 text-sm text-primary-900 dark:border-primary-900/40 dark:bg-primary-950/20 dark:text-primary-100">
+							En turno guiado el alumno solo puede intervenir una vez. El límite de turnos no se configura aquí porque forma parte del propio modo.
+						</div>
+					{/if}
 
 					{#if workingBlock.agentConfig.interactionMode !== 'none'}
 						<div class="grid gap-4 md:grid-cols-3">

@@ -42,7 +42,15 @@ export function summarizeLessonBlock(block: LessonBlock): string {
 			block.agentConfig.autoStartOnEnter && block.agentConfig.interactionMode !== 'none'
 				? ' · auto al entrar'
 				: '';
-		return `${getLessonAgentInteractionLabel(block.agentConfig)} · ${getLessonAgentExecutionTriggerLabel(block.agentConfig)}${autoStartLabel}${block.next ? ` · siguiente ${block.next}` : ''}`;
+		const turnSummary =
+			block.agentConfig.interactionMode === 'single_turn'
+				? ' · 1 turno alumno'
+				: block.agentConfig.interactionMode === 'multi_turn'
+					? block.agentConfig.maxTurns
+						? ` · hasta ${block.agentConfig.maxTurns} turnos`
+						: ' · turnos abiertos'
+					: '';
+		return `${getLessonAgentInteractionLabel(block.agentConfig)} · ${getLessonAgentExecutionTriggerLabel(block.agentConfig)}${autoStartLabel}${turnSummary}${block.next ? ` · siguiente ${block.next}` : ''}`;
 	}
 
 	if (block.kind === 'check') {

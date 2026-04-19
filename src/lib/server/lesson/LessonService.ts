@@ -1010,15 +1010,16 @@ export class LessonService {
 		const currentOutputs = normalizeOutputs(
 			view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson
 		);
-		if (
-			view.currentBlock.agentConfig.interactionMode === 'single_turn' &&
-			currentOutputs.response &&
-			(view.currentVisit?.chatId || view.currentBlockState?.chatId)
-		) {
-			throw new LessonServiceError(
-				400,
-				'Este bloque de respuesta guiada ya recibió una respuesta. Pulsa continuar para seguir.'
+		if (view.currentBlock.agentConfig.interactionMode === 'single_turn') {
+			const conversationStats = await this.getAgentConversationStats(
+				view.currentVisit?.chatId ?? view.currentBlockState?.chatId
 			);
+			if (conversationStats.userTurns >= 1) {
+				throw new LessonServiceError(
+					400,
+					'Este bloque de respuesta guiada ya consumió la única intervención del alumno. Pulsa continuar para seguir.'
+				);
+			}
 		}
 
 		const blockState = await this.ensureAgentBlockChat(view);
