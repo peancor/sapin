@@ -8,20 +8,24 @@ import {
 	interactiveLearning,
 	interactiveLearningFile,
 	interactiveLearningLesson,
+	interactiveLearningLessonRevision,
 	interactiveLessonBlockState,
 	interactiveLessonBlockVisit,
 	interactiveLessonEvent,
 	interactiveLessonSession,
+	lessonDefinitionBindingStatus,
 	lessonAttemptStatus,
 	lessonBlockStateStatus,
 	lessonBlockVisitStatus,
 	lessonEventType,
+	lessonSessionScope,
 	message
 } from '$lib/server/db/schema';
 import type {
 	InteractiveLearning,
 	InteractiveLearningFile,
 	InteractiveLearningLesson,
+	InteractiveLearningLessonRevision,
 	InteractiveLessonBlockState,
 	InteractiveLessonBlockVisit,
 	InteractiveLessonSession
@@ -48,10 +52,12 @@ import {
 	normalizeLessonAgentConfig,
 	normalizeLessonCheckConfig
 } from '$lib/types/lesson';
-import { and, desc, eq, max } from 'drizzle-orm';
+import type { LessonSessionRevisionInfo } from '$lib/types/lessonRevision';
+import { and, desc, eq, isNotNull, max, ne } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { LessonServiceError } from './LessonServiceError';
+import { LessonRevisionService } from './LessonRevisionService';
 import {
 	buildLessonBlockContract,
 	getAvailableLessonReferenceGroups,
@@ -124,8 +130,10 @@ export interface LessonResolvedAsset {
 export interface LessonSessionView {
 	activity: InteractiveLearning;
 	lesson: InteractiveLearningLesson;
+	revision: InteractiveLearningLessonRevision;
 	definition: LessonDefinition;
 	session: InteractiveLessonSession;
+	sessionRevisionInfo: LessonSessionRevisionInfo;
 	blockStates: InteractiveLessonBlockState[];
 	blockVisits: InteractiveLessonBlockVisit[];
 	currentBlock: LessonBlock;
@@ -253,6 +261,10 @@ function matchShortTextAnswer(
 		}
 	}
 	return candidate === acceptedAnswer;
+}
+
+function shouldTrackLessonProgress(scope: InteractiveLessonSession['scope']): boolean {
+	return scope === lessonSessionScope.LEARNER;
 }
 
 export class LessonService {
@@ -409,7 +421,16 @@ export class LessonService {
 			throw new LessonServiceError(403, access.reason || 'No tienes acceso a esta lesson.');
 		}
 
-		const activityData = await this.getLessonActivity(input.interactiveLearningId);
+		const revisionState = await LessonRevisionService.ensureLessonRevisionState(
+			input.interactiveLearningId,
+			{
+				actorUserId: input.userId
+			}
+		);
+		const activityData = {
+			activity: revisionState.activity,
+			lesson: revisionState.lesson
+		};
 		const courseId = await this.resolveCourseId(
 			input.interactiveLearningId,
 			input.courseId ?? access.courseId
@@ -422,7 +443,9 @@ export class LessonService {
 				and(
 					eq(interactiveLessonSession.interactiveLearningId, input.interactiveLearningId),
 					eq(interactiveLessonSession.userId, input.userId),
-					eq(interactiveLessonSession.courseId, courseId)
+					eq(interactiveLessonSession.courseId, courseId),
+					eq(interactiveLessonSession.scope, lessonSessionScope.LEARNER),
+					isNotNull(interactiveLessonSession.definitionRevisionId)
 				)
 			)
 			.orderBy(
@@ -458,7 +481,106 @@ export class LessonService {
 			interactiveLearningId: input.interactiveLearningId,
 			userId: input.userId,
 			courseId,
-			entryBlockId: this.parseDefinition(activityData.activity.content).entryBlockId
+			scope: lessonSessionScope.LEARNER,
+			bindingStatus: lessonDefinitionBindingStatus.EXACT,
+			revision: revisionState.publishedRevision,
+			entryBlockId: revisionState.publishedDefinition.entryBlockId
+		});
+	}
+
+	static async startPreviewSession(input: {
+		interactiveLearningId: string;
+		userId: string;
+		userRoleLevel: number;
+		previewMode: 'published' | 'draft';
+		courseId?: string | null;
+	}): Promise<InteractiveLessonSession> {
+		const access = await InteractiveChatAuthUtils.userCanAccessInteractiveActivity(
+			input.userId,
+			input.interactiveLearningId,
+			input.userRoleLevel
+		);
+
+		if (!access.allowed) {
+			throw new LessonServiceError(403, access.reason || 'No tienes acceso a esta lesson.');
+		}
+
+		const revisionState = await LessonRevisionService.ensureLessonRevisionState(
+			input.interactiveLearningId,
+			{
+				actorUserId: input.userId
+			}
+		);
+		const courseId = await this.resolveCourseId(
+			input.interactiveLearningId,
+			input.courseId ?? access.courseId
+		);
+		const scope =
+			input.previewMode === 'draft'
+				? lessonSessionScope.PREVIEW_DRAFT
+				: lessonSessionScope.PREVIEW_PUBLISHED;
+		const targetRevision =
+			scope === lessonSessionScope.PREVIEW_DRAFT
+				? revisionState.draftRevision
+				: revisionState.publishedRevision;
+		const targetDefinition =
+			scope === lessonSessionScope.PREVIEW_DRAFT
+				? revisionState.draftDefinition
+				: revisionState.publishedDefinition;
+		const shouldAlwaysStartFreshPreview = scope === lessonSessionScope.PREVIEW_DRAFT;
+		const latestSession = await db
+			.select()
+			.from(interactiveLessonSession)
+			.where(
+				and(
+					eq(interactiveLessonSession.interactiveLearningId, input.interactiveLearningId),
+					eq(interactiveLessonSession.userId, input.userId),
+					eq(interactiveLessonSession.courseId, courseId),
+					eq(interactiveLessonSession.scope, scope),
+					isNotNull(interactiveLessonSession.definitionRevisionId)
+				)
+			)
+			.orderBy(
+				desc(interactiveLessonSession.attemptNumber),
+				desc(interactiveLessonSession.createdAt)
+			)
+			.get();
+
+		if (
+			!shouldAlwaysStartFreshPreview &&
+			latestSession &&
+			latestSession.definitionRevisionId === targetRevision.id &&
+			latestSession.status !== lessonAttemptStatus.RESTARTED
+		) {
+			return latestSession;
+		}
+
+		await db
+			.update(interactiveLessonSession)
+			.set({
+				status: lessonAttemptStatus.ABANDONED,
+				currentVisitId: null,
+				lastActiveAt: new Date(),
+				updatedAt: new Date()
+			})
+			.where(
+				and(
+					eq(interactiveLessonSession.interactiveLearningId, input.interactiveLearningId),
+					eq(interactiveLessonSession.userId, input.userId),
+					eq(interactiveLessonSession.courseId, courseId),
+					eq(interactiveLessonSession.scope, scope),
+					ne(interactiveLessonSession.status, lessonAttemptStatus.COMPLETED)
+				)
+			);
+
+		return this.createSession({
+			interactiveLearningId: input.interactiveLearningId,
+			userId: input.userId,
+			courseId,
+			scope,
+			bindingStatus: lessonDefinitionBindingStatus.EXACT,
+			revision: targetRevision,
+			entryBlockId: targetDefinition.entryBlockId
 		});
 	}
 
@@ -508,6 +630,9 @@ export class LessonService {
 			interactiveLearningId: view.activity.id,
 			userId: view.session.userId,
 			courseId: view.session.courseId,
+			scope: view.session.scope,
+			bindingStatus: lessonDefinitionBindingStatus.EXACT,
+			revision: view.revision,
 			entryBlockId: view.definition.entryBlockId
 		});
 
@@ -560,10 +685,13 @@ export class LessonService {
 			.from(interactiveLessonSession)
 			.where(eq(interactiveLessonSession.id, session.id))
 			.get();
-		const activeSession = refreshedSession ?? session;
-
+		const activeSession = await LessonRevisionService.ensureSessionRevisionBinding(
+			refreshedSession ?? session
+		);
+		const { revision, definition } = await LessonRevisionService.resolveLessonDefinitionForSession({
+			sessionId: activeSession.id
+		});
 		const activityData = await this.getLessonActivity(activeSession.interactiveLearningId);
-		const definition = this.parseDefinition(activityData.activity.content);
 		const currentBlock = definition.blocks.find(
 			(block) => block.id === activeSession.currentBlockId
 		);
@@ -614,7 +742,8 @@ export class LessonService {
 		const resolvedCurrentBlock = this.resolveBlock(currentBlock, templateContext);
 		const currentAssets = this.resolveAssets(resolvedCurrentBlock, filesById);
 		const isReadOnly =
-			activityData.activity.status === 'closed' ||
+			(activeSession.scope === lessonSessionScope.LEARNER &&
+				activityData.activity.status === 'closed') ||
 			activeSession.status === lessonAttemptStatus.COMPLETED;
 		const availableReferenceGroups = this.getAvailableReferenceGroups(definition);
 		const currentBlockContract = buildLessonBlockContract(currentBlock);
@@ -654,6 +783,8 @@ export class LessonService {
 						activeSession.userId === input.userId &&
 						activityData.activity.status === 'published',
 					canInteract: true,
+					revision,
+					sessionRevisionInfo: LessonRevisionService.getSessionRevisionInfo(activeSession),
 					isReadOnly: false,
 					lesson: activityData.lesson
 				});
@@ -675,8 +806,10 @@ export class LessonService {
 		return {
 			activity: activityData.activity,
 			lesson: activityData.lesson,
+			revision,
 			definition,
 			session: activeSession,
+			sessionRevisionInfo: LessonRevisionService.getSessionRevisionInfo(activeSession),
 			blockStates,
 			blockVisits,
 			currentBlock,
@@ -698,7 +831,8 @@ export class LessonService {
 			canRestart:
 				activityData.lesson.allowRestart &&
 				activeSession.userId === input.userId &&
-				activityData.activity.status === 'published',
+				(activeSession.scope !== lessonSessionScope.LEARNER ||
+					activityData.activity.status === 'published'),
 			canInteract: !isReadOnly,
 			isReadOnly
 		};
@@ -968,13 +1102,15 @@ export class LessonService {
 			});
 		}
 
-		await markActivityInProgress({
-			userId: view.session.userId,
-			courseId: view.session.courseId,
-			activityId: view.activity.id,
-			activityType: 'lesson',
-			source: 'lesson:check-submit'
-		});
+		if (shouldTrackLessonProgress(view.session.scope)) {
+			await markActivityInProgress({
+				userId: view.session.userId,
+				courseId: view.session.courseId,
+				activityId: view.activity.id,
+				activityType: 'lesson',
+				source: 'lesson:check-submit'
+			});
+		}
 
 		return {
 			session: view.session,
@@ -1175,7 +1311,7 @@ export class LessonService {
 			lastVisitId: prepared.blockVisit.id
 		});
 
-		if (!prepared.autoStarted) {
+		if (!prepared.autoStarted && shouldTrackLessonProgress(prepared.view.session.scope)) {
 			await markActivityInProgress({
 				userId: prepared.view.session.userId,
 				courseId: prepared.view.session.courseId,
@@ -1455,6 +1591,9 @@ export class LessonService {
 		interactiveLearningId: string;
 		userId: string;
 		courseId: string;
+		scope: InteractiveLessonSession['scope'];
+		bindingStatus: InteractiveLessonSession['bindingStatus'];
+		revision: InteractiveLearningLessonRevision;
 		entryBlockId: string;
 	}): Promise<InteractiveLessonSession> {
 		const [attemptStats] = await db
@@ -1464,7 +1603,9 @@ export class LessonService {
 				and(
 					eq(interactiveLessonSession.interactiveLearningId, input.interactiveLearningId),
 					eq(interactiveLessonSession.userId, input.userId),
-					eq(interactiveLessonSession.courseId, input.courseId)
+					eq(interactiveLessonSession.courseId, input.courseId),
+					eq(interactiveLessonSession.scope, input.scope),
+					isNotNull(interactiveLessonSession.definitionRevisionId)
 				)
 			);
 		const attemptNumber = (attemptStats?.maxAttempt ?? 0) + 1;
@@ -1477,6 +1618,10 @@ export class LessonService {
 			userId: input.userId,
 			courseId: input.courseId,
 			attemptNumber,
+			definitionRevisionId: input.revision.id,
+			definitionRevisionNumber: input.revision.revisionNumber,
+			bindingStatus: input.bindingStatus,
+			scope: input.scope,
 			status: lessonAttemptStatus.ACTIVE,
 			currentBlockId: input.entryBlockId,
 			currentVisitId: null,
@@ -1497,16 +1642,17 @@ export class LessonService {
 			payload: { attemptNumber }
 		});
 
-		await markActivityInProgress({
-			userId: input.userId,
-			courseId: input.courseId,
-			activityId: input.interactiveLearningId,
-			activityType: 'lesson',
-			source: 'lesson:create-session'
-		});
+		if (shouldTrackLessonProgress(input.scope)) {
+			await markActivityInProgress({
+				userId: input.userId,
+				courseId: input.courseId,
+				activityId: input.interactiveLearningId,
+				activityType: 'lesson',
+				source: 'lesson:create-session'
+			});
+		}
 
 		const activityData = await this.getLessonActivity(input.interactiveLearningId);
-		const definition = this.parseDefinition(activityData.activity.content);
 
 		return this.enterBlock(
 			{
@@ -1515,6 +1661,10 @@ export class LessonService {
 				userId: input.userId,
 				courseId: input.courseId,
 				attemptNumber,
+				definitionRevisionId: input.revision.id,
+				definitionRevisionNumber: input.revision.revisionNumber,
+				bindingStatus: input.bindingStatus,
+				scope: input.scope,
 				status: lessonAttemptStatus.ACTIVE,
 				currentBlockId: input.entryBlockId,
 				currentVisitId: null,
@@ -1528,7 +1678,7 @@ export class LessonService {
 			input.entryBlockId,
 			activityData.activity,
 			activityData.lesson,
-			definition
+			LessonRevisionService.parseDefinition(input.revision.definitionJson)
 		);
 	}
 
@@ -1684,13 +1834,15 @@ export class LessonService {
 				payload: { attemptNumber: session.attemptNumber }
 			});
 
-			await markActivityCompleted({
-				userId: session.userId,
-				courseId: session.courseId,
-				activityId: activity.id,
-				activityType: 'lesson',
-				source: 'lesson:end-block'
-			});
+			if (shouldTrackLessonProgress(session.scope)) {
+				await markActivityCompleted({
+					userId: session.userId,
+					courseId: session.courseId,
+					activityId: activity.id,
+					activityType: 'lesson',
+					source: 'lesson:end-block'
+				});
+			}
 		}
 
 		const updatedSession = await db
@@ -2442,6 +2594,7 @@ export class LessonService {
 		sessionId: string;
 		blockId: string;
 		status: string;
+		scope?: InteractiveLessonSession['scope'];
 		outputs?: JsonRecord;
 		lastChoiceValue?: string;
 		chatId?: string;
@@ -2461,6 +2614,7 @@ export class LessonService {
 			)
 			.get();
 		const now = new Date();
+		const scope = input.scope ?? (await this.resolveSessionScope(input.sessionId));
 		const serializedOutputs = input.outputs ? JSON.stringify(input.outputs) : undefined;
 		const shouldIncrementVisit = Boolean(input.incrementVisitCount);
 
@@ -2495,6 +2649,7 @@ export class LessonService {
 			id: nanoid(),
 			sessionId: input.sessionId,
 			blockId: input.blockId,
+			scope,
 			status: input.status as any,
 			visitCount: shouldIncrementVisit ? 1 : 0,
 			lastVisitId: input.lastVisitId ?? null,
@@ -2520,6 +2675,7 @@ export class LessonService {
 	private static async createBlockVisit(input: {
 		sessionId: string;
 		blockId: string;
+		scope?: InteractiveLessonSession['scope'];
 		status?: string;
 		outputs?: JsonRecord;
 		lastChoiceValue?: string;
@@ -2535,11 +2691,13 @@ export class LessonService {
 		const visitNumber = (visitStats?.maxVisit ?? 0) + 1;
 		const now = input.enteredAt ?? new Date();
 		const visitId = nanoid();
+		const scope = input.scope ?? (await this.resolveSessionScope(input.sessionId));
 
 		await db.insert(interactiveLessonBlockVisit).values({
 			id: visitId,
 			sessionId: input.sessionId,
 			blockId: input.blockId,
+			scope,
 			visitNumber,
 			status: (input.status ?? lessonBlockVisitStatus.ACTIVE) as any,
 			enteredAt: now,
@@ -2694,23 +2852,42 @@ export class LessonService {
 		sessionId: string;
 		userId: string;
 		courseId: string;
+		scope?: InteractiveLessonSession['scope'];
 		visitId?: string | null;
 		blockId?: string | null;
 		eventType: string;
 		payload?: JsonRecord;
 	}): Promise<void> {
+		const scope = input.scope ?? (await this.resolveSessionScope(input.sessionId));
 		await db.insert(interactiveLessonEvent).values({
 			id: nanoid(),
 			interactiveLearningId: input.interactiveLearningId,
 			sessionId: input.sessionId,
 			userId: input.userId,
 			courseId: input.courseId,
+			scope,
 			visitId: input.visitId ?? null,
 			blockId: input.blockId ?? null,
 			eventType: input.eventType as any,
 			payloadJson: input.payload ? JSON.stringify(input.payload) : null,
 			createdAt: new Date()
 		});
+	}
+
+	private static async resolveSessionScope(
+		sessionId: string
+	): Promise<InteractiveLessonSession['scope']> {
+		const session = await db
+			.select({ scope: interactiveLessonSession.scope })
+			.from(interactiveLessonSession)
+			.where(eq(interactiveLessonSession.id, sessionId))
+			.get();
+
+		if (!session) {
+			throw new LessonServiceError(404, 'Sesión de lesson no encontrada.');
+		}
+
+		return session.scope;
 	}
 
 	private static buildTransitionGraph(definition: LessonDefinition): Map<string, string[]> {

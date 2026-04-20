@@ -1,8 +1,18 @@
 import { error } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
-import { and, desc, eq, or } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, or } from 'drizzle-orm';
 import { db, CourseRoleUtils } from '$lib/server/db';
-import { course, courseInteractiveLearning, interactiveLearning, learningActivityProgress, interactiveLearningChat, userInteractiveLearningChat, chat, interactiveLessonSession } from '$lib/server/db/schema';
+import {
+	chat,
+	course,
+	courseInteractiveLearning,
+	interactiveLearning,
+	interactiveLearningChat,
+	interactiveLessonSession,
+	learningActivityProgress,
+	lessonSessionScope,
+	userInteractiveLearningChat
+} from '$lib/server/db/schema';
 import type { InteractiveLearning, InteractiveLearningChat, LearningActivityProgress, Chat, InteractiveLessonSession } from '$lib/server/db/schema';
 
 // Definir el tipo completo para una actividad de chat
@@ -131,7 +141,9 @@ export const load = (async ({ params, locals }) => {
             .where(
                 and(
                     eq(interactiveLessonSession.userId, userId),
-                    eq(interactiveLessonSession.courseId, params.cid)
+                    eq(interactiveLessonSession.courseId, params.cid),
+                    eq(interactiveLessonSession.scope, lessonSessionScope.LEARNER),
+                    isNotNull(interactiveLessonSession.definitionRevisionId)
                 )
             )
             .orderBy(desc(interactiveLessonSession.attemptNumber), desc(interactiveLessonSession.createdAt))

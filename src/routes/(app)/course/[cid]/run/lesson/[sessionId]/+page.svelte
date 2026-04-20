@@ -277,12 +277,26 @@
 
 		<div class="mt-4">
 			<p class="text-sm uppercase tracking-wide text-amber-600 dark:text-amber-400">
-				Lección viva · intento {data.session.attemptNumber}
+				{data.sessionRevisionInfo.isPreview
+					? `${data.sessionRevisionInfo.scopeLabel} · intento ${data.session.attemptNumber}`
+					: `Lección viva · intento ${data.session.attemptNumber}`}
 			</p>
 			<h1 class="text-2xl font-semibold text-gray-900 dark:text-white">{data.activity.name}</h1>
 			{#if data.activity.description}
 				<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{data.activity.description}</p>
 			{/if}
+			<div class="mt-3 flex flex-wrap gap-2">
+				{#if data.sessionRevisionInfo.revisionNumber !== null}
+					<span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+						Revisión #{data.sessionRevisionInfo.revisionNumber}
+					</span>
+				{/if}
+				{#if data.sessionRevisionInfo.isHistoricalApproximation}
+					<span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+						Histórico aproximado
+					</span>
+				{/if}
+			</div>
 		</div>
 
 		<div class="mt-4 flex flex-wrap gap-2">
@@ -310,6 +324,11 @@
 		{#if data.isReadOnly}
 			<div class="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
 				Esta lesson está en modo solo lectura. Puedes revisar el contenido, pero no avanzar ni crear nuevas respuestas.
+			</div>
+		{/if}
+		{#if data.sessionRevisionInfo.isPreview}
+			<div class="mb-4 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-700 dark:bg-sky-950/20 dark:text-sky-200">
+				Sesión aislada de preview. No modifica progreso, analítica ni revisión pedagógica del alumnado.
 			</div>
 		{/if}
 

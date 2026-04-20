@@ -1,10 +1,8 @@
 import type { Actions, PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { interactiveLearning } from '$lib/server/db/schema';
 import { parseLessonFlowDraft } from '$lib/server/lesson/lessonFlowDraft';
 import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
+import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
 import { lessonBlockKinds, type LessonBlock, type LessonBlockKind } from '$lib/types/lesson';
 import { loadLessonAdminData, requireLessonAdminContext } from '../lessonAdmin';
 
@@ -82,16 +80,17 @@ function disconnectBlockForFlowDraft(block: LessonBlock): LessonBlock {
 }
 
 async function persistDefinition(
-	ilid: string,
-	definition: ReturnType<typeof LessonService.parseDefinition>
+	input: {
+		ilid: string;
+		definition: ReturnType<typeof LessonService.parseDefinition>;
+		userId: string;
+	}
 ) {
-	await db
-		.update(interactiveLearning)
-		.set({
-			content: LessonService.serializeDefinition(definition),
-			updatedAt: new Date()
-		})
-		.where(eq(interactiveLearning.id, ilid));
+	await LessonRevisionService.saveDraftDefinition({
+		interactiveLearningId: input.ilid,
+		definition: input.definition,
+		actorUserId: input.userId
+	});
 }
 
 export const load = (async ({ params, locals }) => {
@@ -100,12 +99,16 @@ export const load = (async ({ params, locals }) => {
 
 export const actions = {
 	saveFlow: async ({ request, params, locals }) => {
-		await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 
 		try {
 			const definition = parseDefinitionPayload(formData);
-			await persistDefinition(params.ilid, definition);
+			await persistDefinition({
+				ilid: params.ilid,
+				definition,
+				userId: user.id
+			});
 
 			return {
 				success: true,
@@ -187,5 +190,31 @@ export const actions = {
 		} catch (errorValue) {
 			return asLessonError(errorValue, 'No se pudo eliminar el bloque.');
 		}
+	},
+
+	publishDraft: async ({ params, locals }) => {
+		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		await LessonRevisionService.publishDraftRevision({
+			interactiveLearningId: params.ilid,
+			actorUserId: user.id
+		});
+
+		return {
+			success: true,
+			message: 'Borrador publicado. El publicado y el runtime ya apuntan a la nueva revisión.'
+		};
+	},
+
+	discardDraft: async ({ params, locals }) => {
+		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		await LessonRevisionService.discardDraftRevision({
+			interactiveLearningId: params.ilid,
+			actorUserId: user.id
+		});
+
+		return {
+			success: true,
+			message: 'Borrador descartado. El canvas vuelve a la revisión publicada actual.'
+		};
 	}
 } satisfies Actions;

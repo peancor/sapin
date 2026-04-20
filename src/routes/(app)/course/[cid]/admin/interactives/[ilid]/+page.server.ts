@@ -1,13 +1,22 @@
 import { error, redirect } from '@sveltejs/kit';
 import { db, CourseRoleUtils, CourseInteractiveAuthUtils } from '$lib/server/db';
-import { eq, inArray } from 'drizzle-orm';
-import { interactiveLearning, interactiveLearningChat, interactiveLearningLesson, interactiveLessonSession, interactiveLessonBlockState, message } from '$lib/server/db/schema';
+import { and, eq, inArray, isNotNull } from 'drizzle-orm';
+import {
+	interactiveLearning,
+	interactiveLearningChat,
+	interactiveLearningLesson,
+	interactiveLessonBlockState,
+	interactiveLessonSession,
+	lessonSessionScope,
+	message
+} from '$lib/server/db/schema';
 import type { PageServerLoad } from './$types';
 import DBChatUtils from '$lib/server/db/DBChatUtils';
 import { DBAgentActivityUtils, DBAgentAnalyticsUtils } from '$lib/server/db/agent';
 import { ACTIVITY_COMPLETION_MIN_MESSAGES } from '$lib/constants';
 import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '$lib/server/agent/tools/constants';
 import { LearningEvidenceService } from '$lib/server/learning-evidence';
+import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
 
 export const load = (async ({ params, locals }) => {
 	// Verificación de seguridad (defensa en profundidad)
@@ -72,6 +81,8 @@ export const load = (async ({ params, locals }) => {
 			chatConfig: null,
 			agentConfig,
 			agentStats,
+			lessonConfig: null,
+			revisionSummary: null,
 			enabledTools,
 			stats: {
 				totalStudents,
@@ -90,11 +101,14 @@ export const load = (async ({ params, locals }) => {
 
 	// === Actividad de tipo CHAT (lógica existente) ===
 	if (interactive.type === 'lesson') {
-		const lessonConfig = await db
-			.select()
-			.from(interactiveLearningLesson)
-			.where(eq(interactiveLearningLesson.id, ilid))
-			.get();
+		const [lessonConfig, revisionSummary] = await Promise.all([
+			db
+				.select()
+				.from(interactiveLearningLesson)
+				.where(eq(interactiveLearningLesson.id, ilid))
+				.get(),
+			LessonRevisionService.getRevisionAdminSummary(ilid)
+		]);
 
 		if (!lessonConfig) {
 			throw error(500, 'La lesson no tiene configuración runtime');
@@ -103,7 +117,13 @@ export const load = (async ({ params, locals }) => {
 		const sessions = await db
 			.select()
 			.from(interactiveLessonSession)
-			.where(eq(interactiveLessonSession.interactiveLearningId, ilid))
+			.where(
+				and(
+					eq(interactiveLessonSession.interactiveLearningId, ilid),
+					eq(interactiveLessonSession.scope, lessonSessionScope.LEARNER),
+					isNotNull(interactiveLessonSession.definitionRevisionId)
+				)
+			)
 			.all();
 
 		const sessionUserIds = [...new Set(sessions.map((session) => session.userId))];
@@ -145,6 +165,7 @@ export const load = (async ({ params, locals }) => {
 			agentConfig: null,
 			agentStats: null,
 			lessonConfig,
+			revisionSummary,
 			enabledTools: [],
 			stats: {
 				totalStudents,
@@ -226,6 +247,8 @@ export const load = (async ({ params, locals }) => {
 		chatConfig,
 		agentConfig: null,
 		agentStats: null,
+		lessonConfig: null,
+		revisionSummary: null,
 		enabledTools: [],
 		stats: {
 			totalStudents,

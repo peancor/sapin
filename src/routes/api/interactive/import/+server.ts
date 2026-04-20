@@ -13,6 +13,7 @@ import { nanoid } from 'nanoid';
 import { CourseRoleUtils } from '$lib/server/db/CourseRoleUtils';
 import { generateSlug } from '$lib/utils/slug';
 import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
+import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
 
 interface ImportData {
 	version: string;
@@ -164,6 +165,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				metadata: lessonConfig?.metadata || null,
 				createdAt: now,
 				updatedAt: now
+			});
+			await LessonRevisionService.ensureLessonRevisionState(activityId, {
+				actorUserId: locals.user.id
 			});
 		}
 

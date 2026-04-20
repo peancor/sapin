@@ -1,8 +1,15 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { interactiveLearning, courseInteractiveLearning, interactiveLearningChat, userInteractiveLearningChat, interactiveLessonSession } from '$lib/server/db/schema';
-import { eq, and, sql, count, inArray } from 'drizzle-orm';
+import {
+	courseInteractiveLearning,
+	interactiveLearning,
+	interactiveLearningChat,
+	interactiveLessonSession,
+	lessonSessionScope,
+	userInteractiveLearningChat
+} from '$lib/server/db/schema';
+import { eq, and, sql, count, inArray, isNotNull } from 'drizzle-orm';
 
 export const load = (async ({ params, locals }) => {
 	if (!locals.user) {
@@ -70,7 +77,13 @@ export const load = (async ({ params, locals }) => {
 						count: count()
 					})
 					.from(interactiveLessonSession)
-					.where(inArray(interactiveLessonSession.interactiveLearningId, lessonIds))
+					.where(
+						and(
+							inArray(interactiveLessonSession.interactiveLearningId, lessonIds),
+							eq(interactiveLessonSession.scope, lessonSessionScope.LEARNER),
+							isNotNull(interactiveLessonSession.definitionRevisionId)
+						)
+					)
 					.groupBy(interactiveLessonSession.interactiveLearningId)
 			: [];
 

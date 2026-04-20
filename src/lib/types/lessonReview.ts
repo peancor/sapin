@@ -3,6 +3,7 @@ import type {
 	LessonBlockKind,
 	LessonBlockVisitStatus
 } from '$lib/types/lesson';
+import type { LessonDefinitionBindingStatusType } from '$lib/server/db/schema';
 
 export type LessonReviewAttemptStatus = 'completed' | 'active' | 'attention';
 export type LessonReviewAudience = 'student' | 'staff';
@@ -33,6 +34,10 @@ export interface LessonReviewAttemptSummary {
 	startedAt: Date;
 	lastActiveAt: Date;
 	completedAt: Date | null;
+	definitionRevisionId: string | null;
+	definitionRevisionNumber: number | null;
+	bindingStatus: LessonDefinitionBindingStatusType;
+	isHistoricalApproximation: boolean;
 	visitedBlocksCount: number;
 	completedBlocksCount: number;
 	totalBlocks: number;

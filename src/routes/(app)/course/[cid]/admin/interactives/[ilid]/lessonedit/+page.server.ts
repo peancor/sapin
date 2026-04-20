@@ -5,20 +5,23 @@ import { interactiveLearning, interactiveLearningLesson } from '$lib/server/db/s
 import type { InteractiveLearningStatusType } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
+import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
 import {
 	loadLessonAdminData,
 	requireLessonAdminContext,
 	resolveLifecycleUpdate
 } from './lessonAdmin';
 
-async function persistDefinition(ilid: string, definition: ReturnType<typeof LessonService.parseDefinition>) {
-	await db
-		.update(interactiveLearning)
-		.set({
-			content: LessonService.serializeDefinition(definition),
-			updatedAt: new Date()
-		})
-		.where(eq(interactiveLearning.id, ilid));
+async function persistDefinition(input: {
+	ilid: string;
+	definition: ReturnType<typeof LessonService.parseDefinition>;
+	userId: string;
+}) {
+	await LessonRevisionService.saveDraftDefinition({
+		interactiveLearningId: input.ilid,
+		definition: input.definition,
+		actorUserId: input.userId
+	});
 }
 
 function parseStatus(statusValue: FormDataEntryValue | null): InteractiveLearningStatusType {
@@ -92,7 +95,10 @@ export const actions = {
 	},
 
 	reorderBlocks: async ({ request, params, locals }) => {
-		const { activity } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const revisionState = await LessonRevisionService.ensureLessonRevisionState(params.ilid, {
+			actorUserId: user.id
+		});
 		const formData = await request.formData();
 		const blockId = formData.get('blockId')?.toString().trim();
 		const directionRaw = formData.get('direction')?.toString();
@@ -107,11 +113,15 @@ export const actions = {
 
 		try {
 			const nextDefinition = LessonService.moveBlock(
-				LessonService.parseDefinition(activity.content),
+				revisionState.draftDefinition,
 				blockId,
 				direction
 			);
-			await persistDefinition(params.ilid, nextDefinition);
+			await persistDefinition({
+				ilid: params.ilid,
+				definition: nextDefinition,
+				userId: user.id
+			});
 			return { success: true, action: 'reorderBlocks' };
 		} catch (errorValue) {
 			return asLessonError(errorValue, 'reorderBlocks');
@@ -119,7 +129,10 @@ export const actions = {
 	},
 
 	deleteBlock: async ({ request, params, locals }) => {
-		const { activity } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const revisionState = await LessonRevisionService.ensureLessonRevisionState(params.ilid, {
+			actorUserId: user.id
+		});
 		const formData = await request.formData();
 		const blockId = formData.get('blockId')?.toString().trim();
 
@@ -132,10 +145,14 @@ export const actions = {
 
 		try {
 			const nextDefinition = LessonService.deleteBlock(
-				LessonService.parseDefinition(activity.content),
+				revisionState.draftDefinition,
 				blockId
 			);
-			await persistDefinition(params.ilid, nextDefinition);
+			await persistDefinition({
+				ilid: params.ilid,
+				definition: nextDefinition,
+				userId: user.id
+			});
 			return { success: true, action: 'deleteBlock' };
 		} catch (errorValue) {
 			return asLessonError(errorValue, 'deleteBlock');
@@ -143,7 +160,10 @@ export const actions = {
 	},
 
 	setEntryBlock: async ({ request, params, locals }) => {
-		const { activity } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const revisionState = await LessonRevisionService.ensureLessonRevisionState(params.ilid, {
+			actorUserId: user.id
+		});
 		const formData = await request.formData();
 		const blockId = formData.get('blockId')?.toString().trim();
 
@@ -156,13 +176,45 @@ export const actions = {
 
 		try {
 			const nextDefinition = LessonService.setEntryBlock(
-				LessonService.parseDefinition(activity.content),
+				revisionState.draftDefinition,
 				blockId
 			);
-			await persistDefinition(params.ilid, nextDefinition);
+			await persistDefinition({
+				ilid: params.ilid,
+				definition: nextDefinition,
+				userId: user.id
+			});
 			return { success: true, action: 'setEntryBlock' };
 		} catch (errorValue) {
 			return asLessonError(errorValue, 'setEntryBlock');
 		}
+	},
+
+	publishDraft: async ({ params, locals }) => {
+		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		await LessonRevisionService.publishDraftRevision({
+			interactiveLearningId: params.ilid,
+			actorUserId: user.id
+		});
+
+		return {
+			success: true,
+			action: 'publishDraft',
+			message: 'Borrador publicado. Los intentos nuevos ya usarán la revisión vigente.'
+		};
+	},
+
+	discardDraft: async ({ params, locals }) => {
+		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		await LessonRevisionService.discardDraftRevision({
+			interactiveLearningId: params.ilid,
+			actorUserId: user.id
+		});
+
+		return {
+			success: true,
+			action: 'discardDraft',
+			message: 'Borrador descartado. El editor vuelve a reflejar la revisión publicada.'
+		};
 	}
 } satisfies Actions;

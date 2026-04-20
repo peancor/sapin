@@ -6,15 +6,31 @@
 
 	let { data }: { data: PageData } = $props();
 	let isStarting = $state(false);
+	const isPreviewMode = $derived(data.previewMode !== null);
+	const startLabel = $derived.by(() => {
+		if (data.previewMode === 'draft') {
+			return data.latestSession ? 'Abrir preview borrador' : 'Probar borrador';
+		}
+		if (data.previewMode === 'published') {
+			return data.latestSession ? 'Abrir preview publicado' : 'Probar publicado';
+		}
+		return data.latestSession ? 'Abrir lesson' : 'Empezar lesson';
+	});
 
 	async function startLesson() {
 		if (!data.userAccess.courseId) return;
 		isStarting = true;
 		try {
-			const response = await fetch(`/api/lesson/${data.interactiveLearning.id}/session`, {
+			const endpoint = data.previewMode
+				? `/api/lesson/${data.interactiveLearning.id}/preview/session`
+				: `/api/lesson/${data.interactiveLearning.id}/session`;
+			const payload = data.previewMode
+				? { courseId: data.userAccess.courseId, previewMode: data.previewMode }
+				: { courseId: data.userAccess.courseId };
+			const response = await fetch(endpoint, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ courseId: data.userAccess.courseId })
+				body: JSON.stringify(payload)
 			});
 			const result = (await response.json().catch(() => ({}))) as { sessionId?: string };
 			if (response.ok && result.sessionId) {
@@ -30,22 +46,46 @@
 	<div class="rounded-3xl bg-white p-8 shadow-sm dark:bg-gray-900/40">
 		<div class="mb-4 inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
 			<Route class="h-4 w-4" />
-			Lección viva
+			{#if data.previewMode === 'draft'}
+				Preview borrador
+			{:else if data.previewMode === 'published'}
+				Preview publicado
+			{:else}
+				Lección viva
+			{/if}
 		</div>
 		<h1 class="text-4xl font-bold text-gray-900 dark:text-white">{data.interactiveLearning.name}</h1>
 		{#if data.interactiveLearning.description}
 			<p class="mt-3 max-w-2xl text-lg text-gray-600 dark:text-gray-400">{data.interactiveLearning.description}</p>
 		{/if}
+		{#if isPreviewMode}
+			<p class="mt-4 max-w-3xl rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+				Este recorrido está aislado del alumnado real: no suma progreso ni aparece en review o analítica.
+				{#if data.previewMode === 'draft'}
+					Estás viendo la revisión borrador #{data.revisionSummary.draft}.
+				{:else}
+					Estás viendo la revisión publicada #{data.revisionSummary.published}.
+				{/if}
+			</p>
+		{/if}
 
 		<div class="mt-8 flex flex-wrap gap-3">
 			<button class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-3 font-medium text-white hover:bg-primary-700 disabled:opacity-50" onclick={startLesson} disabled={isStarting || !data.userAccess.courseId}>
 				<Play class="h-5 w-5" />
-				{data.latestSession ? 'Abrir lesson' : 'Empezar lesson'}
+				{startLabel}
 			</button>
 			{#if data.latestSession && data.userAccess.courseId}
 				<a class="inline-flex items-center gap-2 rounded-xl border px-6 py-3 font-medium" href={resolve(`/course/${data.userAccess.courseId}/run/lesson/${data.latestSession.id}`)}>
 					<RotateCcw class="h-5 w-5" />
-					Continuar intento {data.latestSession.attemptNumber}
+					{isPreviewMode ? 'Continuar preview' : `Continuar intento ${data.latestSession.attemptNumber}`}
+				</a>
+			{/if}
+			{#if data.userAccess.canManage}
+				<a class="inline-flex items-center gap-2 rounded-xl border px-6 py-3 font-medium" href={resolve(`/lesson/${data.interactiveLearning.id}?preview=published`)}>
+					Ver publicado #{data.revisionSummary.published}
+				</a>
+				<a class="inline-flex items-center gap-2 rounded-xl border px-6 py-3 font-medium" href={resolve(`/lesson/${data.interactiveLearning.id}?preview=draft`)}>
+					Ver borrador #{data.revisionSummary.draft}
 				</a>
 			{/if}
 		</div>

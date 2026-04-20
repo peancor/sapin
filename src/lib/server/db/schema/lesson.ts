@@ -1,5 +1,12 @@
 import { relations } from 'drizzle-orm';
-import { integer, index, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+	type AnySQLiteColumn,
+	integer,
+	index,
+	sqliteTable,
+	text,
+	uniqueIndex
+} from 'drizzle-orm/sqlite-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { chat } from './chat';
@@ -14,6 +21,32 @@ export const lessonSessionPolicy = {
 
 export type LessonSessionPolicyType =
 	(typeof lessonSessionPolicy)[keyof typeof lessonSessionPolicy];
+
+export const lessonRevisionStatus = {
+	DRAFT: 'draft',
+	PUBLISHED: 'published',
+	ARCHIVED: 'archived'
+} as const;
+
+export type LessonRevisionStatusType =
+	(typeof lessonRevisionStatus)[keyof typeof lessonRevisionStatus];
+
+export const lessonDefinitionBindingStatus = {
+	EXACT: 'exact',
+	BACKFILLED_CURRENT: 'backfilled_current'
+} as const;
+
+export type LessonDefinitionBindingStatusType =
+	(typeof lessonDefinitionBindingStatus)[keyof typeof lessonDefinitionBindingStatus];
+
+export const lessonSessionScope = {
+	LEARNER: 'learner',
+	PREVIEW_PUBLISHED: 'preview_published',
+	PREVIEW_DRAFT: 'preview_draft'
+} as const;
+
+export type LessonSessionScopeType =
+	(typeof lessonSessionScope)[keyof typeof lessonSessionScope];
 
 export const lessonAttemptStatus = {
 	ACTIVE: 'active',
@@ -67,11 +100,59 @@ export const interactiveLearningLesson = sqliteTable(
 			.notNull()
 			.default('resume_latest'),
 		allowRestart: integer('allow_restart', { mode: 'boolean' }).notNull().default(true),
+		draftRevisionId: text('draft_revision_id').references(
+			(): AnySQLiteColumn => interactiveLearningLessonRevision.id,
+			{
+				onDelete: 'set null'
+			}
+		),
+		publishedRevisionId: text('published_revision_id').references(
+			(): AnySQLiteColumn => interactiveLearningLessonRevision.id,
+			{
+				onDelete: 'set null'
+			}
+		),
 		metadata: text('metadata'),
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 		updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
 	},
-	(table) => [index('interactive_learning_lesson_policy_idx').on(table.sessionPolicy)]
+	(table) => [
+		index('interactive_learning_lesson_policy_idx').on(table.sessionPolicy),
+		index('interactive_learning_lesson_draft_revision_idx').on(table.draftRevisionId),
+		index('interactive_learning_lesson_published_revision_idx').on(table.publishedRevisionId)
+	]
+);
+
+export const interactiveLearningLessonRevision = sqliteTable(
+	'interactive_learning_lesson_revision',
+	{
+		id: text('id').primaryKey(),
+		interactiveLearningId: text('interactive_learning_id')
+			.notNull()
+			.references((): AnySQLiteColumn => interactiveLearningLesson.id, { onDelete: 'cascade' }),
+		revisionNumber: integer('revision_number').notNull(),
+		status: text('status').$type<LessonRevisionStatusType>().notNull().default('draft'),
+		definitionJson: text('definition_json').notNull(),
+		createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
+		basedOnRevisionId: text('based_on_revision_id').references(
+			(): AnySQLiteColumn => interactiveLearningLessonRevision.id,
+			{
+				onDelete: 'set null'
+			}
+		),
+		publishedAt: integer('published_at', { mode: 'timestamp' }),
+		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
+	},
+	(table) => [
+		index('interactive_learning_lesson_revision_activity_idx').on(table.interactiveLearningId),
+		index('interactive_learning_lesson_revision_status_idx').on(table.status),
+		index('interactive_learning_lesson_revision_based_on_idx').on(table.basedOnRevisionId),
+		uniqueIndex('interactive_learning_lesson_revision_activity_number_idx').on(
+			table.interactiveLearningId,
+			table.revisionNumber
+		)
+	]
 );
 
 export const interactiveLessonSession = sqliteTable(
@@ -88,6 +169,18 @@ export const interactiveLessonSession = sqliteTable(
 			.notNull()
 			.references(() => course.id, { onDelete: 'cascade' }),
 		attemptNumber: integer('attempt_number').notNull().default(1),
+		definitionRevisionId: text('definition_revision_id').references(
+			() => interactiveLearningLessonRevision.id,
+			{
+				onDelete: 'set null'
+			}
+		),
+		definitionRevisionNumber: integer('definition_revision_number'),
+		bindingStatus: text('binding_status')
+			.$type<LessonDefinitionBindingStatusType>()
+			.notNull()
+			.default('backfilled_current'),
+		scope: text('scope').$type<LessonSessionScopeType>().notNull().default('learner'),
 		status: text('status').$type<LessonAttemptStatusType>().notNull().default('active'),
 		currentBlockId: text('current_block_id').notNull(),
 		currentVisitId: text('current_visit_id'),
@@ -102,6 +195,8 @@ export const interactiveLessonSession = sqliteTable(
 		index('interactive_lesson_session_activity_idx').on(table.interactiveLearningId),
 		index('interactive_lesson_session_user_idx').on(table.userId),
 		index('interactive_lesson_session_course_idx').on(table.courseId),
+		index('interactive_lesson_session_revision_idx').on(table.definitionRevisionId),
+		index('interactive_lesson_session_scope_idx').on(table.scope),
 		index('interactive_lesson_session_current_visit_idx').on(table.currentVisitId),
 		index('interactive_lesson_session_status_idx').on(table.status)
 	]
@@ -115,6 +210,7 @@ export const interactiveLessonBlockState = sqliteTable(
 			.notNull()
 			.references(() => interactiveLessonSession.id, { onDelete: 'cascade' }),
 		blockId: text('block_id').notNull(),
+		scope: text('scope').$type<LessonSessionScopeType>().notNull().default('learner'),
 		status: text('status').$type<LessonBlockStateStatusType>().notNull().default('pending'),
 		visitCount: integer('visit_count').notNull().default(0),
 		lastVisitId: text('last_visit_id'),
@@ -129,6 +225,7 @@ export const interactiveLessonBlockState = sqliteTable(
 	},
 	(table) => [
 		index('interactive_lesson_block_state_session_idx').on(table.sessionId),
+		index('interactive_lesson_block_state_scope_idx').on(table.scope),
 		index('interactive_lesson_block_state_last_visit_idx').on(table.lastVisitId),
 		index('interactive_lesson_block_state_chat_idx').on(table.chatId),
 		uniqueIndex('interactive_lesson_block_state_session_block_idx').on(
@@ -146,6 +243,7 @@ export const interactiveLessonBlockVisit = sqliteTable(
 			.notNull()
 			.references(() => interactiveLessonSession.id, { onDelete: 'cascade' }),
 		blockId: text('block_id').notNull(),
+		scope: text('scope').$type<LessonSessionScopeType>().notNull().default('learner'),
 		visitNumber: integer('visit_number').notNull(),
 		status: text('status').$type<LessonBlockVisitStatusType>().notNull().default('active'),
 		enteredAt: integer('entered_at', { mode: 'timestamp' }).notNull(),
@@ -160,6 +258,7 @@ export const interactiveLessonBlockVisit = sqliteTable(
 	(table) => [
 		index('interactive_lesson_block_visit_session_idx').on(table.sessionId),
 		index('interactive_lesson_block_visit_session_block_idx').on(table.sessionId, table.blockId),
+		index('interactive_lesson_block_visit_scope_idx').on(table.scope),
 		index('interactive_lesson_block_visit_chat_idx').on(table.chatId),
 		uniqueIndex('interactive_lesson_block_visit_session_visit_idx').on(
 			table.sessionId,
@@ -184,6 +283,7 @@ export const interactiveLessonEvent = sqliteTable(
 		courseId: text('course_id')
 			.notNull()
 			.references(() => course.id, { onDelete: 'cascade' }),
+		scope: text('scope').$type<LessonSessionScopeType>().notNull().default('learner'),
 		visitId: text('visit_id'),
 		blockId: text('block_id'),
 		eventType: text('event_type').$type<LessonEventType>().notNull(),
@@ -196,6 +296,7 @@ export const interactiveLessonEvent = sqliteTable(
 		index('interactive_lesson_event_visit_idx').on(table.visitId),
 		index('interactive_lesson_event_user_idx').on(table.userId),
 		index('interactive_lesson_event_course_idx').on(table.courseId),
+		index('interactive_lesson_event_scope_idx').on(table.scope),
 		index('interactive_lesson_event_type_idx').on(table.eventType)
 	]
 );
@@ -207,7 +308,47 @@ export const interactiveLearningLessonRelations = relations(
 			fields: [interactiveLearningLesson.id],
 			references: [interactiveLearning.id]
 		}),
+		draftRevision: one(interactiveLearningLessonRevision, {
+			fields: [interactiveLearningLesson.draftRevisionId],
+			references: [interactiveLearningLessonRevision.id],
+			relationName: 'lesson_draft_revision'
+		}),
+		publishedRevision: one(interactiveLearningLessonRevision, {
+			fields: [interactiveLearningLesson.publishedRevisionId],
+			references: [interactiveLearningLessonRevision.id],
+			relationName: 'lesson_published_revision'
+		}),
+		revisions: many(interactiveLearningLessonRevision),
 		sessions: many(interactiveLessonSession)
+	})
+);
+
+export const interactiveLearningLessonRevisionRelations = relations(
+	interactiveLearningLessonRevision,
+	({ one, many }) => ({
+		lesson: one(interactiveLearningLesson, {
+			fields: [interactiveLearningLessonRevision.interactiveLearningId],
+			references: [interactiveLearningLesson.id]
+		}),
+		createdByUser: one(user, {
+			fields: [interactiveLearningLessonRevision.createdBy],
+			references: [user.id]
+		}),
+		basedOnRevision: one(interactiveLearningLessonRevision, {
+			fields: [interactiveLearningLessonRevision.basedOnRevisionId],
+			references: [interactiveLearningLessonRevision.id],
+			relationName: 'lesson_revision_based_on'
+		}),
+		derivedRevisions: many(interactiveLearningLessonRevision, {
+			relationName: 'lesson_revision_based_on'
+		}),
+		boundSessions: many(interactiveLessonSession),
+		draftForLesson: many(interactiveLearningLesson, {
+			relationName: 'lesson_draft_revision'
+		}),
+		publishedForLesson: many(interactiveLearningLesson, {
+			relationName: 'lesson_published_revision'
+		})
 	})
 );
 
@@ -225,6 +366,10 @@ export const interactiveLessonSessionRelations = relations(
 		course: one(course, {
 			fields: [interactiveLessonSession.courseId],
 			references: [course.id]
+		}),
+		definitionRevision: one(interactiveLearningLessonRevision, {
+			fields: [interactiveLessonSession.definitionRevisionId],
+			references: [interactiveLearningLessonRevision.id]
 		}),
 		currentVisit: one(interactiveLessonBlockVisit, {
 			fields: [interactiveLessonSession.currentVisitId],
@@ -297,15 +442,28 @@ export const insertInteractiveLearningLessonSchema = createInsertSchema(interact
 });
 export const selectInteractiveLearningLessonSchema = createSelectSchema(interactiveLearningLesson);
 
+export const insertInteractiveLearningLessonRevisionSchema = createInsertSchema(
+	interactiveLearningLessonRevision,
+	{
+		status: z.enum(['draft', 'published', 'archived']).default('draft')
+	}
+);
+export const selectInteractiveLearningLessonRevisionSchema = createSelectSchema(
+	interactiveLearningLessonRevision
+);
+
 export const insertInteractiveLessonSessionSchema = createInsertSchema(interactiveLessonSession, {
-	status: z.enum(['active', 'completed', 'restarted', 'abandoned']).default('active')
+	status: z.enum(['active', 'completed', 'restarted', 'abandoned']).default('active'),
+	bindingStatus: z.enum(['exact', 'backfilled_current']).default('backfilled_current'),
+	scope: z.enum(['learner', 'preview_published', 'preview_draft']).default('learner')
 });
 export const selectInteractiveLessonSessionSchema = createSelectSchema(interactiveLessonSession);
 
 export const insertInteractiveLessonBlockStateSchema = createInsertSchema(
 	interactiveLessonBlockState,
 	{
-		status: z.enum(['pending', 'active', 'completed', 'skipped']).default('pending')
+		status: z.enum(['pending', 'active', 'completed', 'skipped']).default('pending'),
+		scope: z.enum(['learner', 'preview_published', 'preview_draft']).default('learner')
 	}
 );
 export const selectInteractiveLessonBlockStateSchema = createSelectSchema(interactiveLessonBlockState);
@@ -313,12 +471,14 @@ export const selectInteractiveLessonBlockStateSchema = createSelectSchema(intera
 export const insertInteractiveLessonBlockVisitSchema = createInsertSchema(
 	interactiveLessonBlockVisit,
 	{
-		status: z.enum(['active', 'completed', 'skipped', 'abandoned']).default('active')
+		status: z.enum(['active', 'completed', 'skipped', 'abandoned']).default('active'),
+		scope: z.enum(['learner', 'preview_published', 'preview_draft']).default('learner')
 	}
 );
 export const selectInteractiveLessonBlockVisitSchema = createSelectSchema(interactiveLessonBlockVisit);
 
 export const insertInteractiveLessonEventSchema = createInsertSchema(interactiveLessonEvent, {
+	scope: z.enum(['learner', 'preview_published', 'preview_draft']).default('learner'),
 	eventType: z.enum([
 		'session_started',
 		'block_entered',
@@ -331,6 +491,7 @@ export const insertInteractiveLessonEventSchema = createInsertSchema(interactive
 export const selectInteractiveLessonEventSchema = createSelectSchema(interactiveLessonEvent);
 
 export type InteractiveLearningLesson = typeof interactiveLearningLesson.$inferSelect;
+export type InteractiveLearningLessonRevision = typeof interactiveLearningLessonRevision.$inferSelect;
 export type InteractiveLessonSession = typeof interactiveLessonSession.$inferSelect;
 export type InteractiveLessonBlockState = typeof interactiveLessonBlockState.$inferSelect;
 export type InteractiveLessonBlockVisit = typeof interactiveLessonBlockVisit.$inferSelect;

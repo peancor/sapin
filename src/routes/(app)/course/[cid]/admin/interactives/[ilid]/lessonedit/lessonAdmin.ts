@@ -14,6 +14,7 @@ import type {
 } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { LessonService } from '$lib/server/lesson/LessonService';
+import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
 import { fileStorageService } from '$lib/server/files/FileStorageService';
 import { AIUtils } from '$lib/server/ai/AIUtils';
 import { nanoid } from 'nanoid';
@@ -100,27 +101,38 @@ export async function loadLessonAdminData(
 	graphSummaries: ReturnType<typeof LessonService.getGraphSummaries>;
 	models: Awaited<ReturnType<typeof AIUtils.getAvailableModels>>;
 	defaultModel: Awaited<ReturnType<typeof AIUtils.getDefaultModel>>;
+	revisionSummary: Awaited<ReturnType<typeof LessonRevisionService.getRevisionAdminSummary>>;
 }> {
 	const { activity, lessonConfig } = await requireLessonAdminContext(cid, ilid, locals);
-	const [files, models, defaultModel] = await Promise.all([
+	const [files, models, defaultModel, revisionState, revisionSummary] = await Promise.all([
 		db
 			.select()
 			.from(interactiveLearningFile)
 			.where(eq(interactiveLearningFile.interactiveLearningId, ilid))
 			.all(),
 		AIUtils.getAvailableModels(),
-		AIUtils.getDefaultModel()
+		AIUtils.getDefaultModel(),
+		LessonRevisionService.ensureLessonRevisionState(ilid, {
+			actorUserId: locals.user?.id ?? null
+		}),
+		LessonRevisionService.getRevisionAdminSummary(ilid)
 	]);
-	const definition = LessonService.parseDefinition(activity.content);
+	const definition = revisionState.draftDefinition;
+	const nextLessonConfig =
+		lessonConfig.draftRevisionId === revisionState.lesson.draftRevisionId &&
+		lessonConfig.publishedRevisionId === revisionState.lesson.publishedRevisionId
+			? lessonConfig
+			: revisionState.lesson;
 
 	return {
 		activity,
-		lessonConfig,
+		lessonConfig: nextLessonConfig,
 		definition,
 		files,
 		graphSummaries: LessonService.getGraphSummaries(definition),
 		models,
-		defaultModel
+		defaultModel,
+		revisionSummary
 	};
 }
 

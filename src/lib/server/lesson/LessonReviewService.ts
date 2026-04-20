@@ -1,10 +1,12 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import { db, CourseRoleUtils } from '$lib/server/db';
 import {
+	interactiveLearningLessonRevision,
 	interactiveLessonBlockState,
 	interactiveLessonBlockVisit,
 	interactiveLessonEvent,
 	interactiveLessonSession,
+	lessonSessionScope,
 	message,
 	user
 } from '$lib/server/db/schema';
@@ -25,7 +27,6 @@ import type {
 	LessonReviewVisitAgentMessage,
 	LessonReviewVisitDetail
 } from '$lib/types/lessonReview';
-import { LessonService } from './LessonService';
 import { LessonServiceError } from './LessonServiceError';
 import {
 	buildLessonReviewAttemptSummary,
@@ -33,11 +34,11 @@ import {
 	coerceNumber,
 	parseJsonRecord
 } from './LessonReviewUtils';
+import { LessonRevisionService } from './LessonRevisionService';
 
 type CourseParticipant = LessonReviewStudent;
 
 type AttemptHistoryLoadResult = {
-	definition: LessonDefinition;
 	attempts: LessonReviewAttemptSummary[];
 };
 
@@ -292,18 +293,29 @@ export class LessonReviewService {
 			throw new LessonServiceError(404, 'El intento no pertenece a esta lesson.');
 		}
 
+		if (session.scope !== lessonSessionScope.LEARNER) {
+			throw new LessonServiceError(404, 'El intento solicitado no forma parte de la revisión learner.');
+		}
+
+		const resolvedSession = await LessonRevisionService.ensureSessionRevisionBinding(session);
+
 		const participants = await this.getCourseParticipants(input.courseId);
 		const participantById = new Map(participants.map((participant) => [participant.id, participant]));
-		const studentRecord = participantById.get(session.userId) ?? (await this.getFallbackParticipant(session.userId));
+		const studentRecord =
+			participantById.get(resolvedSession.userId) ??
+			(await this.getFallbackParticipant(resolvedSession.userId));
 
 		if (!studentRecord) {
 			throw new LessonServiceError(404, 'Alumno no encontrado.');
 		}
 
-		const { definition, attempts } = await this.loadAttemptHistoryForUser({
+		const { definition } = await LessonRevisionService.resolveLessonDefinitionForSession({
+			sessionId: resolvedSession.id
+		});
+		const { attempts } = await this.loadAttemptHistoryForUser({
 			courseId: input.courseId,
 			activity: input.activity,
-			userId: session.userId
+			userId: resolvedSession.userId
 		});
 
 		const attempt = attempts.find((item) => item.sessionId === input.sessionId);
@@ -409,7 +421,6 @@ export class LessonReviewService {
 		definition: LessonDefinition;
 		rows: LessonReviewStudentRow[];
 	}> {
-		const definition = LessonService.parseDefinition(activity.content);
 		const courseParticipants = await this.getCourseParticipants(courseId);
 		const sessions = await db
 			.select()
@@ -417,12 +428,21 @@ export class LessonReviewService {
 			.where(
 				and(
 					eq(interactiveLessonSession.courseId, courseId),
-					eq(interactiveLessonSession.interactiveLearningId, activity.id)
+					eq(interactiveLessonSession.interactiveLearningId, activity.id),
+					eq(interactiveLessonSession.scope, lessonSessionScope.LEARNER),
+					isNotNull(interactiveLessonSession.definitionRevisionId)
 				)
 			)
 			.all();
+		const boundSessions = await Promise.all(
+			sessions.map((session) => LessonRevisionService.ensureSessionRevisionBinding(session))
+		);
+		const revisionState = await LessonRevisionService.ensureLessonRevisionState(activity.id);
+		const definitionsByRevisionId = await this.loadDefinitionsByRevisionId(
+			boundSessions.map((session) => session.definitionRevisionId)
+		);
 
-		const sessionIds = sessions.map((session) => session.id);
+		const sessionIds = boundSessions.map((session) => session.id);
 		const [blockStates, blockVisits, events] = await Promise.all([
 			sessionIds.length
 				? db
@@ -452,7 +472,11 @@ export class LessonReviewService {
 		const eventsBySession = this.groupBy(events, (item) => item.sessionId);
 		const attemptsByUser = new Map<string, LessonReviewAttemptSummary[]>();
 
-		for (const session of sessions) {
+		for (const session of boundSessions) {
+			const definition =
+				(session.definitionRevisionId
+					? definitionsByRevisionId.get(session.definitionRevisionId)
+					: null) ?? revisionState.publishedDefinition;
 			const attempt = buildLessonReviewAttemptSummary({
 				definition,
 				session,
@@ -468,7 +492,7 @@ export class LessonReviewService {
 		}
 
 		return {
-			definition,
+			definition: revisionState.publishedDefinition,
 			rows: buildLessonReviewStudentRows({
 				participants: courseParticipants,
 				attemptsByUser
@@ -481,7 +505,6 @@ export class LessonReviewService {
 		activity: InteractiveLearning;
 		userId: string;
 	}): Promise<AttemptHistoryLoadResult> {
-		const definition = LessonService.parseDefinition(input.activity.content);
 		const historySessions = await db
 			.select()
 			.from(interactiveLessonSession)
@@ -489,19 +512,23 @@ export class LessonReviewService {
 				and(
 					eq(interactiveLessonSession.courseId, input.courseId),
 					eq(interactiveLessonSession.interactiveLearningId, input.activity.id),
-					eq(interactiveLessonSession.userId, input.userId)
+					eq(interactiveLessonSession.userId, input.userId),
+					eq(interactiveLessonSession.scope, lessonSessionScope.LEARNER),
+					isNotNull(interactiveLessonSession.definitionRevisionId)
 				)
 			)
 			.all();
+		const boundSessions = await Promise.all(
+			historySessions.map((session) => LessonRevisionService.ensureSessionRevisionBinding(session))
+		);
 
-		if (historySessions.length === 0) {
+		if (boundSessions.length === 0) {
 			return {
-				definition,
 				attempts: []
 			};
 		}
 
-		const historySessionIds = historySessions.map((item) => item.id);
+		const historySessionIds = boundSessions.map((item) => item.id);
 		const [blockStates, blockVisits, events] = await Promise.all([
 			db
 				.select()
@@ -519,14 +546,21 @@ export class LessonReviewService {
 				.where(inArray(interactiveLessonEvent.sessionId, historySessionIds))
 				.all()
 		]);
+		const revisionState = await LessonRevisionService.ensureLessonRevisionState(input.activity.id);
+		const definitionsByRevisionId = await this.loadDefinitionsByRevisionId(
+			boundSessions.map((session) => session.definitionRevisionId)
+		);
 
 		const statesBySession = this.groupBy(blockStates, (item) => item.sessionId);
 		const visitsBySession = this.groupBy(blockVisits, (item) => item.sessionId);
 		const eventsBySession = this.groupBy(events, (item) => item.sessionId);
-		const attempts = historySessions
+		const attempts = boundSessions
 			.map((historySession) =>
 				buildLessonReviewAttemptSummary({
-					definition,
+					definition:
+						(historySession.definitionRevisionId
+							? definitionsByRevisionId.get(historySession.definitionRevisionId)
+							: null) ?? revisionState.publishedDefinition,
 					session: historySession,
 					blockStates: statesBySession.get(historySession.id) ?? [],
 					blockVisits: (visitsBySession.get(historySession.id) ?? []).sort(
@@ -538,9 +572,30 @@ export class LessonReviewService {
 			.sort(sortAttemptsDescending);
 
 		return {
-			definition,
 			attempts
 		};
+	}
+
+	private static async loadDefinitionsByRevisionId(
+		revisionIds: Array<string | null | undefined>
+	): Promise<Map<string, LessonDefinition>> {
+		const ids = [...new Set(revisionIds.filter((revisionId): revisionId is string => Boolean(revisionId)))];
+		if (ids.length === 0) {
+			return new Map();
+		}
+
+		const revisions = await db
+			.select()
+			.from(interactiveLearningLessonRevision)
+			.where(inArray(interactiveLearningLessonRevision.id, ids))
+			.all();
+
+		return new Map(
+			revisions.map((revision) => [
+				revision.id,
+				LessonRevisionService.parseDefinition(revision.definitionJson)
+			])
+		);
 	}
 
 	private static async getCourseParticipants(courseId: string): Promise<CourseParticipant[]> {

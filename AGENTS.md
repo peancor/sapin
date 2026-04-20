@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Auditado contra el código fuente el `2026-04-16`.
+> Auditado contra el código fuente el `2026-04-20`.
 > Documento canónico para agentes y colaboradores. Si algo aquí contradice `README.md` u otra documentación antigua, prevalece `AGENTS.md` y después el código.
 
 ## Regla de mantenimiento
@@ -330,7 +330,7 @@ El esquema Drizzle vive en `src/lib/server/db/schema/` y se reexporta desde `ind
 | `courses.ts` | `course`, `invite`, `course_file`, `course_role` |
 | `chat.ts` | `chat`, `message` |
 | `interactive.ts` | `interactive_learning`, `course_interactive_learning`, `interactive_learning_chat`, `user_interactive_learning_chat`, `interactive_learning_file`, `interactive_learning_rag_document` |
-| `lesson.ts` | `interactive_learning_lesson`, `interactive_lesson_session`, `interactive_lesson_block_state`, `interactive_lesson_event` |
+| `lesson.ts` | `interactive_learning_lesson`, `interactive_learning_lesson_revision`, `interactive_lesson_session`, `interactive_lesson_block_state`, `interactive_lesson_block_visit`, `interactive_lesson_event` |
 | `progress.ts` | `learning_activity_progress`, `learning_progress_event`, `course_progress_summary` |
 | `files.ts` | `file_storage`, `file_access_log`, `file_system_setting` |
 | `notifications.ts` | `notification` |
@@ -471,17 +471,32 @@ Servicios relacionados:
 
 El subsistema de lecciones soporta:
 
+- revisiones versionadas de definición (`draft` / `published`)
+- sesiones ligadas a una revisión concreta de la lesson
 - política de sesión (`resume_latest` / `always_new_attempt`)
 - reintentos
 - estado por bloque
+- visitas por bloque
 - eventos de sesión
 - chats asociados a bloques
+- preview aislado de revisión publicada y de borrador
+
+Detalles operativos importantes:
+
+- el editor trabaja sobre la revisión `draft`
+- publicar actualiza la revisión `published` y mantiene `interactiveLearning.content` como copia compatible
+- las sesiones de alumnado usan `scope = learner`
+- los previews usan scopes separados (`preview_published` / `preview_draft`) para no contaminar progreso, review ni analítica
+- el runtime y la review resuelven la definición desde `interactive_lesson_session.definitionRevisionId`
+- las sesiones legacy sin `definitionRevisionId` ya no se reutilizan ni aparecen en la review
 
 Rutas y APIs relacionadas viven en:
 
 - `src/routes/(app)/course/[cid]/run/lesson/...`
+- `src/routes/(app)/lesson/[ilid]/...`
 - `src/routes/api/lesson/...`
 - `src/routes/(app)/course/[cid]/admin/interactives/[ilid]/lesson-review/...`
+- `src/routes/(app)/course/[cid]/admin/interactives/[ilid]/lessonedit/...`
 
 ## Ficheros, imágenes y Qdrant
 
@@ -637,7 +652,7 @@ No editar a mano salvo que el flujo lo requiera explícitamente:
 - actividades agénticas: `src/lib/server/agent/`, `src/lib/server/db/schema/agent.ts`
 - insights agent: `src/lib/server/insights-agent/`, `src/lib/server/db/schema/insightsAgent.ts`
 - staff agent: `src/lib/server/staff-agent/`, `src/lib/server/db/schema/agentWorkspace.ts`
-- lecciones: `src/lib/server/db/schema/lesson.ts`, rutas `lesson`
+- lecciones: `src/lib/server/db/schema/lesson.ts`, `src/lib/server/lesson/LessonService.ts`, `src/lib/server/lesson/LessonRevisionService.ts`, rutas `lesson`
 - revisión pedagógica de lessons: `src/lib/server/lesson/LessonReviewService.ts`, rutas `lesson-review`
 - ficheros y RAG: `src/lib/server/files/`, `src/lib/server/qdrant/`, `src/lib/server/ai/services/RagService.ts`
 - notificaciones: `src/lib/server/notifications/`, `src/lib/server/notifier/`

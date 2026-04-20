@@ -1,9 +1,7 @@
 import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
-import { interactiveLearning } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
 import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
+import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
 import type { LessonBlock } from '$lib/types/lesson';
 import {
 	loadLessonAdminData,
@@ -28,7 +26,7 @@ export const load = (async ({ params, locals }) => {
 
 export const actions = {
 	saveBlock: async ({ request, params, locals }) => {
-		const { activity } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const blockJson = formData.get('blockJson')?.toString();
 
@@ -48,16 +46,20 @@ export const actions = {
 		}
 
 		try {
-			const definition = LessonService.parseDefinition(activity.content);
-			const nextDefinition = LessonService.updateBlock(definition, params.blockId, parsedBlock);
+			const revisionState = await LessonRevisionService.ensureLessonRevisionState(params.ilid, {
+				actorUserId: user.id
+			});
+			const nextDefinition = LessonService.updateBlock(
+				revisionState.draftDefinition,
+				params.blockId,
+				parsedBlock
+			);
 
-			await db
-				.update(interactiveLearning)
-				.set({
-					content: LessonService.serializeDefinition(nextDefinition),
-					updatedAt: new Date()
-				})
-				.where(eq(interactiveLearning.id, params.ilid));
+			await LessonRevisionService.saveDraftDefinition({
+				interactiveLearningId: params.ilid,
+				definition: nextDefinition,
+				actorUserId: user.id
+			});
 
 			redirect(
 				303,

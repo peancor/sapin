@@ -11,6 +11,7 @@ import { auditService, auditAction } from '$lib/server/logging';
 import { generateSlug } from '$lib/utils/slug';
 import { interactiveLearningLesson } from '$lib/server/db/schema';
 import { LessonService } from '$lib/server/lesson/LessonService';
+import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
 
 function getClientIP(request: Request): string | null {
     return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -146,6 +147,9 @@ export const actions = {
                 createdAt: now,
                 updatedAt: now
             });
+			await LessonRevisionService.ensureLessonRevisionState(id, {
+				actorUserId: locals.user.id
+			});
         }
 
         // Obtener el último orden para este curso

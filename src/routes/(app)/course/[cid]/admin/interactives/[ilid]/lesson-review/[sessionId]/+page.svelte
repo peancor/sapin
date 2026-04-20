@@ -143,6 +143,16 @@
 							</p>
 						{/if}
 						<div class="mt-4 flex flex-wrap gap-2">
+							{#if data.detail.attempt.definitionRevisionNumber !== null}
+								<span class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200">
+									Revision #{data.detail.attempt.definitionRevisionNumber}
+								</span>
+							{/if}
+							{#if data.detail.attempt.isHistoricalApproximation}
+								<span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+									Histórico aproximado
+								</span>
+							{/if}
 							{#each data.detail.attempt.alerts as alert (alert.kind)}
 								<span class="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-300">
 									<AlertTriangle class="h-3.5 w-3.5" />
@@ -150,6 +160,11 @@
 								</span>
 							{/each}
 						</div>
+						{#if data.detail.attempt.isHistoricalApproximation}
+							<p class="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+								Este intento fue ligado retroactivamente a la revisión publicada actual cuando se activó el versionado. La versión histórica exacta previa no estaba almacenada.
+							</p>
+						{/if}
 					</div>
 				</div>
 

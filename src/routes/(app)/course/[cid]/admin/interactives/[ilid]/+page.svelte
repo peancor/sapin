@@ -37,6 +37,8 @@
 
 	const isAgent = $derived(data.interactive.type === 'agent');
 	const isLesson = $derived(data.interactive.type === 'lesson');
+	const lessonPublishedPreviewHref = $derived(resolve(`/lesson/${ilid}?preview=published`));
+	const lessonDraftPreviewHref = $derived(resolve(`/lesson/${ilid}?preview=draft`));
 </script>
 
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -323,6 +325,24 @@
 								</p>
 							</div>
 						</div>
+						{#if data.revisionSummary}
+							<div class="flex items-start gap-3">
+								<Route class="mt-0.5 h-5 w-5 text-gray-400" />
+								<div>
+									<p class="text-sm font-medium text-gray-900 dark:text-white">Revisiones</p>
+									<p class="text-sm text-gray-500 dark:text-gray-400">
+										Publicado #{data.revisionSummary.published.revisionNumber} · borrador #
+										{data.revisionSummary.draft.revisionNumber}
+									</p>
+									<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+										{data.revisionSummary.impact.activeAttemptsOnOlderRevisions} intentos activos
+										continúan en revisiones anteriores y {data.revisionSummary.diff.totalChangedBlocks}
+										bloque{data.revisionSummary.diff.totalChangedBlocks === 1 ? '' : 's'} tienen
+										cambios visibles en el borrador.
+									</p>
+								</div>
+							</div>
+						{/if}
 					</div>
 				{:else if isAgent}
 					<div class="space-y-4">
@@ -466,20 +486,35 @@
 
 		<!-- Preview Button -->
 		<div class="flex justify-center">
-			<a
-				href={resolve(
-					isLesson
-						? `/lesson/${ilid}`
-						: isAgent
-							? `/agent-chat/${ilid}`
-							: `/interactive-chat/${ilid}`
-				)}
-				target="_blank"
-				class="bg-primary-600 hover:bg-primary-700 inline-flex items-center gap-2 rounded-lg px-6 py-3 text-white transition-colors"
-			>
-				<Eye class="h-5 w-5" />
-				Previsualizar actividad
-			</a>
+			{#if isLesson}
+				<div class="flex flex-wrap justify-center gap-3">
+					<a
+						href={lessonPublishedPreviewHref}
+						target="_blank"
+						class="bg-primary-600 hover:bg-primary-700 inline-flex items-center gap-2 rounded-lg px-6 py-3 text-white transition-colors"
+					>
+						<Eye class="h-5 w-5" />
+						Preview publicado
+					</a>
+					<a
+						href={lessonDraftPreviewHref}
+						target="_blank"
+						class="inline-flex items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-6 py-3 text-sky-800 transition-colors hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
+					>
+						<Route class="h-5 w-5" />
+						Preview borrador
+					</a>
+				</div>
+			{:else}
+				<a
+					href={resolve(isAgent ? `/agent-chat/${ilid}` : `/interactive-chat/${ilid}`)}
+					target="_blank"
+					class="bg-primary-600 hover:bg-primary-700 inline-flex items-center gap-2 rounded-lg px-6 py-3 text-white transition-colors"
+				>
+					<Eye class="h-5 w-5" />
+					Previsualizar actividad
+				</a>
+			{/if}
 		</div>
 	</div>
 </div>

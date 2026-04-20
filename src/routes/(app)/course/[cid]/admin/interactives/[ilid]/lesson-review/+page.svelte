@@ -152,6 +152,11 @@
 		return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300';
 	}
 
+	function revisionLabel(attempt: LessonReviewAttemptSummary | null): string {
+		if (!attempt?.definitionRevisionNumber) return 'Revisión sin identificar';
+		return `Rev ${attempt.definitionRevisionNumber}`;
+	}
+
 	function alertClasses(kind: LessonReviewAlertKind): string {
 		if (kind === 'abandoned_attempt' || kind === 'checkpoint_blocked') {
 			return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-300';
@@ -362,6 +367,16 @@
 								{/if}
 
 								{#if row.latestAttempt}
+									<div class="mt-3 flex flex-wrap gap-2">
+										<span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200">
+											{revisionLabel(row.latestAttempt)}
+										</span>
+										{#if row.latestAttempt.isHistoricalApproximation}
+											<span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+												Histórico aproximado
+											</span>
+										{/if}
+									</div>
 									<div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
 										<div class="rounded-2xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
 											<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Intento</p>

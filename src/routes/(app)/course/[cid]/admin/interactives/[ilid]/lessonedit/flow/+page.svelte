@@ -89,7 +89,7 @@
 		connectFrom?: { sourceBlockId: string; sourceHandle: string | null };
 	};
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
 
 	const nodeTypes = {
 		'lesson-block': LessonFlowNodeComponent
@@ -117,8 +117,8 @@
 	let flowRenderVersion = $state(0);
 	let isSubmitting = $state(false);
 	let hasUnsavedChanges = $state(false);
-	let actionMessage = $state('');
-	let actionError = $state('');
+	let actionMessage = $state(form?.message ?? '');
+	let actionError = $state(form?.error ?? '');
 	let isInspectorCollapsed = $state(false);
 	let quickMenuContext = $state<LessonFlowQuickMenuContext>('closed');
 	let quickMenuQuery = $state('');
@@ -135,7 +135,13 @@
 
 	const cid = $derived(page.params.cid);
 	const ilid = $derived(page.params.ilid);
-	const previewHref = $derived(resolve(`/lesson/${ilid}`));
+	const previewPublishedHref = $derived(resolve(`/lesson/${ilid}?preview=published`));
+	const previewDraftHref = $derived(resolve(`/lesson/${ilid}?preview=draft`));
+	const revisionDiff = $derived(data.revisionSummary.diff);
+	const revisionImpact = $derived(data.revisionSummary.impact);
+	const hasDraftChanges = $derived(
+		revisionDiff.totalChangedBlocks > 0 || revisionDiff.entryBlockChanged
+	);
 	const isQuickMenuOpen = $derived(quickMenuContext !== 'closed');
 	const selectedBlock = $derived.by(() => {
 		const currentSelection = selection;
@@ -199,6 +205,15 @@
 		return '';
 	});
 	const quickMenuItems = $derived.by(() => getQuickMenuItems());
+
+	$effect(() => {
+		if (form?.message) {
+			actionMessage = form.message;
+			actionError = '';
+		} else if (form?.error) {
+			actionError = form.error;
+		}
+	});
 
 	function getValidExecutionTriggers(
 		interactionMode: LessonAgentInteractionMode
@@ -1638,14 +1653,122 @@
 				Ficha de actividad
 			</a>
 			<a
-				href={previewHref}
+				href={previewPublishedHref}
 				target="_blank"
 				rel="noreferrer"
 				class="inline-flex items-center justify-center rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 shadow-sm hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
 			>
 				<Eye class="mr-2 h-4 w-4" />
-				Lanzar preview
+				Preview publicado
 			</a>
+		</div>
+
+		<div
+			class="rounded-[28px] border border-stone-200/80 bg-white/90 p-5 shadow-sm dark:border-stone-800 dark:bg-[#16181b]/90"
+		>
+			<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+				<div class="max-w-3xl">
+					<p
+						class="text-[11px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
+					>
+						Revisiones
+					</p>
+					<h2 class="mt-2 text-base font-semibold">
+						Publicado #{data.revisionSummary.published.revisionNumber} · borrador #
+						{data.revisionSummary.draft.revisionNumber}
+					</h2>
+					<p class="mt-2 text-sm leading-6 text-stone-600 dark:text-stone-300">
+						Guarda el mapa antes de publicar. El preview de borrador está aislado y los intentos
+						learner existentes conservan su revisión ligada.
+					</p>
+				</div>
+
+				<div class="flex flex-wrap gap-2">
+					<a
+						href={previewDraftHref}
+						target="_blank"
+						rel="noreferrer"
+						class="inline-flex items-center rounded-2xl border border-sky-300 bg-sky-50 px-3.5 py-2 text-sm font-medium text-sky-800 shadow-sm transition hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
+					>
+						<Eye class="mr-1.5 h-4 w-4" />
+						Preview borrador
+					</a>
+					<form
+						method="POST"
+						action="?/discardDraft"
+						onsubmit={(event) => {
+							if (
+								hasDraftChanges &&
+								!window.confirm('Vas a descartar el borrador actual del canvas.')
+							) {
+								event.preventDefault();
+							}
+						}}
+					>
+						<button
+							type="submit"
+							class="inline-flex items-center rounded-2xl border border-stone-300 bg-white px-3.5 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+							disabled={!hasDraftChanges || hasUnsavedChanges || isSubmitting}
+						>
+							Descartar
+						</button>
+					</form>
+					<form method="POST" action="?/publishDraft">
+						<button
+							type="submit"
+							class="bg-primary-600 hover:bg-primary-700 inline-flex items-center rounded-2xl px-3.5 py-2 text-sm font-medium text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50"
+							disabled={!hasDraftChanges || hasUnsavedChanges || isSubmitting}
+						>
+							Publicar
+						</button>
+					</form>
+				</div>
+			</div>
+
+			<div class="mt-4 grid gap-3 lg:grid-cols-3">
+				<div class="rounded-2xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/60">
+					<p
+						class="text-[11px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
+					>
+						Diff
+					</p>
+					<p class="mt-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
+						{revisionDiff.totalChangedBlocks} bloque{revisionDiff.totalChangedBlocks === 1 ? '' : 's'} con
+						cambios
+					</p>
+					<p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
+						+{revisionDiff.addedBlockIds.length} · -{revisionDiff.removedBlockIds.length} ·
+						{revisionDiff.changedBlockIds.length} editados
+					</p>
+				</div>
+				<div class="rounded-2xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/60">
+					<p
+						class="text-[11px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
+					>
+						Intentos activos
+					</p>
+					<p class="mt-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
+						{revisionImpact.activeAttemptsOnCurrentPublishedRevision} en la revisión publicada
+					</p>
+					<p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
+						{revisionImpact.activeAttemptsOnOlderRevisions} ya siguen revisiones antiguas.
+					</p>
+				</div>
+				<div class="rounded-2xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/60">
+					<p
+						class="text-[11px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
+					>
+						Histórico
+					</p>
+					<p class="mt-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
+						{revisionImpact.completedAttemptsOnHistoricalRevisions} completados en revisiones
+						históricas
+					</p>
+					<p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
+						{revisionImpact.referencedAssetFileIds.length} assets siguen referenciados.
+					</p>
+				</div>
+			</div>
 		</div>
 
 		<div
@@ -1760,13 +1883,22 @@
 
 			<div class="flex items-center gap-2">
 				<a
-					href={previewHref}
+					href={previewPublishedHref}
 					target="_blank"
 					rel="noreferrer"
 					class="inline-flex items-center rounded-2xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-sm font-medium text-emerald-800 shadow-sm transition hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
 				>
 					<Eye class="mr-1.5 h-4 w-4" />
-					Preview
+					Publicado
+				</a>
+				<a
+					href={previewDraftHref}
+					target="_blank"
+					rel="noreferrer"
+					class="inline-flex items-center rounded-2xl border border-sky-300 bg-sky-50 px-3.5 py-2 text-sm font-medium text-sky-800 shadow-sm transition hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
+				>
+					<Eye class="mr-1.5 h-4 w-4" />
+					Borrador
 				</a>
 				<a
 					href={resolve(`/course/${cid}/admin/interactives/${ilid}`)}
@@ -1791,6 +1923,35 @@
 					<Save class="mr-1.5 h-4 w-4" />
 					Guardar mapa
 				</button>
+				<form
+					method="POST"
+					action="?/discardDraft"
+					onsubmit={(event) => {
+						if (
+							hasDraftChanges &&
+							!window.confirm('Vas a descartar el borrador actual del canvas.')
+						) {
+							event.preventDefault();
+						}
+					}}
+				>
+					<button
+						type="submit"
+						class="inline-flex items-center rounded-2xl border border-stone-300 bg-white px-3.5 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+						disabled={!hasDraftChanges || hasUnsavedChanges || isSubmitting}
+					>
+						Descartar
+					</button>
+				</form>
+				<form method="POST" action="?/publishDraft">
+					<button
+						type="submit"
+						class="inline-flex items-center rounded-2xl bg-amber-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+						disabled={!hasDraftChanges || hasUnsavedChanges || isSubmitting}
+					>
+						Publicar
+					</button>
+				</form>
 			</div>
 		</div>
 	</header>

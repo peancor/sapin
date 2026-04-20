@@ -34,6 +34,13 @@
 	const cid = $derived(page.params.cid);
 	const ilid = $derived(page.params.ilid);
 	const resourcesCount = $derived(data.files.length);
+	const previewPublishedHref = $derived(resolve(`/lesson/${ilid}?preview=published`));
+	const previewDraftHref = $derived(resolve(`/lesson/${ilid}?preview=draft`));
+	const revisionDiff = $derived(data.revisionSummary.diff);
+	const revisionImpact = $derived(data.revisionSummary.impact);
+	const hasDraftChanges = $derived(
+		revisionDiff.totalChangedBlocks > 0 || revisionDiff.entryBlockChanged
+	);
 
 	function markMetaDirty() {
 		isMetaDirty = true;
@@ -192,6 +199,139 @@
 			{form.error}
 		</div>
 	{/if}
+
+	{#if form?.success && form?.message}
+		<div
+			class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200"
+		>
+			{form.message}
+		</div>
+	{/if}
+
+	<div
+		class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800"
+	>
+		<div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+			<div class="max-w-3xl">
+				<p class="text-sm font-semibold tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+					Revisiones
+				</p>
+				<h2 class="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+					Publicado en revisión #{data.revisionSummary.published.revisionNumber} · borrador en
+					revisión #{data.revisionSummary.draft.revisionNumber}
+				</h2>
+				<p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+					Los intentos existentes siguen ligados a la revisión con la que comenzaron. Publicar
+					afecta solo a intentos nuevos y los previews quedan aislados del alumnado real.
+				</p>
+			</div>
+
+			<div class="flex flex-wrap gap-2">
+				<a
+					href={previewPublishedHref}
+					target="_blank"
+					rel="noreferrer"
+					class="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
+				>
+					<Route class="mr-1 inline h-4 w-4" />
+					Preview publicado
+				</a>
+				<a
+					href={previewDraftHref}
+					target="_blank"
+					rel="noreferrer"
+					class="rounded-xl border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
+				>
+					<Route class="mr-1 inline h-4 w-4" />
+					Preview borrador
+				</a>
+				<form
+					method="POST"
+					action="?/discardDraft"
+					onsubmit={(event) => {
+						if (
+							hasDraftChanges &&
+							!window.confirm('Vas a descartar el borrador y volver al publicado actual.')
+						) {
+							event.preventDefault();
+						}
+					}}
+				>
+					<button
+						class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+						disabled={!hasDraftChanges}
+					>
+						Descartar borrador
+					</button>
+				</form>
+				<form method="POST" action="?/publishDraft">
+					<button
+						class="bg-primary-600 hover:bg-primary-700 rounded-xl px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+						disabled={!hasDraftChanges}
+					>
+						Publicar borrador
+					</button>
+				</form>
+			</div>
+		</div>
+
+		<div class="mt-5 grid gap-4 lg:grid-cols-3">
+			<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+				<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+					Diff visible
+				</p>
+				<p class="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+					{revisionDiff.totalChangedBlocks} bloque{revisionDiff.totalChangedBlocks === 1 ? '' : 's'} con
+					cambios
+				</p>
+				<p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+					+{revisionDiff.addedBlockIds.length} nuevos · -{revisionDiff.removedBlockIds.length} eliminados
+					· {revisionDiff.changedBlockIds.length} editados
+				</p>
+				<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+					{revisionDiff.entryBlockChanged
+						? 'La entrada de la lesson cambiará al publicar.'
+						: 'La entrada actual se mantiene.'}
+				</p>
+			</div>
+
+			<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+				<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+					Impacto en intentos
+				</p>
+				<p class="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+					{revisionImpact.activeAttemptsOnCurrentPublishedRevision} activo{revisionImpact
+						.activeAttemptsOnCurrentPublishedRevision === 1
+						? ''
+						: 's'} en la revisión publicada
+				</p>
+				<p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+					{revisionImpact.activeAttemptsOnOlderRevisions} activo{revisionImpact
+						.activeAttemptsOnOlderRevisions === 1
+						? ''
+						: 's'} ya siguen revisiones antiguas y no se migran automáticamente.
+				</p>
+			</div>
+
+			<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+				<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+					Histórico y assets
+				</p>
+				<p class="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+					{revisionImpact.completedAttemptsOnHistoricalRevisions} intento{revisionImpact
+						.completedAttemptsOnHistoricalRevisions === 1
+						? ''
+						: 's'} completado{revisionImpact.completedAttemptsOnHistoricalRevisions === 1 ? '' : 's'} ya
+					quedarán en histórico
+				</p>
+				<p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+					{revisionImpact.revisionsReferencedByLearnerAttempts} revisiones están referenciadas por
+					intentos learner y {revisionImpact.referencedAssetFileIds.length} asset
+					{revisionImpact.referencedAssetFileIds.length === 1 ? '' : 's'} siguen en uso.
+				</p>
+			</div>
+		</div>
+	</div>
 
 	<div class="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.9fr)]">
 		<div class="space-y-6">
