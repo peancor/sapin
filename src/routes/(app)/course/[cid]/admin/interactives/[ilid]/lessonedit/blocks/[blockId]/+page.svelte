@@ -1,10 +1,12 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
+	import { beforeNavigate } from '$app/navigation';
 	import { deserialize } from '$app/forms';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
+	import { onMount } from 'svelte';
 	import {
 		getLessonAgentInteractionDescription,
 		getLessonCheckModeLabel,
@@ -60,6 +62,7 @@
 
 	let workingBlock = $state(getInitialBlock());
 	let isDirty = $state(false);
+	let isSaving = $state(false);
 	let isUploadingInlineImage = $state(false);
 	let inlineImageError = $state('');
 
@@ -436,6 +439,30 @@
 			{ label: workingBlock.title }
 		]);
 	});
+
+	onMount(() => {
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			if (!isDirty || isSaving) return;
+			event.preventDefault();
+			event.returnValue = '';
+		};
+
+		window.addEventListener('beforeunload', handleBeforeUnload);
+
+		return () => {
+			window.removeEventListener('beforeunload', handleBeforeUnload);
+		};
+	});
+
+	beforeNavigate((navigation) => {
+		if (
+			isDirty &&
+			!isSaving &&
+			!window.confirm('Hay cambios sin guardar. ¿Deseas salir de todas formas?')
+		) {
+			navigation.cancel();
+		}
+	});
 </script>
 
 <div class="space-y-6">
@@ -497,6 +524,9 @@
 		<form
 			method="POST"
 			action="?/saveBlock"
+			onsubmit={() => {
+				isSaving = true;
+			}}
 			class="space-y-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800"
 		>
 			<input type="hidden" name="blockJson" value={serializedBlock} />
@@ -1731,10 +1761,11 @@
 				</div>
 
 				<button
+					disabled={isSaving}
 					class="bg-primary-600 hover:bg-primary-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white"
 				>
 					<Save class="mr-1 inline h-4 w-4" />
-					Guardar bloque
+					{isSaving ? 'Guardando...' : 'Guardar bloque'}
 				</button>
 			</div>
 		</form>
