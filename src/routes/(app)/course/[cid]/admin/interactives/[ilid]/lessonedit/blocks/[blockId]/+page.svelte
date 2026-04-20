@@ -96,11 +96,11 @@
 	);
 	const selectedBlockAgentToolIds = $derived(
 		workingBlock.kind === 'agent'
-			? (workingBlock.agentConfig.enabledToolIds?.length
-					? workingBlock.agentConfig.enabledToolIds.filter((toolId) =>
+			? (workingBlock.agentConfig.enabledToolIds === undefined
+					? effectiveAllowedAgentToolIds
+					: workingBlock.agentConfig.enabledToolIds.filter((toolId) =>
 							effectiveAllowedAgentToolIds.includes(toolId)
-						)
-					: effectiveAllowedAgentToolIds)
+						))
 			: []
 	);
 	const selectedBlockAgentToolMetrics = $derived(
@@ -110,6 +110,12 @@
 					selectedBlockAgentToolIds
 				)
 			: null
+	);
+	const hasInvalidCustomAgentToolSelection = $derived(
+		workingBlock.kind === 'agent' &&
+			workingBlock.agentConfig.runtimeMode === 'agent' &&
+			workingBlock.agentConfig.enabledToolIds !== undefined &&
+			workingBlock.agentConfig.enabledToolIds.length === 0
 	);
 	const conditionOperators = [
 		'equals',
@@ -174,7 +180,7 @@
 	}
 
 	function isInheritingAllowedAgentTools() {
-		return workingBlock.kind === 'agent' && !workingBlock.agentConfig.enabledToolIds?.length;
+		return workingBlock.kind === 'agent' && workingBlock.agentConfig.enabledToolIds === undefined;
 	}
 
 	function setAgentToolInheritance(inherit: boolean) {
@@ -182,7 +188,7 @@
 
 		workingBlock.agentConfig.enabledToolIds = inherit
 			? undefined
-			: [...effectiveAllowedAgentToolIds];
+			: [];
 		markDirty();
 	}
 
@@ -195,7 +201,7 @@
 				: [...nextSelected, toolId]
 			: nextSelected.filter((id) => id !== toolId);
 
-		workingBlock.agentConfig.enabledToolIds = updated.length > 0 ? updated : undefined;
+		workingBlock.agentConfig.enabledToolIds = updated;
 		markDirty();
 	}
 
@@ -1743,9 +1749,17 @@
 									<div
 										class="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100"
 									>
-										Este bloque usa un subconjunto propio. Si desmarcas la última tool, se
-										restaurará la herencia desde la portada para no dejar el runtime sin alcance.
+										Este bloque usa un subconjunto propio. La lista empieza vacía por diseño para
+										que actives solo lo que realmente necesites.
 									</div>
+
+									{#if hasInvalidCustomAgentToolSelection}
+										<div
+											class="rounded-2xl border border-red-200 bg-red-50/80 px-4 py-4 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200"
+										>
+											Activa al menos una tool antes de guardar este subconjunto propio.
+										</div>
+									{/if}
 
 									<LessonAgentToolCatalog
 										tools={availableLessonAgentTools}
@@ -1998,7 +2012,11 @@
 				class="flex flex-col gap-4 border-t border-gray-200 pt-5 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800"
 			>
 				<div>
-					{#if isDirty}
+					{#if hasInvalidCustomAgentToolSelection}
+						<p class="text-sm text-red-700 dark:text-red-300">
+							El subconjunto propio necesita al menos una tool activa.
+						</p>
+					{:else if isDirty}
 						<p class="text-sm text-amber-700 dark:text-amber-300">
 							Hay cambios pendientes en este bloque.
 						</p>
@@ -2010,8 +2028,8 @@
 				</div>
 
 				<button
-					disabled={isSaving}
-					class="bg-primary-600 hover:bg-primary-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white"
+					disabled={isSaving || hasInvalidCustomAgentToolSelection}
+					class="bg-primary-600 hover:bg-primary-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					<Save class="mr-1 inline h-4 w-4" />
 					{isSaving ? 'Guardando...' : 'Guardar bloque'}

@@ -105,8 +105,8 @@
 	function setAgentPolicyMode(mode: 'all' | 'custom') {
 		if (agentPolicyMode === mode) return;
 		agentPolicyMode = mode;
-		if (mode === 'custom' && selectedAllowedAgentToolIds.length === 0) {
-			selectedAllowedAgentToolIds = [...lessonSafeAgentToolIds];
+		if (mode === 'custom') {
+			selectedAllowedAgentToolIds = [];
 		}
 		markAgentPolicyDirty();
 	}
