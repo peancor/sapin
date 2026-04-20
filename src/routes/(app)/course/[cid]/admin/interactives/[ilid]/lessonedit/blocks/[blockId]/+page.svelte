@@ -14,6 +14,7 @@
 		normalizeLessonCheckConfig,
 		type LessonAgentExecutionTrigger,
 		type LessonAgentInteractionMode,
+		type LessonAgentRuntimeMode,
 		type LessonAssetRef,
 		type LessonBlock,
 		type LessonCheckMode,
@@ -80,6 +81,14 @@
 	const currentGraphSummary = $derived(data.graphSummary);
 	const currentBlockContract = $derived(data.graphSummary.contracts);
 	const availableModels = $derived(data.models);
+	const effectiveAllowedAgentToolIds = $derived(
+		data.definition.allowedAgentToolIds?.length
+			? data.definition.allowedAgentToolIds
+			: data.lessonAgentTools.map((tool) => tool.id)
+	);
+	const availableLessonAgentTools = $derived(
+		data.lessonAgentTools.filter((tool) => effectiveAllowedAgentToolIds.includes(tool.id))
+	);
 	const conditionOperators = [
 		'equals',
 		'not_equals',
@@ -133,9 +142,29 @@
 		markDirty();
 	}
 
-	function applyAgentPreset(
-		preset: 'feedback' | 'generated_content' | 'summary'
-	) {
+	function updateAgentRuntimeMode(runtimeMode: LessonAgentRuntimeMode) {
+		if (workingBlock.kind !== 'agent') return;
+		workingBlock.agentConfig.runtimeMode = runtimeMode;
+		if (runtimeMode === 'basic') {
+			workingBlock.agentConfig.enabledToolIds = undefined;
+		}
+		markDirty();
+	}
+
+	function toggleAgentTool(toolId: string, checked: boolean) {
+		if (workingBlock.kind !== 'agent') return;
+		const nextSelected = workingBlock.agentConfig.enabledToolIds ?? [];
+		const updated = checked
+			? nextSelected.includes(toolId)
+				? nextSelected
+				: [...nextSelected, toolId]
+			: nextSelected.filter((id) => id !== toolId);
+
+		workingBlock.agentConfig.enabledToolIds = updated.length > 0 ? updated : undefined;
+		markDirty();
+	}
+
+	function applyAgentPreset(preset: 'feedback' | 'generated_content' | 'summary') {
 		if (workingBlock.kind !== 'agent') return;
 
 		if (preset === 'feedback') {
@@ -844,10 +873,14 @@
 						></textarea>
 					</label>
 
-					<div class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/10">
+					<div
+						class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/10"
+					>
 						<div class="flex flex-wrap items-center justify-between gap-3">
 							<div>
-								<h2 class="text-base font-semibold text-gray-900 dark:text-white">Presets de evaluación</h2>
+								<h2 class="text-base font-semibold text-gray-900 dark:text-white">
+									Presets de evaluación
+								</h2>
 								<p class="text-sm text-gray-500 dark:text-gray-400">
 									Arranca con una configuración base y afínala después.
 								</p>
@@ -868,12 +901,16 @@
 
 					<div class="grid gap-4 md:grid-cols-3">
 						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Modo</span>
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Modo</span
+							>
 							<select
 								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 								bind:value={workingBlock.checkConfig.mode}
 								onchange={(event) =>
-									updateCheckMode((event.currentTarget as HTMLSelectElement).value as LessonCheckMode)}
+									updateCheckMode(
+										(event.currentTarget as HTMLSelectElement).value as LessonCheckMode
+									)}
 							>
 								{#each checkModes as modeOption (modeOption.value)}
 									<option value={modeOption.value}>{modeOption.label}</option>
@@ -981,7 +1018,9 @@
 							onchange={markDirty}
 						/>
 						<div>
-							<p class="text-sm font-medium text-gray-900 dark:text-white">Revelar respuesta correcta</p>
+							<p class="text-sm font-medium text-gray-900 dark:text-white">
+								Revelar respuesta correcta
+							</p>
 							<p class="text-xs text-gray-500 dark:text-gray-400">
 								Permite mostrar la solución al alumno tras la corrección.
 							</p>
@@ -992,7 +1031,9 @@
 						<div class="space-y-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
 							<div class="flex flex-wrap items-center justify-between gap-3">
 								<div>
-									<h2 class="text-base font-semibold text-gray-900 dark:text-white">Opciones evaluables</h2>
+									<h2 class="text-base font-semibold text-gray-900 dark:text-white">
+										Opciones evaluables
+									</h2>
 									<p class="text-sm text-gray-500 dark:text-gray-400">
 										Marca las respuestas correctas que debe aceptar el bloque.
 									</p>
@@ -1012,9 +1053,13 @@
 							{#each workingBlock.checkConfig.options as option, optionIndex (option.id)}
 								<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
 									<div class="mb-3 flex items-start justify-between gap-3">
-										<label class="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+										<label
+											class="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white"
+										>
 											<input
-												type={workingBlock.checkConfig.mode === 'multiple_choice' ? 'checkbox' : 'radio'}
+												type={workingBlock.checkConfig.mode === 'multiple_choice'
+													? 'checkbox'
+													: 'radio'}
 												name="correctOption"
 												class="text-primary-600 h-4 w-4 border-gray-300"
 												checked={workingBlock.checkConfig.correctOptionIds.includes(option.id)}
@@ -1041,7 +1086,10 @@
 
 									<div class="grid gap-3 md:grid-cols-3">
 										<label class="block">
-											<span class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase">ID</span>
+											<span
+												class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+												>ID</span
+											>
 											<input
 												class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 												bind:value={option.id}
@@ -1051,7 +1099,10 @@
 										</label>
 
 										<label class="block">
-											<span class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase">Etiqueta</span>
+											<span
+												class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+												>Etiqueta</span
+											>
 											<input
 												class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 												bind:value={option.label}
@@ -1060,7 +1111,10 @@
 										</label>
 
 										<label class="block">
-											<span class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase">Valor</span>
+											<span
+												class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+												>Valor</span
+											>
 											<input
 												class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 												bind:value={option.value}
@@ -1070,7 +1124,10 @@
 									</div>
 
 									<label class="mt-3 block">
-										<span class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase">Descripción opcional</span>
+										<span
+											class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+											>Descripción opcional</span
+										>
 										<textarea
 											class="min-h-24 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 											bind:value={option.description}
@@ -1099,7 +1156,9 @@
 							</label>
 
 							<label class="block">
-								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Mínimo</span>
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Mínimo</span
+								>
 								<input
 									type="number"
 									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
@@ -1116,7 +1175,9 @@
 							</label>
 
 							<label class="block">
-								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Máximo</span>
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Máximo</span
+								>
 								<input
 									type="number"
 									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
@@ -1142,7 +1203,9 @@
 									class="min-h-32 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 									value={workingBlock.checkConfig.acceptedAnswers.join('\n')}
 									oninput={(event) => {
-										workingBlock.checkConfig.acceptedAnswers = (event.currentTarget as HTMLTextAreaElement).value
+										workingBlock.checkConfig.acceptedAnswers = (
+											event.currentTarget as HTMLTextAreaElement
+										).value
 											.split('\n')
 											.map((value) => value.trim())
 											.filter(Boolean);
@@ -1167,7 +1230,9 @@
 									</select>
 								</label>
 
-								<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+								<label
+									class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+								>
 									<input
 										type="checkbox"
 										class="text-primary-600 h-4 w-4 rounded border-gray-300"
@@ -1177,7 +1242,9 @@
 									<span class="text-sm text-gray-900 dark:text-white">Distinguir mayúsculas</span>
 								</label>
 
-								<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+								<label
+									class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+								>
 									<input
 										type="checkbox"
 										class="text-primary-600 h-4 w-4 rounded border-gray-300"
@@ -1253,10 +1320,14 @@
 						></textarea>
 					</label>
 
-					<div class="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/40 dark:bg-amber-950/10">
+					<div
+						class="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/40 dark:bg-amber-950/10"
+					>
 						<div class="flex flex-wrap items-center justify-between gap-3">
 							<div>
-								<h2 class="text-base font-semibold text-gray-900 dark:text-white">Presets de arranque</h2>
+								<h2 class="text-base font-semibold text-gray-900 dark:text-white">
+									Presets de arranque
+								</h2>
 								<p class="text-sm text-gray-500 dark:text-gray-400">
 									Son puntos de partida rápidos. Después puedes ajustar el bloque libremente.
 								</p>
@@ -1287,7 +1358,7 @@
 						</div>
 					</div>
 
-					<div class="grid gap-4 md:grid-cols-3">
+					<div class="grid gap-4 md:grid-cols-4">
 						<label class="block">
 							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 								>Modelo</span
@@ -1310,6 +1381,23 @@
 
 						<label class="block">
 							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Runtime</span
+							>
+							<select
+								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.agentConfig.runtimeMode}
+								onchange={(event) =>
+									updateAgentRuntimeMode(
+										(event.currentTarget as HTMLSelectElement).value as LessonAgentRuntimeMode
+									)}
+							>
+								<option value="basic">Básico</option>
+								<option value="agent">Agéntico con tools</option>
+							</select>
+						</label>
+
+						<label class="block">
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 								>Interacción</span
 							>
 							<select
@@ -1317,8 +1405,7 @@
 								bind:value={workingBlock.agentConfig.interactionMode}
 								onchange={(event) =>
 									updateAgentInteractionMode(
-										(event.currentTarget as HTMLSelectElement)
-											.value as LessonAgentInteractionMode
+										(event.currentTarget as HTMLSelectElement).value as LessonAgentInteractionMode
 									)}
 							>
 								<option value="single_turn">Turno único guiado</option>
@@ -1343,12 +1430,86 @@
 						</label>
 					</div>
 
-					<div class="rounded-2xl border border-gray-200 bg-gray-50/80 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-950/20 dark:text-gray-200">
+					<div
+						class="rounded-2xl border border-gray-200 bg-gray-50/80 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-950/20 dark:text-gray-200"
+					>
 						{getLessonAgentInteractionDescription(workingBlock.agentConfig)}
 					</div>
 
+					{#if workingBlock.agentConfig.runtimeMode === 'agent'}
+						<div class="space-y-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+							<div class="flex flex-wrap items-start justify-between gap-3">
+								<div>
+									<h3 class="text-base font-semibold text-gray-900 dark:text-white">
+										Tools del bloque
+									</h3>
+									<p class="text-sm text-gray-500 dark:text-gray-400">
+										Si no marcas ninguna, este bloque heredará todas las permitidas por la lesson.
+									</p>
+								</div>
+								<span
+									class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+								>
+									Allowlist lesson: {effectiveAllowedAgentToolIds.length}
+								</span>
+							</div>
+
+							<div class="grid gap-3 md:grid-cols-2">
+								{#each availableLessonAgentTools as tool (tool.id)}
+									<label class="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+										<div class="flex items-start gap-3">
+											<input
+												type="checkbox"
+												class="text-primary-600 mt-1 h-4 w-4 rounded border-gray-300"
+												checked={(workingBlock.agentConfig.enabledToolIds ?? []).includes(tool.id)}
+												onchange={(event) =>
+													toggleAgentTool(
+														tool.id,
+														(event.currentTarget as HTMLInputElement).checked
+													)}
+											/>
+											<div class="min-w-0">
+												<div class="flex flex-wrap items-center gap-2">
+													<p class="font-medium text-gray-900 dark:text-white">
+														{tool.displayName}
+													</p>
+													{#if tool.isInteractiveUi}
+														<span
+															class="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950/30 dark:text-sky-200"
+														>
+															UI
+														</span>
+													{/if}
+													{#if tool.requiresConfirmation}
+														<span
+															class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
+														>
+															HITL
+														</span>
+													{/if}
+													{#if tool.isPersistent}
+														<span
+															class="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-700 dark:bg-rose-950/30 dark:text-rose-200"
+														>
+															Persistente
+														</span>
+													{/if}
+												</div>
+												<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+													{tool.description}
+												</p>
+											</div>
+										</div>
+									</label>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
 					{#if workingBlock.agentConfig.interactionMode !== 'none'}
-						<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+						<label
+							class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+						>
 							<input
 								type="checkbox"
 								class="text-primary-600 h-4 w-4 rounded border-gray-300"
@@ -1360,13 +1521,17 @@
 									Autoarrancar al entrar
 								</p>
 								<p class="text-xs text-gray-500 dark:text-gray-400">
-									La IA puede abrir el bloque automáticamente al entrar y después seguir con el modo interactivo configurado.
+									La IA puede abrir el bloque automáticamente al entrar y después seguir con el modo
+									interactivo configurado.
 								</p>
 							</div>
 						</label>
 					{:else}
-						<div class="rounded-2xl border border-sky-200 bg-sky-50/80 px-4 py-3 text-sm text-sky-900 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-100">
-							Este modo siempre se autoarranca al entrar porque no espera una intervención del alumno.
+						<div
+							class="rounded-2xl border border-sky-200 bg-sky-50/80 px-4 py-3 text-sm text-sky-900 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-100"
+						>
+							Este modo siempre se autoarranca al entrar porque no espera una intervención del
+							alumno.
 						</div>
 					{/if}
 
@@ -1423,8 +1588,11 @@
 							/>
 						</label>
 					{:else if workingBlock.agentConfig.interactionMode === 'single_turn'}
-						<div class="rounded-2xl border border-primary-200 bg-primary-50/80 px-4 py-3 text-sm text-primary-900 dark:border-primary-900/40 dark:bg-primary-950/20 dark:text-primary-100">
-							En turno guiado el alumno solo puede intervenir una vez. El límite de turnos no se configura aquí porque forma parte del propio modo.
+						<div
+							class="border-primary-200 bg-primary-50/80 text-primary-900 dark:border-primary-900/40 dark:bg-primary-950/20 dark:text-primary-100 rounded-2xl border px-4 py-3 text-sm"
+						>
+							En turno guiado el alumno solo puede intervenir una vez. El límite de turnos no se
+							configura aquí porque forma parte del propio modo.
 						</div>
 					{/if}
 
@@ -1462,7 +1630,8 @@
 									oninput={markDirty}
 								/>
 								<p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
-									Mensaje fijo opcional. Si además activas el autoarranque, este texto se mostrará antes de la primera respuesta generada.
+									Mensaje fijo opcional. Si además activas el autoarranque, este texto se mostrará
+									antes de la primera respuesta generada.
 								</p>
 							</label>
 						</div>
@@ -1498,7 +1667,9 @@
 								oninput={markDirty}
 							></textarea>
 							<p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
-								Este mensaje se envía al modelo al entrar en el bloque, pero no se renderiza como mensaje visible del estudiante. Úsalo para indicar cómo debe arrancar la interacción.
+								Este mensaje se envía al modelo al entrar en el bloque, pero no se renderiza como
+								mensaje visible del estudiante. Úsalo para indicar cómo debe arrancar la
+								interacción.
 							</p>
 						</label>
 					{/if}

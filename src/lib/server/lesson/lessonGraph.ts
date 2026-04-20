@@ -12,10 +12,15 @@ import type {
 } from '../../types/lesson.ts';
 import {
 	isValidLessonAgentConfig,
+	lessonAgentRuntimeModes,
 	normalizeLessonAgentConfig,
 	normalizeLessonCheckConfig
 } from '../../types/lesson.ts';
 import { LessonServiceError } from './LessonServiceError.ts';
+import {
+	getEffectiveLessonAllowedToolIds,
+	isLessonSafeAgentToolName
+} from './lessonAgentTools.ts';
 
 export interface LessonReferenceGroups {
 	session: LessonAvailableVariable[];
@@ -124,8 +129,9 @@ const lessonCheckConfigSchema = z.object({
 });
 
 const lessonAgentConfigSchema = z.object({
-	interactionMode: z.enum(['single_turn', 'multi_turn', 'none']),
-	executionTrigger: z.enum(['on_user_submit', 'on_enter']),
+	runtimeMode: z.enum(lessonAgentRuntimeModes).optional(),
+	interactionMode: z.enum(['single_turn', 'multi_turn', 'none']).optional(),
+	executionTrigger: z.enum(['on_user_submit', 'on_enter']).optional(),
 	autoStartOnEnter: z.boolean().optional(),
 	model: z.string().nullable().optional(),
 	systemPrompt: z.string().nullable().optional(),
@@ -136,6 +142,7 @@ const lessonAgentConfigSchema = z.object({
 	initialAssistantMessage: z.string().optional(),
 	launchMessageTemplate: z.string().optional(),
 	maxTurns: z.number().int().positive().nullable().optional(),
+	enabledToolIds: z.array(z.string().min(1)).optional(),
 	outputSchema: z.array(lessonOutputFieldSchema).optional()
 });
 
@@ -154,6 +161,7 @@ const lessonBlockBaseSchema = {
 const lessonDefinitionSchema = z.object({
 	version: z.enum(['1', '2']).optional().default('1'),
 	entryBlockId: z.string().min(1),
+	allowedAgentToolIds: z.array(z.string().min(1)).optional(),
 	blocks: z
 		.array(
 			z.discriminatedUnion('kind', [
@@ -263,6 +271,7 @@ export function validateLessonDefinition(definition: LessonDefinition): LessonDe
 	}
 
 	assertTransitionTargets(normalizedDefinition, blockMap);
+	assertLessonAgentToolConfiguration(normalizedDefinition);
 	assertTemplateReferences(normalizedDefinition);
 	return normalizedDefinition;
 }
@@ -796,12 +805,25 @@ function migrateLessonDefinition(definition: LessonDefinitionInput): LessonDefin
 	return {
 		version: '2',
 		entryBlockId: definition.entryBlockId,
+		allowedAgentToolIds:
+			definition.allowedAgentToolIds
+				?.map((value) => value.trim())
+				.filter(Boolean)
+				.filter((value, index, list) => list.indexOf(value) === index) ?? undefined,
 		blocks: definition.blocks.map((block) => structuredClone(block))
 	};
 }
 
 function normalizeLessonDefinition(definition: LessonDefinition): LessonDefinition {
 	const nextDefinition = structuredClone(definition);
+	const normalizedAllowedAgentToolIds =
+		nextDefinition.allowedAgentToolIds
+			?.map((value) => value.trim())
+			.filter(Boolean)
+			.filter((value, index, list) => list.indexOf(value) === index) ?? [];
+
+	nextDefinition.allowedAgentToolIds =
+		normalizedAllowedAgentToolIds.length > 0 ? normalizedAllowedAgentToolIds : undefined;
 
 	nextDefinition.blocks = nextDefinition.blocks.map((block) => {
 		if (block.kind === 'agent') {
@@ -1073,6 +1095,41 @@ function assertBlockConfiguration(block: LessonBlock): void {
 					', '
 				)}.`
 			);
+		}
+	}
+}
+
+function assertLessonAgentToolConfiguration(definition: LessonDefinition): void {
+	const effectiveAllowedToolIds = new Set(
+		getEffectiveLessonAllowedToolIds(definition.allowedAgentToolIds)
+	);
+
+	for (const toolId of definition.allowedAgentToolIds ?? []) {
+		if (!isLessonSafeAgentToolName(toolId)) {
+			throw new LessonServiceError(
+				400,
+				`La tool "${toolId}" no forma parte del catálogo seguro de lessons.`
+			);
+		}
+	}
+
+	for (const block of definition.blocks) {
+		if (block.kind !== 'agent') continue;
+
+		for (const toolId of block.agentConfig.enabledToolIds ?? []) {
+			if (!isLessonSafeAgentToolName(toolId)) {
+				throw new LessonServiceError(
+					400,
+					`El bloque "${block.id}" referencia la tool "${toolId}", que no está clasificada como lesson-safe.`
+				);
+			}
+
+			if (!effectiveAllowedToolIds.has(toolId)) {
+				throw new LessonServiceError(
+					400,
+					`El bloque "${block.id}" referencia la tool "${toolId}", que no está permitida por la allowlist de la lesson.`
+				);
+			}
 		}
 	}
 }

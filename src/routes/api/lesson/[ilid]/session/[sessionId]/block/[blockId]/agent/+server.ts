@@ -9,6 +9,23 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 	}
 
 	try {
+		const lessonView = await LessonService.getSessionView({
+			sessionId: params.sessionId,
+			userId: user.id,
+			userRoleLevel: user.highestRoleLevel,
+			interactiveLearningId: params.ilid,
+			skipAutoAgentExecution: true
+		});
+		if (
+			lessonView.currentBlock.kind === 'agent' &&
+			lessonView.currentBlock.agentConfig.runtimeMode === 'agent'
+		) {
+			return createLessonSseError(
+				'Este bloque usa el runtime agéntico y debe consumirse por /agent-chat.',
+				409
+			);
+		}
+
 		const autoStart = url.searchParams.get('autoStart') === 'true';
 		const message = url.searchParams.get('message') ?? undefined;
 		if (!autoStart && !message?.trim()) {
@@ -80,6 +97,23 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	}
 
 	try {
+		const lessonView = await LessonService.getSessionView({
+			sessionId: params.sessionId,
+			userId: user.id,
+			userRoleLevel: user.highestRoleLevel,
+			interactiveLearningId: params.ilid,
+			skipAutoAgentExecution: true
+		});
+		if (
+			lessonView.currentBlock.kind === 'agent' &&
+			lessonView.currentBlock.agentConfig.runtimeMode === 'agent'
+		) {
+			return json(
+				{ error: 'Este bloque usa el runtime agéntico y debe consumirse por /agent-chat.' },
+				{ status: 409 }
+			);
+		}
+
 		const payload = (await request.json().catch(() => ({}))) as { message?: string };
 		if (!payload.message) {
 			return json({ error: 'Missing message' }, { status: 400 });
@@ -109,7 +143,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	}
 };
 
-function createLessonSseError(message: string): Response {
+function createLessonSseError(message: string, status = 400): Response {
 	const encoder = new TextEncoder();
 	const stream = new ReadableStream({
 		start(controller) {
@@ -120,6 +154,7 @@ function createLessonSseError(message: string): Response {
 	});
 
 	return new Response(stream, {
+		status,
 		headers: {
 			'Content-Type': 'text/event-stream',
 			'Cache-Control': 'no-cache',

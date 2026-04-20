@@ -1,14 +1,15 @@
 import type { ModelMessage } from 'ai';
 import { AIUtils } from '$lib/server/ai/AIUtils';
 import { db, CourseInteractiveAuthUtils, InteractiveChatAuthUtils } from '$lib/server/db';
+import { DBAgentMessageUtils } from '$lib/server/db/agent';
 import { markActivityCompleted, markActivityInProgress } from '$lib/server/db/ProgressWriteUtils';
 import {
+	agentMessage,
 	chat,
 	courseInteractiveLearning,
 	interactiveLearning,
 	interactiveLearningFile,
 	interactiveLearningLesson,
-	interactiveLearningLessonRevision,
 	interactiveLessonBlockState,
 	interactiveLessonBlockVisit,
 	interactiveLessonEvent,
@@ -52,12 +53,17 @@ import {
 	normalizeLessonAgentConfig,
 	normalizeLessonCheckConfig
 } from '$lib/types/lesson';
+import type { AgentContext, AgentDisplayMessage } from '$lib/types/agent';
+import { AgentEngine } from '$lib/server/agent/AgentEngine';
+import { AgentTranscriptService } from '$lib/server/agent/AgentTranscriptService';
+import { deriveEnabledUIComponentKeysFromTools } from '$lib/utils/agentToolUiMapping';
 import type { LessonSessionRevisionInfo } from '$lib/types/lessonRevision';
 import { and, desc, eq, inArray, isNotNull, max, ne } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { LessonServiceError } from './LessonServiceError';
 import { LessonRevisionService } from './LessonRevisionService';
+import { resolveLessonAgentTools } from './lessonAgentTools';
 import {
 	buildLessonBlockContract,
 	getAvailableLessonReferenceGroups,
@@ -142,6 +148,7 @@ export interface LessonSessionView {
 	currentVisit: InteractiveLessonBlockVisit | null;
 	currentAssets: LessonResolvedAsset[];
 	currentChatMessages: Array<{ id: string; type: string; content: string; createdAt: Date }>;
+	currentAgentMessages: AgentDisplayMessage[];
 	files: InteractiveLearningFile[];
 	filesById: Record<string, InteractiveLearningFile>;
 	availableVariables: LessonAvailableVariable[];
@@ -791,6 +798,7 @@ export class LessonService {
 					blockVisits,
 					currentAssets,
 					currentChatMessages: [],
+					currentAgentMessages: [],
 					files,
 					filesById,
 					availableVariables: [],
@@ -816,10 +824,18 @@ export class LessonService {
 		}
 
 		const currentChatMessages =
-			currentBlock.kind === 'agent' && currentChatId
+			currentBlock.kind === 'agent' &&
+			currentChatId &&
+			!this.isAgentRuntimeEnabled(currentBlock.agentConfig)
 				? (await this.loadBlockChatMessages(currentChatId)).filter(
 						(message) => message.type !== 'SYSTEM'
 					)
+				: [];
+		const currentAgentMessages =
+			currentBlock.kind === 'agent' &&
+			currentChatId &&
+			this.isAgentRuntimeEnabled(currentBlock.agentConfig)
+				? await AgentTranscriptService.getDisplayMessages(currentChatId)
 				: [];
 
 		return {
@@ -837,6 +853,7 @@ export class LessonService {
 			currentVisit,
 			currentAssets,
 			currentChatMessages,
+			currentAgentMessages,
 			files,
 			filesById,
 			availableVariables: [
@@ -893,10 +910,7 @@ export class LessonService {
 			);
 		}
 
-		if (
-			view.currentBlock.kind === 'agent' &&
-			(view.currentBlock.requiresResponse ?? true)
-		) {
+		if (view.currentBlock.kind === 'agent' && (view.currentBlock.requiresResponse ?? true)) {
 			const conversationStats = await this.getAgentConversationStats(
 				view.currentVisit?.chatId ?? view.currentBlockState?.chatId
 			);
@@ -911,7 +925,8 @@ export class LessonService {
 		if (
 			view.currentBlock.kind === 'agent' &&
 			view.currentBlock.agentConfig.autoStartOnEnter &&
-			!normalizeOutputs(view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson).response
+			!normalizeOutputs(view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson)
+				.response
 		) {
 			throw new LessonServiceError(
 				400,
@@ -1052,10 +1067,7 @@ export class LessonService {
 		const resolvedBlock =
 			view.resolvedCurrentBlock.kind === 'check' ? view.resolvedCurrentBlock : null;
 		if (!resolvedBlock) {
-			throw new LessonServiceError(
-				409,
-				'No se pudo resolver el bloque de evaluación actual.'
-			);
+			throw new LessonServiceError(409, 'No se pudo resolver el bloque de evaluación actual.');
 		}
 
 		if (!view.currentVisit) {
@@ -1384,9 +1396,11 @@ export class LessonService {
 		}
 	}
 
-	private static assertManualAgentExecutionAllowed(view: LessonSessionView & {
-		currentBlock: LessonAgentBlock;
-	}): void {
+	private static assertManualAgentExecutionAllowed(
+		view: LessonSessionView & {
+			currentBlock: LessonAgentBlock;
+		}
+	): void {
 		if (
 			view.currentBlock.agentConfig.executionTrigger !== 'on_user_submit' ||
 			!isLessonAgentInteractive(view.currentBlock.agentConfig)
@@ -1398,9 +1412,11 @@ export class LessonService {
 		}
 	}
 
-	private static assertAutoAgentExecutionAllowed(view: LessonSessionView & {
-		currentBlock: LessonAgentBlock;
-	}): void {
+	private static assertAutoAgentExecutionAllowed(
+		view: LessonSessionView & {
+			currentBlock: LessonAgentBlock;
+		}
+	): void {
 		if (!this.shouldAutoExecuteAgentBlock(view.currentBlock)) {
 			throw new LessonServiceError(400, 'Este bloque IA no se autoarranca al entrar.');
 		}
@@ -1416,16 +1432,20 @@ export class LessonService {
 		}
 	}
 
-	private static async assertManualAgentTurnCapacity(view: LessonSessionView & {
-		currentBlock: LessonAgentBlock;
-	}): Promise<void> {
+	private static async assertManualAgentTurnCapacity(
+		view: LessonSessionView & {
+			currentBlock: LessonAgentBlock;
+		}
+	): Promise<void> {
 		if (view.currentBlock.agentConfig.interactionMode !== 'single_turn') {
 			return;
 		}
 
-		const conversationStats = await this.getAgentConversationStats(
-			view.currentVisit?.chatId ?? view.currentBlockState?.chatId
-		);
+		const chatId = view.currentVisit?.chatId ?? view.currentBlockState?.chatId;
+		const conversationStats =
+			chatId && this.isAgentRuntimeEnabled(view.currentBlock.agentConfig)
+				? await this.getAgentRuntimeConversationStats(chatId)
+				: await this.getAgentConversationStats(chatId);
 		if (conversationStats.userTurns >= 1) {
 			throw new LessonServiceError(
 				400,
@@ -1441,7 +1461,9 @@ export class LessonService {
 		const maxTurns = block.agentConfig.maxTurns ?? null;
 		if (!maxTurns || !chatId) return;
 
-		const conversationStats = await this.getAgentConversationStats(chatId);
+		const conversationStats = this.isAgentRuntimeEnabled(block.agentConfig)
+			? await this.getAgentRuntimeConversationStats(chatId)
+			: await this.getAgentConversationStats(chatId);
 		if (conversationStats.userTurns >= maxTurns) {
 			throw new LessonServiceError(400, 'Este bloque ya alcanzó el máximo de turnos permitidos.');
 		}
@@ -1485,10 +1507,7 @@ export class LessonService {
 			}
 
 			if (config.mode !== 'multiple_choice' && selectedOptionIds.length !== 1) {
-				throw new LessonServiceError(
-					400,
-					'Este bloque de evaluación solo acepta una respuesta.'
-				);
+				throw new LessonServiceError(400, 'Este bloque de evaluación solo acepta una respuesta.');
 			}
 
 			score = scoreCheckOptionSelection(selectedOptionIds, config.correctOptionIds, config.mode);
@@ -1516,8 +1535,7 @@ export class LessonService {
 
 			const tolerance = config.tolerance ?? 0;
 			const exactMatch =
-				config.acceptedExact !== null &&
-				Math.abs(numericValue - config.acceptedExact) <= tolerance;
+				config.acceptedExact !== null && Math.abs(numericValue - config.acceptedExact) <= tolerance;
 			const rangeMatch =
 				config.acceptedRange &&
 				(config.acceptedRange.min === undefined || numericValue >= config.acceptedRange.min) &&
@@ -1568,8 +1586,7 @@ export class LessonService {
 		const isCorrect = score >= 1;
 		const exhausted =
 			config.maxAttempts !== null ? attemptCount >= Math.max(config.maxAttempts, 1) : false;
-		const completed =
-			config.completionRule === 'after_first_submit' ? true : passed || exhausted;
+		const completed = config.completionRule === 'after_first_submit' ? true : passed || exhausted;
 		const attemptsRemaining =
 			config.maxAttempts === null ? null : Math.max(config.maxAttempts - attemptCount, 0);
 
@@ -1585,7 +1602,8 @@ export class LessonService {
 				config.feedbackPartial?.trim() || 'Respuesta parcialmente correcta. Revisa tu selección.';
 		} else {
 			feedback =
-				config.feedbackIncorrect?.trim() || 'La respuesta no es correcta. Puedes intentarlo de nuevo.';
+				config.feedbackIncorrect?.trim() ||
+				'La respuesta no es correcta. Puedes intentarlo de nuevo.';
 		}
 
 		return {
@@ -1658,13 +1676,19 @@ export class LessonService {
 			)
 		];
 
-		await db.transaction(async (tx) => {
+		db.transaction((tx) => {
 			if (chatIds.length > 0) {
-				await tx.delete(message).where(inArray(message.chatId, chatIds));
-				await tx.delete(chat).where(inArray(chat.id, chatIds));
+				tx.delete(agentMessage).where(inArray(agentMessage.chatId, chatIds)).run();
+				tx.delete(message).where(inArray(message.chatId, chatIds)).run();
 			}
 
-			await tx.delete(interactiveLessonSession).where(inArray(interactiveLessonSession.id, sessionIds));
+			tx.delete(interactiveLessonSession)
+				.where(inArray(interactiveLessonSession.id, sessionIds))
+				.run();
+
+			if (chatIds.length > 0) {
+				tx.delete(chat).where(inArray(chat.id, chatIds)).run();
+			}
 		});
 	}
 
@@ -1964,6 +1988,7 @@ export class LessonService {
 		const systemPrompt = resolvedBlock.agentConfig.systemPrompt?.trim() || '';
 		const promptTemplate = resolvedBlock.agentConfig.promptTemplate.trim();
 		const baseSystemPrompt = [systemPrompt, promptTemplate].filter(Boolean).join('\n\n');
+		const usesAgentRuntime = this.isAgentRuntimeEnabled(resolvedBlock.agentConfig);
 
 		await db.insert(chat).values({
 			id: chatId,
@@ -1979,7 +2004,7 @@ export class LessonService {
 			updatedAt: now
 		});
 
-		if (baseSystemPrompt) {
+		if (!usesAgentRuntime && baseSystemPrompt) {
 			await AIUtils.saveMessage(chatId, baseSystemPrompt, 'SYSTEM');
 		}
 
@@ -1987,11 +2012,20 @@ export class LessonService {
 			isLessonAgentInteractive(resolvedBlock.agentConfig) &&
 			resolvedBlock.agentConfig.initialAssistantMessage?.trim()
 		) {
-			await AIUtils.saveMessage(
-				chatId,
-				resolvedBlock.agentConfig.initialAssistantMessage.trim(),
-				'ASSISTANT'
-			);
+			if (usesAgentRuntime) {
+				await DBAgentMessageUtils.saveAgentMessage({
+					chatId,
+					role: 'assistant',
+					textContent: resolvedBlock.agentConfig.initialAssistantMessage.trim(),
+					sequenceOrder: 1
+				});
+			} else {
+				await AIUtils.saveMessage(
+					chatId,
+					resolvedBlock.agentConfig.initialAssistantMessage.trim(),
+					'ASSISTANT'
+				);
+			}
 		}
 
 		await this.updateBlockVisit({
@@ -2027,6 +2061,284 @@ export class LessonService {
 		return updatedVisit;
 	}
 
+	private static flattenAgentDisplayMessage(message: AgentDisplayMessage): {
+		transcriptContent: string;
+		textContent: string;
+	} {
+		const transcriptParts: string[] = [];
+		const textParts: string[] = [];
+
+		for (const part of message.parts) {
+			if (part.kind === 'text') {
+				if (part.content.trim()) {
+					transcriptParts.push(part.content.trim());
+					textParts.push(part.content.trim());
+				}
+				continue;
+			}
+
+			if (part.kind === 'tool-call') {
+				transcriptParts.push(
+					`[tool:${part.toolName}|status:${part.status}] ${part.displayResult ?? JSON.stringify(part.result ?? {})}`
+				);
+				continue;
+			}
+
+			if (part.kind === 'ui-component') {
+				transcriptParts.push(
+					`[ui:${part.componentKey}] ${JSON.stringify({
+						props: part.props,
+						userResponse: part.userResponse ?? null
+					})}`
+				);
+			}
+		}
+
+		return {
+			transcriptContent: transcriptParts.join('\n'),
+			textContent: textParts.join('\n')
+		};
+	}
+
+	private static async getAgentRuntimeConversationStats(
+		chatId: string
+	): Promise<{ userTurns: number; assistantTurns: number }> {
+		const displayMessages = await AgentTranscriptService.getDisplayMessages(chatId);
+
+		return displayMessages.reduce(
+			(stats, message) => {
+				if (message.role === 'user') stats.userTurns += 1;
+				if (message.role === 'assistant') stats.assistantTurns += 1;
+				return stats;
+			},
+			{ userTurns: 0, assistantTurns: 0 }
+		);
+	}
+
+	private static async buildAgentOutputMessagesFromTranscript(chatId: string): Promise<{
+		messages: ModelMessage[];
+		lastAssistantMessage: string;
+		lastUserMessage: string;
+	}> {
+		const displayMessages = await AgentTranscriptService.getDisplayMessages(chatId);
+		const messages: ModelMessage[] = [];
+		let lastAssistantMessage = '';
+		let lastUserMessage = '';
+
+		for (const displayMessage of displayMessages) {
+			const flattened = this.flattenAgentDisplayMessage(displayMessage);
+			if (!flattened.transcriptContent.trim()) continue;
+
+			messages.push({
+				role: displayMessage.role,
+				content: flattened.transcriptContent
+			});
+
+			if (displayMessage.role === 'assistant' && flattened.textContent.trim()) {
+				lastAssistantMessage = flattened.textContent.trim();
+			}
+
+			if (displayMessage.role === 'user' && flattened.textContent.trim()) {
+				lastUserMessage = flattened.textContent.trim();
+			}
+		}
+
+		return { messages, lastAssistantMessage, lastUserMessage };
+	}
+
+	static async getLessonAgentRuntimeContext(input: {
+		sessionId: string;
+		blockId: string;
+		userId: string;
+		userRoleLevel: number;
+		interactiveLearningId?: string;
+		resume?: boolean;
+	}): Promise<{
+		view: LessonSessionView & {
+			currentBlock: LessonAgentBlock;
+			resolvedCurrentBlock: LessonAgentBlock;
+		};
+		blockVisit: InteractiveLessonBlockVisit;
+		context: AgentContext;
+	}> {
+		const view = (await this.getSessionView({
+			sessionId: input.sessionId,
+			userId: input.userId,
+			userRoleLevel: input.userRoleLevel,
+			interactiveLearningId: input.interactiveLearningId,
+			skipAutoAgentExecution: true
+		})) as LessonSessionView & {
+			currentBlock: LessonAgentBlock;
+			resolvedCurrentBlock: LessonAgentBlock;
+		};
+
+		this.assertAgentBlockInteractionAccess(view, input.blockId);
+
+		if (!this.isAgentRuntimeEnabled(view.currentBlock.agentConfig)) {
+			throw new LessonServiceError(
+				400,
+				'Este bloque IA está configurado en modo basic y no usa el runtime agéntico.'
+			);
+		}
+
+		const blockVisit = await this.ensureAgentBlockChat(view);
+		const enabledTools = await resolveLessonAgentTools({
+			allowedAgentToolIds: view.definition.allowedAgentToolIds,
+			enabledToolIds: view.currentBlock.agentConfig.enabledToolIds
+		});
+		const enabledUIComponentKeys = deriveEnabledUIComponentKeysFromTools(enabledTools);
+		const templateContext = this.buildTemplateContext(
+			view.session,
+			view.activity,
+			view.blockStates
+		);
+		const resolvedBody = view.resolvedCurrentBlock.body?.trim();
+		const llmContext = [
+			view.currentBlock.agentConfig.promptTemplate.trim(),
+			resolvedBody ? `Contenido visible del bloque:\n${resolvedBody}` : null,
+			`Contexto estructurado de la lesson:\n${JSON.stringify(templateContext, null, 2)}`
+		]
+			.filter(Boolean)
+			.join('\n\n');
+
+		const context: AgentContext = {
+			userId: view.session.userId,
+			courseId: view.session.courseId,
+			chatId: blockVisit.chatId!,
+			activityId: view.activity.id,
+			activityConfig: {
+				llmModel: view.currentBlock.agentConfig.model ?? null,
+				llmRole: 'Tutor de una lesson interactiva',
+				llmInstructions:
+					view.currentBlock.agentConfig.systemPrompt?.trim() ||
+					'Acompaña al estudiante dentro de este bloque de lesson. Mantén el foco en el objetivo pedagógico del bloque actual y usa las tools disponibles cuando aporten valor.',
+				llmContext,
+				systemPrompt: null,
+				temperature: null,
+				maxTokens: null,
+				topP: null,
+				maxToolRoundtrips: 5,
+				parallelToolCalls: false,
+				toolChoice: enabledTools.length > 0 ? 'auto' : 'none',
+				finalizationEnabled: false,
+				finalizationToolName: 'finalize_activity',
+				finalizationHandler: 'mark_complete_only',
+				finalizationConfig: null,
+				requireFinalizationToolCall: false,
+				ragEnabled: false,
+				ragCollectionName: null,
+				ragConfig: null
+			},
+			enabledTools,
+			enabledUIComponentKeys,
+			messageHistory: input.resume
+				? []
+				: await DBAgentMessageUtils.getAgentMessages(blockVisit.chatId!)
+		};
+
+		return { view, blockVisit, context };
+	}
+
+	static async createLessonAgentStream(input: {
+		sessionId: string;
+		blockId: string;
+		userId: string;
+		userRoleLevel: number;
+		interactiveLearningId?: string;
+		message?: string;
+		userMessageMetadata?: string;
+		autoStart?: boolean;
+		resume?: boolean;
+	}) {
+		const runtime = await this.getLessonAgentRuntimeContext({
+			sessionId: input.sessionId,
+			blockId: input.blockId,
+			userId: input.userId,
+			userRoleLevel: input.userRoleLevel,
+			interactiveLearningId: input.interactiveLearningId,
+			resume: input.resume
+		});
+
+		if (!input.resume) {
+			let userMessage = input.message?.trim() ?? '';
+			if (input.autoStart) {
+				this.assertAutoAgentExecutionAllowed(runtime.view);
+				userMessage = await this.buildAutoAgentLaunchMessage(runtime.view);
+			} else {
+				this.assertManualAgentExecutionAllowed(runtime.view);
+				await this.assertManualAgentTurnCapacity(runtime.view);
+				await this.assertAgentTurnLimit(runtime.view.currentBlock, runtime.blockVisit.chatId);
+			}
+
+			if (!userMessage) {
+				throw new LessonServiceError(400, 'El mensaje no puede estar vacío.');
+			}
+
+			return AgentEngine.executeLoop(runtime.context, userMessage, input.userMessageMetadata);
+		}
+
+		return AgentEngine.resumeFromToolCall(runtime.context);
+	}
+
+	static async syncLessonAgentBlockOutputs(input: {
+		sessionId: string;
+		blockId: string;
+		userId: string;
+		userRoleLevel: number;
+		interactiveLearningId?: string;
+	}): Promise<JsonRecord> {
+		const runtime = await this.getLessonAgentRuntimeContext({
+			sessionId: input.sessionId,
+			blockId: input.blockId,
+			userId: input.userId,
+			userRoleLevel: input.userRoleLevel,
+			interactiveLearningId: input.interactiveLearningId
+		});
+		const modelName = await this.resolveLessonModel(runtime.view.currentBlock);
+		const currentOutputs = normalizeOutputs(
+			runtime.view.currentVisit?.outputsJson ?? runtime.view.currentBlockState?.outputsJson
+		);
+		const transcriptPayload = await this.buildAgentOutputMessagesFromTranscript(
+			runtime.blockVisit.chatId!
+		);
+		const extractedOutputs = await this.extractAgentOutputs({
+			block: runtime.view.currentBlock,
+			modelName,
+			assistantMessage:
+				transcriptPayload.lastAssistantMessage || String(currentOutputs.response ?? ''),
+			userMessage: transcriptPayload.lastUserMessage,
+			messages: transcriptPayload.messages,
+			currentOutputs,
+			autoStarted:
+				Boolean(currentOutputs.autoStarted) ||
+				(runtime.view.currentBlock.agentConfig.autoStartOnEnter &&
+					transcriptPayload.messages.some((message) => message.role === 'assistant')),
+			context: this.buildAgentExecutionContext(runtime.view, runtime.blockVisit.chatId!)
+		});
+		const outputs = {
+			...currentOutputs,
+			...extractedOutputs
+		};
+
+		await this.updateBlockVisit({
+			visitId: runtime.blockVisit.id,
+			status: lessonBlockVisitStatus.ACTIVE,
+			outputs,
+			chatId: runtime.blockVisit.chatId!
+		});
+
+		await this.upsertBlockState({
+			sessionId: runtime.view.session.id,
+			blockId: runtime.view.currentBlock.id,
+			status: lessonBlockStateStatus.ACTIVE,
+			outputs,
+			chatId: runtime.blockVisit.chatId!,
+			lastVisitId: runtime.blockVisit.id
+		});
+
+		return outputs;
+	}
+
 	private static async extractAgentOutputs(input: {
 		block: LessonAgentBlock;
 		modelName: string;
@@ -2046,7 +2358,8 @@ export class LessonService {
 		const baseOutputs: JsonRecord = {
 			response: input.assistantMessage,
 			lastUserMessage:
-				input.userMessage || (typeof input.currentOutputs.lastUserMessage === 'string'
+				input.userMessage ||
+				(typeof input.currentOutputs.lastUserMessage === 'string'
 					? input.currentOutputs.lastUserMessage
 					: ''),
 			interactionMode: input.block.agentConfig.interactionMode,
@@ -2371,7 +2684,41 @@ export class LessonService {
 		return block.agentConfig.autoStartOnEnter;
 	}
 
+	private static isAgentRuntimeEnabled(
+		config: Pick<LessonAgentBlock['agentConfig'], 'runtimeMode'>
+	): boolean {
+		return config.runtimeMode === 'agent';
+	}
+
 	private static async executeAgentOnEnter(view: LessonSessionView): Promise<void> {
+		if (
+			view.currentBlock.kind === 'agent' &&
+			this.isAgentRuntimeEnabled(view.currentBlock.agentConfig)
+		) {
+			const generator = await this.createLessonAgentStream({
+				sessionId: view.session.id,
+				blockId: view.currentBlock.id,
+				userId: view.session.userId,
+				userRoleLevel: Number.MAX_SAFE_INTEGER,
+				interactiveLearningId: view.activity.id,
+				autoStart: true
+			});
+
+			for await (const part of generator) {
+				// El stream ya persiste mensajes, tools y UI en sus tablas propias.
+				void part;
+			}
+
+			await this.syncLessonAgentBlockOutputs({
+				sessionId: view.session.id,
+				blockId: view.currentBlock.id,
+				userId: view.session.userId,
+				userRoleLevel: Number.MAX_SAFE_INTEGER,
+				interactiveLearningId: view.activity.id
+			});
+			return;
+		}
+
 		const prepared = await this.prepareAutoAgentExecution({
 			sessionId: view.session.id,
 			blockId: view.currentBlock.id,
@@ -2446,10 +2793,9 @@ export class LessonService {
 			}
 
 			if (resolvedBlock.kind === 'choice') {
-				const selectedLabel = outputs.selectedLabel ?? outputs.selectedValue ?? visit.lastChoiceValue;
-				sections.push(
-					`${heading}\nSeleccion: ${selectedLabel || 'Sin seleccion registrada.'}`
-				);
+				const selectedLabel =
+					outputs.selectedLabel ?? outputs.selectedValue ?? visit.lastChoiceValue;
+				sections.push(`${heading}\nSeleccion: ${selectedLabel || 'Sin seleccion registrada.'}`);
 				continue;
 			}
 
@@ -2464,14 +2810,28 @@ export class LessonService {
 			}
 
 			if (resolvedBlock.kind === 'agent') {
-				const visibleMessages = visit.chatId
-					? (await this.loadBlockChatMessages(visit.chatId)).filter(
+				let transcript = outputs.response
+					? `IA: ${String(outputs.response)}`
+					: 'Sin transcript visible.';
+
+				if (visit.chatId) {
+					if (this.isAgentRuntimeEnabled(resolvedBlock.agentConfig)) {
+						const displayMessages = await AgentTranscriptService.getDisplayMessages(visit.chatId);
+						if (displayMessages.length > 0) {
+							transcript = displayMessages
+								.map((message) => {
+									const role = message.role === 'user' ? 'Alumno' : 'IA';
+									const flattened = this.flattenAgentDisplayMessage(message);
+									return `${role}: ${flattened.transcriptContent || 'Sin contenido visible.'}`;
+								})
+								.join('\n\n');
+						}
+					} else {
+						const visibleMessages = (await this.loadBlockChatMessages(visit.chatId)).filter(
 							(message) => message.type !== 'SYSTEM'
-						)
-					: [];
-				const transcript =
-					visibleMessages.length > 0
-						? visibleMessages
+						);
+						if (visibleMessages.length > 0) {
+							transcript = visibleMessages
 								.map((message) => {
 									const role =
 										message.type === 'USER'
@@ -2481,10 +2841,10 @@ export class LessonService {
 												: 'Sistema';
 									return `${role}: ${message.content}`;
 								})
-								.join('\n\n')
-						: outputs.response
-							? `IA: ${String(outputs.response)}`
-							: 'Sin transcript visible.';
+								.join('\n\n');
+						}
+					}
+				}
 
 				sections.push(`${heading}\nTranscript:\n${this.truncateForPrompt(transcript)}`);
 				continue;
@@ -2550,10 +2910,7 @@ export class LessonService {
 				checkConfig: {
 					...block.checkConfig,
 					submitLabel: this.resolveStringTemplate(block.checkConfig.submitLabel || '', context),
-					continueLabel: this.resolveStringTemplate(
-						block.checkConfig.continueLabel || '',
-						context
-					),
+					continueLabel: this.resolveStringTemplate(block.checkConfig.continueLabel || '', context),
 					retryLabel: this.resolveStringTemplate(block.checkConfig.retryLabel || '', context),
 					feedbackCorrect: this.resolveStringTemplate(
 						block.checkConfig.feedbackCorrect || '',
@@ -2674,7 +3031,7 @@ export class LessonService {
 	private static async upsertBlockState(input: {
 		sessionId: string;
 		blockId: string;
-		status: string;
+		status: InteractiveLessonBlockState['status'];
 		scope?: InteractiveLessonSession['scope'];
 		outputs?: JsonRecord;
 		lastChoiceValue?: string;
@@ -2703,7 +3060,7 @@ export class LessonService {
 			await db
 				.update(interactiveLessonBlockState)
 				.set({
-					status: input.status as any,
+					status: input.status,
 					visitCount: shouldIncrementVisit ? existing.visitCount + 1 : existing.visitCount,
 					lastVisitId: input.lastVisitId ?? existing.lastVisitId,
 					enteredAt:
@@ -2731,7 +3088,7 @@ export class LessonService {
 			sessionId: input.sessionId,
 			blockId: input.blockId,
 			scope,
-			status: input.status as any,
+			status: input.status,
 			visitCount: shouldIncrementVisit ? 1 : 0,
 			lastVisitId: input.lastVisitId ?? null,
 			enteredAt:
@@ -2757,7 +3114,7 @@ export class LessonService {
 		sessionId: string;
 		blockId: string;
 		scope?: InteractiveLessonSession['scope'];
-		status?: string;
+		status?: InteractiveLessonBlockVisit['status'];
 		outputs?: JsonRecord;
 		lastChoiceValue?: string;
 		chatId?: string;
@@ -2780,7 +3137,7 @@ export class LessonService {
 			blockId: input.blockId,
 			scope,
 			visitNumber,
-			status: (input.status ?? lessonBlockVisitStatus.ACTIVE) as any,
+			status: input.status ?? lessonBlockVisitStatus.ACTIVE,
 			enteredAt: now,
 			completedAt: input.completedAt ?? null,
 			lastChoiceValue: input.lastChoiceValue ?? null,
@@ -2806,7 +3163,7 @@ export class LessonService {
 
 	private static async updateBlockVisit(input: {
 		visitId: string;
-		status?: string;
+		status?: InteractiveLessonBlockVisit['status'];
 		outputs?: JsonRecord;
 		lastChoiceValue?: string;
 		chatId?: string;
@@ -2837,7 +3194,7 @@ export class LessonService {
 		await db
 			.update(interactiveLessonBlockVisit)
 			.set({
-				status: nextStatus as any,
+				status: nextStatus,
 				completedAt: nextCompletedAt,
 				lastChoiceValue: input.lastChoiceValue ?? existing.lastChoiceValue,
 				outputsJson: input.outputs ? JSON.stringify(input.outputs) : existing.outputsJson,
@@ -2892,9 +3249,10 @@ export class LessonService {
 		}));
 	}
 
-	private static countAgentConversationStats(
-		messages: Array<Pick<ModelMessage, 'role'>>
-	): { userTurns: number; assistantTurns: number } {
+	private static countAgentConversationStats(messages: Array<Pick<ModelMessage, 'role'>>): {
+		userTurns: number;
+		assistantTurns: number;
+	} {
 		return messages.reduce(
 			(stats, message) => {
 				if (message.role === 'user') stats.userTurns += 1;
@@ -2936,7 +3294,7 @@ export class LessonService {
 		scope?: InteractiveLessonSession['scope'];
 		visitId?: string | null;
 		blockId?: string | null;
-		eventType: string;
+		eventType: (typeof lessonEventType)[keyof typeof lessonEventType];
 		payload?: JsonRecord;
 	}): Promise<void> {
 		const scope = input.scope ?? (await this.resolveSessionScope(input.sessionId));
@@ -2949,7 +3307,7 @@ export class LessonService {
 			scope,
 			visitId: input.visitId ?? null,
 			blockId: input.blockId ?? null,
-			eventType: input.eventType as any,
+			eventType: input.eventType,
 			payloadJson: input.payload ? JSON.stringify(input.payload) : null,
 			createdAt: new Date()
 		});
@@ -3018,9 +3376,9 @@ export class LessonService {
 					? 'choice'
 					: kind === 'check'
 						? 'check'
-					: kind === 'agent'
-						? 'agent'
-						: 'end';
+						: kind === 'agent'
+							? 'agent'
+							: 'end';
 		const blockId = this.createUniqueBlockId(baseId, existingIds);
 		const defaultTarget =
 			definition.blocks.find((block) => block.kind === 'end')?.id ??
@@ -3105,6 +3463,7 @@ export class LessonService {
 				next: defaultTarget ?? null,
 				requiresResponse: true,
 				agentConfig: {
+					runtimeMode: 'basic',
 					interactionMode: 'single_turn',
 					executionTrigger: 'on_user_submit',
 					autoStartOnEnter: false,
@@ -3113,6 +3472,7 @@ export class LessonService {
 					placeholder: 'Escribe tu respuesta',
 					submitLabel: 'Enviar',
 					continueLabel: 'Continuar',
+					enabledToolIds: undefined,
 					outputSchema: []
 				}
 			};
@@ -3323,67 +3683,67 @@ export class LessonService {
 					namespace: 'outputs',
 					availableWhen: 'always'
 				},
-			{
-				path: `blocks.${block.id}.outputs.executionTrigger`,
-				key: 'executionTrigger',
-				label: `${block.title} · disparo`,
-				description: 'Momento en el que se ejecuta el bloque IA.',
-				type: 'string',
-				source: 'system',
-				namespace: 'outputs',
-				availableWhen: 'always'
-			},
-			{
-				path: `blocks.${block.id}.outputs.autoStartOnEnter`,
-				key: 'autoStartOnEnter',
-				label: `${block.title} · autoarranque`,
-				description: 'Indica si el bloque IA se inicia automáticamente al entrar.',
-				type: 'boolean',
-				source: 'system',
-				namespace: 'outputs',
-				availableWhen: 'always'
-			},
-			{
-				path: `blocks.${block.id}.outputs.hasUserResponse`,
-				key: 'hasUserResponse',
-				label: `${block.title} · respondió el alumno`,
-				description: 'Indica si ya existe al menos una intervención del alumno en este bloque.',
-				type: 'boolean',
-				source: 'system',
-				namespace: 'outputs',
-				availableWhen: 'after_visit'
-			},
-			{
-				path: `blocks.${block.id}.outputs.userTurnCount`,
-				key: 'userTurnCount',
-				label: `${block.title} · turnos del alumno`,
-				description: 'Número de mensajes enviados por el alumno en este bloque.',
-				type: 'number',
-				source: 'system',
-				namespace: 'outputs',
-				availableWhen: 'after_visit'
-			},
-			{
-				path: `blocks.${block.id}.outputs.assistantTurnCount`,
-				key: 'assistantTurnCount',
-				label: `${block.title} · turnos IA`,
-				description: 'Número de mensajes visibles emitidos por la IA en este bloque.',
-				type: 'number',
-				source: 'system',
-				namespace: 'outputs',
-				availableWhen: 'after_visit'
-			},
-			{
-				path: `blocks.${block.id}.outputs.autoStarted`,
-				key: 'autoStarted',
-				label: `${block.title} · autoarrancado`,
-				description: 'Indica si esta visita ya ejecutó el arranque automático del bloque.',
-				type: 'boolean',
-				source: 'system',
-				namespace: 'outputs',
-				availableWhen: 'after_visit'
-			}
-		);
+				{
+					path: `blocks.${block.id}.outputs.executionTrigger`,
+					key: 'executionTrigger',
+					label: `${block.title} · disparo`,
+					description: 'Momento en el que se ejecuta el bloque IA.',
+					type: 'string',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'always'
+				},
+				{
+					path: `blocks.${block.id}.outputs.autoStartOnEnter`,
+					key: 'autoStartOnEnter',
+					label: `${block.title} · autoarranque`,
+					description: 'Indica si el bloque IA se inicia automáticamente al entrar.',
+					type: 'boolean',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'always'
+				},
+				{
+					path: `blocks.${block.id}.outputs.hasUserResponse`,
+					key: 'hasUserResponse',
+					label: `${block.title} · respondió el alumno`,
+					description: 'Indica si ya existe al menos una intervención del alumno en este bloque.',
+					type: 'boolean',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_visit'
+				},
+				{
+					path: `blocks.${block.id}.outputs.userTurnCount`,
+					key: 'userTurnCount',
+					label: `${block.title} · turnos del alumno`,
+					description: 'Número de mensajes enviados por el alumno en este bloque.',
+					type: 'number',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_visit'
+				},
+				{
+					path: `blocks.${block.id}.outputs.assistantTurnCount`,
+					key: 'assistantTurnCount',
+					label: `${block.title} · turnos IA`,
+					description: 'Número de mensajes visibles emitidos por la IA en este bloque.',
+					type: 'number',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_visit'
+				},
+				{
+					path: `blocks.${block.id}.outputs.autoStarted`,
+					key: 'autoStarted',
+					label: `${block.title} · autoarrancado`,
+					description: 'Indica si esta visita ya ejecutó el arranque automático del bloque.',
+					type: 'boolean',
+					source: 'system',
+					namespace: 'outputs',
+					availableWhen: 'after_visit'
+				}
+			);
 		}
 
 		if (block.kind === 'end') {
@@ -3558,10 +3918,7 @@ export class LessonService {
 
 		if (block.kind === 'agent') {
 			const normalizedAgentConfig = normalizeLessonAgentConfig(block.agentConfig);
-			if (
-				normalizedAgentConfig.interactionMode === 'none' &&
-				(block.requiresResponse ?? false)
-			) {
+			if (normalizedAgentConfig.interactionMode === 'none' && (block.requiresResponse ?? false)) {
 				throw new LessonServiceError(
 					400,
 					`El bloque IA "${block.id}" no puede exigir respuesta del alumno si no admite interacción.`

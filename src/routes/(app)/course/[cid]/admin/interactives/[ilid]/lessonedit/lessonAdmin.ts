@@ -15,6 +15,7 @@ import type {
 import { eq } from 'drizzle-orm';
 import { LessonService } from '$lib/server/lesson/LessonService';
 import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
+import { getLessonAgentToolCatalog } from '$lib/server/lesson/lessonAgentTools';
 import { fileStorageService } from '$lib/server/files/FileStorageService';
 import { AIUtils } from '$lib/server/ai/AIUtils';
 import { nanoid } from 'nanoid';
@@ -67,11 +68,7 @@ export async function requireLessonAdminContext(
 
 	const [activity, lessonConfig] = await Promise.all([
 		db.select().from(interactiveLearning).where(eq(interactiveLearning.id, ilid)).get(),
-		db
-			.select()
-			.from(interactiveLearningLesson)
-			.where(eq(interactiveLearningLesson.id, ilid))
-			.get()
+		db.select().from(interactiveLearningLesson).where(eq(interactiveLearningLesson.id, ilid)).get()
 	]);
 
 	if (!activity || activity.type !== 'lesson') {
@@ -101,22 +98,25 @@ export async function loadLessonAdminData(
 	graphSummaries: ReturnType<typeof LessonService.getGraphSummaries>;
 	models: Awaited<ReturnType<typeof AIUtils.getAvailableModels>>;
 	defaultModel: Awaited<ReturnType<typeof AIUtils.getDefaultModel>>;
+	lessonAgentTools: Awaited<ReturnType<typeof getLessonAgentToolCatalog>>;
 	revisionSummary: Awaited<ReturnType<typeof LessonRevisionService.getRevisionAdminSummary>>;
 }> {
 	const { activity, lessonConfig } = await requireLessonAdminContext(cid, ilid, locals);
-	const [files, models, defaultModel, revisionState, revisionSummary] = await Promise.all([
-		db
-			.select()
-			.from(interactiveLearningFile)
-			.where(eq(interactiveLearningFile.interactiveLearningId, ilid))
-			.all(),
-		AIUtils.getAvailableModels(),
-		AIUtils.getDefaultModel(),
-		LessonRevisionService.ensureLessonRevisionState(ilid, {
-			actorUserId: locals.user?.id ?? null
-		}),
-		LessonRevisionService.getRevisionAdminSummary(ilid)
-	]);
+	const [files, models, defaultModel, revisionState, revisionSummary, lessonAgentTools] =
+		await Promise.all([
+			db
+				.select()
+				.from(interactiveLearningFile)
+				.where(eq(interactiveLearningFile.interactiveLearningId, ilid))
+				.all(),
+			AIUtils.getAvailableModels(),
+			AIUtils.getDefaultModel(),
+			LessonRevisionService.ensureLessonRevisionState(ilid, {
+				actorUserId: locals.user?.id ?? null
+			}),
+			LessonRevisionService.getRevisionAdminSummary(ilid),
+			getLessonAgentToolCatalog()
+		]);
 	const definition = revisionState.draftDefinition;
 	const nextLessonConfig =
 		lessonConfig.draftRevisionId === revisionState.lesson.draftRevisionId &&
@@ -132,6 +132,7 @@ export async function loadLessonAdminData(
 		graphSummaries: LessonService.getGraphSummaries(definition),
 		models,
 		defaultModel,
+		lessonAgentTools,
 		revisionSummary
 	};
 }

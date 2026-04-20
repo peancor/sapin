@@ -41,6 +41,9 @@ export type LessonAgentInteractionMode = (typeof lessonAgentInteractionModes)[nu
 export const lessonAgentExecutionTriggers = ['on_user_submit', 'on_enter'] as const;
 export type LessonAgentExecutionTrigger = (typeof lessonAgentExecutionTriggers)[number];
 
+export const lessonAgentRuntimeModes = ['basic', 'agent'] as const;
+export type LessonAgentRuntimeMode = (typeof lessonAgentRuntimeModes)[number];
+
 export const lessonCheckModes = [
 	'single_choice',
 	'multiple_choice',
@@ -188,6 +191,7 @@ export interface LessonCheckBlock extends LessonBlockBase {
 }
 
 export interface LessonAgentConfigInput {
+	runtimeMode?: LessonAgentRuntimeMode;
 	interactionMode?: LessonAgentInteractionMode;
 	executionTrigger?: LessonAgentExecutionTrigger;
 	autoStartOnEnter?: boolean;
@@ -200,10 +204,15 @@ export interface LessonAgentConfigInput {
 	initialAssistantMessage?: string;
 	launchMessageTemplate?: string;
 	maxTurns?: number | null;
+	enabledToolIds?: string[];
 	outputSchema?: LessonOutputField[];
 }
 
-export interface LessonAgentConfig extends Omit<LessonAgentConfigInput, 'interactionMode' | 'executionTrigger'> {
+export interface LessonAgentConfig extends Omit<
+	LessonAgentConfigInput,
+	'interactionMode' | 'executionTrigger'
+> {
+	runtimeMode?: LessonAgentRuntimeMode;
 	interactionMode: LessonAgentInteractionMode;
 	executionTrigger: LessonAgentExecutionTrigger;
 	autoStartOnEnter: boolean;
@@ -232,6 +241,7 @@ export type LessonBlock =
 export interface LessonDefinition {
 	version: '2';
 	entryBlockId: string;
+	allowedAgentToolIds?: string[];
 	blocks: LessonBlock[];
 }
 
@@ -278,12 +288,19 @@ export interface LessonBlockGraphSummary {
 }
 
 export function normalizeLessonAgentConfig(input: LessonAgentConfigInput): LessonAgentConfig {
+	const runtimeMode = input.runtimeMode ?? 'basic';
 	const interactionMode = input.interactionMode ?? 'single_turn';
-	const executionTrigger = input.executionTrigger ?? (interactionMode === 'none' ? 'on_enter' : 'on_user_submit');
-	const autoStartOnEnter =
-		interactionMode === 'none' ? true : (input.autoStartOnEnter ?? false);
+	const executionTrigger =
+		input.executionTrigger ?? (interactionMode === 'none' ? 'on_enter' : 'on_user_submit');
+	const autoStartOnEnter = interactionMode === 'none' ? true : (input.autoStartOnEnter ?? false);
+	const enabledToolIds =
+		input.enabledToolIds
+			?.map((value) => value.trim())
+			.filter(Boolean)
+			.filter((value, index, list) => list.indexOf(value) === index) ?? [];
 
 	return {
+		runtimeMode,
 		model: input.model ?? null,
 		systemPrompt: input.systemPrompt ?? null,
 		promptTemplate: input.promptTemplate,
@@ -293,6 +310,7 @@ export function normalizeLessonAgentConfig(input: LessonAgentConfigInput): Lesso
 		initialAssistantMessage: input.initialAssistantMessage,
 		launchMessageTemplate: input.launchMessageTemplate,
 		maxTurns: input.maxTurns ?? null,
+		enabledToolIds: enabledToolIds.length > 0 ? enabledToolIds : undefined,
 		outputSchema: input.outputSchema,
 		interactionMode,
 		executionTrigger,
@@ -329,7 +347,9 @@ export function normalizeLessonCheckConfig(input: LessonCheckConfigInput): Lesso
 					description: option.description
 				}));
 	const correctOptionIds =
-		mode === 'true_false' ? [input.correctOptionIds?.[0] ?? 'true'] : [...(input.correctOptionIds ?? [])];
+		mode === 'true_false'
+			? [input.correctOptionIds?.[0] ?? 'true']
+			: [...(input.correctOptionIds ?? [])];
 
 	return {
 		mode,
@@ -360,7 +380,9 @@ export function normalizeLessonCheckConfig(input: LessonCheckConfigInput): Lesso
 	};
 }
 
-export function isValidLessonAgentConfig(config: Pick<LessonAgentConfig, 'interactionMode' | 'executionTrigger'>): boolean {
+export function isValidLessonAgentConfig(
+	config: Pick<LessonAgentConfig, 'interactionMode' | 'executionTrigger'>
+): boolean {
 	return (
 		(config.interactionMode === 'single_turn' && config.executionTrigger === 'on_user_submit') ||
 		(config.interactionMode === 'multi_turn' && config.executionTrigger === 'on_user_submit') ||
@@ -368,11 +390,15 @@ export function isValidLessonAgentConfig(config: Pick<LessonAgentConfig, 'intera
 	);
 }
 
-export function isLessonAgentInteractive(config: Pick<LessonAgentConfig, 'interactionMode'>): boolean {
+export function isLessonAgentInteractive(
+	config: Pick<LessonAgentConfig, 'interactionMode'>
+): boolean {
 	return config.interactionMode !== 'none';
 }
 
-export function getLessonAgentInteractionLabel(config: Pick<LessonAgentConfig, 'interactionMode'>): string {
+export function getLessonAgentInteractionLabel(
+	config: Pick<LessonAgentConfig, 'interactionMode'>
+): string {
 	if (config.interactionMode === 'multi_turn') return 'Mini chat';
 	if (config.interactionMode === 'single_turn') return 'Turno guiado';
 	return 'Generacion automatica';

@@ -1,7 +1,10 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import LessonAgentChat from '$lib/components/lesson/LessonAgentChat.svelte';
+	import LessonAgentRuntimeChat from '$lib/components/lesson/LessonAgentRuntimeChat.svelte';
+	import type { AgentDisplayPart } from '$lib/types/agent';
 	import { renderMarkdownMath } from '$lib/utils';
 	import { ArrowLeft, RotateCcw } from 'lucide-svelte';
 
@@ -14,6 +17,8 @@
 		hasGeneratedResponse: boolean;
 		isStreaming: boolean;
 	}
+
+	type RuntimeMessagePart = AgentDisplayPart;
 
 	let pending = $state(false);
 	let errorMessage = $state('');
@@ -44,8 +49,7 @@
 		renderMarkdownMath((data.resolvedCurrentBlock as { body?: string }).body ?? '')
 	);
 	const currentOutputs = $derived.by(() => {
-		const raw =
-			data.currentVisit?.outputsJson ?? data.currentBlockState?.outputsJson ?? null;
+		const raw = data.currentVisit?.outputsJson ?? data.currentBlockState?.outputsJson ?? null;
 		if (!raw) return {};
 		try {
 			return JSON.parse(raw) as Record<string, unknown>;
@@ -56,7 +60,9 @@
 	const checkSubmitted = $derived(currentOutputs.submitted === true);
 	const checkPassed = $derived(currentOutputs.passed === true);
 	const checkScore = $derived(
-		typeof currentOutputs.score === 'number' ? currentOutputs.score : Number(currentOutputs.score ?? 0)
+		typeof currentOutputs.score === 'number'
+			? currentOutputs.score
+			: Number(currentOutputs.score ?? 0)
 	);
 	const checkAttemptCount = $derived(
 		typeof currentOutputs.attemptCount === 'number'
@@ -72,19 +78,28 @@
 	const agentConfig = $derived(
 		data.resolvedCurrentBlock.kind === 'agent' ? data.resolvedCurrentBlock.agentConfig : null
 	);
+	const agentUsesRuntime = $derived(agentConfig?.runtimeMode === 'agent');
 	const agentUserTurnCount = $derived(agentRuntimeState.userTurnCount);
 	const agentHasGeneratedResponse = $derived(agentRuntimeState.hasGeneratedResponse);
 	const agentHasUserResponse = $derived(agentRuntimeState.hasUserResponse);
+	const agentApiEndpoint = $derived.by(() =>
+		data.currentBlock.kind !== 'agent'
+			? ''
+			: agentUsesRuntime
+				? `/api/lesson/${data.activity.id}/session/${data.session.id}/block/${data.currentBlock.id}/agent-chat/ask`
+				: `/api/lesson/${data.activity.id}/session/${data.session.id}/block/${data.currentBlock.id}/agent`
+	);
 	const agentAllowsInput = $derived(
 		agentConfig !== null &&
 			agentConfig.interactionMode !== 'none' &&
-			agentConfig.executionTrigger === 'on_user_submit'
+			agentConfig.executionTrigger === 'on_user_submit' &&
+			(agentConfig.interactionMode !== 'single_turn' || agentUserTurnCount < 1)
 	);
 	const agentCanContinue = $derived(
 		data.currentBlock.kind === 'agent'
 			? (data.currentBlock.requiresResponse ?? true)
 				? agentHasUserResponse
-				: (!agentConfig?.autoStartOnEnter || agentHasGeneratedResponse)
+				: !agentConfig?.autoStartOnEnter || agentHasGeneratedResponse
 			: true
 	);
 	const checkCanRetry = $derived.by(() => {
@@ -124,18 +139,32 @@
 			return;
 		}
 
-		const serverUserTurnCount = data.currentChatMessages.filter(
-			(message) => message.type === 'USER'
-		).length;
-		const serverAssistantTurnCount = data.currentChatMessages.filter(
-			(message) => message.type === 'ASSISTANT'
-		).length;
-		const serverHasGeneratedResponse =
-			typeof currentOutputs.response === 'string'
+		const serverUserTurnCount = agentUsesRuntime
+			? data.currentAgentMessages.filter((message) => message.role === 'user').length
+			: data.currentChatMessages.filter((message) => message.type === 'USER').length;
+		const serverAssistantTurnCount = agentUsesRuntime
+			? data.currentAgentMessages.filter((message) => message.role === 'assistant').length
+			: data.currentChatMessages.filter((message) => message.type === 'ASSISTANT').length;
+		const serverHasGeneratedResponse = agentUsesRuntime
+			? data.currentAgentMessages.some((message) =>
+					message.parts.some(
+						(part: RuntimeMessagePart) => part.kind === 'text' && part.content.trim().length > 0
+					)
+				) ||
+				(typeof currentOutputs.response === 'string' && currentOutputs.response.trim().length > 0)
+			: typeof currentOutputs.response === 'string'
 				? currentOutputs.response.trim().length > 0
 				: data.currentChatMessages.some((message) => message.type === 'ASSISTANT');
+		const serverHasStructuredUiResponse = agentUsesRuntime
+			? data.currentAgentMessages.some((message) =>
+					message.parts.some(
+						(part: RuntimeMessagePart) => part.kind === 'ui-component' && !!part.userResponse
+					)
+				)
+			: false;
 		const serverHasUserResponse =
 			serverUserTurnCount > 0 ||
+			serverHasStructuredUiResponse ||
 			currentOutputs.hasUserResponse === true ||
 			(typeof currentOutputs.userTurnCount === 'number' && currentOutputs.userTurnCount > 0);
 
@@ -161,13 +190,24 @@
 		}
 	}
 
+	function handleAgentRuntimeLoadingChange(isLoading: boolean) {
+		agentRuntimeState.isStreaming = isLoading;
+	}
+
+	async function handleAgentRuntimeComplete() {
+		await invalidateAll();
+	}
+
 	async function postJson(url: string, payload?: unknown) {
 		const response = await fetch(url, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: payload ? JSON.stringify(payload) : undefined
 		});
-		const result = (await response.json().catch(() => ({}))) as { error?: string; sessionId?: string };
+		const result = (await response.json().catch(() => ({}))) as {
+			error?: string;
+			sessionId?: string;
+		};
 		if (!response.ok) {
 			throw new Error(result.error || 'La operación ha fallado');
 		}
@@ -175,7 +215,7 @@
 	}
 
 	function goBack() {
-		goto(`/course/${data.session.courseId}/run`);
+		goto(resolve(`/course/${data.session.courseId}/run`));
 	}
 
 	async function advance() {
@@ -197,9 +237,11 @@
 
 	async function restart() {
 		await handleAction(async () => {
-			const result = await postJson(`/api/lesson/${data.activity.id}/session/${data.session.id}/restart`);
+			const result = await postJson(
+				`/api/lesson/${data.activity.id}/session/${data.session.id}/restart`
+			);
 			if (result.sessionId) {
-				goto(`/course/${data.session.courseId}/run/lesson/${result.sessionId}`);
+				goto(resolve(`/course/${data.session.courseId}/run/lesson/${result.sessionId}`));
 			}
 		});
 	}
@@ -263,12 +305,19 @@
 <div class="space-y-6">
 	<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-900/40">
 		<div class="flex flex-wrap items-center justify-between gap-3">
-			<button class="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm" onclick={goBack}>
+			<button
+				class="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm"
+				onclick={goBack}
+			>
 				<ArrowLeft class="h-4 w-4" />
 				Volver al curso
 			</button>
 			{#if data.canRestart}
-				<button class="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm" onclick={restart} disabled={pending}>
+				<button
+					class="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm"
+					onclick={restart}
+					disabled={pending}
+				>
 					<RotateCcw class="h-4 w-4" />
 					Reiniciar intento
 				</button>
@@ -276,7 +325,7 @@
 		</div>
 
 		<div class="mt-4">
-			<p class="text-sm uppercase tracking-wide text-amber-600 dark:text-amber-400">
+			<p class="text-sm tracking-wide text-amber-600 uppercase dark:text-amber-400">
 				{data.sessionRevisionInfo.isPreview
 					? `${data.sessionRevisionInfo.scopeLabel} · intento ${data.session.attemptNumber}`
 					: `Lección viva · intento ${data.session.attemptNumber}`}
@@ -287,12 +336,16 @@
 			{/if}
 			<div class="mt-3 flex flex-wrap gap-2">
 				{#if data.sessionRevisionInfo.revisionNumber !== null}
-					<span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+					<span
+						class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+					>
 						Revisión #{data.sessionRevisionInfo.revisionNumber}
 					</span>
 				{/if}
 				{#if data.sessionRevisionInfo.isHistoricalApproximation}
-					<span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+					<span
+						class="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+					>
 						Histórico aproximado
 					</span>
 				{/if}
@@ -317,28 +370,39 @@
 
 	<div class="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-900/40">
 		<div class="mb-4">
-			<p class="text-sm uppercase tracking-wide text-gray-500">{data.currentBlock.kind}</p>
-			<h2 class="text-xl font-semibold text-gray-900 dark:text-white">{data.resolvedCurrentBlock.title}</h2>
+			<p class="text-sm tracking-wide text-gray-500 uppercase">{data.currentBlock.kind}</p>
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+				{data.resolvedCurrentBlock.title}
+			</h2>
 		</div>
 
 		{#if data.isReadOnly}
-			<div class="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-				Esta lesson está en modo solo lectura. Puedes revisar el contenido, pero no avanzar ni crear nuevas respuestas.
+			<div
+				class="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
+			>
+				Esta lesson está en modo solo lectura. Puedes revisar el contenido, pero no avanzar ni crear
+				nuevas respuestas.
 			</div>
 		{/if}
 		{#if data.sessionRevisionInfo.isPreview}
-			<div class="mb-4 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-700 dark:bg-sky-950/20 dark:text-sky-200">
-				Sesión aislada de preview. No modifica progreso, analítica ni revisión pedagógica del alumnado.
+			<div
+				class="mb-4 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-700 dark:bg-sky-950/20 dark:text-sky-200"
+			>
+				Sesión aislada de preview. No modifica progreso, analítica ni revisión pedagógica del
+				alumnado.
 			</div>
 		{/if}
 
 		{#if errorMessage}
-			<div class="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
+			<div
+				class="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300"
+			>
 				{errorMessage}
 			</div>
 		{/if}
 
-		<div class="prose max-w-none dark:prose-invert">
+		<div class="prose dark:prose-invert max-w-none">
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 			{@html bodyHtml}
 		</div>
 
@@ -347,13 +411,18 @@
 				{#each data.currentAssets as asset (asset.fileId)}
 					<div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
 						{#if asset.kind === 'image'}
-							<img src={asset.url} alt={asset.name} class="max-h-80 w-full rounded-lg object-cover" />
+							<img
+								src={asset.url}
+								alt={asset.name}
+								class="max-h-80 w-full rounded-lg object-cover"
+							/>
 						{:else if asset.kind === 'video'}
 							<!-- svelte-ignore a11y_media_has_caption -->
 							<video src={asset.url} controls class="w-full rounded-lg"></video>
 						{:else if asset.kind === 'audio'}
 							<audio src={asset.url} controls class="w-full"></audio>
 						{:else}
+							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 							<a href={asset.url} target="_blank" class="text-primary-600 hover:underline">
 								{asset.name}
 							</a>
@@ -369,7 +438,7 @@
 		{#if data.currentBlock.kind === 'content'}
 			<div class="mt-6 flex justify-end">
 				<button
-					class="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+					class="bg-primary-600 hover:bg-primary-700 rounded-lg px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
 					onclick={advance}
 					disabled={pending || data.isReadOnly}
 				>
@@ -380,7 +449,7 @@
 			<div class="mt-6 grid gap-3">
 				{#each resolvedChoiceBlock?.options ?? [] as option (option.id)}
 					<button
-						class="rounded-xl border border-gray-200 px-4 py-4 text-left transition hover:border-primary-400 hover:bg-primary-50 dark:border-gray-700 dark:hover:bg-primary-900/10"
+						class="hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl border border-gray-200 px-4 py-4 text-left transition dark:border-gray-700"
 						onclick={() => choose(option.id)}
 						disabled={pending || data.isReadOnly}
 					>
@@ -397,7 +466,9 @@
 					{#if resolvedCheckBlock.checkConfig.mode === 'single_choice' || resolvedCheckBlock.checkConfig.mode === 'true_false'}
 						<div class="grid gap-3">
 							{#each resolvedCheckBlock.checkConfig.options as option (option.id)}
-								<label class="rounded-xl border border-gray-200 px-4 py-4 transition hover:border-primary-400 hover:bg-primary-50 dark:border-gray-700 dark:hover:bg-primary-900/10">
+								<label
+									class="hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl border border-gray-200 px-4 py-4 transition dark:border-gray-700"
+								>
 									<div class="flex items-start gap-3">
 										<input
 											type="radio"
@@ -414,7 +485,9 @@
 										<div>
 											<p class="font-medium text-gray-900 dark:text-white">{option.label}</p>
 											{#if option.description}
-												<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{option.description}</p>
+												<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+													{option.description}
+												</p>
 											{/if}
 										</div>
 									</div>
@@ -424,7 +497,9 @@
 					{:else if resolvedCheckBlock.checkConfig.mode === 'multiple_choice'}
 						<div class="grid gap-3">
 							{#each resolvedCheckBlock.checkConfig.options as option (option.id)}
-								<label class="rounded-xl border border-gray-200 px-4 py-4 transition hover:border-primary-400 hover:bg-primary-50 dark:border-gray-700 dark:hover:bg-primary-900/10">
+								<label
+									class="hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl border border-gray-200 px-4 py-4 transition dark:border-gray-700"
+								>
 									<div class="flex items-start gap-3">
 										<input
 											type="checkbox"
@@ -440,7 +515,9 @@
 										<div>
 											<p class="font-medium text-gray-900 dark:text-white">{option.label}</p>
 											{#if option.description}
-												<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{option.description}</p>
+												<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+													{option.description}
+												</p>
 											{/if}
 										</div>
 									</div>
@@ -465,21 +542,31 @@
 					{/if}
 
 					{#if checkSubmitted}
-						<div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950/30">
+						<div
+							class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950/30"
+						>
 							<div class="flex flex-wrap items-center gap-2">
-								<span class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+								<span
+									class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+								>
 									Score: {Number.isFinite(checkScore) ? checkScore.toFixed(2) : '0.00'}
 								</span>
-								<span class="rounded-full px-2.5 py-1 text-xs font-medium {(checkPassed
-									? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
-									: 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300')}">
+								<span
+									class="rounded-full px-2.5 py-1 text-xs font-medium {checkPassed
+										? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
+										: 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'}"
+								>
 									{checkPassed ? 'Superado' : 'Pendiente'}
 								</span>
-								<span class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+								<span
+									class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+								>
 									Intentos: {Number.isFinite(checkAttemptCount) ? checkAttemptCount : 0}
 								</span>
 								{#if checkAttemptsRemaining !== null}
-									<span class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+									<span
+										class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+									>
 										Restantes: {checkAttemptsRemaining}
 									</span>
 								{/if}
@@ -524,7 +611,7 @@
 							</button>
 						{:else if !checkCanContinue}
 							<button
-								class="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+								class="bg-primary-600 hover:bg-primary-700 rounded-lg px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
 								onclick={submitCheck}
 								disabled={pending || !canSubmitCheck}
 							>
@@ -534,7 +621,7 @@
 
 						{#if checkCanContinue}
 							<button
-								class="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+								class="bg-primary-600 hover:bg-primary-700 rounded-lg px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
 								onclick={advance}
 								disabled={pending || data.isReadOnly}
 							>
@@ -547,27 +634,43 @@
 		{:else if data.currentBlock.kind === 'agent'}
 			<div class="mt-6 space-y-4">
 				{#if agentConfig}
-					<LessonAgentChat
-						initialMessages={data.currentChatMessages}
-						activityId={data.activity.id}
-						sessionId={data.session.id}
-						blockId={data.currentBlock.id}
-						visitId={data.currentVisitId}
-						{agentConfig}
-						canInteract={agentAllowsInput || agentConfig.interactionMode === 'none'}
-						isReadOnly={data.isReadOnly}
-						initialHasGeneratedResponse={agentHasGeneratedResponse}
-						onStateChange={(state) => {
-							agentRuntimeState = state;
-						}}
-					/>
+					{#if agentUsesRuntime}
+						<LessonAgentRuntimeChat
+							initialMessages={data.currentAgentMessages}
+							apiEndpoint={agentApiEndpoint}
+							autoStartEnabled={agentConfig.autoStartOnEnter}
+							showComposer={agentConfig.interactionMode !== 'none'}
+							composerDisabled={data.isReadOnly || !agentAllowsInput}
+							composerPlaceholder={agentConfig.placeholder || 'Escribe tu respuesta'}
+							onLoadingChange={handleAgentRuntimeLoadingChange}
+							onComplete={handleAgentRuntimeComplete}
+						/>
+					{:else}
+						<LessonAgentChat
+							initialMessages={data.currentChatMessages}
+							activityId={data.activity.id}
+							sessionId={data.session.id}
+							blockId={data.currentBlock.id}
+							visitId={data.currentVisitId}
+							{agentConfig}
+							canInteract={agentAllowsInput || agentConfig.interactionMode === 'none'}
+							isReadOnly={data.isReadOnly}
+							initialHasGeneratedResponse={agentHasGeneratedResponse}
+							onStateChange={(state) => {
+								agentRuntimeState = state;
+							}}
+						/>
+					{/if}
 				{/if}
 
 				<div class="flex justify-end">
 					<button
-						class="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+						class="bg-primary-600 hover:bg-primary-700 rounded-lg px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
 						onclick={advance}
-						disabled={pending || data.isReadOnly || agentRuntimeState.isStreaming || !agentCanContinue}
+						disabled={pending ||
+							data.isReadOnly ||
+							agentRuntimeState.isStreaming ||
+							!agentCanContinue}
 					>
 						{agentConfig?.continueLabel || 'Continuar'}
 					</button>
@@ -575,7 +678,10 @@
 			</div>
 		{:else if data.currentBlock.kind === 'end'}
 			<div class="mt-6 flex justify-end">
-				<button class="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700" onclick={goBack}>
+				<button
+					class="bg-primary-600 hover:bg-primary-700 rounded-lg px-5 py-2.5 text-sm font-medium text-white"
+					onclick={goBack}
+				>
 					{resolvedEndBlock?.ctaLabel || 'Volver al curso'}
 				</button>
 			</div>

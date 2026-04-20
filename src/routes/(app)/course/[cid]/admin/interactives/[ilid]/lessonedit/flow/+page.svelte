@@ -37,6 +37,7 @@
 		normalizeLessonAgentConfig,
 		type LessonAgentExecutionTrigger,
 		type LessonAgentInteractionMode,
+		type LessonAgentRuntimeMode,
 		lessonConditionOperators,
 		type LessonBlock,
 		type LessonDefinition
@@ -135,8 +136,6 @@
 
 	const cid = $derived(page.params.cid);
 	const ilid = $derived(page.params.ilid);
-	const previewPublishedHref = $derived(resolve(`/lesson/${ilid}?preview=published`));
-	const previewDraftHref = $derived(resolve(`/lesson/${ilid}?preview=draft`));
 	const revisionDiff = $derived(data.revisionSummary.diff);
 	const revisionImpact = $derived(data.revisionSummary.impact);
 	const hasDraftChanges = $derived(
@@ -170,6 +169,15 @@
 		}))
 	);
 	const availableModels = $derived(data.models);
+	const lessonAgentTools = $derived(data.lessonAgentTools);
+	const effectiveAllowedAgentToolIds = $derived(
+		draftDefinition.allowedAgentToolIds?.length
+			? draftDefinition.allowedAgentToolIds
+			: data.lessonAgentTools.map((tool) => tool.id)
+	);
+	const availableLessonAgentTools = $derived(
+		data.lessonAgentTools.filter((tool) => effectiveAllowedAgentToolIds.includes(tool.id))
+	);
 	const entryBlockTitle = $derived(
 		draftDefinition.blocks.find((block) => block.id === draftDefinition.entryBlockId)?.title ??
 			draftDefinition.entryBlockId
@@ -234,6 +242,57 @@
 			});
 			block.requiresResponse =
 				interactionMode === 'none' ? false : (block.requiresResponse ?? true);
+		});
+	}
+
+	function updateSelectedAgentRuntimeMode(runtimeMode: LessonAgentRuntimeMode) {
+		updateSelectedBlock((block) => {
+			if (block.kind !== 'agent') return;
+			block.agentConfig.runtimeMode = runtimeMode;
+			if (runtimeMode === 'basic') {
+				block.agentConfig.enabledToolIds = undefined;
+			}
+		});
+	}
+
+	function toggleLessonAllowedAgentTool(toolId: string, checked: boolean) {
+		mutateDefinition((definition) => {
+			const selected = definition.allowedAgentToolIds ?? [];
+			const updated = checked
+				? selected.includes(toolId)
+					? selected
+					: [...selected, toolId]
+				: selected.filter((id) => id !== toolId);
+
+			definition.allowedAgentToolIds = updated.length > 0 ? updated : undefined;
+			const allowedIds =
+				updated.length > 0 ? updated : data.lessonAgentTools.map((tool) => tool.id);
+
+			for (const block of definition.blocks) {
+				if (block.kind !== 'agent') continue;
+				if (!block.agentConfig.enabledToolIds?.length) continue;
+				block.agentConfig.enabledToolIds = block.agentConfig.enabledToolIds.filter((id) =>
+					allowedIds.includes(id)
+				);
+				if (block.agentConfig.enabledToolIds.length === 0) {
+					block.agentConfig.enabledToolIds = undefined;
+				}
+			}
+		});
+	}
+
+	function toggleSelectedAgentTool(toolId: string, checked: boolean) {
+		updateSelectedBlock((block) => {
+			if (block.kind !== 'agent') return;
+
+			const selected = block.agentConfig.enabledToolIds ?? [];
+			const updated = checked
+				? selected.includes(toolId)
+					? selected
+					: [...selected, toolId]
+				: selected.filter((id) => id !== toolId);
+
+			block.agentConfig.enabledToolIds = updated.length > 0 ? updated : undefined;
 		});
 	}
 
@@ -1653,7 +1712,7 @@
 				Ficha de actividad
 			</a>
 			<a
-				href={previewPublishedHref}
+				href={resolve(`/lesson/${ilid}?preview=published`)}
 				target="_blank"
 				rel="noreferrer"
 				class="inline-flex items-center justify-center rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 shadow-sm hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
@@ -1685,7 +1744,7 @@
 
 				<div class="flex flex-wrap gap-2">
 					<a
-						href={previewDraftHref}
+						href={resolve(`/lesson/${ilid}?preview=draft`)}
 						target="_blank"
 						rel="noreferrer"
 						class="inline-flex items-center rounded-2xl border border-sky-300 bg-sky-50 px-3.5 py-2 text-sm font-medium text-sky-800 shadow-sm transition hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
@@ -1726,22 +1785,27 @@
 			</div>
 
 			<div class="mt-4 grid gap-3 lg:grid-cols-3">
-				<div class="rounded-2xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/60">
+				<div
+					class="rounded-2xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/60"
+				>
 					<p
 						class="text-[11px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
 					>
 						Diff
 					</p>
 					<p class="mt-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
-						{revisionDiff.totalChangedBlocks} bloque{revisionDiff.totalChangedBlocks === 1 ? '' : 's'} con
-						cambios
+						{revisionDiff.totalChangedBlocks} bloque{revisionDiff.totalChangedBlocks === 1
+							? ''
+							: 's'} con cambios
 					</p>
 					<p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
 						+{revisionDiff.addedBlockIds.length} · -{revisionDiff.removedBlockIds.length} ·
 						{revisionDiff.changedBlockIds.length} editados
 					</p>
 				</div>
-				<div class="rounded-2xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/60">
+				<div
+					class="rounded-2xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/60"
+				>
 					<p
 						class="text-[11px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
 					>
@@ -1754,15 +1818,16 @@
 						{revisionImpact.activeAttemptsOnOlderRevisions} ya siguen revisiones antiguas.
 					</p>
 				</div>
-				<div class="rounded-2xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/60">
+				<div
+					class="rounded-2xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/60"
+				>
 					<p
 						class="text-[11px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
 					>
 						Histórico
 					</p>
 					<p class="mt-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
-						{revisionImpact.completedAttemptsOnHistoricalRevisions} completados en revisiones
-						históricas
+						{revisionImpact.completedAttemptsOnHistoricalRevisions} completados en revisiones históricas
 					</p>
 					<p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
 						{revisionImpact.referencedAssetFileIds.length} assets siguen referenciados.
@@ -1883,7 +1948,7 @@
 
 			<div class="flex items-center gap-2">
 				<a
-					href={previewPublishedHref}
+					href={resolve(`/lesson/${ilid}?preview=published`)}
 					target="_blank"
 					rel="noreferrer"
 					class="inline-flex items-center rounded-2xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-sm font-medium text-emerald-800 shadow-sm transition hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
@@ -1892,7 +1957,7 @@
 					Publicado
 				</a>
 				<a
-					href={previewDraftHref}
+					href={resolve(`/lesson/${ilid}?preview=draft`)}
 					target="_blank"
 					rel="noreferrer"
 					class="inline-flex items-center rounded-2xl border border-sky-300 bg-sky-50 px-3.5 py-2 text-sm font-medium text-sky-800 shadow-sm transition hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
@@ -2238,6 +2303,67 @@
 				</div>
 
 				<div class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+					<div
+						class="mb-5 space-y-3 rounded-2xl border border-stone-200 bg-white/70 px-4 py-4 dark:border-stone-800 dark:bg-stone-950/30"
+					>
+						<div class="flex items-center justify-between gap-3">
+							<div>
+								<p class="text-sm font-semibold text-stone-900 dark:text-white">
+									Allowlist de tools de la lesson
+								</p>
+								<p class="text-xs text-stone-500 dark:text-stone-400">
+									Marca las tools que pueden usarse en cualquier bloque IA en modo agéntico.
+								</p>
+							</div>
+							<span
+								class="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700 dark:bg-stone-800 dark:text-stone-200"
+							>
+								{effectiveAllowedAgentToolIds.length} permitidas
+							</span>
+						</div>
+
+						<div class="grid gap-3">
+							{#each lessonAgentTools as tool (tool.id)}
+								<label class="rounded-2xl border border-stone-200 px-3 py-3 dark:border-stone-800">
+									<div class="flex items-start gap-3">
+										<input
+											type="checkbox"
+											class="text-primary-600 mt-1 h-4 w-4 rounded border-stone-300"
+											checked={effectiveAllowedAgentToolIds.includes(tool.id)}
+											onchange={(event) =>
+												toggleLessonAllowedAgentTool(
+													tool.id,
+													(event.currentTarget as HTMLInputElement).checked
+												)}
+										/>
+										<div class="min-w-0">
+											<div class="flex flex-wrap items-center gap-2">
+												<p class="text-sm font-medium text-stone-900 dark:text-white">
+													{tool.displayName}
+												</p>
+												{#if tool.isInteractiveUi}
+													<span
+														class="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950/30 dark:text-sky-200"
+														>UI</span
+													>
+												{/if}
+												{#if tool.requiresConfirmation}
+													<span
+														class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
+														>HITL</span
+													>
+												{/if}
+											</div>
+											<p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
+												{tool.description}
+											</p>
+										</div>
+									</div>
+								</label>
+							{/each}
+						</div>
+					</div>
+
 					{#if selectedBlock}
 						<div class="space-y-5">
 							<div
@@ -2498,6 +2624,23 @@
 							{:else if selectedBlock.kind === 'agent'}
 								<label class="block">
 									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										>Runtime</span
+									>
+									<select
+										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										value={selectedBlock.agentConfig.runtimeMode}
+										onchange={(event) =>
+											updateSelectedAgentRuntimeMode(
+												(event.currentTarget as HTMLSelectElement).value as LessonAgentRuntimeMode
+											)}
+									>
+										<option value="basic">Básico</option>
+										<option value="agent">Agéntico con tools</option>
+									</select>
+								</label>
+
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
 										>Modelo</span
 									>
 									<select
@@ -2516,6 +2659,64 @@
 										{/each}
 									</select>
 								</label>
+
+								{#if selectedBlock.agentConfig.runtimeMode === 'agent'}
+									<div class="rounded-2xl border border-stone-200 px-4 py-4 dark:border-stone-800">
+										<div class="mb-3">
+											<p class="text-sm font-medium text-stone-900 dark:text-white">
+												Tools del bloque
+											</p>
+											<p class="text-xs text-stone-500 dark:text-stone-400">
+												Si no marcas ninguna, heredará toda la allowlist de la lesson.
+											</p>
+										</div>
+
+										<div class="grid gap-3">
+											{#each availableLessonAgentTools as tool (tool.id)}
+												<label
+													class="rounded-2xl border border-stone-200 px-3 py-3 dark:border-stone-800"
+												>
+													<div class="flex items-start gap-3">
+														<input
+															type="checkbox"
+															class="text-primary-600 mt-1 h-4 w-4 rounded border-stone-300"
+															checked={(selectedBlock.agentConfig.enabledToolIds ?? []).includes(
+																tool.id
+															)}
+															onchange={(event) =>
+																toggleSelectedAgentTool(
+																	tool.id,
+																	(event.currentTarget as HTMLInputElement).checked
+																)}
+														/>
+														<div class="min-w-0">
+															<div class="flex flex-wrap items-center gap-2">
+																<p class="text-sm font-medium text-stone-900 dark:text-white">
+																	{tool.displayName}
+																</p>
+																{#if tool.isInteractiveUi}
+																	<span
+																		class="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950/30 dark:text-sky-200"
+																		>UI</span
+																	>
+																{/if}
+																{#if tool.requiresConfirmation}
+																	<span
+																		class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
+																		>HITL</span
+																	>
+																{/if}
+															</div>
+															<p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
+																{tool.description}
+															</p>
+														</div>
+													</div>
+												</label>
+											{/each}
+										</div>
+									</div>
+								{/if}
 
 								<label class="block">
 									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
