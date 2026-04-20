@@ -3,8 +3,13 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import LessonAgentToolCatalog from '$lib/components/lesson/LessonAgentToolCatalog.svelte';
+	import {
+		getLessonAgentToolMetrics,
+		type LessonAgentToolPresentationItem
+	} from '$lib/lesson/lessonAgentToolPresentation';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
-	import type { LessonBlock } from '$lib/types/lesson';
+	import { normalizeLessonAgentConfig, type LessonBlock } from '$lib/types/lesson';
 	import {
 		ArrowDown,
 		ArrowRight,
@@ -30,6 +35,17 @@
 	let allowRestart = $state(data.lessonConfig.allowRestart);
 	let isMetaDirty = $state(false);
 	let metaSaved = $state(false);
+	let agentPolicyMode = $state<'all' | 'custom'>(
+		data.definition.allowedAgentToolIds?.length ? 'custom' : 'all'
+	);
+	let selectedAllowedAgentToolIds = $state.raw(
+		(data.definition.allowedAgentToolIds?.length
+			? data.definition.allowedAgentToolIds
+			: data.lessonAgentTools.map((tool) => tool.id)
+		).slice()
+	);
+	let isAgentPolicyDirty = $state(false);
+	let agentPolicySaved = $state(false);
 
 	const cid = $derived(page.params.cid);
 	const ilid = $derived(page.params.ilid);
@@ -41,10 +57,70 @@
 	const hasDraftChanges = $derived(
 		revisionDiff.totalChangedBlocks > 0 || revisionDiff.entryBlockChanged
 	);
+	const lessonSafeAgentToolIds = $derived(data.lessonAgentTools.map((tool) => tool.id));
+	const selectedLessonPolicyToolIds = $derived(
+		agentPolicyMode === 'all' ? lessonSafeAgentToolIds : selectedAllowedAgentToolIds
+	);
+	const selectedLessonPolicyMetrics = $derived(
+		getLessonAgentToolMetrics(
+			data.lessonAgentTools as LessonAgentToolPresentationItem[],
+			selectedLessonPolicyToolIds
+		)
+	);
+	const isAgentPolicySelectionEmpty = $derived(
+		agentPolicyMode === 'custom' && selectedAllowedAgentToolIds.length === 0
+	);
+	const agentBlocks = $derived.by(() =>
+		data.definition.blocks
+			.filter((block) => block.kind === 'agent')
+			.map((block) => {
+				const normalizedConfig = normalizeLessonAgentConfig(block.agentConfig);
+				const usesCustomSubset =
+					normalizedConfig.runtimeMode === 'agent' &&
+					Boolean(normalizedConfig.enabledToolIds?.length);
+
+				return {
+					id: block.id,
+					title: block.title,
+					runtimeMode: normalizedConfig.runtimeMode,
+					usesCustomSubset,
+					selectedToolCount: normalizedConfig.enabledToolIds?.length ?? 0
+				};
+			})
+	);
+	const agentBlocksWithCustomSubset = $derived(
+		agentBlocks.filter((block) => block.usesCustomSubset).length
+	);
 
 	function markMetaDirty() {
 		isMetaDirty = true;
 		metaSaved = false;
+	}
+
+	function markAgentPolicyDirty() {
+		isAgentPolicyDirty = true;
+		agentPolicySaved = false;
+	}
+
+	function setAgentPolicyMode(mode: 'all' | 'custom') {
+		if (agentPolicyMode === mode) return;
+		agentPolicyMode = mode;
+		if (mode === 'custom' && selectedAllowedAgentToolIds.length === 0) {
+			selectedAllowedAgentToolIds = [...lessonSafeAgentToolIds];
+		}
+		markAgentPolicyDirty();
+	}
+
+	function toggleAllowedAgentTool(toolId: string, checked: boolean) {
+		const currentSelection = selectedAllowedAgentToolIds;
+		const nextSelection = checked
+			? currentSelection.includes(toolId)
+				? currentSelection
+				: [...currentSelection, toolId]
+			: currentSelection.filter((candidate) => candidate !== toolId);
+
+		selectedAllowedAgentToolIds = nextSelection;
+		markAgentPolicyDirty();
 	}
 
 	function blockIcon(block: LessonBlock) {
@@ -113,11 +189,22 @@
 	$effect(() => {
 		if (!form?.success) return;
 
-		name = data.activity.name;
-		description = data.activity.description ?? '';
-		status = data.activity.status;
-		sessionPolicy = data.lessonConfig.sessionPolicy;
-		allowRestart = data.lessonConfig.allowRestart;
+		if (form.action === 'updateLessonMeta') {
+			name = data.activity.name;
+			description = data.activity.description ?? '';
+			status = data.activity.status;
+			sessionPolicy = data.lessonConfig.sessionPolicy;
+			allowRestart = data.lessonConfig.allowRestart;
+		}
+
+		if (form.action === 'updateAgentPolicy') {
+			agentPolicyMode = data.definition.allowedAgentToolIds?.length ? 'custom' : 'all';
+			selectedAllowedAgentToolIds = [
+				...(data.definition.allowedAgentToolIds?.length
+					? data.definition.allowedAgentToolIds
+					: data.lessonAgentTools.map((tool) => tool.id))
+			];
+		}
 	});
 </script>
 
@@ -462,6 +549,235 @@
 							class="bg-primary-600 hover:bg-primary-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white"
 						>
 							Guardar portada
+						</button>
+					</div>
+				</form>
+			</div>
+
+			<div
+				class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800"
+			>
+				<div class="mb-5 flex flex-wrap items-start justify-between gap-4">
+					<div class="max-w-3xl">
+						<h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+							Capacidades agénticas
+						</h2>
+						<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+							Aquí decides la política global de tools para toda la lesson. Los bloques IA solo
+							podrán heredar esta allowlist o elegir un subconjunto dentro de ella.
+						</p>
+					</div>
+					<div
+						class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+					>
+						<Bot class="mr-1 inline h-3.5 w-3.5" />
+						Política primero
+					</div>
+				</div>
+
+				<div class="grid gap-3 md:grid-cols-4">
+					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+						<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+							Tools permitidas
+						</p>
+						<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+							{selectedLessonPolicyMetrics.total}
+						</p>
+					</div>
+					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+						<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+							UI interactivas
+						</p>
+						<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+							{selectedLessonPolicyMetrics.interactive}
+						</p>
+					</div>
+					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+						<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+							HITL
+						</p>
+						<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+							{selectedLessonPolicyMetrics.hitl}
+						</p>
+					</div>
+					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+						<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+							Bloques con override
+						</p>
+						<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+							{agentBlocksWithCustomSubset}
+						</p>
+					</div>
+				</div>
+
+				<form
+					method="POST"
+					action="?/updateAgentPolicy"
+					use:enhance={() => {
+						return async ({ result, update }) => {
+							await update();
+							if (result.type === 'success') {
+								isAgentPolicyDirty = false;
+								agentPolicySaved = true;
+							}
+						};
+					}}
+					class="mt-5 space-y-5"
+				>
+					<input
+						type="hidden"
+						name="selectedToolIdsJson"
+						value={JSON.stringify(agentPolicyMode === 'all' ? [] : selectedAllowedAgentToolIds)}
+					/>
+
+					<div class="grid gap-4 lg:grid-cols-2">
+						<button
+							type="button"
+							class={`rounded-2xl border px-4 py-4 text-left transition ${
+								agentPolicyMode === 'all'
+									? 'border-primary-300 bg-primary-50 text-primary-900 dark:border-primary-900/40 dark:bg-primary-950/20 dark:text-primary-100'
+									: 'border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-950/30'
+							}`}
+							onclick={() => setAgentPolicyMode('all')}
+						>
+							<p class="text-sm font-semibold">Catálogo lesson-safe completo</p>
+							<p class="mt-1 text-sm opacity-80">
+								Todos los bloques IA en modo agente podrán usar cualquier tool clasificada como
+								segura para lessons.
+							</p>
+						</button>
+						<button
+							type="button"
+							class={`rounded-2xl border px-4 py-4 text-left transition ${
+								agentPolicyMode === 'custom'
+									? 'border-primary-300 bg-primary-50 text-primary-900 dark:border-primary-900/40 dark:bg-primary-950/20 dark:text-primary-100'
+									: 'border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-950/30'
+							}`}
+							onclick={() => setAgentPolicyMode('custom')}
+						>
+							<p class="text-sm font-semibold">Allowlist curada</p>
+							<p class="mt-1 text-sm opacity-80">
+								Restringe la lesson a un conjunto concreto de tools y deja que cada bloque IA
+								trabaje solo dentro de ese alcance.
+							</p>
+						</button>
+					</div>
+
+					{#if agentPolicyMode === 'custom'}
+						<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+							<div class="mb-4">
+								<h3 class="text-base font-semibold text-gray-900 dark:text-white">
+									Catálogo permitido para esta lesson
+								</h3>
+								<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+									La selección se organiza por intención pedagógica para que el alcance global sea
+									más fácil de revisar.
+								</p>
+							</div>
+
+							<LessonAgentToolCatalog
+								tools={data.lessonAgentTools}
+								selectedToolIds={selectedAllowedAgentToolIds}
+								onToggle={toggleAllowedAgentTool}
+							/>
+						</div>
+					{:else}
+						<div
+							class="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-4 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-100"
+						>
+							La lesson hereda el catálogo lesson-safe completo. Si algún bloque necesita menos
+							capacidades, el recorte se hace en su editor profundo.
+						</div>
+					{/if}
+
+					<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+						<div class="mb-4">
+							<h3 class="text-base font-semibold text-gray-900 dark:text-white">
+								Impacto en bloques IA
+							</h3>
+							<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+								Resumen rápido de qué bloques heredan la política global y cuáles mantienen un
+								subconjunto propio.
+							</p>
+						</div>
+
+						<div class="space-y-3">
+							{#if agentBlocks.length}
+								{#each agentBlocks as block (block.id)}
+									<div
+										class="flex flex-col gap-3 rounded-2xl border border-gray-200 px-4 py-4 md:flex-row md:items-center md:justify-between dark:border-gray-800"
+									>
+										<div>
+											<p class="text-sm font-semibold text-gray-900 dark:text-white">
+												{block.title}
+											</p>
+											<p class="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400">
+												{block.id}
+											</p>
+										</div>
+
+										<div class="flex flex-wrap items-center gap-2">
+											{#if block.runtimeMode !== 'agent'}
+												<span
+													class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+												>
+													Runtime básico
+												</span>
+											{:else if block.usesCustomSubset}
+												<span
+													class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
+												>
+													Usa subconjunto propio: {block.selectedToolCount}
+												</span>
+											{:else}
+												<span
+													class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+												>
+													Hereda allowlist
+												</span>
+											{/if}
+
+											<a
+												href={resolve(
+													`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${block.id}`
+												)}
+												class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+											>
+												Editar bloque
+											</a>
+										</div>
+									</div>
+								{/each}
+							{:else}
+								<p class="rounded-2xl bg-gray-50 px-4 py-4 text-sm text-gray-500 dark:bg-gray-950/30 dark:text-gray-400">
+									Todavía no hay bloques IA en esta lesson.
+								</p>
+							{/if}
+						</div>
+					</div>
+
+					<div class="flex items-center justify-between gap-4">
+						<div>
+							{#if isAgentPolicySelectionEmpty}
+								<p class="text-sm text-red-700 dark:text-red-300">
+									La allowlist curada necesita al menos una tool seleccionada.
+								</p>
+							{:else if agentPolicySaved}
+								<p class="text-sm text-green-700 dark:text-green-300">
+									<CheckCircle2 class="mr-1 inline h-4 w-4" />
+									Política agéntica guardada correctamente.
+								</p>
+							{:else if isAgentPolicyDirty}
+								<p class="text-sm text-amber-700 dark:text-amber-300">
+									Hay cambios sin guardar en la política agéntica.
+								</p>
+							{/if}
+						</div>
+						<button
+							class="bg-primary-600 hover:bg-primary-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+							disabled={isAgentPolicySelectionEmpty}
+						>
+							Guardar política agéntica
 						</button>
 					</div>
 				</form>

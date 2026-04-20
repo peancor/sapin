@@ -5,6 +5,11 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
+	import LessonAgentToolCatalog from '$lib/components/lesson/LessonAgentToolCatalog.svelte';
+	import {
+		getLessonAgentToolMetrics,
+		type LessonAgentToolPresentationItem
+	} from '$lib/lesson/lessonAgentToolPresentation';
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
 	import { onMount } from 'svelte';
 	import {
@@ -89,6 +94,23 @@
 	const availableLessonAgentTools = $derived(
 		data.lessonAgentTools.filter((tool) => effectiveAllowedAgentToolIds.includes(tool.id))
 	);
+	const selectedBlockAgentToolIds = $derived(
+		workingBlock.kind === 'agent'
+			? (workingBlock.agentConfig.enabledToolIds?.length
+					? workingBlock.agentConfig.enabledToolIds.filter((toolId) =>
+							effectiveAllowedAgentToolIds.includes(toolId)
+						)
+					: effectiveAllowedAgentToolIds)
+			: []
+	);
+	const selectedBlockAgentToolMetrics = $derived(
+		workingBlock.kind === 'agent'
+			? getLessonAgentToolMetrics(
+					data.lessonAgentTools as LessonAgentToolPresentationItem[],
+					selectedBlockAgentToolIds
+				)
+			: null
+	);
 	const conditionOperators = [
 		'equals',
 		'not_equals',
@@ -148,6 +170,19 @@
 		if (runtimeMode === 'basic') {
 			workingBlock.agentConfig.enabledToolIds = undefined;
 		}
+		markDirty();
+	}
+
+	function isInheritingAllowedAgentTools() {
+		return workingBlock.kind === 'agent' && !workingBlock.agentConfig.enabledToolIds?.length;
+	}
+
+	function setAgentToolInheritance(inherit: boolean) {
+		if (workingBlock.kind !== 'agent') return;
+
+		workingBlock.agentConfig.enabledToolIds = inherit
+			? undefined
+			: [...effectiveAllowedAgentToolIds];
 		markDirty();
 	}
 
@@ -1308,318 +1343,302 @@
 					</label>
 				</div>
 			{:else if workingBlock.kind === 'agent'}
-				<div class="space-y-5">
-					<label class="block">
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>Introducción del bloque</span
-						>
-						<textarea
-							class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-							bind:value={workingBlock.body}
-							oninput={markDirty}
-						></textarea>
-					</label>
-
-					<div
-						class="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/40 dark:bg-amber-950/10"
-					>
-						<div class="flex flex-wrap items-center justify-between gap-3">
-							<div>
-								<h2 class="text-base font-semibold text-gray-900 dark:text-white">
-									Presets de arranque
-								</h2>
-								<p class="text-sm text-gray-500 dark:text-gray-400">
-									Son puntos de partida rápidos. Después puedes ajustar el bloque libremente.
-								</p>
-							</div>
-							<div class="flex flex-wrap gap-2">
-								<button
-									type="button"
-									class="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-950/30"
-									onclick={() => applyAgentPreset('feedback')}
-								>
-									Feedback automático
-								</button>
-								<button
-									type="button"
-									class="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-950/30"
-									onclick={() => applyAgentPreset('generated_content')}
-								>
-									Contenido generado
-								</button>
-								<button
-									type="button"
-									class="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-950/30"
-									onclick={() => applyAgentPreset('summary')}
-								>
-									Resumen y síntesis
-								</button>
-							</div>
+				<div class="space-y-6">
+					<section class="space-y-5 rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
+						<div>
+							<h2 class="text-base font-semibold text-gray-900 dark:text-white">Comportamiento</h2>
+							<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+								Configura cómo entra en escena la IA, cómo conversa y cuál es el ritmo del bloque.
+							</p>
 						</div>
-					</div>
-
-					<div class="grid gap-4 md:grid-cols-4">
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Modelo</span
-							>
-							<select
-								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-								value={workingBlock.agentConfig.model ?? ''}
-								onchange={(event) => {
-									workingBlock.agentConfig.model =
-										(event.currentTarget as HTMLSelectElement).value || null;
-									markDirty();
-								}}
-							>
-								<option value="">{data.defaultModel} · modelo por defecto</option>
-								{#each availableModels as model (model.name)}
-									<option value={model.name}>{model.name} ({model.provider})</option>
-								{/each}
-							</select>
-						</label>
 
 						<label class="block">
 							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Runtime</span
+								>Introducción del bloque</span
 							>
-							<select
-								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-								bind:value={workingBlock.agentConfig.runtimeMode}
-								onchange={(event) =>
-									updateAgentRuntimeMode(
-										(event.currentTarget as HTMLSelectElement).value as LessonAgentRuntimeMode
-									)}
-							>
-								<option value="basic">Básico</option>
-								<option value="agent">Agéntico con tools</option>
-							</select>
+							<textarea
+								class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.body}
+								oninput={markDirty}
+							></textarea>
 						</label>
 
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Interacción</span
-							>
-							<select
-								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-								bind:value={workingBlock.agentConfig.interactionMode}
-								onchange={(event) =>
-									updateAgentInteractionMode(
-										(event.currentTarget as HTMLSelectElement).value as LessonAgentInteractionMode
-									)}
-							>
-								<option value="single_turn">Turno único guiado</option>
-								<option value="multi_turn">Mini chat</option>
-								<option value="none">Sin interacción, generación automática</option>
-							</select>
-						</label>
-
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Disparo</span
-							>
-							<select
-								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-								bind:value={workingBlock.agentConfig.executionTrigger}
-								onchange={markDirty}
-							>
-								{#each getValidExecutionTriggers(workingBlock.agentConfig.interactionMode) as trigger (trigger.value)}
-									<option value={trigger.value}>{trigger.label}</option>
-								{/each}
-							</select>
-						</label>
-					</div>
-
-					<div
-						class="rounded-2xl border border-gray-200 bg-gray-50/80 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-950/20 dark:text-gray-200"
-					>
-						{getLessonAgentInteractionDescription(workingBlock.agentConfig)}
-					</div>
-
-					{#if workingBlock.agentConfig.runtimeMode === 'agent'}
-						<div class="space-y-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-							<div class="flex flex-wrap items-start justify-between gap-3">
+						<div
+							class="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/40 dark:bg-amber-950/10"
+						>
+							<div class="flex flex-wrap items-center justify-between gap-3">
 								<div>
 									<h3 class="text-base font-semibold text-gray-900 dark:text-white">
-										Tools del bloque
+										Presets de arranque
 									</h3>
 									<p class="text-sm text-gray-500 dark:text-gray-400">
-										Si no marcas ninguna, este bloque heredará todas las permitidas por la lesson.
+										Son puntos de partida rápidos. Después puedes ajustar el bloque libremente.
 									</p>
 								</div>
-								<span
-									class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+								<div class="flex flex-wrap gap-2">
+									<button
+										type="button"
+										class="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-950/30"
+										onclick={() => applyAgentPreset('feedback')}
+									>
+										Feedback automático
+									</button>
+									<button
+										type="button"
+										class="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-950/30"
+										onclick={() => applyAgentPreset('generated_content')}
+									>
+										Contenido generado
+									</button>
+									<button
+										type="button"
+										class="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-950/30"
+										onclick={() => applyAgentPreset('summary')}
+									>
+										Resumen y síntesis
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="grid gap-4 md:grid-cols-4">
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Modelo</span
 								>
-									Allowlist lesson: {effectiveAllowedAgentToolIds.length}
-								</span>
-							</div>
+								<select
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									value={workingBlock.agentConfig.model ?? ''}
+									onchange={(event) => {
+										workingBlock.agentConfig.model =
+											(event.currentTarget as HTMLSelectElement).value || null;
+										markDirty();
+									}}
+								>
+									<option value="">{data.defaultModel} · modelo por defecto</option>
+									{#each availableModels as model (model.name)}
+										<option value={model.name}>{model.name} ({model.provider})</option>
+									{/each}
+								</select>
+							</label>
 
-							<div class="grid gap-3 md:grid-cols-2">
-								{#each availableLessonAgentTools as tool (tool.id)}
-									<label class="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
-										<div class="flex items-start gap-3">
-											<input
-												type="checkbox"
-												class="text-primary-600 mt-1 h-4 w-4 rounded border-gray-300"
-												checked={(workingBlock.agentConfig.enabledToolIds ?? []).includes(tool.id)}
-												onchange={(event) =>
-													toggleAgentTool(
-														tool.id,
-														(event.currentTarget as HTMLInputElement).checked
-													)}
-											/>
-											<div class="min-w-0">
-												<div class="flex flex-wrap items-center gap-2">
-													<p class="font-medium text-gray-900 dark:text-white">
-														{tool.displayName}
-													</p>
-													{#if tool.isInteractiveUi}
-														<span
-															class="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950/30 dark:text-sky-200"
-														>
-															UI
-														</span>
-													{/if}
-													{#if tool.requiresConfirmation}
-														<span
-															class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
-														>
-															HITL
-														</span>
-													{/if}
-													{#if tool.isPersistent}
-														<span
-															class="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-700 dark:bg-rose-950/30 dark:text-rose-200"
-														>
-															Persistente
-														</span>
-													{/if}
-												</div>
-												<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-													{tool.description}
-												</p>
-											</div>
-										</div>
-									</label>
-								{/each}
-							</div>
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Runtime</span
+								>
+								<select
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									bind:value={workingBlock.agentConfig.runtimeMode}
+									onchange={(event) =>
+										updateAgentRuntimeMode(
+											(event.currentTarget as HTMLSelectElement).value as LessonAgentRuntimeMode
+										)}
+								>
+									<option value="basic">Básico</option>
+									<option value="agent">Agéntico con tools</option>
+								</select>
+							</label>
+
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Interacción</span
+								>
+								<select
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									bind:value={workingBlock.agentConfig.interactionMode}
+									onchange={(event) =>
+										updateAgentInteractionMode(
+											(event.currentTarget as HTMLSelectElement).value as LessonAgentInteractionMode
+										)}
+								>
+									<option value="single_turn">Turno único guiado</option>
+									<option value="multi_turn">Mini chat</option>
+									<option value="none">Sin interacción, generación automática</option>
+								</select>
+							</label>
+
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Disparo</span
+								>
+								<select
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									bind:value={workingBlock.agentConfig.executionTrigger}
+									onchange={markDirty}
+								>
+									{#each getValidExecutionTriggers(workingBlock.agentConfig.interactionMode) as trigger (trigger.value)}
+										<option value={trigger.value}>{trigger.label}</option>
+									{/each}
+								</select>
+							</label>
 						</div>
-					{/if}
 
-					{#if workingBlock.agentConfig.interactionMode !== 'none'}
-						<label
-							class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-						>
-							<input
-								type="checkbox"
-								class="text-primary-600 h-4 w-4 rounded border-gray-300"
-								bind:checked={workingBlock.agentConfig.autoStartOnEnter}
-								onchange={markDirty}
-							/>
-							<div>
-								<p class="text-sm font-medium text-gray-900 dark:text-white">
-									Autoarrancar al entrar
-								</p>
-								<p class="text-xs text-gray-500 dark:text-gray-400">
-									La IA puede abrir el bloque automáticamente al entrar y después seguir con el modo
-									interactivo configurado.
-								</p>
-							</div>
-						</label>
-					{:else}
 						<div
-							class="rounded-2xl border border-sky-200 bg-sky-50/80 px-4 py-3 text-sm text-sky-900 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-100"
+							class="rounded-2xl border border-gray-200 bg-gray-50/80 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-950/20 dark:text-gray-200"
 						>
-							Este modo siempre se autoarranca al entrar porque no espera una intervención del
-							alumno.
+							{getLessonAgentInteractionDescription(workingBlock.agentConfig)}
 						</div>
-					{/if}
 
-					<label class="block">
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>Prompt base</span
-						>
-						<textarea
-							class="min-h-36 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-							bind:value={workingBlock.agentConfig.promptTemplate}
-							oninput={markDirty}
-						></textarea>
-					</label>
+						{#if workingBlock.agentConfig.interactionMode !== 'none'}
+							<label
+								class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+							>
+								<input
+									type="checkbox"
+									class="text-primary-600 h-4 w-4 rounded border-gray-300"
+									bind:checked={workingBlock.agentConfig.autoStartOnEnter}
+									onchange={markDirty}
+								/>
+								<div>
+									<p class="text-sm font-medium text-gray-900 dark:text-white">
+										Autoarrancar al entrar
+									</p>
+									<p class="text-xs text-gray-500 dark:text-gray-400">
+										La IA puede abrir el bloque automáticamente al entrar y después seguir con el
+										modo interactivo configurado.
+									</p>
+								</div>
+							</label>
+						{:else}
+							<div
+								class="rounded-2xl border border-sky-200 bg-sky-50/80 px-4 py-3 text-sm text-sky-900 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-100"
+							>
+								Este modo siempre se autoarranca al entrar porque no espera una intervención del
+								alumno.
+							</div>
+						{/if}
 
-					<label class="block">
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>System prompt</span
-						>
-						<textarea
-							class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-							bind:value={workingBlock.agentConfig.systemPrompt}
-							oninput={markDirty}
-						></textarea>
-					</label>
+						<div class="grid gap-4 md:grid-cols-2">
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Botón continuar</span
+								>
+								<input
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									bind:value={workingBlock.agentConfig.continueLabel}
+									oninput={markDirty}
+								/>
+							</label>
 
-					<div class="grid gap-4 md:grid-cols-2">
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Siguiente bloque por defecto</span
+								>
+								<select
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									bind:value={workingBlock.next}
+									onchange={markDirty}
+								>
+									{#each availableBlockIds as blockId (blockId)}
+										<option value={blockId}>{blockId}</option>
+									{/each}
+								</select>
+							</label>
+						</div>
+
+						{#if workingBlock.agentConfig.interactionMode === 'multi_turn'}
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Máx. turnos del alumno</span
+								>
+								<input
+									type="number"
+									min="1"
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									value={workingBlock.agentConfig.maxTurns ?? ''}
+									oninput={(event) => {
+										const value = (event.currentTarget as HTMLInputElement).value;
+										workingBlock.agentConfig.maxTurns = value ? Number(value) : null;
+										markDirty();
+									}}
+								/>
+							</label>
+						{:else if workingBlock.agentConfig.interactionMode === 'single_turn'}
+							<div
+								class="border-primary-200 bg-primary-50/80 text-primary-900 dark:border-primary-900/40 dark:bg-primary-950/20 dark:text-primary-100 rounded-2xl border px-4 py-3 text-sm"
+							>
+								En turno guiado el alumno solo puede intervenir una vez. El límite de turnos no se
+								configura aquí porque forma parte del propio modo.
+							</div>
+						{/if}
+
+						{#if workingBlock.agentConfig.interactionMode !== 'none'}
+							<div class="grid gap-4 md:grid-cols-3">
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+										>Placeholder</span
+									>
+									<input
+										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+										bind:value={workingBlock.agentConfig.placeholder}
+										oninput={markDirty}
+									/>
+								</label>
+
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+										>Botón enviar</span
+									>
+									<input
+										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+										bind:value={workingBlock.agentConfig.submitLabel}
+										oninput={markDirty}
+									/>
+								</label>
+
+								<label
+									class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+								>
+									<input
+										type="checkbox"
+										class="text-primary-600 h-4 w-4 rounded border-gray-300"
+										bind:checked={workingBlock.requiresResponse}
+										onchange={markDirty}
+									/>
+									<div>
+										<p class="text-sm font-medium text-gray-900 dark:text-white">
+											Exigir respuesta del alumno
+										</p>
+										<p class="text-xs text-gray-500 dark:text-gray-400">
+											Si se desactiva, el alumno podrá continuar sin enviar mensaje.
+										</p>
+									</div>
+								</label>
+							</div>
+						{/if}
+					</section>
+
+					<section class="space-y-5 rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
+						<div>
+							<h2 class="text-base font-semibold text-gray-900 dark:text-white">Prompts</h2>
+							<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+								Aquí viven las instrucciones visibles y ocultas que guían la respuesta del bloque.
+							</p>
+						</div>
+
 						<label class="block">
 							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Botón continuar</span
+								>Prompt base</span
 							>
-							<input
-								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-								bind:value={workingBlock.agentConfig.continueLabel}
+							<textarea
+								class="min-h-36 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.agentConfig.promptTemplate}
 								oninput={markDirty}
-							/>
+							></textarea>
 						</label>
-					</div>
 
-					{#if workingBlock.agentConfig.interactionMode === 'multi_turn'}
 						<label class="block">
 							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Máx. turnos del alumno</span
+								>System prompt</span
 							>
-							<input
-								type="number"
-								min="1"
-								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-								value={workingBlock.agentConfig.maxTurns ?? ''}
-								oninput={(event) => {
-									const value = (event.currentTarget as HTMLInputElement).value;
-									workingBlock.agentConfig.maxTurns = value ? Number(value) : null;
-									markDirty();
-								}}
-							/>
+							<textarea
+								class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+								bind:value={workingBlock.agentConfig.systemPrompt}
+								oninput={markDirty}
+							></textarea>
 						</label>
-					{:else if workingBlock.agentConfig.interactionMode === 'single_turn'}
-						<div
-							class="border-primary-200 bg-primary-50/80 text-primary-900 dark:border-primary-900/40 dark:bg-primary-950/20 dark:text-primary-100 rounded-2xl border px-4 py-3 text-sm"
-						>
-							En turno guiado el alumno solo puede intervenir una vez. El límite de turnos no se
-							configura aquí porque forma parte del propio modo.
-						</div>
-					{/if}
 
-					{#if workingBlock.agentConfig.interactionMode !== 'none'}
-						<div class="grid gap-4 md:grid-cols-3">
-							<label class="block">
-								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-									>Placeholder</span
-								>
-								<input
-									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-									bind:value={workingBlock.agentConfig.placeholder}
-									oninput={markDirty}
-								/>
-							</label>
-
-							<label class="block">
-								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-									>Botón enviar</span
-								>
-								<input
-									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-									bind:value={workingBlock.agentConfig.submitLabel}
-									oninput={markDirty}
-								/>
-							</label>
-
+						{#if workingBlock.agentConfig.interactionMode !== 'none'}
 							<label class="block">
 								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 									>Mensaje inicial visible</span
@@ -1634,68 +1653,118 @@
 									antes de la primera respuesta generada.
 								</p>
 							</label>
-						</div>
+						{/if}
 
-						<label
-							class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-						>
-							<input
-								type="checkbox"
-								class="text-primary-600 h-4 w-4 rounded border-gray-300"
-								bind:checked={workingBlock.requiresResponse}
-								onchange={markDirty}
-							/>
-							<div>
-								<p class="text-sm font-medium text-gray-900 dark:text-white">
-									Exigir respuesta del alumno
+						{#if workingBlock.agentConfig.interactionMode === 'none' || workingBlock.agentConfig.autoStartOnEnter}
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Mensaje de lanzamiento interno</span
+								>
+								<textarea
+									class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									bind:value={workingBlock.agentConfig.launchMessageTemplate}
+									oninput={markDirty}
+								></textarea>
+								<p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
+									Este mensaje se envía al modelo al entrar en el bloque, pero no se renderiza como
+									mensaje visible del estudiante. Úsalo para indicar cómo debe arrancar la
+									interacción.
 								</p>
-								<p class="text-xs text-gray-500 dark:text-gray-400">
-									Si se desactiva, el alumno podrá continuar sin enviar mensaje.
-								</p>
+							</label>
+						{/if}
+					</section>
+
+					{#if workingBlock.agentConfig.runtimeMode === 'agent'}
+						{@const inheritsTools = isInheritingAllowedAgentTools()}
+						<section class="space-y-5 rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
+							<div class="flex flex-wrap items-start justify-between gap-4">
+								<div>
+									<h2 class="text-base font-semibold text-gray-900 dark:text-white">
+										Tools del bloque
+									</h2>
+									<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+										El bloque puede heredar la política global o quedarse con un subconjunto más
+										estrecho.
+									</p>
+								</div>
+								<a
+									href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit`)}
+									class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+								>
+									Editar allowlist global
+								</a>
 							</div>
-						</label>
-					{/if}
 
-					{#if workingBlock.agentConfig.interactionMode === 'none' || workingBlock.agentConfig.autoStartOnEnter}
-						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Mensaje de lanzamiento interno</span
+							<label
+								class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
 							>
-							<textarea
-								class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-								bind:value={workingBlock.agentConfig.launchMessageTemplate}
-								oninput={markDirty}
-							></textarea>
-							<p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
-								Este mensaje se envía al modelo al entrar en el bloque, pero no se renderiza como
-								mensaje visible del estudiante. Úsalo para indicar cómo debe arrancar la
-								interacción.
-							</p>
-						</label>
+								<input
+									type="checkbox"
+									class="text-primary-600 h-4 w-4 rounded border-gray-300"
+									checked={inheritsTools}
+									onchange={(event) =>
+										setAgentToolInheritance((event.currentTarget as HTMLInputElement).checked)}
+								/>
+								<div>
+									<p class="text-sm font-medium text-gray-900 dark:text-white">
+										Heredar todas las tools permitidas por la lesson
+									</p>
+									<p class="text-xs text-gray-500 dark:text-gray-400">
+										La portada de la lesson define el catálogo global y este bloque puede usarlo
+										íntegro sin mantener una lista propia.
+									</p>
+								</div>
+							</label>
+
+							{#if inheritsTools}
+								<div
+									class="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+								>
+									<div class="flex flex-wrap items-center justify-between gap-3">
+										<div>
+											<p class="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+												Este bloque hereda la allowlist completa de la lesson
+											</p>
+											<p class="mt-1 text-sm text-emerald-800/80 dark:text-emerald-100/80">
+												{selectedBlockAgentToolMetrics?.total ?? 0} tools · {selectedBlockAgentToolMetrics
+													?.interactive ?? 0} UI · {selectedBlockAgentToolMetrics?.hitl ?? 0}
+												HITL
+											</p>
+										</div>
+										<span
+											class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+										>
+											Allowlist lesson: {effectiveAllowedAgentToolIds.length}
+										</span>
+									</div>
+								</div>
+							{:else}
+								<div class="space-y-4">
+									<div
+										class="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100"
+									>
+										Este bloque usa un subconjunto propio. Si desmarcas la última tool, se
+										restaurará la herencia desde la portada para no dejar el runtime sin alcance.
+									</div>
+
+									<LessonAgentToolCatalog
+										tools={availableLessonAgentTools}
+										selectedToolIds={workingBlock.agentConfig.enabledToolIds ?? []}
+										onToggle={toggleAgentTool}
+										emptyMessage="La allowlist global no deja tools disponibles para este bloque."
+									/>
+								</div>
+							{/if}
+						</section>
 					{/if}
 
-					<label class="block">
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>Siguiente bloque por defecto</span
-						>
-						<select
-							class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-							bind:value={workingBlock.next}
-							onchange={markDirty}
-						>
-							{#each availableBlockIds as blockId (blockId)}
-								<option value={blockId}>{blockId}</option>
-							{/each}
-						</select>
-					</label>
-
-					<div class="space-y-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+					<section class="space-y-5 rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
 						<div class="flex flex-wrap items-center justify-between gap-3">
 							<div>
 								<h2 class="text-base font-semibold text-gray-900 dark:text-white">
 									Salida estructurada
 								</h2>
-								<p class="text-sm text-gray-500 dark:text-gray-400">
+								<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
 									Campos disponibles luego como variables `blocks.{workingBlock.id}.outputs.*`.
 								</p>
 							</div>
@@ -1708,6 +1777,15 @@
 								Añadir campo
 							</button>
 						</div>
+
+						{#if (workingBlock.agentConfig.outputSchema?.length ?? 0) === 0}
+							<div
+								class="rounded-2xl border border-dashed border-gray-300 px-4 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
+							>
+								Este bloque todavía no define outputs estructurados. Puedes dejarlo así o añadir
+								campos para exponer datos reutilizables al resto del grafo.
+							</div>
+						{/if}
 
 						{#each workingBlock.agentConfig.outputSchema ?? [] as field, fieldIndex (`${field.key}-${fieldIndex}`)}
 							<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
@@ -1766,7 +1844,7 @@
 								</div>
 							</div>
 						{/each}
-					</div>
+					</section>
 				</div>
 			{:else}
 				<div class="space-y-4">

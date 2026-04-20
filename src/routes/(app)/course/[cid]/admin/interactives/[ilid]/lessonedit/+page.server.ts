@@ -6,6 +6,7 @@ import type { InteractiveLearningStatusType } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
 import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
+import { getAllLessonSafeAgentToolIds } from '$lib/server/lesson/lessonAgentTools';
 import {
 	loadLessonAdminData,
 	requireLessonAdminContext,
@@ -43,6 +44,29 @@ function asLessonError(errorValue: unknown, fallbackAction: string) {
 	}
 
 	throw errorValue;
+}
+
+function parseSelectedToolIds(
+	formData: FormData,
+	safeToolIds: string[]
+): string[] {
+	const safeToolIdSet = new Set(safeToolIds);
+	const rawValue = formData.get('selectedToolIdsJson')?.toString().trim();
+
+	if (!rawValue) return [];
+
+	try {
+		const parsed = JSON.parse(rawValue) as unknown;
+		if (!Array.isArray(parsed)) return [];
+
+		return parsed
+			.filter((value): value is string => typeof value === 'string')
+			.map((value) => value.trim())
+			.filter((value) => safeToolIdSet.has(value))
+			.filter((value, index, list) => list.indexOf(value) === index);
+	} catch {
+		return [];
+	}
 }
 
 export const load = (async ({ params, locals }) => {
@@ -92,6 +116,56 @@ export const actions = {
 			success: true,
 			action: 'updateLessonMeta'
 		};
+	},
+
+	updateAgentPolicy: async ({ request, params, locals }) => {
+		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const revisionState = await LessonRevisionService.ensureLessonRevisionState(params.ilid, {
+			actorUserId: user.id
+		});
+		const formData = await request.formData();
+		const lessonSafeToolIds = getAllLessonSafeAgentToolIds();
+		const selectedToolIds = parseSelectedToolIds(formData, lessonSafeToolIds);
+		const nextAllowedAgentToolIds =
+			selectedToolIds.length === 0 || selectedToolIds.length === lessonSafeToolIds.length
+				? undefined
+				: selectedToolIds;
+		const allowedToolIds = new Set(nextAllowedAgentToolIds ?? lessonSafeToolIds);
+
+		try {
+			const nextDefinition = structuredClone(revisionState.draftDefinition);
+			nextDefinition.allowedAgentToolIds = nextAllowedAgentToolIds;
+
+			for (const block of nextDefinition.blocks) {
+				if (block.kind !== 'agent') continue;
+				if (!block.agentConfig.enabledToolIds?.length) continue;
+
+				const filteredToolIds = block.agentConfig.enabledToolIds.filter((toolId) =>
+					allowedToolIds.has(toolId)
+				);
+
+				block.agentConfig.enabledToolIds =
+					filteredToolIds.length === 0 || filteredToolIds.length === allowedToolIds.size
+						? undefined
+						: filteredToolIds;
+			}
+
+			const validatedDefinition = LessonService.validateDefinition(nextDefinition);
+			await persistDefinition({
+				ilid: params.ilid,
+				definition: validatedDefinition,
+				userId: user.id
+			});
+
+			return {
+				success: true,
+				action: 'updateAgentPolicy',
+				message:
+					'Política agéntica guardada. Los subconjuntos por bloque se ajustaron si hacía falta.'
+			};
+		} catch (errorValue) {
+			return asLessonError(errorValue, 'updateAgentPolicy');
+		}
 	},
 
 	reorderBlocks: async ({ request, params, locals }) => {

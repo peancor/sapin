@@ -28,6 +28,10 @@
 	} from '$lib/lesson/lessonFlow';
 	import LessonFlowNodeComponent from '$lib/components/lesson/flow/LessonFlowNode.svelte';
 	import LessonFlowQuickMenu from '$lib/components/lesson/flow/LessonFlowQuickMenu.svelte';
+	import {
+		getLessonAgentToolMetrics,
+		type LessonAgentToolPresentationItem
+	} from '$lib/lesson/lessonAgentToolPresentation';
 	import type {
 		LessonFlowQuickMenuContext,
 		LessonFlowQuickMenuItem
@@ -169,14 +173,10 @@
 		}))
 	);
 	const availableModels = $derived(data.models);
-	const lessonAgentTools = $derived(data.lessonAgentTools);
 	const effectiveAllowedAgentToolIds = $derived(
 		draftDefinition.allowedAgentToolIds?.length
 			? draftDefinition.allowedAgentToolIds
 			: data.lessonAgentTools.map((tool) => tool.id)
-	);
-	const availableLessonAgentTools = $derived(
-		data.lessonAgentTools.filter((tool) => effectiveAllowedAgentToolIds.includes(tool.id))
 	);
 	const entryBlockTitle = $derived(
 		draftDefinition.blocks.find((block) => block.id === draftDefinition.entryBlockId)?.title ??
@@ -255,45 +255,25 @@
 		});
 	}
 
-	function toggleLessonAllowedAgentTool(toolId: string, checked: boolean) {
-		mutateDefinition((definition) => {
-			const selected = definition.allowedAgentToolIds ?? [];
-			const updated = checked
-				? selected.includes(toolId)
-					? selected
-					: [...selected, toolId]
-				: selected.filter((id) => id !== toolId);
+	function getSelectedAgentToolSummary(block: Extract<LessonBlock, { kind: 'agent' }>) {
+		const effectiveToolIds =
+			block.agentConfig.enabledToolIds?.length
+				? block.agentConfig.enabledToolIds.filter((toolId) =>
+						effectiveAllowedAgentToolIds.includes(toolId)
+					)
+				: effectiveAllowedAgentToolIds;
+		const metrics = getLessonAgentToolMetrics(
+			data.lessonAgentTools as LessonAgentToolPresentationItem[],
+			effectiveToolIds
+		);
 
-			definition.allowedAgentToolIds = updated.length > 0 ? updated : undefined;
-			const allowedIds =
-				updated.length > 0 ? updated : data.lessonAgentTools.map((tool) => tool.id);
-
-			for (const block of definition.blocks) {
-				if (block.kind !== 'agent') continue;
-				if (!block.agentConfig.enabledToolIds?.length) continue;
-				block.agentConfig.enabledToolIds = block.agentConfig.enabledToolIds.filter((id) =>
-					allowedIds.includes(id)
-				);
-				if (block.agentConfig.enabledToolIds.length === 0) {
-					block.agentConfig.enabledToolIds = undefined;
-				}
-			}
-		});
-	}
-
-	function toggleSelectedAgentTool(toolId: string, checked: boolean) {
-		updateSelectedBlock((block) => {
-			if (block.kind !== 'agent') return;
-
-			const selected = block.agentConfig.enabledToolIds ?? [];
-			const updated = checked
-				? selected.includes(toolId)
-					? selected
-					: [...selected, toolId]
-				: selected.filter((id) => id !== toolId);
-
-			block.agentConfig.enabledToolIds = updated.length > 0 ? updated : undefined;
-		});
+		return {
+			headline:
+				block.agentConfig.enabledToolIds?.length
+					? `Subconjunto propio: ${metrics.total}`
+					: 'Usa todas las permitidas por la lesson',
+			detail: `${metrics.total} tools · ${metrics.interactive} UI · ${metrics.hitl} HITL${metrics.persistent ? ` · ${metrics.persistent} persistentes` : ''}`
+		};
 	}
 
 	function initializeCanvas(
@@ -2303,68 +2283,7 @@
 				</div>
 
 				<div class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-					<div
-						class="mb-5 space-y-3 rounded-2xl border border-stone-200 bg-white/70 px-4 py-4 dark:border-stone-800 dark:bg-stone-950/30"
-					>
-						<div class="flex items-center justify-between gap-3">
-							<div>
-								<p class="text-sm font-semibold text-stone-900 dark:text-white">
-									Allowlist de tools de la lesson
-								</p>
-								<p class="text-xs text-stone-500 dark:text-stone-400">
-									Marca las tools que pueden usarse en cualquier bloque IA en modo agéntico.
-								</p>
-							</div>
-							<span
-								class="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700 dark:bg-stone-800 dark:text-stone-200"
-							>
-								{effectiveAllowedAgentToolIds.length} permitidas
-							</span>
-						</div>
-
-						<div class="grid gap-3">
-							{#each lessonAgentTools as tool (tool.id)}
-								<label class="rounded-2xl border border-stone-200 px-3 py-3 dark:border-stone-800">
-									<div class="flex items-start gap-3">
-										<input
-											type="checkbox"
-											class="text-primary-600 mt-1 h-4 w-4 rounded border-stone-300"
-											checked={effectiveAllowedAgentToolIds.includes(tool.id)}
-											onchange={(event) =>
-												toggleLessonAllowedAgentTool(
-													tool.id,
-													(event.currentTarget as HTMLInputElement).checked
-												)}
-										/>
-										<div class="min-w-0">
-											<div class="flex flex-wrap items-center gap-2">
-												<p class="text-sm font-medium text-stone-900 dark:text-white">
-													{tool.displayName}
-												</p>
-												{#if tool.isInteractiveUi}
-													<span
-														class="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950/30 dark:text-sky-200"
-														>UI</span
-													>
-												{/if}
-												{#if tool.requiresConfirmation}
-													<span
-														class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
-														>HITL</span
-													>
-												{/if}
-											</div>
-											<p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
-												{tool.description}
-											</p>
-										</div>
-									</div>
-								</label>
-							{/each}
-						</div>
-					</div>
-
-					{#if selectedBlock}
+				{#if selectedBlock}
 						<div class="space-y-5">
 							<div
 								class="rounded-2xl border border-stone-200 bg-stone-50/80 px-4 py-4 dark:border-stone-800 dark:bg-stone-950/30"
@@ -2661,60 +2580,43 @@
 								</label>
 
 								{#if selectedBlock.agentConfig.runtimeMode === 'agent'}
+									{@const agentToolSummary = getSelectedAgentToolSummary(selectedBlock)}
 									<div class="rounded-2xl border border-stone-200 px-4 py-4 dark:border-stone-800">
-										<div class="mb-3">
-											<p class="text-sm font-medium text-stone-900 dark:text-white">
-												Tools del bloque
-											</p>
-											<p class="text-xs text-stone-500 dark:text-stone-400">
-												Si no marcas ninguna, heredará toda la allowlist de la lesson.
-											</p>
+										<div class="flex flex-wrap items-start justify-between gap-3">
+											<div>
+												<p class="text-sm font-medium text-stone-900 dark:text-white">
+													Tools del bloque
+												</p>
+												<p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
+													La política global se edita en la portada de la lesson. Aquí solo
+													mantenemos un resumen del alcance de este bloque.
+												</p>
+											</div>
+											<span
+												class="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700 dark:bg-stone-800 dark:text-stone-200"
+											>
+												{agentToolSummary.headline}
+											</span>
 										</div>
 
-										<div class="grid gap-3">
-											{#each availableLessonAgentTools as tool (tool.id)}
-												<label
-													class="rounded-2xl border border-stone-200 px-3 py-3 dark:border-stone-800"
-												>
-													<div class="flex items-start gap-3">
-														<input
-															type="checkbox"
-															class="text-primary-600 mt-1 h-4 w-4 rounded border-stone-300"
-															checked={(selectedBlock.agentConfig.enabledToolIds ?? []).includes(
-																tool.id
-															)}
-															onchange={(event) =>
-																toggleSelectedAgentTool(
-																	tool.id,
-																	(event.currentTarget as HTMLInputElement).checked
-																)}
-														/>
-														<div class="min-w-0">
-															<div class="flex flex-wrap items-center gap-2">
-																<p class="text-sm font-medium text-stone-900 dark:text-white">
-																	{tool.displayName}
-																</p>
-																{#if tool.isInteractiveUi}
-																	<span
-																		class="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950/30 dark:text-sky-200"
-																		>UI</span
-																	>
-																{/if}
-																{#if tool.requiresConfirmation}
-																	<span
-																		class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
-																		>HITL</span
-																	>
-																{/if}
-															</div>
-															<p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
-																{tool.description}
-															</p>
-														</div>
-													</div>
-												</label>
-											{/each}
-										</div>
+										<p class="mt-4 text-sm text-stone-600 dark:text-stone-300">
+											{agentToolSummary.detail}
+										</p>
+										<p class="mt-2 text-xs text-stone-500 dark:text-stone-400">
+											{selectedBlock.agentConfig.enabledToolIds?.length
+												? 'Este bloque usa un subconjunto propio dentro de la allowlist global.'
+												: 'Este bloque hereda todas las tools permitidas por la lesson.'}
+										</p>
+
+										<a
+											href={resolve(
+												`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${selectedBlock.id}`
+											)}
+											class="mt-4 inline-flex items-center rounded-2xl border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
+										>
+											<SquarePen class="mr-1 h-4 w-4" />
+											Editar tools en bloque
+										</a>
 									</div>
 								{/if}
 
