@@ -53,7 +53,7 @@ import {
 	normalizeLessonCheckConfig
 } from '$lib/types/lesson';
 import type { LessonSessionRevisionInfo } from '$lib/types/lessonRevision';
-import { and, desc, eq, isNotNull, max, ne } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, max, ne } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { LessonServiceError } from './LessonServiceError';
@@ -528,6 +528,26 @@ export class LessonService {
 				? revisionState.draftDefinition
 				: revisionState.publishedDefinition;
 		const shouldAlwaysStartFreshPreview = scope === lessonSessionScope.PREVIEW_DRAFT;
+
+		if (shouldAlwaysStartFreshPreview) {
+			await this.purgePreviewSessions({
+				interactiveLearningId: input.interactiveLearningId,
+				userId: input.userId,
+				courseId,
+				scope
+			});
+
+			return this.createSession({
+				interactiveLearningId: input.interactiveLearningId,
+				userId: input.userId,
+				courseId,
+				scope,
+				bindingStatus: lessonDefinitionBindingStatus.EXACT,
+				revision: targetRevision,
+				entryBlockId: targetDefinition.entryBlockId
+			});
+		}
+
 		const latestSession = await db
 			.select()
 			.from(interactiveLessonSession)
@@ -547,7 +567,6 @@ export class LessonService {
 			.get();
 
 		if (
-			!shouldAlwaysStartFreshPreview &&
 			latestSession &&
 			latestSession.definitionRevisionId === targetRevision.id &&
 			latestSession.status !== lessonAttemptStatus.RESTARTED
@@ -1585,6 +1604,68 @@ export class LessonService {
 			metadata,
 			completed
 		};
+	}
+
+	private static async purgePreviewSessions(input: {
+		interactiveLearningId: string;
+		userId: string;
+		courseId: string;
+		scope: InteractiveLessonSession['scope'];
+	}): Promise<void> {
+		const sessions = await db
+			.select({ id: interactiveLessonSession.id })
+			.from(interactiveLessonSession)
+			.where(
+				and(
+					eq(interactiveLessonSession.interactiveLearningId, input.interactiveLearningId),
+					eq(interactiveLessonSession.userId, input.userId),
+					eq(interactiveLessonSession.courseId, input.courseId),
+					eq(interactiveLessonSession.scope, input.scope)
+				)
+			)
+			.all();
+
+		if (sessions.length === 0) return;
+
+		const sessionIds = sessions.map((session) => session.id);
+		const [visitChatRows, stateChatRows] = await Promise.all([
+			db
+				.select({ chatId: interactiveLessonBlockVisit.chatId })
+				.from(interactiveLessonBlockVisit)
+				.where(
+					and(
+						inArray(interactiveLessonBlockVisit.sessionId, sessionIds),
+						isNotNull(interactiveLessonBlockVisit.chatId)
+					)
+				)
+				.all(),
+			db
+				.select({ chatId: interactiveLessonBlockState.chatId })
+				.from(interactiveLessonBlockState)
+				.where(
+					and(
+						inArray(interactiveLessonBlockState.sessionId, sessionIds),
+						isNotNull(interactiveLessonBlockState.chatId)
+					)
+				)
+				.all()
+		]);
+		const chatIds = [
+			...new Set(
+				[...visitChatRows, ...stateChatRows]
+					.map((row) => row.chatId)
+					.filter((chatId): chatId is string => Boolean(chatId))
+			)
+		];
+
+		await db.transaction(async (tx) => {
+			if (chatIds.length > 0) {
+				await tx.delete(message).where(inArray(message.chatId, chatIds));
+				await tx.delete(chat).where(inArray(chat.id, chatIds));
+			}
+
+			await tx.delete(interactiveLessonSession).where(inArray(interactiveLessonSession.id, sessionIds));
+		});
 	}
 
 	private static async createSession(input: {
