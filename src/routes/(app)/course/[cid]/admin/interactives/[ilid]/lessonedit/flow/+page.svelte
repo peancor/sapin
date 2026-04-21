@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import '@xyflow/svelte/dist/style.css';
 
 	import type { PageProps } from './$types';
@@ -1839,53 +1839,51 @@
 	class="lesson-flow-shell hidden h-dvh min-h-dvh overflow-hidden bg-[#ebe7e0] text-stone-900 xl:flex xl:flex-col dark:bg-[#141516] dark:text-stone-100"
 >
 	<header
-		class="studio-topbar shrink-0 border-b border-stone-300/80 bg-[#f7f3ec]/92 px-4 py-3 backdrop-blur-xl dark:border-stone-800 dark:bg-[#16181b]/92"
+		class="studio-topbar shrink-0 border-b border-stone-300/60 bg-[#f7f3ec]/95 px-4 py-2.5 backdrop-blur-xl dark:border-stone-800 dark:bg-[#16181b]/95"
 	>
-		<div class="flex items-center gap-3">
-			<div class="flex min-w-0 flex-1 items-center gap-3">
+		<div class="flex items-center gap-2">
+			<!-- Back + identity -->
+			<div class="flex min-w-0 flex-1 items-center gap-2.5">
 				<a
 					href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit`)}
-					class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-stone-300 bg-white text-stone-700 shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+					class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-stone-300 bg-white text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
 					aria-label="Volver al editor lesson"
+					title="Volver al editor lesson"
 				>
-					<ArrowLeft class="h-4 w-4" />
+					<ArrowLeft class="h-3.5 w-3.5" />
 				</a>
 
 				<div class="min-w-0">
 					<div class="flex items-center gap-2">
-						<div class="rounded-xl bg-amber-500/15 p-2 text-amber-700 dark:text-amber-300">
-							<LayoutTemplate class="h-4 w-4" />
+						<div class="rounded-lg bg-amber-500/12 p-1.5 text-amber-700 dark:text-amber-300">
+							<LayoutTemplate class="h-3.5 w-3.5" />
 						</div>
-						<p
-							class="truncate text-sm font-semibold tracking-[0.22em] text-stone-500 uppercase dark:text-stone-400"
-						>
-							Visual lesson studio
+						<p class="text-[10px] font-semibold tracking-[0.22em] text-stone-400 uppercase dark:text-stone-500">
+							Lesson Studio
 						</p>
 					</div>
-					<div class="mt-1 flex items-center gap-2">
-						<h1 class="truncate text-lg font-semibold">{data.activity.name}</h1>
+					<div class="flex items-center gap-2.5 mt-0.5">
+						<h1 class="truncate max-w-[220px] text-sm font-semibold text-stone-900 dark:text-stone-100">{data.activity.name}</h1>
+
+						<!-- Status dot indicator -->
 						{#if actionError}
-							<span
-								class="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200"
-							>
+							<span class="flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
+								<span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
 								{actionError}
 							</span>
 						{:else if actionMessage}
-							<span
-								class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200"
-							>
+							<span class="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
+								<span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
 								{actionMessage}
 							</span>
 						{:else if hasUnsavedChanges}
-							<span
-								class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
-							>
-								Cambios sin guardar
+							<span class="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+								<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500"></span>
+								Sin guardar
 							</span>
 						{:else}
-							<span
-								class="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
-							>
+							<span class="flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-500">
+								<span class="h-1.5 w-1.5 rounded-full bg-stone-400 dark:bg-stone-500"></span>
 								Sincronizado
 							</span>
 						{/if}
@@ -1893,81 +1891,76 @@
 				</div>
 			</div>
 
-			<div class="hidden items-center gap-3 2xl:flex">
-				<div
-					class="rounded-2xl border border-stone-300/80 bg-white/85 px-3 py-2 text-sm shadow-sm dark:border-stone-700 dark:bg-stone-900/80"
-				>
-					<p
-						class="text-[10px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
-					>
-						Entrada
-					</p>
-					<p class="mt-1 max-w-44 truncate font-semibold">{entryBlockTitle}</p>
+			<!-- Stats (compact, inline) -->
+			<div class="hidden items-center gap-1 2xl:flex mr-1">
+				<div class="rounded-lg border border-stone-200/80 bg-white/70 px-2.5 py-1.5 text-center dark:border-stone-700 dark:bg-stone-900/60">
+					<p class="text-[9px] font-semibold tracking-[0.16em] text-stone-400 uppercase">Bloques</p>
+					<p class="text-sm font-bold text-stone-800 dark:text-stone-100 leading-none mt-0.5">{draftDefinition.blocks.length}</p>
 				</div>
-				<div
-					class="rounded-2xl border border-stone-300/80 bg-white/85 px-3 py-2 text-sm shadow-sm dark:border-stone-700 dark:bg-stone-900/80"
-				>
-					<p
-						class="text-[10px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
-					>
-						Bloques
-					</p>
-					<p class="mt-1 font-semibold">{draftDefinition.blocks.length}</p>
-				</div>
-				<div
-					class="rounded-2xl border border-stone-300/80 bg-white/85 px-3 py-2 text-sm shadow-sm dark:border-stone-700 dark:bg-stone-900/80"
-				>
-					<p
-						class="text-[10px] font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
-					>
-						Conexiones
-					</p>
-					<p class="mt-1 font-semibold">{flowEdges.length}</p>
+				<div class="rounded-lg border border-stone-200/80 bg-white/70 px-2.5 py-1.5 text-center dark:border-stone-700 dark:bg-stone-900/60">
+					<p class="text-[9px] font-semibold tracking-[0.16em] text-stone-400 uppercase">Rutas</p>
+					<p class="text-sm font-bold text-stone-800 dark:text-stone-100 leading-none mt-0.5">{flowEdges.length}</p>
 				</div>
 			</div>
 
-			<div class="flex items-center gap-2">
+			<!-- Separator -->
+			<div class="hidden h-7 w-px bg-stone-300/70 dark:bg-stone-700/70 2xl:block"></div>
+
+			<!-- Preview group -->
+			<div class="flex items-center gap-1">
 				<a
 					href={resolve(`/lesson/${ilid}?preview=published`)}
 					target="_blank"
 					rel="noreferrer"
-					class="inline-flex items-center rounded-2xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-sm font-medium text-emerald-800 shadow-sm transition hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
+					title="Preview publicado"
+					class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-2 text-[11px] font-semibold text-emerald-800 shadow-sm transition hover:bg-emerald-100 active:scale-95 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
 				>
-					<Eye class="mr-1.5 h-4 w-4" />
-					Publicado
+					<Eye class="h-3.5 w-3.5" />
+					<span class="hidden sm:inline">Publicado</span>
 				</a>
 				<a
 					href={resolve(`/lesson/${ilid}?preview=draft`)}
 					target="_blank"
 					rel="noreferrer"
-					class="inline-flex items-center rounded-2xl border border-sky-300 bg-sky-50 px-3.5 py-2 text-sm font-medium text-sky-800 shadow-sm transition hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
+					title="Preview borrador"
+					class="inline-flex items-center gap-1.5 rounded-xl border border-sky-300 bg-sky-50 px-2.5 py-2 text-[11px] font-semibold text-sky-800 shadow-sm transition hover:bg-sky-100 active:scale-95 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
 				>
-					<Eye class="mr-1.5 h-4 w-4" />
-					Borrador
+					<Eye class="h-3.5 w-3.5" />
+					<span class="hidden sm:inline">Borrador</span>
 				</a>
 				<a
 					href={resolve(`/course/${cid}/admin/interactives/${ilid}`)}
-					class="inline-flex items-center rounded-2xl border border-stone-300 bg-white px-3.5 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+					title="Ficha de actividad"
+					class="inline-flex items-center rounded-xl border border-stone-300 bg-white px-2.5 py-2 text-[11px] font-semibold text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
 				>
 					Ficha
 				</a>
+			</div>
+
+			<!-- Separator -->
+			<div class="h-7 w-px bg-stone-300/70 dark:bg-stone-700/70"></div>
+
+			<!-- Action group -->
+			<div class="flex items-center gap-1">
 				<button
 					type="button"
-					class="inline-flex items-center rounded-2xl border border-stone-300 bg-white px-3.5 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+					title="Centrar vista (Home)"
+					class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-stone-300 bg-white text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
 					onclick={centerCanvas}
 				>
-					<MoveRight class="mr-1.5 h-4 w-4" />
-					Centrar
+					<MoveRight class="h-3.5 w-3.5" />
 				</button>
+
 				<button
 					type="button"
-					class="bg-primary-600 hover:bg-primary-700 inline-flex items-center rounded-2xl px-4 py-2.5 text-sm font-medium text-white shadow-sm transition disabled:opacity-50"
+					class="inline-flex items-center gap-1.5 rounded-xl bg-stone-800 px-3 py-2 text-[11px] font-semibold text-white shadow-sm transition hover:bg-stone-700 active:scale-95 disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
 					onclick={saveFlow}
 					disabled={isSubmitting}
 				>
-					<Save class="mr-1.5 h-4 w-4" />
-					Guardar mapa
+					<Save class="h-3.5 w-3.5" />
+					Guardar
 				</button>
+
 				<form
 					method="POST"
 					action="?/discardDraft"
@@ -1982,7 +1975,7 @@
 				>
 					<button
 						type="submit"
-						class="inline-flex items-center rounded-2xl border border-stone-300 bg-white px-3.5 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+						class="inline-flex items-center rounded-xl border border-stone-300 bg-white px-2.5 py-2 text-[11px] font-semibold text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
 						disabled={!hasDraftChanges || hasUnsavedChanges || isSubmitting}
 					>
 						Descartar
@@ -1991,7 +1984,7 @@
 				<form method="POST" action="?/publishDraft">
 					<button
 						type="submit"
-						class="inline-flex items-center rounded-2xl bg-amber-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+						class="inline-flex items-center rounded-xl bg-amber-500 px-3 py-2 text-[11px] font-semibold text-white shadow-sm transition hover:bg-amber-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
 						disabled={!hasDraftChanges || hasUnsavedChanges || isSubmitting}
 					>
 						Publicar
@@ -2002,79 +1995,53 @@
 	</header>
 
 	<div class="flex min-h-0 flex-1 overflow-hidden">
+		<!-- Tool Rail — icon-only, 64px -->
 		<aside
-			class="studio-rail flex w-[112px] shrink-0 flex-col gap-4 border-r border-stone-300/80 bg-[#f5f0e7] px-3 py-4 dark:border-stone-800 dark:bg-[#17191c]"
+			class="studio-rail flex w-16 shrink-0 flex-col items-center gap-1.5 border-r border-stone-300/80 bg-[#f5f0e7]/90 px-2 py-3 dark:border-stone-800 dark:bg-[#17191c]"
 		>
-			<div>
-				<p
-					class="text-[10px] font-semibold tracking-[0.22em] text-stone-500 uppercase dark:text-stone-400"
+			<!-- Create buttons (icon-only, colored by type) -->
+			{#each createButtons as button (button.kind)}
+				{@const railColors = {
+					content: 'bg-amber-100 text-amber-700 hover:bg-amber-200/80 border-amber-200/80 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/40 dark:hover:bg-amber-950/50',
+					choice: 'bg-teal-100 text-teal-700 hover:bg-teal-200/80 border-teal-200/80 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/40 dark:hover:bg-teal-950/50',
+					check: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200/80 border-emerald-200/80 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40 dark:hover:bg-emerald-950/50',
+					agent: 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200/80 border-indigo-200/80 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-900/40 dark:hover:bg-indigo-950/50',
+					end: 'bg-rose-100 text-rose-700 hover:bg-rose-200/80 border-rose-200/80 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40 dark:hover:bg-rose-950/50'
+				}[button.kind]}
+				<button
+					type="button"
+					title={button.label}
+					aria-label="Añadir bloque: {button.label}"
+					class="flex h-11 w-11 items-center justify-center rounded-xl border shadow-sm transition active:scale-95 disabled:opacity-40 {railColors}"
+					onclick={() => createBlock(button.kind)}
+					disabled={isSubmitting}
 				>
-					Tool rail
-				</p>
-				<p class="mt-2 text-xs leading-5 text-stone-500 dark:text-stone-400">
-					Acciones rápidas para ampliar el mapa sin perder altura de canvas.
-				</p>
-			</div>
+					<button.icon class="h-4.5 w-4.5" />
+				</button>
+			{/each}
 
-			<div class="grid gap-2">
-				{#each createButtons as button (button.kind)}
-					<button
-						type="button"
-						class="group flex flex-col items-center gap-2 rounded-[24px] border border-stone-300/90 bg-white px-2 py-3 text-center text-[11px] font-medium text-stone-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-stone-50 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
-						onclick={() => createBlock(button.kind)}
-						disabled={isSubmitting}
-					>
-						<span
-							class="flex h-10 w-10 items-center justify-center rounded-2xl bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-200"
-						>
-							<button.icon class="h-4 w-4" />
-						</span>
-						<span>{button.label}</span>
-					</button>
-				{/each}
-			</div>
+			<!-- Separator -->
+			<div class="my-1 h-px w-8 bg-stone-300/70 dark:bg-stone-700/70"></div>
 
+			<!-- Center canvas -->
 			<button
 				type="button"
-				class="flex flex-col items-center gap-2 rounded-[24px] border border-dashed border-stone-300 bg-transparent px-2 py-3 text-center text-[11px] font-medium text-stone-600 transition hover:bg-white/70 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-900/70"
+				title="Centrar vista (Home)"
+				aria-label="Centrar vista del canvas"
+				class="flex h-11 w-11 items-center justify-center rounded-xl border border-stone-300/80 bg-white/70 text-stone-500 shadow-sm transition hover:bg-white hover:text-stone-700 active:scale-95 dark:border-stone-700 dark:bg-stone-900/50 dark:text-stone-400 dark:hover:bg-stone-900 dark:hover:text-stone-200"
 				onclick={centerCanvas}
 			>
-				<span
-					class="flex h-10 w-10 items-center justify-center rounded-2xl bg-stone-200/70 dark:bg-stone-800"
-				>
-					<MoveRight class="h-4 w-4" />
-				</span>
-				<span>Centrar</span>
+				<MoveRight class="h-4 w-4" />
 			</button>
 
-			<div
-				class="mt-auto space-y-2 rounded-[26px] border border-stone-300/80 bg-white/80 p-3 text-[11px] shadow-sm dark:border-stone-700 dark:bg-stone-900/80"
-			>
-				<p class="font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400">
-					Leyenda
-				</p>
-				<div class="space-y-2 text-stone-600 dark:text-stone-300">
-					<div class="flex items-center gap-2">
-						<span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
-						<span>Contenido</span>
-					</div>
-					<div class="flex items-center gap-2">
-						<span class="h-2.5 w-2.5 rounded-full bg-teal-500"></span>
-						<span>Decisión</span>
-					</div>
-					<div class="flex items-center gap-2">
-						<span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-						<span>Evaluación</span>
-					</div>
-					<div class="flex items-center gap-2">
-						<span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span>
-						<span>Tutor IA</span>
-					</div>
-					<div class="flex items-center gap-2">
-						<span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span>
-						<span>Final</span>
-					</div>
-				</div>
+			<!-- Legend dots (mt-auto to push to bottom) -->
+			<div class="mt-auto flex flex-col items-center gap-1.5 pb-1">
+				<div class="h-px w-6 bg-stone-300/60 dark:bg-stone-700/60 mb-1"></div>
+				<span class="h-2.5 w-2.5 rounded-full bg-amber-500" title="Contenido"></span>
+				<span class="h-2.5 w-2.5 rounded-full bg-teal-500" title="Decisión"></span>
+				<span class="h-2.5 w-2.5 rounded-full bg-emerald-500" title="Evaluación"></span>
+				<span class="h-2.5 w-2.5 rounded-full bg-indigo-500" title="Tutor IA"></span>
+				<span class="h-2.5 w-2.5 rounded-full bg-rose-500" title="Final"></span>
 			</div>
 		</aside>
 
@@ -2088,28 +2055,28 @@
 						class="pointer-events-none absolute inset-x-0 top-0 z-10 h-24 bg-linear-to-b from-[#f8f4ec] via-[#f8f4ec]/65 to-transparent dark:from-[#111315] dark:via-[#111315]/65"
 					></div>
 
-					<div class="pointer-events-none absolute top-5 left-5 z-20 flex flex-wrap gap-2">
+					<div class="pointer-events-none absolute top-4 left-4 z-20 flex flex-wrap gap-1.5">
 						<div
-							class="rounded-full border border-white/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-stone-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-stone-900/90 dark:text-stone-300"
+							class="rounded-full border border-stone-200/70 bg-white/80 px-2.5 py-1 text-[10px] font-medium text-stone-500 shadow-sm backdrop-blur-sm dark:border-white/8 dark:bg-stone-900/80 dark:text-stone-400"
 						>
-							Panea con arrastre, edita con el inspector y usa zoom para recorrer el grafo.
+							Panea con arrastre · edita en el inspector · zoom para navegar
 						</div>
 						<div
-							class="rounded-full border border-white/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-stone-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-stone-900/90 dark:text-stone-300"
+							class="rounded-full border border-stone-200/70 bg-white/80 px-2.5 py-1 text-[10px] font-medium text-stone-500 shadow-sm backdrop-blur-sm dark:border-white/8 dark:bg-stone-900/80 dark:text-stone-400"
 						>
-							Shift + A anade, F2 renombra, Ctrl/Cmd + D duplica, Home centra.
+							<kbd class="font-mono text-[9px]">Shift+A</kbd> añadir · <kbd class="font-mono text-[9px]">F2</kbd> renombrar · <kbd class="font-mono text-[9px]">⌘D</kbd> duplicar · <kbd class="font-mono text-[9px]">Home</kbd> centrar
 						</div>
 						{#if selection?.kind === 'node' && selectedBlock}
 							<div
-								class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
+								class="rounded-full border border-amber-200/80 bg-amber-50/90 px-2.5 py-1 text-[10px] font-semibold text-amber-700 shadow-sm backdrop-blur-sm dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300"
 							>
-								Bloque activo: {selectedBlock.title}
+								Bloque: {selectedBlock.title}
 							</div>
 						{:else if selection?.kind === 'edge' && selectedEdge}
 							<div
-								class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-800 shadow-sm dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-200"
+								class="rounded-full border border-sky-200/80 bg-sky-50/90 px-2.5 py-1 text-[10px] font-semibold text-sky-700 shadow-sm backdrop-blur-sm dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-300"
 							>
-								Ruta activa: {selectedEdge.label ??
+								Ruta: {selectedEdge.label ??
 									getLessonFlowEdgeTypeLabel(selectedEdge.data?.edgeType ?? 'next')}
 							</div>
 						{/if}
@@ -2196,41 +2163,35 @@
 
 		{#if isInspectorCollapsed}
 			<aside
-				class="flex w-16 shrink-0 flex-col items-center gap-4 border-l border-stone-300/80 bg-[#f5f0e7] px-2 py-4 dark:border-stone-800 dark:bg-[#17191c]"
+				class="flex w-12 shrink-0 flex-col items-center gap-3 border-l border-stone-300/60 bg-[#f5f0e7]/90 px-2 py-4 dark:border-stone-800 dark:bg-[#17191c]"
 			>
 				<button
 					type="button"
-					class="flex h-10 w-10 items-center justify-center rounded-2xl border border-stone-300 bg-white text-stone-700 shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+					class="flex h-9 w-9 items-center justify-center rounded-xl border border-stone-300 bg-white text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
 					onclick={() => {
 						isInspectorCollapsed = false;
 					}}
 					aria-label="Abrir inspector"
+					title="Abrir inspector"
 				>
-					<ChevronRight class="h-4 w-4" />
+					<ChevronRight class="h-3.5 w-3.5" />
 				</button>
-				<div
-					class="inspector-tab rounded-full border border-stone-300/80 bg-white/80 px-2 py-3 text-[11px] font-semibold tracking-[0.2em] text-stone-500 uppercase shadow-sm dark:border-stone-700 dark:bg-stone-900/80 dark:text-stone-400"
-				>
-					Inspector
-				</div>
 			</aside>
 		{:else}
 			<aside
-				class="flex w-[380px] shrink-0 flex-col overflow-hidden border-l border-stone-300/80 bg-[#f5f0e7] dark:border-stone-800 dark:bg-[#17191c]"
+				class="flex w-[360px] shrink-0 flex-col overflow-hidden border-l border-stone-300/60 bg-[#f5f0e7]/90 dark:border-stone-800 dark:bg-[#17191c]"
 			>
-				<div class="shrink-0 border-b border-stone-300/80 px-5 py-4 dark:border-stone-800">
+				<div class="shrink-0 border-b border-stone-300/60 px-4 py-3.5 dark:border-stone-800">
 					<div class="flex items-start justify-between gap-3">
-						<div>
-							<p
-								class="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase dark:text-stone-400"
-							>
+						<div class="min-w-0 flex-1">
+							<p class="text-[9px] font-bold tracking-[0.26em] text-stone-400 uppercase dark:text-stone-500">
 								Inspector
 							</p>
 							{#if selectedBlock && isRenamingSelectedBlock}
 								<input
 									bind:this={renameInputElement}
 									value={renameDraft}
-									class="mt-2 w-full rounded-2xl border border-amber-300 bg-white px-3 py-2 text-lg font-semibold text-stone-900 outline-hidden focus:border-amber-500 dark:border-amber-700 dark:bg-stone-950 dark:text-white"
+									class="mt-1.5 w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-base font-semibold text-stone-900 outline-hidden focus:border-amber-400 focus:ring-2 focus:ring-amber-200 dark:border-amber-700 dark:bg-stone-950 dark:text-white"
 									oninput={(event) => {
 										renameDraft = (event.currentTarget as HTMLInputElement).value;
 									}}
@@ -2248,7 +2209,7 @@
 									onblur={commitRenameSelectedBlock}
 								/>
 							{:else}
-								<h2 class="mt-2 text-lg font-semibold text-stone-900 dark:text-white">
+								<h2 class="mt-1 truncate text-base font-semibold text-stone-900 dark:text-white">
 									{#if selectedBlock}
 										{selectedBlock.title}
 									{:else if selectedEdge}
@@ -2259,62 +2220,40 @@
 									{/if}
 								</h2>
 							{/if}
-							<p class="mt-2 text-sm leading-6 text-stone-500 dark:text-stone-400">
-								{#if selectedBlock}
-									Ajusta los campos esenciales del bloque y abre el editor profundo si necesitas
-									trabajar el contenido completo.
-								{:else if selectedEdge}
-									Edita la ruta seleccionada, su destino y los metadatos que la acompañan.
-								{:else}
-									Selecciona un bloque o una conexión en el canvas para editarla aquí.
-								{/if}
-							</p>
 						</div>
 						<button
 							type="button"
-							class="inline-flex items-center rounded-2xl border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+							class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-stone-300 bg-white text-stone-500 shadow-sm transition hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
+							title="Colapsar inspector"
 							onclick={() => {
 								isInspectorCollapsed = true;
 							}}
 						>
-							Ocultar
+							<ChevronRight class="h-3.5 w-3.5" />
 						</button>
 					</div>
 				</div>
 
-				<div class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+				<div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
 				{#if selectedBlock}
-						<div class="space-y-5">
-							<div
-								class="rounded-2xl border border-stone-200 bg-stone-50/80 px-4 py-4 dark:border-stone-800 dark:bg-stone-950/30"
-							>
-								<div class="flex items-center justify-between gap-3">
-									<div>
-										<p
-											class="text-xs font-semibold tracking-[0.14em] text-stone-500 uppercase dark:text-stone-400"
-										>
-											ID técnico
-										</p>
-										<p class="mt-1 font-mono text-sm text-stone-700 dark:text-stone-200">
-											{selectedBlock.id}
-										</p>
-									</div>
-									{#if draftDefinition.entryBlockId === selectedBlock.id}
-										<span
-											class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
-										>
-											Entrada actual
-										</span>
-									{/if}
+						<div class="space-y-4">
+							<!-- ID row + entry badge -->
+							<div class="flex items-center justify-between gap-2 rounded-xl border border-stone-200/80 bg-white/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-950/20">
+								<div>
+									<p class="text-[9px] font-bold tracking-[0.18em] text-stone-400 uppercase dark:text-stone-500">ID técnico</p>
+									<p class="mt-0.5 font-mono text-xs text-stone-600 dark:text-stone-300">{selectedBlock.id}</p>
 								</div>
+								{#if draftDefinition.entryBlockId === selectedBlock.id}
+									<span class="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+										Entrada
+									</span>
+								{/if}
 							</div>
 
-							<label class="block">
-								<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
-									>Título</span
-								>
+						<label class="block">
+								<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300">Título</span>
 								<input
-									class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+									class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition placeholder:text-stone-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600 dark:focus:ring-amber-900/40"
 									value={selectedBlock.title}
 									oninput={(event) =>
 										updateSelectedBlock((block) => {
@@ -2323,14 +2262,10 @@
 								/>
 							</label>
 
-							<div class="grid gap-4 md:grid-cols-2">
-								<div class="rounded-2xl border border-stone-200 px-4 py-3 dark:border-stone-800">
-									<p
-										class="text-xs font-semibold tracking-[0.14em] text-stone-500 uppercase dark:text-stone-400"
-									>
-										Tipo
-									</p>
-									<p class="mt-1 text-sm font-medium text-stone-900 dark:text-white">
+							<div class="grid grid-cols-2 gap-2">
+								<div class="rounded-xl border border-stone-200/80 bg-white/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-950/20">
+									<p class="text-[9px] font-bold tracking-[0.16em] text-stone-400 uppercase dark:text-stone-500">Tipo</p>
+									<p class="mt-0.5 text-xs font-semibold text-stone-800 dark:text-white">
 										{selectedBlock.kind === 'content'
 											? 'Contenido'
 											: selectedBlock.kind === 'choice'
@@ -2342,13 +2277,9 @@
 														: 'Final'}
 									</p>
 								</div>
-								<div class="rounded-2xl border border-stone-200 px-4 py-3 dark:border-stone-800">
-									<p
-										class="text-xs font-semibold tracking-[0.14em] text-stone-500 uppercase dark:text-stone-400"
-									>
-										Posición
-									</p>
-									<p class="mt-1 text-sm font-medium text-stone-900 dark:text-white">
+								<div class="rounded-xl border border-stone-200/80 bg-white/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-950/20">
+									<p class="text-[9px] font-bold tracking-[0.16em] text-stone-400 uppercase dark:text-stone-500">Posición</p>
+									<p class="mt-0.5 text-xs font-semibold text-stone-800 dark:text-white">
 										{Math.round(selectedBlock.graph?.position?.x ?? 0)},
 										{Math.round(selectedBlock.graph?.position?.y ?? 0)}
 									</p>
@@ -2358,21 +2289,21 @@
 							{#if draftDefinition.entryBlockId !== selectedBlock.id}
 								<button
 									type="button"
-									class="w-full rounded-2xl border border-emerald-300 px-4 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-950/20"
+									class="w-full rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
 									onclick={() => setEntryBlock(selectedBlock.id)}
 								>
-									<Route class="mr-1 inline h-4 w-4" />
+									<Route class="mr-1 inline h-3.5 w-3.5" />
 									Marcar como bloque de entrada
 								</button>
 							{/if}
 
 							{#if selectedBlock.kind === 'content'}
 								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Texto del botón</span
 									>
 									<input
-										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 										value={selectedBlock.continueLabel ?? ''}
 										oninput={(event) =>
 											updateSelectedBlock((block) => {
@@ -2383,11 +2314,11 @@
 								</label>
 
 								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Siguiente bloque</span
 									>
 									<select
-										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 										value={selectedBlock.next ?? ''}
 										onchange={(event) =>
 											updateSelectedBlock((block) => {
@@ -2403,7 +2334,7 @@
 								</label>
 
 								<div
-									class="rounded-2xl border border-dashed border-stone-300 px-4 py-4 dark:border-stone-700"
+									class="rounded-xl border border-dashed border-stone-300/70 bg-stone-50/40 px-3 py-3 dark:border-stone-700/60 dark:bg-stone-900/20"
 								>
 									<div class="flex items-center justify-between gap-3">
 										<div>
@@ -2419,7 +2350,7 @@
 										</div>
 										<button
 											type="button"
-											class="rounded-2xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
+											class="rounded-xl border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:bg-stone-100 active:scale-95 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
 											onclick={addBranchToSelectedBlock}
 										>
 											<GitBranch class="mr-1 inline h-4 w-4" />
@@ -2429,7 +2360,7 @@
 								</div>
 							{:else if selectedBlock.kind === 'choice'}
 								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Clave de salida</span
 									>
 									<input
@@ -2444,7 +2375,7 @@
 								</label>
 
 								<div
-									class="rounded-2xl border border-dashed border-stone-300 px-4 py-4 dark:border-stone-700"
+									class="rounded-xl border border-dashed border-stone-300/70 bg-stone-50/40 px-3 py-3 dark:border-stone-700/60 dark:bg-stone-900/20"
 								>
 									<div class="flex items-center justify-between gap-3">
 										<div>
@@ -2456,7 +2387,7 @@
 										</div>
 										<button
 											type="button"
-											class="rounded-2xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
+											class="rounded-xl border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:bg-stone-100 active:scale-95 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
 											onclick={addChoiceOptionToSelectedBlock}
 										>
 											<Plus class="mr-1 inline h-4 w-4" />
@@ -2466,11 +2397,11 @@
 								</div>
 							{:else if selectedBlock.kind === 'check'}
 								<div class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Modo</span
 									>
 									<p
-										class="rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm font-medium text-stone-900 dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										class="rounded-xl border border-stone-200 bg-white/80 px-3 py-2 text-sm font-medium text-stone-800 dark:border-stone-700 dark:bg-stone-950 dark:text-white"
 									>
 										{getLessonCheckModeLabel(selectedBlock.checkConfig.mode)}
 									</p>
@@ -2478,11 +2409,11 @@
 
 								<div class="grid gap-4 md:grid-cols-2">
 									<label class="block">
-										<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 											>Botón continuar</span
 										>
 										<input
-											class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+											class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 											value={selectedBlock.checkConfig.continueLabel ?? ''}
 											oninput={(event) =>
 												updateSelectedBlock((block) => {
@@ -2495,11 +2426,11 @@
 									</label>
 
 									<label class="block">
-										<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 											>Siguiente bloque</span
 										>
 										<select
-											class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+											class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 											value={selectedBlock.next ?? ''}
 											onchange={(event) =>
 												updateSelectedBlock((block) => {
@@ -2516,7 +2447,7 @@
 								</div>
 
 								<div
-									class="rounded-2xl border border-dashed border-stone-300 px-4 py-4 dark:border-stone-700"
+									class="rounded-xl border border-dashed border-stone-300/70 bg-stone-50/40 px-3 py-3 dark:border-stone-700/60 dark:bg-stone-900/20"
 								>
 									<div class="flex items-center justify-between gap-3">
 										<div>
@@ -2532,7 +2463,7 @@
 										</div>
 										<button
 											type="button"
-											class="rounded-2xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
+											class="rounded-xl border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:bg-stone-100 active:scale-95 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
 											onclick={addBranchToSelectedBlock}
 										>
 											<GitBranch class="mr-1 inline h-4 w-4" />
@@ -2542,11 +2473,11 @@
 								</div>
 							{:else if selectedBlock.kind === 'agent'}
 								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Runtime</span
 									>
 									<select
-										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 										value={selectedBlock.agentConfig.runtimeMode}
 										onchange={(event) =>
 											updateSelectedAgentRuntimeMode(
@@ -2559,11 +2490,11 @@
 								</label>
 
 								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Modelo</span
 									>
 									<select
-										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 										value={selectedBlock.agentConfig.model ?? ''}
 										onchange={(event) =>
 											updateSelectedBlock((block) => {
@@ -2621,11 +2552,11 @@
 								{/if}
 
 								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Modo de interacción</span
 									>
 									<select
-										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 										value={selectedBlock.agentConfig.interactionMode}
 										onchange={(event) =>
 											updateSelectedAgentInteractionMode(
@@ -2640,11 +2571,11 @@
 								</label>
 
 								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Disparo</span
 									>
 									<select
-										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 										value={selectedBlock.agentConfig.executionTrigger}
 										onchange={(event) =>
 											updateSelectedBlock((block) => {
@@ -2662,11 +2593,11 @@
 
 								<div class="grid gap-4 md:grid-cols-2">
 									<label class="block">
-										<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 											>Botón continuar</span
 										>
 										<input
-											class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+											class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 											value={selectedBlock.agentConfig.continueLabel ?? ''}
 											oninput={(event) =>
 												updateSelectedBlock((block) => {
@@ -2714,11 +2645,11 @@
 								</div>
 
 								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Siguiente bloque</span
 									>
 									<select
-										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 										value={selectedBlock.next ?? ''}
 										onchange={(event) =>
 											updateSelectedBlock((block) => {
@@ -2734,7 +2665,7 @@
 								</label>
 
 								<div
-									class="rounded-2xl border border-dashed border-stone-300 px-4 py-4 dark:border-stone-700"
+									class="rounded-xl border border-dashed border-stone-300/70 bg-stone-50/40 px-3 py-3 dark:border-stone-700/60 dark:bg-stone-900/20"
 								>
 									<div class="flex items-center justify-between gap-3">
 										<div>
@@ -2750,7 +2681,7 @@
 										</div>
 										<button
 											type="button"
-											class="rounded-2xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
+											class="rounded-xl border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:bg-stone-100 active:scale-95 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
 											onclick={addBranchToSelectedBlock}
 										>
 											<GitBranch class="mr-1 inline h-4 w-4" />
@@ -2760,11 +2691,11 @@
 								</div>
 							{:else if selectedBlock.kind === 'end'}
 								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Texto CTA</span
 									>
 									<input
-										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 										value={selectedBlock.ctaLabel ?? ''}
 										oninput={(event) =>
 											updateSelectedBlock((block) => {
@@ -2775,24 +2706,24 @@
 								</label>
 							{/if}
 
-							<div class="grid gap-3">
+							<div class="grid gap-2">
 								<a
 									href={resolve(
 										`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${selectedBlock.id}`
 									)}
-									class="inline-flex items-center justify-center rounded-2xl border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
+									class="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 active:scale-95"
 								>
-									<SquarePen class="mr-1 h-4 w-4" />
+									<SquarePen class="h-4 w-4" />
 									Editar bloque en detalle
 								</a>
 
 								<button
 									type="button"
-									class="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
+									class="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50 active:scale-95 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/20"
 									onclick={deleteSelectedBlock}
 									disabled={isSubmitting}
 								>
-									<Trash2 class="mr-1 h-4 w-4" />
+									<Trash2 class="h-3.5 w-3.5" />
 									Eliminar bloque
 								</button>
 							</div>
@@ -2800,7 +2731,7 @@
 					{:else if selectedEdge}
 						<div class="space-y-5">
 							<div
-								class="rounded-2xl border border-stone-200 bg-stone-50/80 px-4 py-4 dark:border-stone-800 dark:bg-stone-950/30"
+								class="rounded-xl border border-stone-200/80 bg-white/60 px-3 py-3 dark:border-stone-800 dark:bg-stone-950/20"
 							>
 								<p
 									class="text-xs font-semibold tracking-[0.14em] text-stone-500 uppercase dark:text-stone-400"
@@ -2818,11 +2749,11 @@
 							</div>
 
 							<label class="block">
-								<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+								<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 									>Destino</span
 								>
 								<select
-									class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+									class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 									value={selectedEdge.target}
 									onchange={(event) =>
 										updateEdgeTarget((event.currentTarget as HTMLSelectElement).value)}
@@ -2835,11 +2766,11 @@
 
 							{#if selectedEdge.data?.edgeType === 'branch' && selectedEdge.data.branchIndex !== undefined}
 								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Etiqueta</span
 									>
 									<input
-										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 										value={selectedEdge.label ?? ''}
 										oninput={(event) =>
 											updateSelectedEdge((definition, edge) => {
@@ -2862,7 +2793,7 @@
 
 								<div class="grid gap-4 md:grid-cols-2">
 									<label class="block">
-										<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 											>Variable origen</span
 										>
 										<input
@@ -2893,11 +2824,11 @@
 									</label>
 
 									<label class="block">
-										<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+										<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 											>Operador</span
 										>
 										<select
-											class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+											class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 											value={selectedEdge.data?.conditionOperator ?? 'equals'}
 											onchange={(event) =>
 												updateSelectedEdge((definition, edge) => {
@@ -2930,11 +2861,11 @@
 								</div>
 
 								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Valor esperado</span
 									>
 									<input
-										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 										value={String(selectedEdge.data?.conditionValue ?? '')}
 										oninput={(event) =>
 											updateSelectedEdge((definition, edge) => {
@@ -2964,7 +2895,7 @@
 
 								<button
 									type="button"
-									class="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
+									class="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50/40 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100 active:scale-95 dark:border-red-900/40 dark:bg-red-950/10 dark:text-red-400 dark:hover:bg-red-950/30"
 									onclick={removeSelectedBranch}
 								>
 									<Trash2 class="mr-1 h-4 w-4" />
@@ -2972,11 +2903,11 @@
 								</button>
 							{:else if selectedEdge.data?.edgeType === 'choice-option'}
 								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Etiqueta visible</span
 									>
 									<input
-										class="w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-gray-950 dark:text-white"
+										class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
 										value={selectedEdge.label ?? ''}
 										oninput={(event) =>
 											updateSelectedEdge((definition, edge) => {
@@ -2994,7 +2925,7 @@
 								</label>
 
 								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Valor</span
 									>
 									<input
@@ -3017,7 +2948,7 @@
 
 								<button
 									type="button"
-									class="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
+									class="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50/40 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100 active:scale-95 dark:border-red-900/40 dark:bg-red-950/10 dark:text-red-400 dark:hover:bg-red-950/30"
 									onclick={removeSelectedChoiceOption}
 								>
 									<Trash2 class="mr-1 h-4 w-4" />
@@ -3033,7 +2964,7 @@
 
 								<button
 									type="button"
-									class="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
+									class="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50/40 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100 active:scale-95 dark:border-red-900/40 dark:bg-red-950/10 dark:text-red-400 dark:hover:bg-red-950/30"
 									onclick={clearSelectedNextEdge}
 								>
 									<Trash2 class="mr-1 h-4 w-4" />
@@ -3042,19 +2973,19 @@
 							{/if}
 						</div>
 					{:else}
-						<div
-							class="rounded-2xl border border-dashed border-stone-300 px-4 py-6 text-sm leading-6 text-stone-500 dark:border-stone-700 dark:text-stone-400"
-						>
-							<p class="font-medium text-stone-700 dark:text-stone-200">Qué puedes hacer aquí</p>
-							<ul class="mt-3 list-disc space-y-2 pl-5">
-								<li>Crear bloques nuevos desde la rail izquierda.</li>
-								<li>Mover nodos para organizar el mapa pedagógico.</li>
-								<li>Seleccionar una conexión para editar su destino o su condición.</li>
-								<li>
-									Abrir el editor profundo del bloque cuando necesites tocar prompts o contenido
-									rico.
-								</li>
-							</ul>
+						<div class="flex flex-col items-center justify-center py-12 text-center">
+							<div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-100/80 text-stone-400 dark:bg-stone-800/60 dark:text-stone-500">
+								<LayoutTemplate class="h-6 w-6" />
+							</div>
+							<p class="text-sm font-semibold text-stone-700 dark:text-stone-200">Sin selección</p>
+							<p class="mt-2 max-w-[220px] text-xs leading-5 text-stone-400 dark:text-stone-500">
+								Haz clic en un bloque o una conexión para editarla aquí.
+							</p>
+							<div class="mt-5 flex flex-col gap-1.5 text-[10px] text-stone-400 dark:text-stone-500">
+								<span class="flex items-center gap-2"><kbd class="rounded bg-stone-200/80 px-1.5 py-0.5 font-mono text-[9px] dark:bg-stone-800">Shift+A</kbd> Añadir bloque</span>
+								<span class="flex items-center gap-2"><kbd class="rounded bg-stone-200/80 px-1.5 py-0.5 font-mono text-[9px] dark:bg-stone-800">F2</kbd> Renombrar selección</span>
+								<span class="flex items-center gap-2"><kbd class="rounded bg-stone-200/80 px-1.5 py-0.5 font-mono text-[9px] dark:bg-stone-800">Home</kbd> Centrar vista</span>
+							</div>
 						</div>
 					{/if}
 				</div>
@@ -3064,11 +2995,6 @@
 </div>
 
 <style>
-	.inspector-tab {
-		writing-mode: vertical-rl;
-		text-orientation: mixed;
-	}
-
 	:global(.lesson-flow-shell .svelte-flow__controls) {
 		border-radius: 1.25rem;
 		overflow: hidden;

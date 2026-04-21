@@ -140,7 +140,7 @@
 		></button>
 
 		<div
-			class="absolute w-[min(22.5rem,calc(100%-1.5rem))] overflow-hidden rounded-[28px] border border-stone-300/90 bg-[#fbf7ef]/96 shadow-[0_32px_90px_-42px_rgba(24,24,27,0.82)] backdrop-blur-xl dark:border-stone-700 dark:bg-[#17191c]/96"
+			class="absolute w-[min(22rem,calc(100%-1.5rem))] overflow-hidden rounded-2xl border border-stone-200/80 bg-[#fdfaf4]/97 shadow-[0_28px_80px_-36px_rgba(24,24,27,0.78)] backdrop-blur-xl dark:border-stone-700/80 dark:bg-[#17191c]/97"
 			style={panelStyle()}
 			role="dialog"
 			tabindex="-1"
@@ -149,31 +149,27 @@
 				event.preventDefault();
 			}}
 		>
-			<div class="border-b border-stone-200/90 px-4 py-4 dark:border-stone-800">
-				<p
-					class="text-[10px] font-semibold tracking-[0.22em] text-stone-500 uppercase dark:text-stone-400"
-				>
-					{title}
-				</p>
+			<div class="border-b border-stone-200/70 px-4 py-3 dark:border-stone-800">
+				<p class="text-[9px] font-bold tracking-[0.26em] text-stone-400 uppercase dark:text-stone-500">{title}</p>
 				{#if subtitle}
-					<p class="mt-2 text-sm leading-5 text-stone-500 dark:text-stone-400">{subtitle}</p>
+					<p class="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">{subtitle}</p>
 				{/if}
 				<input
 					bind:this={inputElement}
 					value={query}
-					class="mt-3 w-full rounded-2xl border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 outline-hidden transition placeholder:text-stone-400 focus:border-amber-400 dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:placeholder:text-stone-500"
-					placeholder="Buscar accion o tipo de bloque"
+					class="mt-2.5 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-hidden shadow-sm transition placeholder:text-stone-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:placeholder:text-stone-500 dark:focus:border-amber-600"
+					placeholder="Buscar acción o tipo de bloque…"
 					oninput={(event) => onquerychange((event.currentTarget as HTMLInputElement).value)}
 				/>
 			</div>
 
-			<div class="max-h-[20rem] overflow-y-auto px-3 py-3">
+			<div class="max-h-[18rem] overflow-y-auto px-2.5 py-2.5">
 				{#if filteredItems.length > 0}
 					<div class="space-y-1.5" role="listbox" aria-label={title}>
 						{#each filteredItems as item, index (item.id)}
 							<button
 								type="button"
-								class={`flex w-full items-start justify-between gap-3 rounded-[22px] border px-3 py-3 text-left transition ${toneClass(item)} ${index === activeIndex && !item.disabled ? 'ring-2 ring-amber-300/80 ring-offset-1 ring-offset-transparent dark:ring-amber-700/60' : ''}`}
+							class={`flex w-full items-start justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition active:scale-98 ${toneClass(item)} ${index === activeIndex && !item.disabled ? 'ring-2 ring-amber-300/80 ring-offset-1 ring-offset-transparent dark:ring-amber-700/60' : ''}`}
 								role="option"
 								aria-selected={index === activeIndex}
 								disabled={item.disabled}
@@ -201,10 +197,8 @@
 						{/each}
 					</div>
 				{:else}
-					<div
-						class="rounded-[22px] border border-dashed border-stone-300 px-4 py-6 text-sm leading-6 text-stone-500 dark:border-stone-700 dark:text-stone-400"
-					>
-						No hay acciones que coincidan con la busqueda actual.
+					<div class="px-2 py-6 text-center text-xs text-stone-400 dark:text-stone-500">
+						Sin coincidencias para «{query}»
 					</div>
 				{/if}
 			</div>

@@ -5,36 +5,51 @@
 
 	let { data, selected = false }: NodeProps<LessonFlowNode> = $props();
 
-	const kindStyles = {
+	const kindConfig = {
 		content: {
-			surface:
-				'border-stone-300/90 bg-linear-to-br from-white via-amber-50/60 to-orange-50/70 text-stone-900',
-			accent: 'bg-amber-100 text-amber-800 ring-amber-200',
-			handle: '!bg-amber-500'
+			band: 'bg-amber-500',
+			bandText: 'text-amber-50',
+			glow: 'shadow-[0_0_0_3px_rgba(245,158,11,0.55),0_22px_48px_-20px_rgba(245,158,11,0.45)]',
+			handle: '!bg-amber-500',
+			handleRing: '!ring-amber-200',
+			footer: 'bg-amber-50/60 border-t border-amber-100/80',
+			badge: 'bg-amber-100 text-amber-800 ring-amber-200/80'
 		},
 		choice: {
-			surface:
-				'border-teal-300/90 bg-linear-to-br from-white via-teal-50/70 to-cyan-50/60 text-stone-900',
-			accent: 'bg-teal-100 text-teal-800 ring-teal-200',
-			handle: '!bg-teal-500'
+			band: 'bg-teal-500',
+			bandText: 'text-teal-50',
+			glow: 'shadow-[0_0_0_3px_rgba(20,184,166,0.55),0_22px_48px_-20px_rgba(20,184,166,0.4)]',
+			handle: '!bg-teal-500',
+			handleRing: '!ring-teal-200',
+			footer: 'bg-teal-50/60 border-t border-teal-100/80',
+			badge: 'bg-teal-100 text-teal-800 ring-teal-200/80'
 		},
 		check: {
-			surface:
-				'border-emerald-300/90 bg-linear-to-br from-white via-emerald-50/70 to-lime-50/60 text-stone-900',
-			accent: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
-			handle: '!bg-emerald-500'
+			band: 'bg-emerald-500',
+			bandText: 'text-emerald-50',
+			glow: 'shadow-[0_0_0_3px_rgba(16,185,129,0.55),0_22px_48px_-20px_rgba(16,185,129,0.4)]',
+			handle: '!bg-emerald-500',
+			handleRing: '!ring-emerald-200',
+			footer: 'bg-emerald-50/60 border-t border-emerald-100/80',
+			badge: 'bg-emerald-100 text-emerald-800 ring-emerald-200/80'
 		},
 		agent: {
-			surface:
-				'border-indigo-300/90 bg-linear-to-br from-white via-indigo-50/70 to-sky-50/60 text-stone-900',
-			accent: 'bg-indigo-100 text-indigo-800 ring-indigo-200',
-			handle: '!bg-indigo-500'
+			band: 'bg-indigo-500',
+			bandText: 'text-indigo-50',
+			glow: 'shadow-[0_0_0_3px_rgba(99,102,241,0.55),0_22px_48px_-20px_rgba(99,102,241,0.4)]',
+			handle: '!bg-indigo-500',
+			handleRing: '!ring-indigo-200',
+			footer: 'bg-indigo-50/60 border-t border-indigo-100/80',
+			badge: 'bg-indigo-100 text-indigo-800 ring-indigo-200/80'
 		},
 		end: {
-			surface:
-				'border-rose-300/90 bg-linear-to-br from-white via-rose-50/70 to-pink-50/60 text-stone-900',
-			accent: 'bg-rose-100 text-rose-800 ring-rose-200',
-			handle: '!bg-rose-500'
+			band: 'bg-rose-500',
+			bandText: 'text-rose-50',
+			glow: 'shadow-[0_0_0_3px_rgba(244,63,94,0.55),0_22px_48px_-20px_rgba(244,63,94,0.4)]',
+			handle: '!bg-rose-500',
+			handleRing: '!ring-rose-200',
+			footer: 'bg-rose-50/60 border-t border-rose-100/80',
+			badge: 'bg-rose-100 text-rose-800 ring-rose-200/80'
 		}
 	} as const;
 
@@ -48,55 +63,46 @@
 
 	function handleOffset(index: number, total: number) {
 		if (total <= 1) return '50%';
-		const horizontalPadding = total === 2 ? 24 : 12;
+		const horizontalPadding = total === 2 ? 28 : 16;
 		const availableWidth = 100 - horizontalPadding * 2;
 		return `${horizontalPadding + (index / (total - 1)) * availableWidth}%`;
 	}
 
-	function handleClass(handle: LessonFlowNode['data']['incomingHandles'][number]) {
-		const baseClass =
-			'h-8 w-8 border-[3px] shadow-[0_10px_22px_-16px_rgba(24,24,27,0.65)] ring-4 ring-white/90 transition-transform hover:scale-110';
-
+	function incomingHandleClass(handle: LessonFlowNode['data']['incomingHandles'][number]) {
 		if (handle.incomingKind === 'add') {
-			return `${baseClass} !h-10 !w-10 !border-dashed !border-stone-400 !bg-white/98 shadow-[0_16px_28px_-18px_rgba(24,24,27,0.7)]`;
+			return `!h-7 !w-7 !border-2 !border-dashed !border-stone-400 !bg-white/95 !rounded-full shadow-[0_4px_12px_-4px_rgba(24,24,27,0.4)] ring-2 !ring-white/80 transition-transform hover:scale-110`;
 		}
-
-		return `${baseClass} ${style.handle}`;
+		return `!h-6 !w-6 !border-[3px] !rounded-full ${cfg.handle} ${cfg.handleRing} !ring-2 shadow-[0_4px_12px_-4px_rgba(24,24,27,0.45)] transition-transform hover:scale-110`;
 	}
 
 	let Icon = $derived(iconFor(data.kind));
-	let style = $derived(kindStyles[data.kind]);
+	let cfg = $derived(kindConfig[data.kind]);
 	let hasIncomingConnections = $derived(data.incomingCount > 0);
 </script>
 
-<div class="relative w-[280px] py-5">
-	<div
-		class={`pointer-events-none absolute inset-x-6 top-0 z-0 h-8 -translate-y-1/2 rounded-full border border-dashed ${
-			hasIncomingConnections
-				? 'border-stone-400/80 bg-white/85'
-				: 'border-stone-400/90 bg-white/96 shadow-[0_18px_30px_-24px_rgba(24,24,27,0.55)]'
-		}`}
-	></div>
+<div class="relative w-[272px] py-5">
+	<!-- Incoming drop zone indicator -->
 	{#if !hasIncomingConnections}
 		<div
-			class="pointer-events-none absolute inset-x-0 top-0 z-0 -translate-y-[180%] text-center text-[10px] font-semibold tracking-[0.18em] text-stone-500 uppercase"
+			class="pointer-events-none absolute inset-x-0 top-0 z-0 -translate-y-[200%] text-center text-[9px] font-semibold tracking-[0.2em] text-stone-400 uppercase"
 		>
-			Suelta aqui una conexion
+			Suelta aqui
 		</div>
 	{/if}
 
+	<!-- Incoming handles -->
 	{#each data.incomingHandles as handle, index (handle.id)}
 		{@const left = handleOffset(index, data.incomingHandles.length)}
 		<Handle
 			id={handle.id}
 			type="target"
 			position={Position.Top}
-			class={handleClass(handle)}
+			class={incomingHandleClass(handle)}
 			style={`left:${left};top:0;transform:translate(-50%,-50%);`}
 		/>
 		{#if handle.incomingKind === 'add'}
 			<div
-				class="pointer-events-none absolute z-10 flex h-10 w-10 items-center justify-center rounded-full border-[3px] border-dashed border-stone-400 bg-white/98 text-[18px] font-bold text-stone-500 ring-4 ring-white/90"
+				class="pointer-events-none absolute z-10 flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-bold text-stone-500"
 				style={`left:${left};top:0;transform:translate(-50%,-50%);`}
 			>
 				+
@@ -104,67 +110,65 @@
 		{/if}
 	{/each}
 
+	<!-- Node card -->
 	<article
-		class={`w-[280px] rounded-[28px] border px-4 py-4 shadow-[0_22px_40px_-24px_rgba(24,24,27,0.38)] transition-all ${style.surface} ${
+		class={`w-[272px] overflow-hidden rounded-2xl border border-stone-200/90 bg-white shadow-[0_8px_32px_-16px_rgba(24,24,27,0.28)] transition-all duration-150 ${
 			selected
-				? 'ring-primary-500/80 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-950'
-				: ''
+				? `${cfg.glow}`
+				: 'hover:shadow-[0_12px_36px_-16px_rgba(24,24,27,0.38)]'
 		}`}
 	>
-		<div class="flex items-start justify-between gap-3">
-			<div class={`rounded-2xl p-3 ring-1 ${style.accent}`}>
-				<Icon class="h-5 w-5" />
+		<!-- Header band -->
+		<div class={`flex items-center justify-between px-4 py-3 ${cfg.band}`}>
+			<div class={`flex items-center gap-2.5 ${cfg.bandText}`}>
+				<Icon class="h-4 w-4 shrink-0 opacity-90" />
+				<span class="text-[11px] font-bold tracking-[0.18em] uppercase opacity-90">{data.kindLabel}</span>
 			</div>
-			<div
-				class="flex flex-wrap justify-end gap-2 text-[11px] font-semibold tracking-[0.14em] uppercase"
-			>
-				<span class="rounded-full bg-white/90 px-2.5 py-1 text-stone-500 ring-1 ring-stone-200">
-					{data.kindLabel}
+			{#if data.isEntry}
+				<span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold tracking-[0.14em] text-white uppercase">
+					Entrada
 				</span>
-				{#if data.isEntry}
-					<span
-						class="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700 ring-1 ring-emerald-200"
-					>
-						Entrada
-					</span>
-				{/if}
-			</div>
+			{/if}
 		</div>
 
-		<div class="mt-4 space-y-2">
-			<h3 class="line-clamp-2 text-[15px] leading-5 font-semibold text-stone-900">
+		<!-- Body -->
+		<div class="px-4 py-3.5">
+			<h3 class="line-clamp-2 text-[14px] leading-[1.35] font-semibold text-stone-900">
 				{data.title}
 			</h3>
-			<p class="line-clamp-2 text-[13px] leading-5 text-stone-600">{data.summary}</p>
+			{#if data.summary}
+				<p class="mt-1.5 line-clamp-2 text-[12px] leading-[1.5] text-stone-500">{data.summary}</p>
+			{/if}
+
+			{#if data.kind === 'choice'}
+				<div class="mt-3 flex items-center gap-1.5 text-[11px] text-teal-700">
+					<GitBranch class="h-3 w-3 shrink-0" />
+					<span>Opciones en el inspector</span>
+				</div>
+			{/if}
 		</div>
 
-		<div class="mt-4 grid grid-cols-2 gap-3 text-xs text-stone-600">
-			<div class="rounded-2xl bg-white/80 px-3 py-2 ring-1 ring-stone-200/80">
-				<p class="text-[11px] font-semibold tracking-[0.14em] text-stone-500 uppercase">Entradas</p>
-				<p class="mt-1 text-base font-semibold text-stone-900">{data.incomingCount}</p>
+		<!-- Footer stats -->
+		<div class={`flex items-center gap-px px-4 py-2.5 ${cfg.footer}`}>
+			<div class="flex flex-1 items-center gap-1.5">
+				<span class="text-[10px] font-semibold tracking-[0.14em] text-stone-400 uppercase">In</span>
+				<span class="text-[13px] font-semibold text-stone-700">{data.incomingCount}</span>
 			</div>
-			<div class="rounded-2xl bg-white/80 px-3 py-2 ring-1 ring-stone-200/80">
-				<p class="text-[11px] font-semibold tracking-[0.14em] text-stone-500 uppercase">Salidas</p>
-				<p class="mt-1 text-base font-semibold text-stone-900">{data.outgoingCount}</p>
+			<div class="h-3 w-px bg-stone-200"></div>
+			<div class="flex flex-1 items-center justify-end gap-1.5">
+				<span class="text-[13px] font-semibold text-stone-700">{data.outgoingCount}</span>
+				<span class="text-[10px] font-semibold tracking-[0.14em] text-stone-400 uppercase">Out</span>
 			</div>
 		</div>
-
-		{#if data.kind === 'choice'}
-			<div
-				class="mt-4 flex items-center gap-2 rounded-2xl bg-teal-950/[0.035] px-3 py-2 text-xs text-teal-800 ring-1 ring-teal-200/80"
-			>
-				<GitBranch class="h-3.5 w-3.5" />
-				<span>Las opciones viven en el inspector lateral.</span>
-			</div>
-		{/if}
 	</article>
 
+	<!-- Outgoing handles -->
 	{#each data.outgoingHandles as handle, index (handle.id)}
 		<Handle
 			id={handle.id}
 			type="source"
 			position={Position.Bottom}
-			class={`h-6 w-6 border-[3px] shadow-[0_10px_22px_-16px_rgba(24,24,27,0.65)] ring-4 ring-white/90 transition-transform hover:scale-110 ${style.handle}`}
+			class={`!h-5 !w-5 !border-[3px] !rounded-full ${cfg.handle} ${cfg.handleRing} !ring-2 shadow-[0_4px_12px_-4px_rgba(24,24,27,0.5)] transition-transform hover:scale-125`}
 			style={`left:${handleOffset(index, data.outgoingHandles.length)};bottom:0;transform:translate(-50%,50%);`}
 		/>
 	{/each}
