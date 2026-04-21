@@ -469,6 +469,68 @@ test('extractAgentOutputs preserves auto-start semantics without counting hidden
 	assert.equal(outputs.autoStartOnEnter, true);
 });
 
+test('extractAgentOutputs counts UI responses as learner interaction in agent runtime', async () => {
+	const block: LessonAgentBlock = {
+		id: 'agent',
+		kind: 'agent',
+		title: 'Tutor',
+		body: 'Lanza un quiz',
+		next: 'end',
+		agentConfig: {
+			interactionMode: 'single_turn',
+			executionTrigger: 'on_user_submit',
+			autoStartOnEnter: true,
+			promptTemplate: 'Evalua y sigue',
+			maxTurns: null,
+			model: null,
+			systemPrompt: null,
+			outputSchema: []
+		}
+	};
+
+	const outputs = await (
+		LessonService as unknown as {
+			extractAgentOutputs(input: {
+				block: LessonAgentBlock;
+				modelName: string;
+				assistantMessage: string;
+				userMessage: string;
+				messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+				conversationStats?: {
+					userTurns: number;
+					assistantTurns: number;
+					uiResponseCount: number;
+					userInteractionCount: number;
+				};
+				currentOutputs: Record<string, unknown>;
+				autoStarted: boolean;
+				context: Record<string, unknown>;
+			}): Promise<Record<string, unknown>>;
+		}
+	).extractAgentOutputs({
+		block,
+		modelName: 'mock-model',
+		assistantMessage: 'Quiz completado',
+		userMessage: '',
+		messages: [{ role: 'assistant', content: '[ui:QuizCard] {"userResponse":{"score":1}}' }],
+		conversationStats: {
+			userTurns: 0,
+			assistantTurns: 1,
+			uiResponseCount: 1,
+			userInteractionCount: 1
+		},
+		currentOutputs: {},
+		autoStarted: true,
+		context: {}
+	});
+
+	assert.equal(outputs.hasUserResponse, true);
+	assert.equal(outputs.userTurnCount, 0);
+	assert.equal(outputs.uiResponseCount, 1);
+	assert.equal(outputs.userInteractionCount, 1);
+	assert.equal(outputs.assistantTurnCount, 1);
+});
+
 test('validateDefinition accepts future block references but rejects missing targets in templates', () => {
 	const validFutureReference: LessonDefinition = {
 		version: '2',

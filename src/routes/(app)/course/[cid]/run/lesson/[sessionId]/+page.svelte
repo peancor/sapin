@@ -79,7 +79,6 @@
 		data.resolvedCurrentBlock.kind === 'agent' ? data.resolvedCurrentBlock.agentConfig : null
 	);
 	const agentUsesRuntime = $derived(agentConfig?.runtimeMode === 'agent');
-	const agentUserTurnCount = $derived(agentRuntimeState.userTurnCount);
 	const agentHasGeneratedResponse = $derived(agentRuntimeState.hasGeneratedResponse);
 	const agentHasUserResponse = $derived(agentRuntimeState.hasUserResponse);
 	const agentApiEndpoint = $derived.by(() =>
@@ -93,7 +92,7 @@
 		agentConfig !== null &&
 			agentConfig.interactionMode !== 'none' &&
 			agentConfig.executionTrigger === 'on_user_submit' &&
-			(agentConfig.interactionMode !== 'single_turn' || agentUserTurnCount < 1)
+			(agentConfig.interactionMode !== 'single_turn' || !agentHasUserResponse)
 	);
 	const agentCanContinue = $derived(
 		data.currentBlock.kind === 'agent'

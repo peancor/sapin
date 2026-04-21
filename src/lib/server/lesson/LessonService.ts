@@ -185,6 +185,13 @@ interface PreparedLessonAgentExecution {
 	autoStarted: boolean;
 }
 
+interface AgentConversationStats {
+	userTurns: number;
+	assistantTurns: number;
+	uiResponseCount: number;
+	userInteractionCount: number;
+}
+
 function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
 	if (!value) return fallback;
 
@@ -911,10 +918,12 @@ export class LessonService {
 		}
 
 		if (view.currentBlock.kind === 'agent' && (view.currentBlock.requiresResponse ?? true)) {
-			const conversationStats = await this.getAgentConversationStats(
-				view.currentVisit?.chatId ?? view.currentBlockState?.chatId
-			);
-			if (conversationStats.userTurns === 0) {
+			const chatId = view.currentVisit?.chatId ?? view.currentBlockState?.chatId;
+			const conversationStats =
+				chatId && this.isAgentRuntimeEnabled(view.currentBlock.agentConfig)
+					? await this.getAgentRuntimeConversationStats(chatId)
+					: await this.getAgentConversationStats(chatId);
+			if (conversationStats.userInteractionCount === 0) {
 				throw new LessonServiceError(
 					400,
 					'Este bloque IA necesita al menos una intervención del alumno antes de continuar.'
@@ -1446,7 +1455,7 @@ export class LessonService {
 			chatId && this.isAgentRuntimeEnabled(view.currentBlock.agentConfig)
 				? await this.getAgentRuntimeConversationStats(chatId)
 				: await this.getAgentConversationStats(chatId);
-		if (conversationStats.userTurns >= 1) {
+		if (conversationStats.userInteractionCount >= 1) {
 			throw new LessonServiceError(
 				400,
 				'Este bloque de respuesta guiada ya consumió la única intervención del alumno. Pulsa continuar para seguir.'
@@ -1464,7 +1473,7 @@ export class LessonService {
 		const conversationStats = this.isAgentRuntimeEnabled(block.agentConfig)
 			? await this.getAgentRuntimeConversationStats(chatId)
 			: await this.getAgentConversationStats(chatId);
-		if (conversationStats.userTurns >= maxTurns) {
+		if (conversationStats.userInteractionCount >= maxTurns) {
 			throw new LessonServiceError(400, 'Este bloque ya alcanzó el máximo de turnos permitidos.');
 		}
 	}
@@ -2102,23 +2111,16 @@ export class LessonService {
 
 	private static async getAgentRuntimeConversationStats(
 		chatId: string
-	): Promise<{ userTurns: number; assistantTurns: number }> {
+	): Promise<AgentConversationStats> {
 		const displayMessages = await AgentTranscriptService.getDisplayMessages(chatId);
-
-		return displayMessages.reduce(
-			(stats, message) => {
-				if (message.role === 'user') stats.userTurns += 1;
-				if (message.role === 'assistant') stats.assistantTurns += 1;
-				return stats;
-			},
-			{ userTurns: 0, assistantTurns: 0 }
-		);
+		return this.countVisibleAgentConversationStats(displayMessages);
 	}
 
 	private static async buildAgentOutputMessagesFromTranscript(chatId: string): Promise<{
 		messages: ModelMessage[];
 		lastAssistantMessage: string;
 		lastUserMessage: string;
+		conversationStats: AgentConversationStats;
 	}> {
 		const displayMessages = await AgentTranscriptService.getDisplayMessages(chatId);
 		const messages: ModelMessage[] = [];
@@ -2143,7 +2145,12 @@ export class LessonService {
 			}
 		}
 
-		return { messages, lastAssistantMessage, lastUserMessage };
+		return {
+			messages,
+			lastAssistantMessage,
+			lastUserMessage,
+			conversationStats: this.countVisibleAgentConversationStats(displayMessages)
+		};
 	}
 
 	static async getLessonAgentRuntimeContext(input: {
@@ -2308,6 +2315,7 @@ export class LessonService {
 				transcriptPayload.lastAssistantMessage || String(currentOutputs.response ?? ''),
 			userMessage: transcriptPayload.lastUserMessage,
 			messages: transcriptPayload.messages,
+			conversationStats: transcriptPayload.conversationStats,
 			currentOutputs,
 			autoStarted:
 				Boolean(currentOutputs.autoStarted) ||
@@ -2345,6 +2353,7 @@ export class LessonService {
 		assistantMessage: string;
 		userMessage: string;
 		messages: ModelMessage[];
+		conversationStats?: AgentConversationStats;
 		currentOutputs: JsonRecord;
 		autoStarted: boolean;
 		context: {
@@ -2354,7 +2363,8 @@ export class LessonService {
 			chatId?: string;
 		};
 	}): Promise<JsonRecord> {
-		const conversationStats = this.countAgentConversationStats(input.messages);
+		const conversationStats =
+			input.conversationStats ?? this.countAgentConversationStats(input.messages);
 		const baseOutputs: JsonRecord = {
 			response: input.assistantMessage,
 			lastUserMessage:
@@ -2365,8 +2375,10 @@ export class LessonService {
 			interactionMode: input.block.agentConfig.interactionMode,
 			executionTrigger: input.block.agentConfig.executionTrigger,
 			autoStartOnEnter: input.block.agentConfig.autoStartOnEnter,
-			hasUserResponse: conversationStats.userTurns > 0,
+			hasUserResponse: conversationStats.userInteractionCount > 0,
 			userTurnCount: conversationStats.userTurns,
+			uiResponseCount: conversationStats.uiResponseCount,
+			userInteractionCount: conversationStats.userInteractionCount,
 			assistantTurnCount: conversationStats.assistantTurns,
 			autoStarted: Boolean(input.currentOutputs.autoStarted) || input.autoStarted
 		};
@@ -2762,7 +2774,9 @@ export class LessonService {
 			visibleHistory
 		]
 			.filter(Boolean)
-			.join('\n\n');
+			.join('\n\n')
+			.replace(/^/, '[[AUTO_START_LESSON_BLOCK\n')
+			.concat('\n]]');
 	}
 
 	private static async buildSessionHistoryBundle(
@@ -3249,25 +3263,57 @@ export class LessonService {
 		}));
 	}
 
-	private static countAgentConversationStats(messages: Array<Pick<ModelMessage, 'role'>>): {
-		userTurns: number;
-		assistantTurns: number;
-	} {
+	private static countAgentConversationStats(
+		messages: Array<Pick<ModelMessage, 'role'>>
+	): AgentConversationStats {
 		return messages.reduce(
 			(stats, message) => {
-				if (message.role === 'user') stats.userTurns += 1;
+				if (message.role === 'user') {
+					stats.userTurns += 1;
+					stats.userInteractionCount += 1;
+				}
 				if (message.role === 'assistant') stats.assistantTurns += 1;
 				return stats;
 			},
-			{ userTurns: 0, assistantTurns: 0 }
+			{ userTurns: 0, assistantTurns: 0, uiResponseCount: 0, userInteractionCount: 0 }
+		);
+	}
+
+	private static countVisibleAgentConversationStats(
+		messages: AgentDisplayMessage[]
+	): AgentConversationStats {
+		return messages.reduce(
+			(stats, message) => {
+				if (message.role === 'user') {
+					stats.userTurns += 1;
+					stats.userInteractionCount += 1;
+					return stats;
+				}
+
+				if (message.role !== 'assistant') {
+					return stats;
+				}
+
+				stats.assistantTurns += 1;
+
+				for (const part of message.parts) {
+					if (part.kind === 'ui-component' && part.userResponse) {
+						stats.uiResponseCount += 1;
+						stats.userInteractionCount += 1;
+					}
+				}
+
+				return stats;
+			},
+			{ userTurns: 0, assistantTurns: 0, uiResponseCount: 0, userInteractionCount: 0 }
 		);
 	}
 
 	private static async getAgentConversationStats(
 		chatId: string | null | undefined
-	): Promise<{ userTurns: number; assistantTurns: number }> {
+	): Promise<AgentConversationStats> {
 		if (!chatId) {
-			return { userTurns: 0, assistantTurns: 0 };
+			return { userTurns: 0, assistantTurns: 0, uiResponseCount: 0, userInteractionCount: 0 };
 		}
 
 		const messages = await this.loadModelMessages(chatId);
