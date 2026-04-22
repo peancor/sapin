@@ -55,6 +55,7 @@
 		ArrowLeft,
 		BookOpenText,
 		Bot,
+		Bug,
 		CircleCheck,
 		ChevronRight,
 		Eye,
@@ -214,6 +215,23 @@
 	});
 	const quickMenuItems = $derived.by(() => getQuickMenuItems());
 
+	function buildLessonDebuggerHref(blockId?: string) {
+		const params = new URLSearchParams({
+			mode: 'draft',
+			source: 'flow'
+		});
+
+		if (blockId) {
+			params.set('blockId', blockId);
+		}
+
+		return `${resolve(`/course/${cid}/admin/interactives/${ilid}/lesson-debug`)}?${params.toString()}`;
+	}
+
+	function openLessonDebugger(blockId?: string) {
+		window.location.href = buildLessonDebuggerHref(blockId);
+	}
+
 	$effect(() => {
 		if (form?.message) {
 			actionMessage = form.message;
@@ -256,22 +274,20 @@
 	}
 
 	function getSelectedAgentToolSummary(block: Extract<LessonBlock, { kind: 'agent' }>) {
-		const effectiveToolIds =
-			block.agentConfig.enabledToolIds?.length
-				? block.agentConfig.enabledToolIds.filter((toolId) =>
-						effectiveAllowedAgentToolIds.includes(toolId)
-					)
-				: effectiveAllowedAgentToolIds;
+		const effectiveToolIds = block.agentConfig.enabledToolIds?.length
+			? block.agentConfig.enabledToolIds.filter((toolId) =>
+					effectiveAllowedAgentToolIds.includes(toolId)
+				)
+			: effectiveAllowedAgentToolIds;
 		const metrics = getLessonAgentToolMetrics(
 			data.lessonAgentTools as LessonAgentToolPresentationItem[],
 			effectiveToolIds
 		);
 
 		return {
-			headline:
-				block.agentConfig.enabledToolIds?.length
-					? `Subconjunto propio: ${metrics.total}`
-					: 'Usa todas las permitidas por la lesson',
+			headline: block.agentConfig.enabledToolIds?.length
+				? `Subconjunto propio: ${metrics.total}`
+				: 'Usa todas las permitidas por la lesson',
 			detail: `${metrics.total} tools · ${metrics.interactive} UI · ${metrics.hitl} HITL${metrics.persistent ? ` · ${metrics.persistent} persistentes` : ''}`
 		};
 	}
@@ -681,6 +697,15 @@
 					'Salta a la ficha completa del bloque.',
 					{
 						keywords: ['detail', 'editor', 'open'],
+						tone: 'accent'
+					}
+				),
+				createQuickMenuItem(
+					'open-debugger',
+					'Probar desde aqui',
+					'Abre el debugger con este bloque seleccionado para validarlo al momento.',
+					{
+						keywords: ['debug', 'test', 'preview'],
 						tone: 'accent'
 					}
 				)
@@ -1330,6 +1355,11 @@
 			return;
 		}
 
+		if (actionId === 'open-debugger' && selectedBlock) {
+			openLessonDebugger(selectedBlock.id);
+			return;
+		}
+
 		if (actionId === 'add-branch') {
 			addBranchToSelectedBlock();
 			return;
@@ -1677,7 +1707,7 @@
 			</div>
 		</div>
 
-		<div class="grid gap-3 sm:grid-cols-3">
+		<div class="grid gap-3 sm:grid-cols-4">
 			<a
 				href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit`)}
 				class="inline-flex items-center justify-center rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm font-medium text-stone-700 shadow-sm hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-950/50 dark:text-stone-200 dark:hover:bg-stone-900"
@@ -1699,6 +1729,13 @@
 			>
 				<Eye class="mr-2 h-4 w-4" />
 				Preview publicado
+			</a>
+			<a
+				href={buildLessonDebuggerHref()}
+				class="inline-flex items-center justify-center rounded-2xl border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800 shadow-sm hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
+			>
+				<Bug class="mr-2 h-4 w-4" />
+				Abrir debugger
 			</a>
 		</div>
 
@@ -1858,31 +1895,45 @@
 						<div class="rounded-lg bg-amber-500/12 p-1.5 text-amber-700 dark:text-amber-300">
 							<LayoutTemplate class="h-3.5 w-3.5" />
 						</div>
-						<p class="text-[10px] font-semibold tracking-[0.22em] text-stone-400 uppercase dark:text-stone-500">
+						<p
+							class="text-[10px] font-semibold tracking-[0.22em] text-stone-400 uppercase dark:text-stone-500"
+						>
 							Lesson Studio
 						</p>
 					</div>
-					<div class="flex items-center gap-2.5 mt-0.5">
-						<h1 class="truncate max-w-[220px] text-sm font-semibold text-stone-900 dark:text-stone-100">{data.activity.name}</h1>
+					<div class="mt-0.5 flex items-center gap-2.5">
+						<h1
+							class="max-w-[220px] truncate text-sm font-semibold text-stone-900 dark:text-stone-100"
+						>
+							{data.activity.name}
+						</h1>
 
 						<!-- Status dot indicator -->
 						{#if actionError}
-							<span class="flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
+							<span
+								class="flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300"
+							>
 								<span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
 								{actionError}
 							</span>
 						{:else if actionMessage}
-							<span class="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
+							<span
+								class="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300"
+							>
 								<span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
 								{actionMessage}
 							</span>
 						{:else if hasUnsavedChanges}
-							<span class="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+							<span
+								class="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300"
+							>
 								<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500"></span>
 								Sin guardar
 							</span>
 						{:else}
-							<span class="flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-500">
+							<span
+								class="flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-500"
+							>
 								<span class="h-1.5 w-1.5 rounded-full bg-stone-400 dark:bg-stone-500"></span>
 								Sincronizado
 							</span>
@@ -1892,19 +1943,27 @@
 			</div>
 
 			<!-- Stats (compact, inline) -->
-			<div class="hidden items-center gap-1 2xl:flex mr-1">
-				<div class="rounded-lg border border-stone-200/80 bg-white/70 px-2.5 py-1.5 text-center dark:border-stone-700 dark:bg-stone-900/60">
+			<div class="mr-1 hidden items-center gap-1 2xl:flex">
+				<div
+					class="rounded-lg border border-stone-200/80 bg-white/70 px-2.5 py-1.5 text-center dark:border-stone-700 dark:bg-stone-900/60"
+				>
 					<p class="text-[9px] font-semibold tracking-[0.16em] text-stone-400 uppercase">Bloques</p>
-					<p class="text-sm font-bold text-stone-800 dark:text-stone-100 leading-none mt-0.5">{draftDefinition.blocks.length}</p>
+					<p class="mt-0.5 text-sm leading-none font-bold text-stone-800 dark:text-stone-100">
+						{draftDefinition.blocks.length}
+					</p>
 				</div>
-				<div class="rounded-lg border border-stone-200/80 bg-white/70 px-2.5 py-1.5 text-center dark:border-stone-700 dark:bg-stone-900/60">
+				<div
+					class="rounded-lg border border-stone-200/80 bg-white/70 px-2.5 py-1.5 text-center dark:border-stone-700 dark:bg-stone-900/60"
+				>
 					<p class="text-[9px] font-semibold tracking-[0.16em] text-stone-400 uppercase">Rutas</p>
-					<p class="text-sm font-bold text-stone-800 dark:text-stone-100 leading-none mt-0.5">{flowEdges.length}</p>
+					<p class="mt-0.5 text-sm leading-none font-bold text-stone-800 dark:text-stone-100">
+						{flowEdges.length}
+					</p>
 				</div>
 			</div>
 
 			<!-- Separator -->
-			<div class="hidden h-7 w-px bg-stone-300/70 dark:bg-stone-700/70 2xl:block"></div>
+			<div class="hidden h-7 w-px bg-stone-300/70 2xl:block dark:bg-stone-700/70"></div>
 
 			<!-- Preview group -->
 			<div class="flex items-center gap-1">
@@ -1927,6 +1986,16 @@
 				>
 					<Eye class="h-3.5 w-3.5" />
 					<span class="hidden sm:inline">Borrador</span>
+				</a>
+				<a
+					href={buildLessonDebuggerHref(selectedBlock?.id)}
+					title={selectedBlock
+						? `Abrir debugger en ${selectedBlock.title}`
+						: 'Abrir lesson debugger'}
+					class="inline-flex items-center gap-1.5 rounded-xl border border-sky-300 bg-sky-50 px-2.5 py-2 text-[11px] font-semibold text-sky-800 shadow-sm transition hover:bg-sky-100 active:scale-95 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
+				>
+					<Bug class="h-3.5 w-3.5" />
+					<span class="hidden sm:inline">Debugger</span>
 				</a>
 				<a
 					href={resolve(`/course/${cid}/admin/interactives/${ilid}`)}
@@ -2002,10 +2071,14 @@
 			<!-- Create buttons (icon-only, colored by type) -->
 			{#each createButtons as button (button.kind)}
 				{@const railColors = {
-					content: 'bg-amber-100 text-amber-700 hover:bg-amber-200/80 border-amber-200/80 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/40 dark:hover:bg-amber-950/50',
-					choice: 'bg-teal-100 text-teal-700 hover:bg-teal-200/80 border-teal-200/80 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/40 dark:hover:bg-teal-950/50',
-					check: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200/80 border-emerald-200/80 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40 dark:hover:bg-emerald-950/50',
-					agent: 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200/80 border-indigo-200/80 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-900/40 dark:hover:bg-indigo-950/50',
+					content:
+						'bg-amber-100 text-amber-700 hover:bg-amber-200/80 border-amber-200/80 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/40 dark:hover:bg-amber-950/50',
+					choice:
+						'bg-teal-100 text-teal-700 hover:bg-teal-200/80 border-teal-200/80 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/40 dark:hover:bg-teal-950/50',
+					check:
+						'bg-emerald-100 text-emerald-700 hover:bg-emerald-200/80 border-emerald-200/80 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40 dark:hover:bg-emerald-950/50',
+					agent:
+						'bg-indigo-100 text-indigo-700 hover:bg-indigo-200/80 border-indigo-200/80 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-900/40 dark:hover:bg-indigo-950/50',
 					end: 'bg-rose-100 text-rose-700 hover:bg-rose-200/80 border-rose-200/80 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40 dark:hover:bg-rose-950/50'
 				}[button.kind]}
 				<button
@@ -2036,7 +2109,7 @@
 
 			<!-- Legend dots (mt-auto to push to bottom) -->
 			<div class="mt-auto flex flex-col items-center gap-1.5 pb-1">
-				<div class="h-px w-6 bg-stone-300/60 dark:bg-stone-700/60 mb-1"></div>
+				<div class="mb-1 h-px w-6 bg-stone-300/60 dark:bg-stone-700/60"></div>
 				<span class="h-2.5 w-2.5 rounded-full bg-amber-500" title="Contenido"></span>
 				<span class="h-2.5 w-2.5 rounded-full bg-teal-500" title="Decisión"></span>
 				<span class="h-2.5 w-2.5 rounded-full bg-emerald-500" title="Evaluación"></span>
@@ -2064,7 +2137,10 @@
 						<div
 							class="rounded-full border border-stone-200/70 bg-white/80 px-2.5 py-1 text-[10px] font-medium text-stone-500 shadow-sm backdrop-blur-sm dark:border-white/8 dark:bg-stone-900/80 dark:text-stone-400"
 						>
-							<kbd class="font-mono text-[9px]">Shift+A</kbd> añadir · <kbd class="font-mono text-[9px]">F2</kbd> renombrar · <kbd class="font-mono text-[9px]">⌘D</kbd> duplicar · <kbd class="font-mono text-[9px]">Home</kbd> centrar
+							<kbd class="font-mono text-[9px]">Shift+A</kbd> añadir ·
+							<kbd class="font-mono text-[9px]">F2</kbd>
+							renombrar · <kbd class="font-mono text-[9px]">⌘D</kbd> duplicar ·
+							<kbd class="font-mono text-[9px]">Home</kbd> centrar
 						</div>
 						{#if selection?.kind === 'node' && selectedBlock}
 							<div
@@ -2184,7 +2260,9 @@
 				<div class="shrink-0 border-b border-stone-300/60 px-4 py-3.5 dark:border-stone-800">
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0 flex-1">
-							<p class="text-[9px] font-bold tracking-[0.26em] text-stone-400 uppercase dark:text-stone-500">
+							<p
+								class="text-[9px] font-bold tracking-[0.26em] text-stone-400 uppercase dark:text-stone-500"
+							>
 								Inspector
 							</p>
 							{#if selectedBlock && isRenamingSelectedBlock}
@@ -2235,23 +2313,35 @@
 				</div>
 
 				<div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-				{#if selectedBlock}
+					{#if selectedBlock}
 						<div class="space-y-4">
 							<!-- ID row + entry badge -->
-							<div class="flex items-center justify-between gap-2 rounded-xl border border-stone-200/80 bg-white/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-950/20">
+							<div
+								class="flex items-center justify-between gap-2 rounded-xl border border-stone-200/80 bg-white/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-950/20"
+							>
 								<div>
-									<p class="text-[9px] font-bold tracking-[0.18em] text-stone-400 uppercase dark:text-stone-500">ID técnico</p>
-									<p class="mt-0.5 font-mono text-xs text-stone-600 dark:text-stone-300">{selectedBlock.id}</p>
+									<p
+										class="text-[9px] font-bold tracking-[0.18em] text-stone-400 uppercase dark:text-stone-500"
+									>
+										ID técnico
+									</p>
+									<p class="mt-0.5 font-mono text-xs text-stone-600 dark:text-stone-300">
+										{selectedBlock.id}
+									</p>
 								</div>
 								{#if draftDefinition.entryBlockId === selectedBlock.id}
-									<span class="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+									<span
+										class="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+									>
 										Entrada
 									</span>
 								{/if}
 							</div>
 
-						<label class="block">
-								<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300">Título</span>
+							<label class="block">
+								<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									>Título</span
+								>
 								<input
 									class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition placeholder:text-stone-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600 dark:focus:ring-amber-900/40"
 									value={selectedBlock.title}
@@ -2263,8 +2353,14 @@
 							</label>
 
 							<div class="grid grid-cols-2 gap-2">
-								<div class="rounded-xl border border-stone-200/80 bg-white/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-950/20">
-									<p class="text-[9px] font-bold tracking-[0.16em] text-stone-400 uppercase dark:text-stone-500">Tipo</p>
+								<div
+									class="rounded-xl border border-stone-200/80 bg-white/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-950/20"
+								>
+									<p
+										class="text-[9px] font-bold tracking-[0.16em] text-stone-400 uppercase dark:text-stone-500"
+									>
+										Tipo
+									</p>
 									<p class="mt-0.5 text-xs font-semibold text-stone-800 dark:text-white">
 										{selectedBlock.kind === 'content'
 											? 'Contenido'
@@ -2277,8 +2373,14 @@
 														: 'Final'}
 									</p>
 								</div>
-								<div class="rounded-xl border border-stone-200/80 bg-white/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-950/20">
-									<p class="text-[9px] font-bold tracking-[0.16em] text-stone-400 uppercase dark:text-stone-500">Posición</p>
+								<div
+									class="rounded-xl border border-stone-200/80 bg-white/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-950/20"
+								>
+									<p
+										class="text-[9px] font-bold tracking-[0.16em] text-stone-400 uppercase dark:text-stone-500"
+									>
+										Posición
+									</p>
 									<p class="mt-0.5 text-xs font-semibold text-stone-800 dark:text-white">
 										{Math.round(selectedBlock.graph?.position?.x ?? 0)},
 										{Math.round(selectedBlock.graph?.position?.y ?? 0)}
@@ -2299,7 +2401,8 @@
 
 							{#if selectedBlock.kind === 'content'}
 								<label class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Texto del botón</span
 									>
 									<input
@@ -2314,7 +2417,8 @@
 								</label>
 
 								<label class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Siguiente bloque</span
 									>
 									<select
@@ -2360,7 +2464,8 @@
 								</div>
 							{:else if selectedBlock.kind === 'choice'}
 								<label class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Clave de salida</span
 									>
 									<input
@@ -2397,7 +2502,8 @@
 								</div>
 							{:else if selectedBlock.kind === 'check'}
 								<div class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Modo</span
 									>
 									<p
@@ -2409,7 +2515,8 @@
 
 								<div class="grid gap-4 md:grid-cols-2">
 									<label class="block">
-										<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+										<span
+											class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 											>Botón continuar</span
 										>
 										<input
@@ -2426,7 +2533,8 @@
 									</label>
 
 									<label class="block">
-										<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+										<span
+											class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 											>Siguiente bloque</span
 										>
 										<select
@@ -2473,7 +2581,8 @@
 								</div>
 							{:else if selectedBlock.kind === 'agent'}
 								<label class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Runtime</span
 									>
 									<select
@@ -2490,7 +2599,8 @@
 								</label>
 
 								<label class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Modelo</span
 									>
 									<select
@@ -2552,7 +2662,8 @@
 								{/if}
 
 								<label class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Modo de interacción</span
 									>
 									<select
@@ -2571,7 +2682,8 @@
 								</label>
 
 								<label class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Disparo</span
 									>
 									<select
@@ -2593,7 +2705,8 @@
 
 								<div class="grid gap-4 md:grid-cols-2">
 									<label class="block">
-										<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+										<span
+											class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 											>Botón continuar</span
 										>
 										<input
@@ -2645,7 +2758,8 @@
 								</div>
 
 								<label class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Siguiente bloque</span
 									>
 									<select
@@ -2691,7 +2805,8 @@
 								</div>
 							{:else if selectedBlock.kind === 'end'}
 								<label class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Texto CTA</span
 									>
 									<input
@@ -2715,6 +2830,14 @@
 								>
 									<SquarePen class="h-4 w-4" />
 									Editar bloque en detalle
+								</a>
+
+								<a
+									href={buildLessonDebuggerHref(selectedBlock.id)}
+									class="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm font-semibold text-sky-800 shadow-sm transition hover:bg-sky-100 active:scale-95 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
+								>
+									<Bug class="h-4 w-4" />
+									Probar en debugger
 								</a>
 
 								<button
@@ -2766,7 +2889,8 @@
 
 							{#if selectedEdge.data?.edgeType === 'branch' && selectedEdge.data.branchIndex !== undefined}
 								<label class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Etiqueta</span
 									>
 									<input
@@ -2793,7 +2917,8 @@
 
 								<div class="grid gap-4 md:grid-cols-2">
 									<label class="block">
-										<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+										<span
+											class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 											>Variable origen</span
 										>
 										<input
@@ -2824,7 +2949,8 @@
 									</label>
 
 									<label class="block">
-										<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+										<span
+											class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 											>Operador</span
 										>
 										<select
@@ -2861,7 +2987,8 @@
 								</div>
 
 								<label class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Valor esperado</span
 									>
 									<input
@@ -2903,7 +3030,8 @@
 								</button>
 							{:else if selectedEdge.data?.edgeType === 'choice-option'}
 								<label class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Etiqueta visible</span
 									>
 									<input
@@ -2925,7 +3053,8 @@
 								</label>
 
 								<label class="block">
-									<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
 										>Valor</span
 									>
 									<input
@@ -2974,17 +3103,36 @@
 						</div>
 					{:else}
 						<div class="flex flex-col items-center justify-center py-12 text-center">
-							<div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-100/80 text-stone-400 dark:bg-stone-800/60 dark:text-stone-500">
+							<div
+								class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-100/80 text-stone-400 dark:bg-stone-800/60 dark:text-stone-500"
+							>
 								<LayoutTemplate class="h-6 w-6" />
 							</div>
 							<p class="text-sm font-semibold text-stone-700 dark:text-stone-200">Sin selección</p>
 							<p class="mt-2 max-w-[220px] text-xs leading-5 text-stone-400 dark:text-stone-500">
 								Haz clic en un bloque o una conexión para editarla aquí.
 							</p>
-							<div class="mt-5 flex flex-col gap-1.5 text-[10px] text-stone-400 dark:text-stone-500">
-								<span class="flex items-center gap-2"><kbd class="rounded bg-stone-200/80 px-1.5 py-0.5 font-mono text-[9px] dark:bg-stone-800">Shift+A</kbd> Añadir bloque</span>
-								<span class="flex items-center gap-2"><kbd class="rounded bg-stone-200/80 px-1.5 py-0.5 font-mono text-[9px] dark:bg-stone-800">F2</kbd> Renombrar selección</span>
-								<span class="flex items-center gap-2"><kbd class="rounded bg-stone-200/80 px-1.5 py-0.5 font-mono text-[9px] dark:bg-stone-800">Home</kbd> Centrar vista</span>
+							<div
+								class="mt-5 flex flex-col gap-1.5 text-[10px] text-stone-400 dark:text-stone-500"
+							>
+								<span class="flex items-center gap-2"
+									><kbd
+										class="rounded bg-stone-200/80 px-1.5 py-0.5 font-mono text-[9px] dark:bg-stone-800"
+										>Shift+A</kbd
+									> Añadir bloque</span
+								>
+								<span class="flex items-center gap-2"
+									><kbd
+										class="rounded bg-stone-200/80 px-1.5 py-0.5 font-mono text-[9px] dark:bg-stone-800"
+										>F2</kbd
+									> Renombrar selección</span
+								>
+								<span class="flex items-center gap-2"
+									><kbd
+										class="rounded bg-stone-200/80 px-1.5 py-0.5 font-mono text-[9px] dark:bg-stone-800"
+										>Home</kbd
+									> Centrar vista</span
+								>
 							</div>
 						</div>
 					{/if}
