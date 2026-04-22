@@ -24,16 +24,19 @@
 
 	type InspectorTab = 'definition' | 'resolved' | 'state' | 'transitions' | 'agent' | 'events';
 	type DebuggerView = 'student' | 'debug';
-	type HrefKey = 'mode' | 'sessionId' | 'blockId' | 'tab' | 'view' | 'source';
+	type HrefKey = 'mode' | 'sessionId' | 'blockId' | 'tab' | 'view' | 'source' | 'intent' | 'fresh';
 
 	let { data }: PageProps = $props();
 	let pendingAction = $state<string | null>(null);
+	let launchActionPending = $state(false);
+	let handledLaunchKey = $state('');
 	let actionError = $state('');
 	let activeTab = $state<InspectorTab>(
 		(page.url.searchParams.get('tab') as InspectorTab | null) ?? 'definition'
 	);
 
 	const snapshot = $derived.by(() => data.snapshot);
+	const isBusy = $derived.by(() => pendingAction !== null || launchActionPending);
 	const activeView = $derived.by<DebuggerView>(() =>
 		page.url.searchParams.get('view') === 'debug' ? 'debug' : 'student'
 	);
@@ -54,6 +57,13 @@
 		() => snapshot.sessionOptions.find((session) => session.isSelected) ?? null
 	);
 	const selectedSessionId = $derived.by(() => selectedSession?.id ?? '');
+	const launchIntent = $derived.by(() => page.url.searchParams.get('intent'));
+	const shouldRunFromBlock = $derived.by(() => launchIntent === 'run');
+	const shouldForceFreshSession = $derived.by(() => page.url.searchParams.get('fresh') === '1');
+	const launchKey = $derived.by(() => {
+		if (!shouldRunFromBlock || !snapshot.selectedBlockId) return '';
+		return `${snapshot.previewMode}:${snapshot.selectedBlockId}:${page.url.search}`;
+	});
 	const selectedBlockSummary = $derived.by(
 		() =>
 			snapshot.blockSummaries.find((summary) => summary.blockId === snapshot.selectedBlockId) ??
@@ -128,6 +138,20 @@
 		activeTab = 'definition';
 	});
 
+	$effect(() => {
+		if (
+			!shouldRunFromBlock ||
+			!launchKey ||
+			launchActionPending ||
+			handledLaunchKey === launchKey
+		) {
+			return;
+		}
+
+		handledLaunchKey = launchKey;
+		void runFromSelectedBlock();
+	});
+
 	function buildHref(changes: Partial<Record<HrefKey, string | null>>): string {
 		const params = new URLSearchParams(page.url.search);
 
@@ -189,6 +213,61 @@
 			actionError = error instanceof Error ? error.message : 'La operación no se pudo completar';
 		} finally {
 			pendingAction = null;
+		}
+	}
+
+	async function runFromSelectedBlock() {
+		if (!snapshot.selectedBlockId) return;
+
+		launchActionPending = true;
+		actionError = '';
+
+		try {
+			let sessionId = selectedSessionId;
+
+			if (shouldForceFreshSession || !sessionId) {
+				const sessionResult = await postJson(
+					`/api/lesson/${page.params.ilid}/preview/session/debug/select-or-create`,
+					{
+						courseId: page.params.cid,
+						previewMode: snapshot.previewMode,
+						forceNew: true
+					}
+				);
+				sessionId = sessionResult.sessionId ?? '';
+			}
+
+			if (!sessionId) {
+				throw new Error('No se pudo preparar una sesión preview para esta prueba');
+			}
+
+			await postJson(`/api/lesson/${page.params.ilid}/preview/session/${sessionId}/debug/jump`, {
+				courseId: page.params.cid,
+				blockId: snapshot.selectedBlockId
+			});
+
+			await goto(
+				buildHref({
+					sessionId,
+					blockId: snapshot.selectedBlockId,
+					intent: null,
+					fresh: null,
+					view: 'student'
+				}),
+				{
+					invalidateAll: true,
+					replaceState: true,
+					keepFocus: true,
+					noScroll: true
+				}
+			);
+		} catch (error) {
+			actionError =
+				error instanceof Error
+					? error.message
+					: 'No se pudo abrir una preview limpia desde este bloque';
+		} finally {
+			launchActionPending = false;
 		}
 	}
 
@@ -314,7 +393,7 @@
 							: 'border-slate-200 bg-white text-slate-700 hover:border-sky-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
 					}`}
 					onclick={() => switchPreviewMode('draft')}
-					disabled={pendingAction !== null}
+					disabled={isBusy}
 				>
 					Draft
 				</button>
@@ -326,7 +405,7 @@
 							: 'border-slate-200 bg-white text-slate-700 hover:border-sky-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
 					}`}
 					onclick={() => switchPreviewMode('published')}
-					disabled={pendingAction !== null}
+					disabled={isBusy}
 				>
 					Published
 				</button>
@@ -342,7 +421,7 @@
 					class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
 					value={selectedSessionId}
 					onchange={(event) => selectSession((event.currentTarget as HTMLSelectElement).value)}
-					disabled={pendingAction !== null}
+					disabled={isBusy}
 				>
 					{#each snapshot.sessionOptions as session (session.id)}
 						<option value={session.id}>
@@ -359,7 +438,7 @@
 					type="button"
 					class="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-700 disabled:opacity-50 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
 					onclick={createPreviewSession}
-					disabled={pendingAction !== null}
+					disabled={isBusy}
 				>
 					<Play class="h-4 w-4" />
 					Nueva sesión preview
@@ -368,7 +447,7 @@
 					type="button"
 					class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
 					onclick={resetPreviewSession}
-					disabled={!selectedSessionId || pendingAction !== null}
+					disabled={!selectedSessionId || isBusy}
 				>
 					<RefreshCcw class="h-4 w-4" />
 					Reiniciar sesión
@@ -381,7 +460,7 @@
 							snapshot.blockSummaries.find((block) => block.isEntry)?.blockId ??
 								snapshot.currentBlockId
 						)}
-					disabled={pendingAction !== null}
+					disabled={isBusy}
 				>
 					<Flag class="h-4 w-4" />
 					Ir al entry block
@@ -391,7 +470,7 @@
 						type="button"
 						class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
 						onclick={() => jumpToBlock(snapshot.selectedBlockId)}
-						disabled={pendingAction !== null}
+						disabled={isBusy}
 					>
 						<ArrowRightCircle class="h-4 w-4" />
 						Saltar a este bloque
@@ -846,6 +925,14 @@
 	</div>
 
 	<div class="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+		{#if launchActionPending}
+			<div
+				class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-200"
+			>
+				Preparando una sesión preview limpia y saltando al bloque seleccionado...
+			</div>
+		{/if}
+
 		{#if actionError}
 			<div
 				class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-200"
@@ -923,7 +1010,7 @@
 								type="button"
 								class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
 								onclick={() => jumpToBlock(snapshot.selectedBlockId)}
-								disabled={pendingAction !== null}
+								disabled={isBusy}
 							>
 								<ArrowRightCircle class="h-4 w-4" />
 								Saltar a este bloque

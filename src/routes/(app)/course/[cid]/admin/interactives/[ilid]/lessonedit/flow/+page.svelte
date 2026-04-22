@@ -215,21 +215,43 @@
 	});
 	const quickMenuItems = $derived.by(() => getQuickMenuItems());
 
-	function buildLessonDebuggerHref(blockId?: string) {
+	function buildLessonDebuggerHref(options?: {
+		blockId?: string;
+		view?: 'student' | 'debug';
+		intent?: 'inspect' | 'run';
+		fresh?: boolean;
+	}) {
 		const params = new URLSearchParams({
 			mode: 'draft',
 			source: 'flow'
 		});
 
-		if (blockId) {
-			params.set('blockId', blockId);
+		if (options?.blockId) {
+			params.set('blockId', options.blockId);
+		}
+
+		if (options?.view) {
+			params.set('view', options.view);
+		}
+
+		if (options?.intent) {
+			params.set('intent', options.intent);
+		}
+
+		if (options?.fresh) {
+			params.set('fresh', '1');
 		}
 
 		return `${resolve(`/course/${cid}/admin/interactives/${ilid}/lesson-debug`)}?${params.toString()}`;
 	}
 
-	function openLessonDebugger(blockId?: string) {
-		window.location.href = buildLessonDebuggerHref(blockId);
+	function openLessonDebugger(options?: {
+		blockId?: string;
+		view?: 'student' | 'debug';
+		intent?: 'inspect' | 'run';
+		fresh?: boolean;
+	}) {
+		window.location.href = buildLessonDebuggerHref(options);
 	}
 
 	$effect(() => {
@@ -702,10 +724,19 @@
 				),
 				createQuickMenuItem(
 					'open-debugger',
-					'Probar desde aqui',
-					'Abre el debugger con este bloque seleccionado para validarlo al momento.',
+					'Inspeccionar en debugger',
+					'Abre el debugger técnico con este bloque seleccionado, sin tocar la sesión activa.',
 					{
-						keywords: ['debug', 'test', 'preview'],
+						keywords: ['debug', 'inspect', 'preview'],
+						tone: 'accent'
+					}
+				),
+				createQuickMenuItem(
+					'run-from-node',
+					'Probar desde aqui',
+					'Crea una preview limpia, salta a este bloque y abre la vista alumno para validarlo.',
+					{
+						keywords: ['debug', 'test', 'run', 'preview'],
 						tone: 'accent'
 					}
 				)
@@ -1356,7 +1387,21 @@
 		}
 
 		if (actionId === 'open-debugger' && selectedBlock) {
-			openLessonDebugger(selectedBlock.id);
+			openLessonDebugger({
+				blockId: selectedBlock.id,
+				view: 'debug',
+				intent: 'inspect'
+			});
+			return;
+		}
+
+		if (actionId === 'run-from-node' && selectedBlock) {
+			openLessonDebugger({
+				blockId: selectedBlock.id,
+				view: 'student',
+				intent: 'run',
+				fresh: true
+			});
 			return;
 		}
 
@@ -1731,7 +1776,7 @@
 				Preview publicado
 			</a>
 			<a
-				href={buildLessonDebuggerHref()}
+				href={buildLessonDebuggerHref({ view: 'debug', intent: 'inspect' })}
 				class="inline-flex items-center justify-center rounded-2xl border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800 shadow-sm hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
 			>
 				<Bug class="mr-2 h-4 w-4" />
@@ -1988,7 +2033,11 @@
 					<span class="hidden sm:inline">Borrador</span>
 				</a>
 				<a
-					href={buildLessonDebuggerHref(selectedBlock?.id)}
+					href={buildLessonDebuggerHref({
+						blockId: selectedBlock?.id,
+						view: 'debug',
+						intent: 'inspect'
+					})}
 					title={selectedBlock
 						? `Abrir debugger en ${selectedBlock.title}`
 						: 'Abrir lesson debugger'}
@@ -2833,11 +2882,28 @@
 								</a>
 
 								<a
-									href={buildLessonDebuggerHref(selectedBlock.id)}
+									href={buildLessonDebuggerHref({
+										blockId: selectedBlock.id,
+										view: 'debug',
+										intent: 'inspect'
+									})}
 									class="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm font-semibold text-sky-800 shadow-sm transition hover:bg-sky-100 active:scale-95 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
 								>
 									<Bug class="h-4 w-4" />
-									Probar en debugger
+									Inspeccionar en debugger
+								</a>
+
+								<a
+									href={buildLessonDebuggerHref({
+										blockId: selectedBlock.id,
+										view: 'student',
+										intent: 'run',
+										fresh: true
+									})}
+									class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 active:scale-95 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+								>
+									<Eye class="h-4 w-4" />
+									Probar desde aquí
 								</a>
 
 								<button
