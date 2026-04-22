@@ -617,6 +617,262 @@ export class LessonService {
 		});
 	}
 
+	static async selectOrCreatePreviewSession(input: {
+		interactiveLearningId: string;
+		userId: string;
+		userRoleLevel: number;
+		previewMode: 'published' | 'draft';
+		courseId?: string | null;
+		sessionId?: string | null;
+		forceNew?: boolean;
+	}): Promise<InteractiveLessonSession> {
+		const access = await InteractiveChatAuthUtils.userCanAccessInteractiveActivity(
+			input.userId,
+			input.interactiveLearningId,
+			input.userRoleLevel
+		);
+
+		if (!access.allowed) {
+			throw new LessonServiceError(403, access.reason || 'No tienes acceso a esta lesson.');
+		}
+
+		const revisionState = await LessonRevisionService.ensureLessonRevisionState(
+			input.interactiveLearningId,
+			{
+				actorUserId: input.userId
+			}
+		);
+		const courseId = await this.resolveCourseId(
+			input.interactiveLearningId,
+			input.courseId ?? access.courseId
+		);
+		const scope =
+			input.previewMode === 'draft'
+				? lessonSessionScope.PREVIEW_DRAFT
+				: lessonSessionScope.PREVIEW_PUBLISHED;
+		const targetRevision =
+			scope === lessonSessionScope.PREVIEW_DRAFT
+				? revisionState.draftRevision
+				: revisionState.publishedRevision;
+		const targetDefinition =
+			scope === lessonSessionScope.PREVIEW_DRAFT
+				? revisionState.draftDefinition
+				: revisionState.publishedDefinition;
+
+		if (input.sessionId && !input.forceNew) {
+			const requestedSession = await db
+				.select()
+				.from(interactiveLessonSession)
+				.where(eq(interactiveLessonSession.id, input.sessionId))
+				.get();
+
+			if (
+				requestedSession &&
+				requestedSession.interactiveLearningId === input.interactiveLearningId &&
+				requestedSession.userId === input.userId &&
+				requestedSession.courseId === courseId &&
+				requestedSession.scope === scope &&
+				requestedSession.definitionRevisionId === targetRevision.id &&
+				requestedSession.status !== lessonAttemptStatus.RESTARTED &&
+				requestedSession.status !== lessonAttemptStatus.ABANDONED
+			) {
+				return requestedSession;
+			}
+		}
+
+		if (!input.forceNew) {
+			const latestSession = await db
+				.select()
+				.from(interactiveLessonSession)
+				.where(
+					and(
+						eq(interactiveLessonSession.interactiveLearningId, input.interactiveLearningId),
+						eq(interactiveLessonSession.userId, input.userId),
+						eq(interactiveLessonSession.courseId, courseId),
+						eq(interactiveLessonSession.scope, scope),
+						eq(interactiveLessonSession.definitionRevisionId, targetRevision.id)
+					)
+				)
+				.orderBy(
+					desc(interactiveLessonSession.attemptNumber),
+					desc(interactiveLessonSession.createdAt)
+				)
+				.get();
+
+			if (
+				latestSession &&
+				latestSession.status !== lessonAttemptStatus.RESTARTED &&
+				latestSession.status !== lessonAttemptStatus.ABANDONED
+			) {
+				return latestSession;
+			}
+		}
+
+		return this.createSession({
+			interactiveLearningId: input.interactiveLearningId,
+			userId: input.userId,
+			courseId,
+			scope,
+			bindingStatus: lessonDefinitionBindingStatus.EXACT,
+			revision: targetRevision,
+			entryBlockId: targetDefinition.entryBlockId
+		});
+	}
+
+	static async resetPreviewSession(input: {
+		sessionId: string;
+		userId: string;
+		userRoleLevel: number;
+		interactiveLearningId?: string;
+	}): Promise<InteractiveLessonSession> {
+		const view = await this.getSessionView({
+			...input,
+			skipAutoAgentExecution: true
+		});
+		this.assertPreviewDebugScope(view.session.scope);
+
+		if (view.currentVisit && view.session.status !== lessonAttemptStatus.COMPLETED) {
+			await this.updateBlockVisit({
+				visitId: view.currentVisit.id,
+				status: lessonBlockVisitStatus.ABANDONED,
+				completedAt: new Date()
+			});
+
+			if (view.currentBlockState) {
+				await this.upsertBlockState({
+					sessionId: view.session.id,
+					blockId: view.currentBlock.id,
+					status: lessonBlockStateStatus.SKIPPED,
+					outputs: normalizeOutputs(view.currentBlockState.outputsJson),
+					lastChoiceValue: view.currentBlockState.lastChoiceValue ?? undefined,
+					chatId: view.currentBlockState.chatId ?? undefined,
+					lastVisitId: view.currentVisit.id,
+					completedAt: new Date()
+				});
+			}
+		}
+
+		await db
+			.update(interactiveLessonSession)
+			.set({
+				status: lessonAttemptStatus.RESTARTED,
+				currentVisitId: null,
+				lastActiveAt: new Date(),
+				updatedAt: new Date()
+			})
+			.where(eq(interactiveLessonSession.id, view.session.id));
+
+		const newSession = await this.createSession({
+			interactiveLearningId: view.activity.id,
+			userId: view.session.userId,
+			courseId: view.session.courseId,
+			scope: view.session.scope,
+			bindingStatus: lessonDefinitionBindingStatus.EXACT,
+			revision: view.revision,
+			entryBlockId: view.definition.entryBlockId
+		});
+
+		await this.logEvent({
+			interactiveLearningId: view.activity.id,
+			sessionId: newSession.id,
+			userId: view.session.userId,
+			courseId: view.session.courseId,
+			visitId: newSession.currentVisitId,
+			blockId: view.definition.entryBlockId,
+			eventType: lessonEventType.SESSION_RESTARTED,
+			payload: {
+				restartedFromSessionId: view.session.id,
+				attemptNumber: newSession.attemptNumber,
+				debugReset: true
+			}
+		});
+
+		return newSession;
+	}
+
+	static async jumpPreviewSessionToBlock(input: {
+		sessionId: string;
+		blockId: string;
+		userId: string;
+		userRoleLevel: number;
+		interactiveLearningId?: string;
+	}): Promise<InteractiveLessonSession> {
+		const view = await this.getSessionView({
+			...input,
+			skipAutoAgentExecution: true
+		});
+		this.assertPreviewDebugScope(view.session.scope);
+
+		if (!view.definition.blocks.some((block) => block.id === input.blockId)) {
+			throw new LessonServiceError(404, `El bloque "${input.blockId}" no existe.`);
+		}
+
+		if (view.session.currentBlockId === input.blockId && view.session.status !== lessonAttemptStatus.COMPLETED) {
+			return view.session;
+		}
+
+		const now = new Date();
+		if (
+			view.currentVisit &&
+			view.currentVisit.status !== lessonBlockVisitStatus.COMPLETED &&
+			view.currentVisit.status !== lessonBlockVisitStatus.SKIPPED &&
+			view.currentVisit.status !== lessonBlockVisitStatus.ABANDONED
+		) {
+			await this.updateBlockVisit({
+				visitId: view.currentVisit.id,
+				status: lessonBlockVisitStatus.ABANDONED,
+				completedAt: now
+			});
+		}
+
+		if (view.currentBlockState?.status === lessonBlockStateStatus.ACTIVE) {
+			await this.upsertBlockState({
+				sessionId: view.session.id,
+				blockId: view.currentBlock.id,
+				status: lessonBlockStateStatus.SKIPPED,
+				outputs: normalizeOutputs(view.currentBlockState.outputsJson),
+				lastChoiceValue: view.currentBlockState.lastChoiceValue ?? undefined,
+				chatId: view.currentBlockState.chatId ?? undefined,
+				lastVisitId: view.currentVisit?.id ?? view.currentBlockState.lastVisitId ?? undefined,
+				completedAt: now
+			});
+		}
+
+		const nextSessionState = {
+			...safeJsonParse<JsonRecord>(view.session.sessionStateJson, {}),
+			status: lessonAttemptStatus.ACTIVE,
+			currentVisitId: null
+		};
+
+		await db
+			.update(interactiveLessonSession)
+			.set({
+				status: lessonAttemptStatus.ACTIVE,
+				currentVisitId: null,
+				completedAt: null,
+				lastActiveAt: now,
+				sessionStateJson: JSON.stringify(nextSessionState),
+				updatedAt: now
+			})
+			.where(eq(interactiveLessonSession.id, view.session.id));
+
+		return this.enterBlock(
+			{
+				...view.session,
+				status: lessonAttemptStatus.ACTIVE,
+				currentVisitId: null,
+				completedAt: null,
+				lastActiveAt: now,
+				sessionStateJson: JSON.stringify(nextSessionState),
+				updatedAt: now
+			},
+			input.blockId,
+			view.activity,
+			view.lesson,
+			view.definition
+		);
+	}
+
 	static async restartSession(input: {
 		sessionId: string;
 		userId: string;
@@ -2442,6 +2698,18 @@ export class LessonService {
 
 		if (!access.allowed) {
 			throw new LessonServiceError(403, access.reason || 'No tienes acceso a esta sesión.');
+		}
+	}
+
+	private static assertPreviewDebugScope(scope: InteractiveLessonSession['scope']): void {
+		if (
+			scope !== lessonSessionScope.PREVIEW_DRAFT &&
+			scope !== lessonSessionScope.PREVIEW_PUBLISHED
+		) {
+			throw new LessonServiceError(
+				403,
+				'El modo depuración solo está disponible para sesiones preview.'
+			);
 		}
 	}
 

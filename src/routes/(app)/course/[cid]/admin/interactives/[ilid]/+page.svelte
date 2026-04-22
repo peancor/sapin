@@ -15,6 +15,7 @@
 		AlertCircle,
 		ArrowLeft,
 		Bot,
+		Bug,
 		Wrench,
 		Route
 	} from 'lucide-svelte';
@@ -233,6 +234,21 @@
 						<h3 class="font-medium text-gray-900 dark:text-white">Revisar lecciones</h3>
 						<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
 							Leer intentos, checkpoints, ramas y bloques IA en modo solo revisión
+						</p>
+					</a>
+
+					<a
+						href={resolve(`/course/${cid}/admin/interactives/${ilid}/lesson-debug`)}
+						class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-sky-300 hover:bg-sky-50 dark:border-gray-700 dark:hover:border-sky-800 dark:hover:bg-sky-900/20"
+					>
+						<div
+							class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-sky-100 text-sky-600 dark:bg-sky-900/50 dark:text-sky-400"
+						>
+							<Bug class="h-5 w-5" />
+						</div>
+						<h3 class="font-medium text-gray-900 dark:text-white">Depurar lesson</h3>
+						<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+							Inspeccionar bloques, runtime preview, transiciones y estado interno
 						</p>
 					</a>
 
