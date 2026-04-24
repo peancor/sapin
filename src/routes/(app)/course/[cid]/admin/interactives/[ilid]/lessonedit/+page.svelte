@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable svelte/no-navigation-without-resolve */
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import { beforeNavigate } from '$app/navigation';
@@ -9,6 +10,7 @@
 		getLessonAgentToolMetrics,
 		type LessonAgentToolPresentationItem
 	} from '$lib/lesson/lessonAgentToolPresentation';
+	import { lessonFlowHref, lessonResourcesHref } from '$lib/lesson/lessonStudioNavigation';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import { normalizeLessonAgentConfig } from '$lib/types/lesson';
 	import { ArrowRight, Bot, CheckCircle2, Paperclip, Route, Settings2 } from 'lucide-svelte';
@@ -35,8 +37,8 @@
 	let isAgentPolicyDirty = $state(false);
 	let agentPolicySaved = $state(false);
 
-	const cid = $derived(page.params.cid);
-	const ilid = $derived(page.params.ilid);
+	const cid = $derived(page.params.cid ?? '');
+	const ilid = $derived(page.params.ilid ?? '');
 	const resourcesCount = $derived(data.files.length);
 	const revisionDiff = $derived(data.revisionSummary.diff);
 	const revisionImpact = $derived(data.revisionSummary.impact);
@@ -729,7 +731,7 @@
 					</div>
 
 					<a
-						href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit/flow`)}
+						href={lessonFlowHref({ cid, ilid })}
 						class="bg-primary-600 hover:bg-primary-700 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm"
 					>
 						<Route class="mr-2 h-4 w-4" />
@@ -778,7 +780,7 @@
 					>
 						<span>La lesson todavía no tiene estructura.</span>
 						<a
-							href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit/flow`)}
+							href={lessonFlowHref({ cid, ilid })}
 							class="inline-flex items-center justify-center rounded-xl bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600"
 						>
 							Crear estructura
@@ -834,7 +836,7 @@
 						</p>
 					</div>
 					<a
-						href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit/resources`)}
+						href={lessonResourcesHref({ cid, ilid }, { source: 'studio' })}
 						class="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100"
 					>
 						Abrir recursos

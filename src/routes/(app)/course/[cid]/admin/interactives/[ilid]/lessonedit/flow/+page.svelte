@@ -32,6 +32,7 @@
 		getLessonAgentToolMetrics,
 		type LessonAgentToolPresentationItem
 	} from '$lib/lesson/lessonAgentToolPresentation';
+	import { lessonDebuggerHref } from '$lib/lesson/lessonStudioNavigation';
 	import type {
 		LessonFlowQuickMenuContext,
 		LessonFlowQuickMenuItem
@@ -72,7 +73,6 @@
 		Trash2
 	} from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
-	import { SvelteURLSearchParams } from 'svelte/reactivity';
 
 	type FlowActionSuccess = {
 		success: true;
@@ -141,8 +141,8 @@
 	let renameDraft = $state('');
 	let renameInputElement: HTMLInputElement | null = $state.raw(null);
 
-	const cid = $derived(page.params.cid);
-	const ilid = $derived(page.params.ilid);
+	const cid = $derived(page.params.cid ?? '');
+	const ilid = $derived(page.params.ilid ?? '');
 	const revisionDiff = $derived(data.revisionSummary.diff);
 	const revisionImpact = $derived(data.revisionSummary.impact);
 	const hasDraftChanges = $derived(
@@ -223,28 +223,14 @@
 		intent?: 'inspect' | 'run';
 		fresh?: boolean;
 	}) {
-		const params = new SvelteURLSearchParams({
-			mode: 'draft',
-			source: 'flow'
-		});
+		const debuggerOptions: Parameters<typeof lessonDebuggerHref>[1] = { source: 'flow' };
+		if (options?.blockId) debuggerOptions.blockId = options.blockId;
+		if (options?.view) debuggerOptions.view = options.view;
+		if (options?.intent) debuggerOptions.intent = options.intent;
+		if (options?.fresh) debuggerOptions.fresh = options.fresh;
 
-		if (options?.blockId) {
-			params.set('blockId', options.blockId);
-		}
-
-		if (options?.view) {
-			params.set('view', options.view);
-		}
-
-		if (options?.intent) {
-			params.set('intent', options.intent);
-		}
-
-		if (options?.fresh) {
-			params.set('fresh', '1');
-		}
-
-		return params.toString();
+		const href = lessonDebuggerHref({ cid, ilid }, debuggerOptions);
+		return href.slice(href.indexOf('?') + 1);
 	}
 
 	function openLessonDebugger(options?: {

@@ -1,14 +1,21 @@
 <script lang="ts">
-	/* eslint-disable svelte/no-navigation-without-resolve, svelte/prefer-svelte-reactivity */
+	/* eslint-disable svelte/no-navigation-without-resolve */
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import type { PageProps } from './$types';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 
 	import AgentTranscriptReadOnly from '$lib/components/agent/AgentTranscriptReadOnly.svelte';
 	import RawSections from '$lib/components/activity-debugger/RawSections.svelte';
 	import LessonRuntimePanel from '$lib/components/lesson/LessonRuntimePanel.svelte';
 	import { formatDate } from '$lib/helpers/dateUtils';
+	import {
+		isLessonStudioSource,
+		lessonActivityHref,
+		lessonFlowHref,
+		lessonStudioHref,
+		lessonStudioReturnTarget
+	} from '$lib/lesson/lessonStudioNavigation';
 	import type { LessonDebugBlockSummary, LessonDebugPreviewMode } from '$lib/types/lessonDebug';
 	import {
 		ArrowLeft,
@@ -48,19 +55,30 @@
 	const activeView = $derived.by<DebuggerView>(() =>
 		page.url.searchParams.get('view') === 'debug' ? 'debug' : 'student'
 	);
-	const sourceContext = $derived.by(() =>
-		page.url.searchParams.get('source') === 'flow' ? 'flow' : 'activity'
+	const routeContext = $derived({ cid: page.params.cid ?? '', ilid: page.params.ilid ?? '' });
+	const selectedBlockIdFromUrl = $derived(page.url.searchParams.get('blockId'));
+	const sourceContext = $derived.by(() => {
+		const source = page.url.searchParams.get('source');
+		return isLessonStudioSource(source) ? source : 'activity';
+	});
+	const activityHref = $derived.by(() => lessonActivityHref(routeContext));
+	const studioHref = $derived.by(() => lessonStudioHref(routeContext));
+	const returnBlockId = $derived.by(() => {
+		if (
+			selectedBlockIdFromUrl &&
+			snapshot.blockSummaries.some((summary) => summary.blockId === selectedBlockIdFromUrl)
+		) {
+			return selectedBlockIdFromUrl;
+		}
+
+		return snapshot.selectedBlockId;
+	});
+	const flowEditorHref = $derived.by(() => lessonFlowHref(routeContext, returnBlockId));
+	const returnTarget = $derived.by(() =>
+		lessonStudioReturnTarget(routeContext, sourceContext, returnBlockId)
 	);
-	const activityHref = $derived.by(() =>
-		resolve(`/course/${page.params.cid}/admin/interactives/${page.params.ilid}`)
-	);
-	const flowEditorHref = $derived.by(() =>
-		resolve(`/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lessonedit/flow`)
-	);
-	const returnHref = $derived.by(() => (sourceContext === 'flow' ? flowEditorHref : activityHref));
-	const returnLabel = $derived.by(() =>
-		sourceContext === 'flow' ? 'Volver al editor' : 'Volver a la actividad'
-	);
+	const returnHref = $derived.by(() => returnTarget.href);
+	const returnLabel = $derived.by(() => returnTarget.label);
 	const selectedSession = $derived.by(
 		() => snapshot.sessionOptions.find((session) => session.isSelected) ?? null
 	);
@@ -161,7 +179,7 @@
 	});
 
 	function buildHref(changes: Partial<Record<HrefKey, string | null>>): string {
-		const params = new URLSearchParams(page.url.search);
+		const params = new SvelteURLSearchParams(page.url.search);
 
 		for (const [key, value] of Object.entries(changes)) {
 			if (value === null || value === '') {
@@ -892,10 +910,10 @@
 
 				<div class="mt-5 flex flex-wrap gap-2">
 					<a
-						href={flowEditorHref}
+						href={returnHref}
 						class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-700 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
 					>
-						Volver al editor visual
+						{returnLabel}
 					</a>
 					<a
 						href={buildHref({ mode: 'published', sessionId: null, blockId: null })}
@@ -924,6 +942,21 @@
 				</a>
 
 				<div class="min-w-0 flex-1">
+					<div class="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold">
+						<a class="text-slate-500 hover:text-sky-700 dark:text-slate-400" href={activityHref}>
+							Actividad
+						</a>
+						<span class="text-slate-300 dark:text-slate-700">/</span>
+						<a class="text-slate-500 hover:text-sky-700 dark:text-slate-400" href={studioHref}>
+							Studio
+						</a>
+						<span class="text-slate-300 dark:text-slate-700">/</span>
+						<a class="text-slate-500 hover:text-sky-700 dark:text-slate-400" href={flowEditorHref}>
+							Mapa
+						</a>
+						<span class="text-slate-300 dark:text-slate-700">/</span>
+						<span class="text-slate-500 dark:text-slate-400">Debugger</span>
+					</div>
 					<p
 						class="text-[11px] font-semibold tracking-[0.24em] text-sky-700 uppercase dark:text-sky-300"
 					>

@@ -1,16 +1,21 @@
 <script lang="ts">
+	/* eslint-disable svelte/no-navigation-without-resolve */
 	import type { PageProps } from './$types';
 	import { beforeNavigate } from '$app/navigation';
 	import { deserialize } from '$app/forms';
 	import { page } from '$app/state';
-	import { resolve } from '$app/paths';
-	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import LessonAgentToolCatalog from '$lib/components/lesson/LessonAgentToolCatalog.svelte';
 	import {
 		getLessonAgentToolMetrics,
 		type LessonAgentToolPresentationItem
 	} from '$lib/lesson/lessonAgentToolPresentation';
+	import {
+		lessonDebuggerHref,
+		lessonFlowHref,
+		lessonResourcesHref,
+		lessonStudioHref
+	} from '$lib/lesson/lessonStudioNavigation';
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
 	import { onMount } from 'svelte';
 	import {
@@ -75,8 +80,35 @@
 	let isUploadingInlineImage = $state(false);
 	let inlineImageError = $state('');
 
-	const cid = $derived(page.params.cid);
-	const ilid = $derived(page.params.ilid);
+	const cid = $derived(page.params.cid ?? '');
+	const ilid = $derived(page.params.ilid ?? '');
+	const blockFlowHref = $derived(lessonFlowHref({ cid, ilid }, workingBlock.id));
+	const blockResourcesHref = $derived(
+		lessonResourcesHref({ cid, ilid }, { source: 'block', blockId: workingBlock.id })
+	);
+	const blockDebugHref = $derived(
+		lessonDebuggerHref(
+			{ cid, ilid },
+			{
+				source: 'block',
+				blockId: workingBlock.id,
+				view: 'debug',
+				intent: 'inspect'
+			}
+		)
+	);
+	const blockPreviewHref = $derived(
+		lessonDebuggerHref(
+			{ cid, ilid },
+			{
+				source: 'block',
+				blockId: workingBlock.id,
+				view: 'student',
+				intent: 'run',
+				fresh: true
+			}
+		)
+	);
 	const HeaderIcon = $derived(blockKindIcon(workingBlock));
 	const serializedBlock = $derived(JSON.stringify(workingBlock));
 	const availableBlockIds = $derived(
@@ -140,26 +172,6 @@
 
 	function markDirty() {
 		isDirty = true;
-	}
-
-	function buildLessonDebuggerQuery(options: {
-		view: 'student' | 'debug';
-		intent: 'inspect' | 'run';
-		fresh?: boolean;
-	}) {
-		const params = new SvelteURLSearchParams({
-			mode: 'draft',
-			source: 'block-editor',
-			blockId: workingBlock.id,
-			view: options.view,
-			intent: options.intent
-		});
-
-		if (options.fresh) {
-			params.set('fresh', '1');
-		}
-
-		return params.toString();
 	}
 
 	function getValidExecutionTriggers(
@@ -525,9 +537,10 @@
 			},
 			{
 				label: 'Mapa',
-				href: `/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lessonedit/flow?blockId=${encodeURIComponent(
+				href: lessonFlowHref(
+					{ cid: page.params.cid ?? '', ilid: page.params.ilid ?? '' },
 					workingBlock.id
-				)}`
+				)
 			},
 			{ label: workingBlock.title }
 		]);
@@ -573,6 +586,23 @@
 						<HeaderIcon class="h-5 w-5" />
 					</div>
 					<div class="min-w-0">
+						<div class="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold">
+							<a
+								class="text-gray-500 hover:text-amber-700 dark:text-gray-400 dark:hover:text-amber-300"
+								href={lessonStudioHref({ cid, ilid })}
+							>
+								Studio
+							</a>
+							<span class="text-gray-300 dark:text-gray-700">/</span>
+							<a
+								class="text-gray-500 hover:text-amber-700 dark:text-gray-400 dark:hover:text-amber-300"
+								href={blockFlowHref}
+							>
+								Mapa
+							</a>
+							<span class="text-gray-300 dark:text-gray-700">/</span>
+							<span class="text-gray-500 dark:text-gray-400">Bloque</span>
+						</div>
 						<div class="flex flex-wrap items-center gap-2">
 							<p class="text-xs tracking-[0.18em] text-gray-500 uppercase dark:text-gray-400">
 								{blockKindLabel(workingBlock)}
@@ -607,43 +637,53 @@
 
 				<div class="flex flex-wrap gap-2">
 					<a
-						href={resolve(
-							`/course/${cid}/admin/interactives/${ilid}/lessonedit/flow?blockId=${encodeURIComponent(
-								workingBlock.id
-							)}`
-						)}
+						href={blockFlowHref}
 						class="bg-primary-600 hover:bg-primary-700 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm"
 					>
 						<MoveLeft class="mr-1 h-4 w-4" />
 						Volver al mapa
 					</a>
+					{#if isDirty}
+						<button
+							type="submit"
+							form="block-editor-form"
+							name="redirectTo"
+							value="debug"
+							disabled={isSaving}
+							class="inline-flex items-center justify-center rounded-xl border border-sky-300 bg-sky-50 px-3 py-2.5 text-sm font-medium text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200"
+						>
+							<Bug class="mr-1 h-4 w-4" />
+							Guardar y debug
+						</button>
+						<button
+							type="submit"
+							form="block-editor-form"
+							name="redirectTo"
+							value="preview"
+							disabled={isSaving}
+							class="inline-flex items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200"
+						>
+							<Eye class="mr-1 h-4 w-4" />
+							Guardar y preview
+						</button>
+					{:else}
+						<a
+							href={blockDebugHref}
+							class="inline-flex items-center justify-center rounded-xl border border-sky-300 bg-sky-50 px-3 py-2.5 text-sm font-medium text-sky-800 hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200"
+						>
+							<Bug class="mr-1 h-4 w-4" />
+							Debug
+						</a>
+						<a
+							href={blockPreviewHref}
+							class="inline-flex items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200"
+						>
+							<Eye class="mr-1 h-4 w-4" />
+							Preview
+						</a>
+					{/if}
 					<a
-						href={resolve(
-							`/course/${cid}/admin/interactives/${ilid}/lesson-debug?${buildLessonDebuggerQuery({
-								view: 'debug',
-								intent: 'inspect'
-							})}`
-						)}
-						class="inline-flex items-center justify-center rounded-xl border border-sky-300 bg-sky-50 px-3 py-2.5 text-sm font-medium text-sky-800 hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200"
-					>
-						<Bug class="mr-1 h-4 w-4" />
-						Debug
-					</a>
-					<a
-						href={resolve(
-							`/course/${cid}/admin/interactives/${ilid}/lesson-debug?${buildLessonDebuggerQuery({
-								view: 'student',
-								intent: 'run',
-								fresh: true
-							})}`
-						)}
-						class="inline-flex items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200"
-					>
-						<Eye class="mr-1 h-4 w-4" />
-						Preview
-					</a>
-					<a
-						href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit/resources`)}
+						href={blockResourcesHref}
 						class="inline-flex items-center justify-center rounded-xl border border-gray-300 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
 					>
 						<Paperclip class="mr-1 h-4 w-4" />
@@ -663,6 +703,7 @@
 
 		<div class="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.85fr)]">
 			<form
+				id="block-editor-form"
 				method="POST"
 				action="?/saveBlock"
 				onsubmit={() => {
@@ -775,7 +816,7 @@
 									</p>
 								</div>
 								<a
-									href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit/resources`)}
+									href={blockResourcesHref}
 									class="rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
 								>
 									Ir a recursos
@@ -1781,7 +1822,7 @@
 
 								<div class="mt-5 space-y-5">
 									<a
-										href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit`)}
+										href={lessonStudioHref({ cid, ilid })}
 										class="inline-flex rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
 									>
 										Editar allowlist global
@@ -2157,11 +2198,7 @@
 					<div class="flex items-center justify-between gap-3">
 						<h2 class="text-base font-semibold text-gray-900 dark:text-white">Conexiones</h2>
 						<a
-							href={resolve(
-								`/course/${cid}/admin/interactives/${ilid}/lessonedit/flow?blockId=${encodeURIComponent(
-									workingBlock.id
-								)}`
-							)}
+							href={blockFlowHref}
 							class="inline-flex items-center rounded-xl border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
 						>
 							<Route class="mr-1 h-3.5 w-3.5" />
@@ -2432,7 +2469,7 @@
 					</p>
 
 					<a
-						href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit/resources`)}
+						href={blockResourcesHref}
 						class="mt-4 inline-flex items-center rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
 					>
 						Abrir recursos

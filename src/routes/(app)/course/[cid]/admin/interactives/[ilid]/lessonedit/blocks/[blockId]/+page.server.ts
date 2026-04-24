@@ -2,6 +2,11 @@ import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
 import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
+import {
+	lessonBlockHref,
+	lessonDebuggerHref,
+	lessonFlowHref
+} from '$lib/lesson/lessonStudioNavigation';
 import type { LessonBlock } from '$lib/types/lesson';
 import {
 	loadLessonAdminData,
@@ -62,10 +67,26 @@ export const actions = {
 				actorUserId: user.id
 			});
 
+			const context = { cid: params.cid, ilid: params.ilid };
 			const target =
 				redirectTo === 'flow'
-					? `/course/${params.cid}/admin/interactives/${params.ilid}/lessonedit/flow?blockId=${encodeURIComponent(parsedBlock.id)}`
-					: `/course/${params.cid}/admin/interactives/${params.ilid}/lessonedit/blocks/${parsedBlock.id}`;
+					? lessonFlowHref(context, parsedBlock.id)
+					: redirectTo === 'debug'
+						? lessonDebuggerHref(context, {
+								source: 'block',
+								blockId: parsedBlock.id,
+								view: 'debug',
+								intent: 'inspect'
+							})
+						: redirectTo === 'preview'
+							? lessonDebuggerHref(context, {
+									source: 'block',
+									blockId: parsedBlock.id,
+									view: 'student',
+									intent: 'run',
+									fresh: true
+								})
+							: lessonBlockHref(context, parsedBlock.id);
 
 			redirect(303, target);
 		} catch (errorValue) {
