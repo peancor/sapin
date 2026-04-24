@@ -112,20 +112,28 @@
 
 	<!-- Node card -->
 	<article
-		class={`w-[272px] overflow-hidden rounded-2xl border border-stone-200/90 bg-white shadow-[0_8px_32px_-16px_rgba(24,24,27,0.28)] transition-all duration-150 ${
+		class={`relative w-[272px] overflow-hidden rounded-2xl border bg-white shadow-[0_8px_32px_-16px_rgba(24,24,27,0.28)] transition-all duration-150 ${
 			selected
-				? `${cfg.glow}`
-				: 'hover:shadow-[0_12px_36px_-16px_rgba(24,24,27,0.38)]'
+				? 'border-sky-500 shadow-[0_0_0_1px_rgba(2,132,199,0.35),0_24px_54px_-22px_rgba(2,132,199,0.65)] ring-4 ring-sky-400/80 ring-offset-2 ring-offset-[#f8f4ec]'
+				: 'border-stone-200/90 hover:shadow-[0_12px_36px_-16px_rgba(24,24,27,0.38)]'
 		}`}
 	>
+		{#if selected}
+			<div class="pointer-events-none absolute inset-y-0 left-0 z-10 w-1.5 bg-sky-500"></div>
+		{/if}
+
 		<!-- Header band -->
 		<div class={`flex items-center justify-between px-4 py-3 ${cfg.band}`}>
 			<div class={`flex items-center gap-2.5 ${cfg.bandText}`}>
 				<Icon class="h-4 w-4 shrink-0 opacity-90" />
-				<span class="text-[11px] font-bold tracking-[0.18em] uppercase opacity-90">{data.kindLabel}</span>
+				<span class="text-[11px] font-bold tracking-[0.18em] uppercase opacity-90"
+					>{data.kindLabel}</span
+				>
 			</div>
 			{#if data.isEntry}
-				<span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold tracking-[0.14em] text-white uppercase">
+				<span
+					class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold tracking-[0.14em] text-white uppercase"
+				>
 					Entrada
 				</span>
 			{/if}
@@ -157,7 +165,8 @@
 			<div class="h-3 w-px bg-stone-200"></div>
 			<div class="flex flex-1 items-center justify-end gap-1.5">
 				<span class="text-[13px] font-semibold text-stone-700">{data.outgoingCount}</span>
-				<span class="text-[10px] font-semibold tracking-[0.14em] text-stone-400 uppercase">Out</span>
+				<span class="text-[10px] font-semibold tracking-[0.14em] text-stone-400 uppercase">Out</span
+				>
 			</div>
 		</div>
 	</article>
@@ -168,7 +177,7 @@
 			id={handle.id}
 			type="source"
 			position={Position.Bottom}
-			class={`!h-5 !w-5 !border-[3px] !rounded-full ${cfg.handle} ${cfg.handleRing} !ring-2 shadow-[0_4px_12px_-4px_rgba(24,24,27,0.5)] transition-transform hover:scale-125`}
+			class={`!h-5 !w-5 !rounded-full !border-[3px] ${cfg.handle} ${cfg.handleRing} shadow-[0_4px_12px_-4px_rgba(24,24,27,0.5)] !ring-2 transition-transform hover:scale-125`}
 			style={`left:${handleOffset(index, data.outgoingHandles.length)};bottom:0;transform:translate(-50%,50%);`}
 		/>
 	{/each}

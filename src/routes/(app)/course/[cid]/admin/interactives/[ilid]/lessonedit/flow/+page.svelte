@@ -370,11 +370,7 @@
 			return current;
 		}
 
-		if (graph.nodes.some((node) => node.id === draftDefinition.entryBlockId)) {
-			return { kind: 'node', id: draftDefinition.entryBlockId };
-		}
-
-		return graph.nodes[0] ? { kind: 'node', id: graph.nodes[0].id } : null;
+		return null;
 	}
 
 	function commitCanvasGraph(): LessonDefinition {
@@ -2203,20 +2199,6 @@
 							renombrar · <kbd class="font-mono text-[9px]">⌘D</kbd> duplicar ·
 							<kbd class="font-mono text-[9px]">Home</kbd> centrar
 						</div>
-						{#if selection?.kind === 'node' && selectedBlock}
-							<div
-								class="rounded-full border border-amber-200/80 bg-amber-50/90 px-2.5 py-1 text-[10px] font-semibold text-amber-700 shadow-sm backdrop-blur-sm dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300"
-							>
-								Bloque: {selectedBlock.title}
-							</div>
-						{:else if selection?.kind === 'edge' && selectedEdge}
-							<div
-								class="rounded-full border border-sky-200/80 bg-sky-50/90 px-2.5 py-1 text-[10px] font-semibold text-sky-700 shadow-sm backdrop-blur-sm dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-300"
-							>
-								Ruta: {selectedEdge.label ??
-									getLessonFlowEdgeTypeLabel(selectedEdge.data?.edgeType ?? 'next')}
-							</div>
-						{/if}
 					</div>
 
 					<div
@@ -3259,6 +3241,21 @@
 
 	:global(.lesson-flow-shell .svelte-flow__edge-textbg) {
 		fill: rgba(255, 251, 245, 0.96);
+	}
+
+	:global(.lesson-flow-shell .svelte-flow__edge.selected .svelte-flow__edge-path) {
+		stroke: rgb(124, 58, 237);
+		stroke-width: 3.5;
+		filter: drop-shadow(0 4px 10px rgba(124, 58, 237, 0.28));
+	}
+
+	:global(.lesson-flow-shell .svelte-flow__edge.selected .svelte-flow__edge-text) {
+		fill: rgb(91, 33, 182);
+		font-weight: 700;
+	}
+
+	:global(.dark .lesson-flow-shell .svelte-flow__edge.selected .svelte-flow__edge-text) {
+		fill: rgb(221, 214, 254);
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__attribution) {
