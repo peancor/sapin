@@ -1,4 +1,10 @@
-import { lessonBlockKinds, type LessonDefinition } from '../../types/lesson.ts';
+import {
+	lessonBlockKinds,
+	normalizeLessonAgentConfig,
+	normalizeLessonCheckConfig,
+	type LessonBlock,
+	type LessonDefinition
+} from '../../types/lesson.ts';
 import { LessonServiceError } from './LessonServiceError.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -32,7 +38,11 @@ export function parseLessonFlowDraft(content: string): LessonDefinition {
 		throw new LessonServiceError(400, 'La definición de la lesson no es un JSON válido.');
 	}
 
-	if (!isRecord(parsed) || typeof parsed.entryBlockId !== 'string' || !Array.isArray(parsed.blocks)) {
+	if (
+		!isRecord(parsed) ||
+		typeof parsed.entryBlockId !== 'string' ||
+		!Array.isArray(parsed.blocks)
+	) {
 		throw new LessonServiceError(400, 'La definición actual del grafo no tiene la forma esperada.');
 	}
 
@@ -44,7 +54,10 @@ export function parseLessonFlowDraft(content: string): LessonDefinition {
 			typeof block.title !== 'string' ||
 			!isLessonBlockKind(block.kind)
 		) {
-			throw new LessonServiceError(400, 'La definición actual del grafo no tiene la forma esperada.');
+			throw new LessonServiceError(
+				400,
+				'La definición actual del grafo no tiene la forma esperada.'
+			);
 		}
 
 		if (
@@ -53,7 +66,10 @@ export function parseLessonFlowDraft(content: string): LessonDefinition {
 			block.next !== null &&
 			block.next !== undefined
 		) {
-			throw new LessonServiceError(400, 'La definición actual del grafo no tiene transiciones válidas.');
+			throw new LessonServiceError(
+				400,
+				'La definición actual del grafo no tiene transiciones válidas.'
+			);
 		}
 
 		if (
@@ -61,7 +77,10 @@ export function parseLessonFlowDraft(content: string): LessonDefinition {
 			block.branches !== undefined &&
 			(!Array.isArray(block.branches) || !block.branches.every(isTransitionDraft))
 		) {
-			throw new LessonServiceError(400, 'La definición actual del grafo no tiene transiciones válidas.');
+			throw new LessonServiceError(
+				400,
+				'La definición actual del grafo no tiene transiciones válidas.'
+			);
 		}
 
 		if (
@@ -82,5 +101,102 @@ export function parseLessonFlowDraft(content: string): LessonDefinition {
 		}
 	}
 
-	return parsed as unknown as LessonDefinition;
+	return validateLessonAuthoringDraft(parsed as unknown as LessonDefinition);
+}
+
+function normalizeAuthoringBlock(block: LessonBlock): LessonBlock {
+	if (block.kind === 'agent') {
+		const agentConfig = normalizeLessonAgentConfig(block.agentConfig);
+		return {
+			...block,
+			agentConfig,
+			requiresResponse:
+				agentConfig.interactionMode === 'none' ? false : (block.requiresResponse ?? true)
+		};
+	}
+
+	if (block.kind === 'check') {
+		return {
+			...block,
+			checkConfig: normalizeLessonCheckConfig(block.checkConfig)
+		};
+	}
+
+	return block;
+}
+
+function assertKnownTarget(
+	blockMap: Map<string, LessonBlock>,
+	targetBlockId: string,
+	label: string
+) {
+	if (targetBlockId && !blockMap.has(targetBlockId)) {
+		throw new LessonServiceError(400, `${label} apunta al bloque inexistente "${targetBlockId}".`);
+	}
+}
+
+export function validateLessonAuthoringDraft(definition: LessonDefinition): LessonDefinition {
+	const nextDefinition = structuredClone(definition);
+
+	if (nextDefinition.blocks.length === 0) {
+		throw new LessonServiceError(400, 'La lesson debe conservar al menos un bloque.');
+	}
+
+	const duplicatedIds = nextDefinition.blocks
+		.map((block) => block.id)
+		.filter((id, index, list) => list.indexOf(id) !== index);
+
+	if (duplicatedIds.length > 0) {
+		throw new LessonServiceError(
+			400,
+			`Hay bloques con IDs duplicados: ${[...new Set(duplicatedIds)].join(', ')}.`
+		);
+	}
+
+	for (const block of nextDefinition.blocks) {
+		if (!block.id.match(/^[a-zA-Z0-9_-]+$/)) {
+			throw new LessonServiceError(
+				400,
+				`El bloque "${block.id}" usa un ID no válido. Usa letras, números, guiones o guiones bajos.`
+			);
+		}
+	}
+
+	if (!nextDefinition.blocks.some((block) => block.id === nextDefinition.entryBlockId)) {
+		nextDefinition.entryBlockId = nextDefinition.blocks[0]?.id ?? '';
+	}
+
+	const normalizedAllowedAgentToolIds =
+		nextDefinition.allowedAgentToolIds
+			?.map((value) => value.trim())
+			.filter(Boolean)
+			.filter((value, index, list) => list.indexOf(value) === index) ?? [];
+
+	nextDefinition.allowedAgentToolIds =
+		normalizedAllowedAgentToolIds.length > 0 ? normalizedAllowedAgentToolIds : undefined;
+	nextDefinition.blocks = nextDefinition.blocks.map(normalizeAuthoringBlock);
+
+	const blockMap = new Map(nextDefinition.blocks.map((block) => [block.id, block]));
+
+	for (const block of nextDefinition.blocks) {
+		if (block.next) {
+			assertKnownTarget(blockMap, block.next, `La salida principal de "${block.id}"`);
+		}
+
+		for (const branch of block.branches ?? []) {
+			assertKnownTarget(blockMap, branch.targetBlockId, `La rama de "${block.id}"`);
+		}
+
+		if (block.kind === 'choice') {
+			for (const option of block.options) {
+				assertKnownTarget(
+					blockMap,
+					option.targetBlockId,
+					`La opción "${option.label}" de "${block.id}"`
+				);
+			}
+		}
+	}
+
+	return nextDefinition;
 }

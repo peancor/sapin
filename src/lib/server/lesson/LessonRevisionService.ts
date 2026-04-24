@@ -26,7 +26,7 @@ import type {
 } from '$lib/types/lessonRevision';
 import { LessonServiceError } from './LessonServiceError';
 import { parseLessonDefinition } from './lessonGraph';
-import { parseLessonFlowDraft } from './lessonFlowDraft';
+import { parseLessonFlowDraft, validateLessonAuthoringDraft } from './lessonFlowDraft';
 
 type LessonRevisionState = {
 	activity: InteractiveLearning;
@@ -300,7 +300,7 @@ export class LessonRevisionService {
 			actorUserId: input.actorUserId
 		});
 		const now = new Date();
-		const definitionJson = this.serializeDefinition(input.definition);
+		const definitionJson = this.serializeDefinition(validateLessonAuthoringDraft(input.definition));
 
 		await db
 			.update(interactiveLearningLessonRevision)

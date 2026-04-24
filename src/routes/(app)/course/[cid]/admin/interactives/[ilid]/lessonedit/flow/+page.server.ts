@@ -3,7 +3,12 @@ import { fail } from '@sveltejs/kit';
 import { parseLessonFlowDraft } from '$lib/server/lesson/lessonFlowDraft';
 import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
 import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
-import { lessonBlockKinds, type LessonBlock, type LessonBlockKind } from '$lib/types/lesson';
+import {
+	lessonBlockKinds,
+	type LessonBlock,
+	type LessonBlockKind,
+	type LessonDefinition
+} from '$lib/types/lesson';
 import { loadLessonAdminData, requireLessonAdminContext } from '../lessonAdmin';
 
 function asLessonError(errorValue: unknown, fallbackMessage: string) {
@@ -81,7 +86,7 @@ function disconnectBlockForFlowDraft(block: LessonBlock): LessonBlock {
 
 async function persistDefinition(input: {
 	ilid: string;
-	definition: ReturnType<typeof LessonService.parseDefinition>;
+	definition: LessonDefinition;
 	userId: string;
 }) {
 	await LessonRevisionService.saveDraftDefinition({
@@ -133,7 +138,7 @@ export const actions = {
 				x: parseCoordinate(formData.get('positionX')),
 				y: parseCoordinate(formData.get('positionY'))
 			};
-			const created = LessonService.createBlock(definition, kind);
+			const created = LessonService.createBlockDraft(definition, kind);
 			const nextDefinition = structuredClone(created.definition);
 			const blockIndex = nextDefinition.blocks.findIndex((block) => block.id === created.block.id);
 
@@ -177,7 +182,7 @@ export const actions = {
 
 		try {
 			const definition = parseDefinitionPayload(formData, { allowDraft: true });
-			const nextDefinition = LessonService.deleteBlock(definition, blockId);
+			const nextDefinition = LessonService.deleteBlockDraft(definition, blockId);
 
 			return {
 				success: true,

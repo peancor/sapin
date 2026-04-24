@@ -6,7 +6,9 @@ import { lessonBlockKinds, type LessonBlockKind } from '$lib/types/lesson';
 import { loadLessonAdminData, requireLessonAdminContext } from '../../lessonAdmin';
 
 function resolveRequestedKind(value: string | null | undefined): LessonBlockKind {
-	return lessonBlockKinds.includes(value as LessonBlockKind) ? (value as LessonBlockKind) : 'content';
+	return lessonBlockKinds.includes(value as LessonBlockKind)
+		? (value as LessonBlockKind)
+		: 'content';
 }
 
 export const load = (async ({ params, locals, url }) => {
@@ -27,7 +29,7 @@ export const actions = {
 			const revisionState = await LessonRevisionService.ensureLessonRevisionState(params.ilid, {
 				actorUserId: user.id
 			});
-			const { definition, block } = LessonService.createBlock(
+			const { definition, block } = LessonService.createBlockDraft(
 				revisionState.draftDefinition,
 				kind
 			);

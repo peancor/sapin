@@ -152,7 +152,7 @@ export const actions = {
 						: filteredToolIds;
 			}
 
-			const validatedDefinition = LessonService.validateDefinition(nextDefinition);
+			const validatedDefinition = LessonService.validateAuthoringDraft(nextDefinition);
 			await persistDefinition({
 				ilid: params.ilid,
 				definition: validatedDefinition,
@@ -188,7 +188,7 @@ export const actions = {
 		}
 
 		try {
-			const nextDefinition = LessonService.moveBlock(
+			const nextDefinition = LessonService.moveBlockDraft(
 				revisionState.draftDefinition,
 				blockId,
 				direction
@@ -220,7 +220,7 @@ export const actions = {
 		}
 
 		try {
-			const nextDefinition = LessonService.deleteBlock(revisionState.draftDefinition, blockId);
+			const nextDefinition = LessonService.deleteBlockDraft(revisionState.draftDefinition, blockId);
 			await persistDefinition({
 				ilid: params.ilid,
 				definition: nextDefinition,
@@ -248,7 +248,10 @@ export const actions = {
 		}
 
 		try {
-			const nextDefinition = LessonService.setEntryBlock(revisionState.draftDefinition, blockId);
+			const nextDefinition = LessonService.setEntryBlockDraft(
+				revisionState.draftDefinition,
+				blockId
+			);
 			await persistDefinition({
 				ilid: params.ilid,
 				definition: nextDefinition,

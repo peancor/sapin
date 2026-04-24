@@ -55,7 +55,7 @@ export const actions = {
 			const revisionState = await LessonRevisionService.ensureLessonRevisionState(params.ilid, {
 				actorUserId: user.id
 			});
-			const nextDefinition = LessonService.updateBlock(
+			const nextDefinition = LessonService.updateBlockDraft(
 				revisionState.draftDefinition,
 				params.blockId,
 				parsedBlock

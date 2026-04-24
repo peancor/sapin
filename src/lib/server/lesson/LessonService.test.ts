@@ -194,6 +194,104 @@ test('validateDefinition stitches orphan linear blocks before the end node', () 
 	assert.equal(secondIntermediate?.next, 'end');
 });
 
+test('authoring draft updates preserve disconnected blocks until publish validation', () => {
+	const created = LessonService.createBlockDraft(makeLinearDefinition(), 'agent');
+	const draftDefinition = structuredClone(created.definition);
+	const draftAgent = draftDefinition.blocks.find((block) => block.id === created.block.id);
+
+	assert.equal(draftAgent?.kind, 'agent');
+	if (!draftAgent || draftAgent.kind !== 'agent') {
+		throw new Error('Expected created block to be an agent block.');
+	}
+
+	draftAgent.next = null;
+
+	assert.throws(
+		() =>
+			LessonService.updateBlock(draftDefinition, draftAgent.id, {
+				...draftAgent,
+				title: 'Tutor editado'
+			}),
+		(error) =>
+			error instanceof LessonServiceError && error.message.includes('necesita un siguiente bloque')
+	);
+
+	const savedDraft = LessonService.updateBlockDraft(draftDefinition, draftAgent.id, {
+		...draftAgent,
+		title: 'Tutor editado'
+	});
+	const savedAgent = savedDraft.blocks.find((block) => block.id === draftAgent.id);
+
+	assert.equal(savedAgent?.title, 'Tutor editado');
+	assert.equal(savedAgent?.kind === 'agent' ? savedAgent.next : undefined, null);
+});
+
+test('authoring draft deletes blocks and clears their connections', () => {
+	const definition: LessonDefinition = {
+		version: '2',
+		entryBlockId: 'intro',
+		blocks: [
+			{
+				id: 'intro',
+				kind: 'content',
+				title: 'Intro',
+				body: 'Bienvenida',
+				next: 'agent'
+			},
+			{
+				id: 'choice',
+				kind: 'choice',
+				title: 'Ruta',
+				body: '',
+				outputKey: 'route',
+				options: [{ id: 'a', label: 'A', value: 'a', targetBlockId: 'agent' }]
+			},
+			{
+				id: 'check',
+				kind: 'check',
+				title: 'Check',
+				body: '',
+				next: 'end',
+				branches: [{ id: 'retry', label: 'Reintentar', targetBlockId: 'agent' }],
+				checkConfig: normalizeLessonCheckConfig({ mode: 'short_text' })
+			},
+			{
+				id: 'agent',
+				kind: 'agent',
+				title: 'Tutor',
+				body: '',
+				next: 'end',
+				requiresResponse: true,
+				agentConfig: {
+					interactionMode: 'single_turn',
+					executionTrigger: 'on_user_submit',
+					autoStartOnEnter: false,
+					promptTemplate: 'Acompaña'
+				}
+			},
+			{
+				id: 'end',
+				kind: 'end',
+				title: 'Fin',
+				body: 'Cierre'
+			}
+		]
+	};
+
+	const draft = LessonService.deleteBlockDraft(definition, 'agent');
+	const intro = draft.blocks.find((block) => block.id === 'intro');
+	const choice = draft.blocks.find((block) => block.id === 'choice');
+	const check = draft.blocks.find((block) => block.id === 'check');
+
+	assert.equal(
+		draft.blocks.some((block) => block.id === 'agent'),
+		false
+	);
+	assert.equal(intro?.kind === 'content' ? intro.next : undefined, null);
+	assert.equal(choice?.kind === 'choice' ? choice.options[0]?.targetBlockId : undefined, '');
+	assert.deepEqual(check?.branches, []);
+});
+
 test('reference groups expose state and outputs for content, choice and agent blocks', () => {
 	const definition: LessonDefinition = {
 		version: '2',
@@ -249,13 +347,21 @@ test('reference groups expose state and outputs for content, choice and agent bl
 	const agentGroup = groups.byBlock.find((group) => group.blockId === 'agent');
 
 	assert.ok(groups.session.some((variable) => variable.path === 'session.currentVisitId'));
-	assert.ok(introGroup?.outputs.some((variable) => variable.path === 'blocks.intro.outputs.visited'));
-	assert.ok(choiceGroup?.outputs.some((variable) => variable.path === 'blocks.choice.outputs.route'));
+	assert.ok(
+		introGroup?.outputs.some((variable) => variable.path === 'blocks.intro.outputs.visited')
+	);
+	assert.ok(
+		choiceGroup?.outputs.some((variable) => variable.path === 'blocks.choice.outputs.route')
+	);
 	assert.ok(
 		choiceGroup?.outputs.some((variable) => variable.path === 'blocks.choice.outputs.selectedLabel')
 	);
-	assert.ok(agentGroup?.state.some((variable) => variable.path === 'blocks.agent.state.lastVisitId'));
-	assert.ok(agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.response'));
+	assert.ok(
+		agentGroup?.state.some((variable) => variable.path === 'blocks.agent.state.lastVisitId')
+	);
+	assert.ok(
+		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.response')
+	);
 	assert.ok(
 		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.lastUserMessage')
 	);
@@ -263,16 +369,24 @@ test('reference groups expose state and outputs for content, choice and agent bl
 		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.interactionMode')
 	);
 	assert.ok(
-		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.executionTrigger')
+		agentGroup?.outputs.some(
+			(variable) => variable.path === 'blocks.agent.outputs.executionTrigger'
+		)
 	);
 	assert.ok(
-		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.autoStartOnEnter')
+		agentGroup?.outputs.some(
+			(variable) => variable.path === 'blocks.agent.outputs.autoStartOnEnter'
+		)
 	);
 	assert.ok(
 		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.hasUserResponse')
 	);
-	assert.ok(agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.mastery'));
-	assert.ok(agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.rubric'));
+	assert.ok(
+		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.mastery')
+	);
+	assert.ok(
+		agentGroup?.outputs.some((variable) => variable.path === 'blocks.agent.outputs.rubric')
+	);
 });
 
 test('reference groups expose evaluation outputs for check blocks', () => {
@@ -315,9 +429,13 @@ test('reference groups expose evaluation outputs for check blocks', () => {
 	const checkGroup = groups.byBlock.find((group) => group.blockId === 'check');
 
 	assert.ok(checkGroup?.outputs.some((variable) => variable.path === 'blocks.check.outputs.score'));
-	assert.ok(checkGroup?.outputs.some((variable) => variable.path === 'blocks.check.outputs.passed'));
 	assert.ok(
-		checkGroup?.outputs.some((variable) => variable.path === 'blocks.check.outputs.selectedOptionIds')
+		checkGroup?.outputs.some((variable) => variable.path === 'blocks.check.outputs.passed')
+	);
+	assert.ok(
+		checkGroup?.outputs.some(
+			(variable) => variable.path === 'blocks.check.outputs.selectedOptionIds'
+		)
 	);
 });
 

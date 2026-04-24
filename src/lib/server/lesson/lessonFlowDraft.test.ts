@@ -26,7 +26,10 @@ test('parseLessonFlowDraft keeps incomplete choice targets editable in flow draf
 	);
 
 	const parsedDraft = parseLessonFlowDraft(JSON.stringify(draftDefinition));
-	const nextDefinition = LessonService.deleteBlock(parsedDraft, created.block.id);
+	const nextDefinition = LessonService.deleteBlockDraft(parsedDraft, created.block.id);
 
-	assert.equal(nextDefinition.blocks.some((block) => block.id === created.block.id), false);
+	assert.equal(
+		nextDefinition.blocks.some((block) => block.id === created.block.id),
+		false
+	);
 });

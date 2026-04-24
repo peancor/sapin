@@ -74,6 +74,7 @@ import {
 	parseLessonDefinition,
 	validateLessonDefinition
 } from './lessonGraph';
+import { validateLessonAuthoringDraft } from './lessonFlowDraft';
 
 export { LessonServiceError } from './LessonServiceError';
 
@@ -298,6 +299,10 @@ export class LessonService {
 		return validateLessonDefinition(definition);
 	}
 
+	static validateAuthoringDraft(definition: LessonDefinition): LessonDefinition {
+		return validateLessonAuthoringDraft(definition);
+	}
+
 	static getBlock(definition: LessonDefinition, blockId: string): LessonBlock {
 		return getLessonBlock(definition, blockId);
 	}
@@ -316,6 +321,24 @@ export class LessonService {
 
 		return {
 			definition: this.validateDefinition(nextDefinition),
+			block: structuredClone(block)
+		};
+	}
+
+	static createBlockDraft(
+		definition: LessonDefinition,
+		kind: LessonBlockKind
+	): { definition: LessonDefinition; block: LessonBlock } {
+		const nextDefinition = structuredClone(definition);
+		const block = this.createBlockTemplate(nextDefinition, kind);
+		nextDefinition.blocks.push(block);
+
+		if (!nextDefinition.entryBlockId) {
+			nextDefinition.entryBlockId = block.id;
+		}
+
+		return {
+			definition: this.validateAuthoringDraft(nextDefinition),
 			block: structuredClone(block)
 		};
 	}
@@ -339,6 +362,31 @@ export class LessonService {
 		}
 
 		return this.validateDefinition(nextDefinition);
+	}
+
+	static updateBlockDraft(
+		definition: LessonDefinition,
+		blockId: string,
+		block: LessonBlock
+	): LessonDefinition {
+		const nextDefinition = structuredClone(definition);
+		const blockIndex = nextDefinition.blocks.findIndex((candidate) => candidate.id === blockId);
+
+		if (blockIndex < 0) {
+			throw new LessonServiceError(404, `El bloque "${blockId}" no existe.`);
+		}
+
+		nextDefinition.blocks[blockIndex] = structuredClone(block);
+
+		if (definition.entryBlockId === blockId && block.id !== blockId) {
+			nextDefinition.entryBlockId = block.id;
+		}
+
+		if (block.id !== blockId) {
+			this.replaceBlockReferences(nextDefinition, blockId, block.id);
+		}
+
+		return this.validateAuthoringDraft(nextDefinition);
 	}
 
 	static deleteBlock(definition: LessonDefinition, blockId: string): LessonDefinition {
@@ -367,6 +415,29 @@ export class LessonService {
 		return this.validateDefinition(nextDefinition);
 	}
 
+	static deleteBlockDraft(definition: LessonDefinition, blockId: string): LessonDefinition {
+		if (definition.blocks.length <= 1) {
+			throw new LessonServiceError(
+				400,
+				'La lesson debe conservar al menos un bloque. Crea otro antes de eliminar este.'
+			);
+		}
+
+		if (!definition.blocks.some((block) => block.id === blockId)) {
+			throw new LessonServiceError(404, `El bloque "${blockId}" no existe.`);
+		}
+
+		const nextDefinition = structuredClone(definition);
+		nextDefinition.blocks = nextDefinition.blocks.filter((block) => block.id !== blockId);
+
+		if (nextDefinition.entryBlockId === blockId) {
+			nextDefinition.entryBlockId = nextDefinition.blocks[0]?.id ?? '';
+		}
+
+		this.removeBlockReferences(nextDefinition, blockId);
+		return this.validateAuthoringDraft(nextDefinition);
+	}
+
 	static moveBlock(
 		definition: LessonDefinition,
 		blockId: string,
@@ -389,12 +460,48 @@ export class LessonService {
 		return this.validateDefinition(nextDefinition);
 	}
 
+	static moveBlockDraft(
+		definition: LessonDefinition,
+		blockId: string,
+		direction: 'up' | 'down'
+	): LessonDefinition {
+		const nextDefinition = structuredClone(definition);
+		const currentIndex = nextDefinition.blocks.findIndex((block) => block.id === blockId);
+
+		if (currentIndex < 0) {
+			throw new LessonServiceError(404, `El bloque "${blockId}" no existe.`);
+		}
+
+		const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+		if (targetIndex < 0 || targetIndex >= nextDefinition.blocks.length) {
+			return this.validateAuthoringDraft(nextDefinition);
+		}
+
+		const [block] = nextDefinition.blocks.splice(currentIndex, 1);
+		if (block) {
+			nextDefinition.blocks.splice(targetIndex, 0, block);
+		}
+
+		return this.validateAuthoringDraft(nextDefinition);
+	}
+
 	static setEntryBlock(definition: LessonDefinition, blockId: string): LessonDefinition {
 		if (!definition.blocks.some((block) => block.id === blockId)) {
 			throw new LessonServiceError(404, `El bloque "${blockId}" no existe.`);
 		}
 
 		return this.validateDefinition({
+			...structuredClone(definition),
+			entryBlockId: blockId
+		});
+	}
+
+	static setEntryBlockDraft(definition: LessonDefinition, blockId: string): LessonDefinition {
+		if (!definition.blocks.some((block) => block.id === blockId)) {
+			throw new LessonServiceError(404, `El bloque "${blockId}" no existe.`);
+		}
+
+		return this.validateAuthoringDraft({
 			...structuredClone(definition),
 			entryBlockId: blockId
 		});
@@ -807,7 +914,10 @@ export class LessonService {
 			throw new LessonServiceError(404, `El bloque "${input.blockId}" no existe.`);
 		}
 
-		if (view.session.currentBlockId === input.blockId && view.session.status !== lessonAttemptStatus.COMPLETED) {
+		if (
+			view.session.currentBlockId === input.blockId &&
+			view.session.status !== lessonAttemptStatus.COMPLETED
+		) {
 			return view.session;
 		}
 
@@ -3812,6 +3922,62 @@ export class LessonService {
 		}
 
 		return candidate;
+	}
+
+	private static replaceBlockReferences(
+		definition: LessonDefinition,
+		fromBlockId: string,
+		toBlockId: string
+	): void {
+		for (const block of definition.blocks) {
+			if (block.next === fromBlockId) {
+				block.next = toBlockId;
+			}
+
+			for (const branch of block.branches ?? []) {
+				if (branch.targetBlockId === fromBlockId) {
+					branch.targetBlockId = toBlockId;
+				}
+			}
+
+			if (block.kind === 'choice') {
+				for (const option of block.options) {
+					if (option.targetBlockId === fromBlockId) {
+						option.targetBlockId = toBlockId;
+					}
+				}
+			}
+
+			if (block.graph?.incomingOrder) {
+				block.graph.incomingOrder = block.graph.incomingOrder.map((incomingBlockId) =>
+					incomingBlockId === fromBlockId ? toBlockId : incomingBlockId
+				);
+			}
+		}
+	}
+
+	private static removeBlockReferences(definition: LessonDefinition, blockId: string): void {
+		for (const block of definition.blocks) {
+			if (block.next === blockId) {
+				block.next = null;
+			}
+
+			if (block.branches?.length) {
+				block.branches = block.branches.filter((branch) => branch.targetBlockId !== blockId);
+			}
+
+			if (block.kind === 'choice') {
+				block.options = block.options.map((option) =>
+					option.targetBlockId === blockId ? { ...option, targetBlockId: '' } : option
+				);
+			}
+
+			if (block.graph?.incomingOrder) {
+				block.graph.incomingOrder = block.graph.incomingOrder.filter(
+					(incomingBlockId) => incomingBlockId !== blockId
+				);
+			}
+		}
 	}
 
 	private static contractFieldToVariable(
