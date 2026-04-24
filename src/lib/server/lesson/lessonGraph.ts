@@ -30,6 +30,22 @@ interface LessonDefinitionInput extends Omit<LessonDefinition, 'version'> {
 	version?: '1' | '2';
 }
 
+const YOUTUBE_VIDEO_ID_PATTERN = /^[a-zA-Z0-9_-]{11}$/;
+
+export function normalizeYoutubeVideoId(input: string): string {
+	const value = input.trim();
+	if (YOUTUBE_VIDEO_ID_PATTERN.test(value)) return value;
+
+	const urlMatch = value.match(
+		/(?:youtube\.com\/(?:watch\?[^#]*v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+	);
+	return urlMatch?.[1] ?? value;
+}
+
+function isValidYoutubeVideoId(input: string): boolean {
+	return YOUTUBE_VIDEO_ID_PATTERN.test(input);
+}
+
 const lessonTransitionSchema = z.object({
 	id: z.string().optional(),
 	label: z.string().optional(),
@@ -143,6 +159,14 @@ const lessonAgentConfigSchema = z.object({
 	outputSchema: z.array(lessonOutputFieldSchema).optional()
 });
 
+const lessonYoutubePausePointSchema = z.object({
+	id: z.string().min(1),
+	seconds: z.number().min(0),
+	title: z.string().optional(),
+	body: z.string().optional(),
+	resumeLabel: z.string().optional()
+});
+
 const lessonBlockBaseSchema = {
 	id: z
 		.string()
@@ -187,6 +211,16 @@ const lessonDefinitionSchema = z.object({
 					kind: z.literal('check'),
 					body: z.string().optional(),
 					checkConfig: lessonCheckConfigSchema,
+					...lessonBlockBaseSchema
+				}),
+				z.object({
+					kind: z.literal('youtube'),
+					videoId: z.string(),
+					body: z.string().optional(),
+					startSeconds: z.number().min(0).nullable().optional(),
+					endSeconds: z.number().min(0).nullable().optional(),
+					continueLabel: z.string().optional(),
+					pausePoints: z.array(lessonYoutubePausePointSchema).optional(),
 					...lessonBlockBaseSchema
 				}),
 				z.object({
@@ -469,6 +503,71 @@ export function buildLessonBlockContract(block: LessonBlock): LessonBlockContrac
 				label: `${block.title} · completado`,
 				description: 'Booleano derivado para saber si la última visita quedó completada.',
 				type: 'boolean',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'always'
+			}
+		);
+	}
+
+	if (block.kind === 'youtube') {
+		outputs.push(
+			{
+				path: `blocks.${block.id}.outputs.started`,
+				key: 'started',
+				label: `${block.title} · iniciado`,
+				description: 'Indica si el reproductor llegó a iniciar la reproducción.',
+				type: 'boolean',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.completed`,
+				key: 'completed',
+				label: `${block.title} · completado`,
+				description: 'Indica si el video o segmento configurado terminó.',
+				type: 'boolean',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_completion'
+			},
+			{
+				path: `blocks.${block.id}.outputs.lastKnownTime`,
+				key: 'lastKnownTime',
+				label: `${block.title} · segundo`,
+				description: 'Último segundo conocido del reproductor.',
+				type: 'number',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.watchPercent`,
+				key: 'watchPercent',
+				label: `${block.title} · progreso`,
+				description: 'Porcentaje observado del segmento, entre 0 y 1.',
+				type: 'number',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.reachedPausePointIds`,
+				key: 'reachedPausePointIds',
+				label: `${block.title} · pausas`,
+				description: 'IDs de puntos de pausa reconocidos por el estudiante.',
+				type: 'json',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.videoId`,
+				key: 'videoId',
+				label: `${block.title} · video`,
+				description: 'ID normalizado del video de YouTube.',
+				type: 'string',
 				source: 'system',
 				namespace: 'outputs',
 				availableWhen: 'always'
@@ -842,6 +941,19 @@ function normalizeLessonDefinition(definition: LessonDefinition): LessonDefiniti
 			};
 		}
 
+		if (block.kind === 'youtube') {
+			return {
+				...block,
+				videoId: normalizeYoutubeVideoId(block.videoId),
+				startSeconds: block.startSeconds ?? null,
+				endSeconds: block.endSeconds ?? null,
+				pausePoints: (block.pausePoints ?? []).map((pausePoint) => ({
+					...pausePoint,
+					id: pausePoint.id.trim()
+				}))
+			};
+		}
+
 		return block;
 	});
 
@@ -1065,6 +1177,78 @@ function assertBlockConfiguration(block: LessonBlock): void {
 		}
 	}
 
+	if (block.kind === 'youtube') {
+		if (!isValidYoutubeVideoId(block.videoId)) {
+			throw new LessonServiceError(
+				400,
+				`El bloque YouTube "${block.id}" necesita un ID de video válido de 11 caracteres.`
+			);
+		}
+
+		const startSeconds = block.startSeconds ?? null;
+		const endSeconds = block.endSeconds ?? null;
+
+		if (startSeconds !== null && startSeconds < 0) {
+			throw new LessonServiceError(
+				400,
+				`El bloque YouTube "${block.id}" no puede empezar en un segundo negativo.`
+			);
+		}
+
+		if (endSeconds !== null && endSeconds < 0) {
+			throw new LessonServiceError(
+				400,
+				`El bloque YouTube "${block.id}" no puede terminar en un segundo negativo.`
+			);
+		}
+
+		if (startSeconds !== null && endSeconds !== null && endSeconds <= startSeconds) {
+			throw new LessonServiceError(
+				400,
+				`El bloque YouTube "${block.id}" necesita que el final sea posterior al inicio.`
+			);
+		}
+
+		const pausePointIds = new Set<string>();
+		for (const pausePoint of block.pausePoints ?? []) {
+			if (!pausePoint.id.trim()) {
+				throw new LessonServiceError(
+					400,
+					`El bloque YouTube "${block.id}" tiene un punto de pausa sin ID.`
+				);
+			}
+
+			if (pausePointIds.has(pausePoint.id)) {
+				throw new LessonServiceError(
+					400,
+					`El bloque YouTube "${block.id}" tiene puntos de pausa duplicados: "${pausePoint.id}".`
+				);
+			}
+			pausePointIds.add(pausePoint.id);
+
+			if (pausePoint.seconds < 0) {
+				throw new LessonServiceError(
+					400,
+					`El punto de pausa "${pausePoint.id}" del bloque YouTube "${block.id}" usa un segundo negativo.`
+				);
+			}
+
+			if (startSeconds !== null && pausePoint.seconds < startSeconds) {
+				throw new LessonServiceError(
+					400,
+					`El punto de pausa "${pausePoint.id}" del bloque YouTube "${block.id}" queda antes del inicio configurado.`
+				);
+			}
+
+			if (endSeconds !== null && pausePoint.seconds > endSeconds) {
+				throw new LessonServiceError(
+					400,
+					`El punto de pausa "${pausePoint.id}" del bloque YouTube "${block.id}" queda fuera del segmento configurado.`
+				);
+			}
+		}
+	}
+
 	if (block.kind === 'agent') {
 		const normalizedAgentConfig = normalizeLessonAgentConfig(block.agentConfig);
 		const duplicatedKeys = (block.agentConfig.outputSchema ?? [])
@@ -1271,6 +1455,15 @@ function extractBlockReferences(block: LessonBlock): string[] {
 
 	if (block.kind === 'content') {
 		register(block.continueLabel);
+	}
+
+	if (block.kind === 'youtube') {
+		register(block.continueLabel);
+		for (const pausePoint of block.pausePoints ?? []) {
+			register(pausePoint.title);
+			register(pausePoint.body);
+			register(pausePoint.resumeLabel);
+		}
 	}
 
 	if (block.kind === 'choice') {

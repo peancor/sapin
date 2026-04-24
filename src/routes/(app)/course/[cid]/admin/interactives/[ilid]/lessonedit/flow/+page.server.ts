@@ -64,7 +64,7 @@ function disconnectBlockForFlowDraft(block: LessonBlock): LessonBlock {
 		};
 	}
 
-	if (block.kind === 'check') {
+	if (block.kind === 'check' || block.kind === 'youtube') {
 		return {
 			...block,
 			next: null

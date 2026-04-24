@@ -29,6 +29,29 @@ function isChoiceOptionDraft(value: unknown): boolean {
 	);
 }
 
+function isYoutubePausePointDraft(value: unknown): boolean {
+	return (
+		isRecord(value) &&
+		typeof value.id === 'string' &&
+		typeof value.seconds === 'number' &&
+		(!('title' in value) || value.title === undefined || typeof value.title === 'string') &&
+		(!('body' in value) || value.body === undefined || typeof value.body === 'string') &&
+		(!('resumeLabel' in value) ||
+			value.resumeLabel === undefined ||
+			typeof value.resumeLabel === 'string')
+	);
+}
+
+function normalizeYoutubeVideoIdDraft(input: string): string {
+	const value = input.trim();
+	if (/^[a-zA-Z0-9_-]{11}$/.test(value)) return value;
+
+	const urlMatch = value.match(
+		/(?:youtube\.com\/(?:watch\?[^#]*v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+	);
+	return urlMatch?.[1] ?? value;
+}
+
 export function parseLessonFlowDraft(content: string): LessonDefinition {
 	let parsed: unknown;
 
@@ -99,6 +122,28 @@ export function parseLessonFlowDraft(content: string): LessonDefinition {
 				'La definición actual del grafo no tiene configuración válida para el bloque de evaluación.'
 			);
 		}
+
+		if (
+			block.kind === 'youtube' &&
+			(typeof block.videoId !== 'string' ||
+				('startSeconds' in block &&
+					block.startSeconds !== null &&
+					block.startSeconds !== undefined &&
+					typeof block.startSeconds !== 'number') ||
+				('endSeconds' in block &&
+					block.endSeconds !== null &&
+					block.endSeconds !== undefined &&
+					typeof block.endSeconds !== 'number') ||
+				('pausePoints' in block &&
+					block.pausePoints !== undefined &&
+					(!Array.isArray(block.pausePoints) ||
+						!block.pausePoints.every(isYoutubePausePointDraft))))
+		) {
+			throw new LessonServiceError(
+				400,
+				'La definición actual del grafo no tiene configuración válida para el bloque de YouTube.'
+			);
+		}
 	}
 
 	return validateLessonAuthoringDraft(parsed as unknown as LessonDefinition);
@@ -119,6 +164,19 @@ function normalizeAuthoringBlock(block: LessonBlock): LessonBlock {
 		return {
 			...block,
 			checkConfig: normalizeLessonCheckConfig(block.checkConfig)
+		};
+	}
+
+	if (block.kind === 'youtube') {
+		return {
+			...block,
+			videoId: normalizeYoutubeVideoIdDraft(block.videoId),
+			startSeconds: block.startSeconds ?? null,
+			endSeconds: block.endSeconds ?? null,
+			pausePoints: (block.pausePoints ?? []).map((pausePoint) => ({
+				...pausePoint,
+				id: pausePoint.id.trim()
+			}))
 		};
 	}
 

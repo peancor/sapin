@@ -91,6 +91,129 @@ test('parseDefinition requires explicit interaction and trigger configuration in
 	);
 });
 
+test('parseDefinition normalizes YouTube URLs and exposes guided video outputs', () => {
+	const definition = parseLessonDefinition(
+		JSON.stringify({
+			version: '2',
+			entryBlockId: 'video',
+			blocks: [
+				{
+					id: 'video',
+					kind: 'youtube',
+					title: 'Video guiado',
+					videoId: 'https://youtu.be/M7lc1UVf-VE?si=abc',
+					body: 'Mira este segmento',
+					startSeconds: 3,
+					endSeconds: 30,
+					continueLabel: 'He terminado',
+					pausePoints: [{ id: 'pause_1', seconds: 10, title: 'Reflexiona' }],
+					next: 'end'
+				},
+				{
+					id: 'end',
+					kind: 'end',
+					title: 'Fin',
+					body: 'Cierre'
+				}
+			]
+		})
+	);
+	const block = definition.blocks.find((candidate) => candidate.id === 'video');
+	const groups = getAvailableLessonReferenceGroups(definition);
+	const videoGroup = groups.byBlock.find((group) => group.blockId === 'video');
+
+	assert.equal(block?.kind, 'youtube');
+	assert.equal(block?.kind === 'youtube' ? block.videoId : undefined, 'M7lc1UVf-VE');
+	assert.ok(
+		videoGroup?.outputs.some((variable) => variable.path === 'blocks.video.outputs.completed')
+	);
+	assert.ok(
+		videoGroup?.outputs.some((variable) => variable.path === 'blocks.video.outputs.watchPercent')
+	);
+	assert.ok(
+		videoGroup?.outputs.some(
+			(variable) => variable.path === 'blocks.video.outputs.reachedPausePointIds'
+		)
+	);
+});
+
+test('validateDefinition rejects invalid YouTube IDs, ranges and pause points', () => {
+	const baseDefinition: LessonDefinition = {
+		version: '2',
+		entryBlockId: 'video',
+		blocks: [
+			{
+				id: 'video',
+				kind: 'youtube',
+				title: 'Video guiado',
+				videoId: 'M7lc1UVf-VE',
+				startSeconds: 5,
+				endSeconds: 20,
+				pausePoints: [{ id: 'pause_1', seconds: 10 }],
+				next: 'end'
+			},
+			{
+				id: 'end',
+				kind: 'end',
+				title: 'Fin',
+				body: 'Cierre'
+			}
+		]
+	};
+
+	assert.throws(
+		() =>
+			validateLessonDefinition({
+				...baseDefinition,
+				blocks: [
+					{ ...baseDefinition.blocks[0], videoId: 'bad' } as LessonDefinition['blocks'][number],
+					baseDefinition.blocks[1]
+				]
+			}),
+		/ID de video válido/
+	);
+	assert.throws(
+		() =>
+			validateLessonDefinition({
+				...baseDefinition,
+				blocks: [
+					{
+						...baseDefinition.blocks[0],
+						startSeconds: 20,
+						endSeconds: 5
+					} as LessonDefinition['blocks'][number],
+					baseDefinition.blocks[1]
+				]
+			}),
+		/final sea posterior/
+	);
+	assert.throws(
+		() =>
+			validateLessonDefinition({
+				...baseDefinition,
+				blocks: [
+					{
+						...baseDefinition.blocks[0],
+						pausePoints: [{ id: 'pause_1', seconds: 25 }]
+					} as LessonDefinition['blocks'][number],
+					baseDefinition.blocks[1]
+				]
+			}),
+		/fuera del segmento/
+	);
+	assert.throws(
+		() =>
+			validateLessonDefinition({
+				...baseDefinition,
+				blocks: [
+					{ ...baseDefinition.blocks[0], next: null } as LessonDefinition['blocks'][number],
+					baseDefinition.blocks[1]
+				]
+			}),
+		/necesita un siguiente bloque/
+	);
+});
+
 test('validateDefinition allows loops and graph summaries reflect incoming and outgoing edges', () => {
 	const definition: LessonDefinition = {
 		version: '2',

@@ -1283,6 +1283,14 @@ export class LessonService {
 			);
 		}
 
+		if (
+			view.currentBlock.kind === 'youtube' &&
+			view.currentVisit?.status !== lessonBlockVisitStatus.COMPLETED &&
+			view.currentBlockState?.status !== lessonBlockStateStatus.COMPLETED
+		) {
+			throw new LessonServiceError(400, 'Debes completar el video configurado antes de avanzar.');
+		}
+
 		if (view.currentBlock.kind === 'agent' && (view.currentBlock.requiresResponse ?? true)) {
 			const chatId = view.currentVisit?.chatId ?? view.currentBlockState?.chatId;
 			const conversationStats =
@@ -1313,6 +1321,119 @@ export class LessonService {
 			view,
 			normalizeOutputs(view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson)
 		);
+	}
+
+	static async recordYoutubeProgress(input: {
+		sessionId: string;
+		blockId: string;
+		userId: string;
+		userRoleLevel: number;
+		interactiveLearningId?: string;
+		eventType: 'started' | 'pause_point_acknowledged' | 'completed';
+		currentTime?: number;
+		pausePointId?: string;
+		duration?: number;
+	}): Promise<{ outputs: JsonRecord; completed: boolean }> {
+		const view = await this.getSessionView(input);
+
+		if (!view.canInteract) {
+			throw new LessonServiceError(403, 'La sesión está en modo solo lectura.');
+		}
+
+		if (view.currentBlock.id !== input.blockId || view.currentBlock.kind !== 'youtube') {
+			throw new LessonServiceError(409, 'El bloque activo no es un bloque de YouTube.');
+		}
+
+		if (!view.currentVisit) {
+			throw new LessonServiceError(409, 'No se pudo resolver la visita activa del bloque.');
+		}
+
+		const block = view.currentBlock;
+		const currentOutputs = normalizeOutputs(
+			view.currentVisit.outputsJson ?? view.currentBlockState?.outputsJson
+		);
+		const reachedPausePointIds = Array.isArray(currentOutputs.reachedPausePointIds)
+			? currentOutputs.reachedPausePointIds.filter(
+					(value): value is string => typeof value === 'string'
+				)
+			: [];
+
+		if (input.eventType === 'pause_point_acknowledged') {
+			const pausePointId = input.pausePointId?.trim();
+			if (
+				!pausePointId ||
+				!block.pausePoints?.some((pausePoint) => pausePoint.id === pausePointId)
+			) {
+				throw new LessonServiceError(400, 'El punto de pausa indicado no existe en este bloque.');
+			}
+
+			if (!reachedPausePointIds.includes(pausePointId)) {
+				reachedPausePointIds.push(pausePointId);
+			}
+		}
+
+		const startSeconds = block.startSeconds ?? 0;
+		const configuredEndSeconds = block.endSeconds ?? null;
+		const finiteDuration =
+			typeof input.duration === 'number' && Number.isFinite(input.duration) && input.duration > 0
+				? input.duration
+				: null;
+		const segmentEndSeconds = configuredEndSeconds ?? finiteDuration;
+		const segmentLength =
+			segmentEndSeconds !== null && segmentEndSeconds > startSeconds
+				? segmentEndSeconds - startSeconds
+				: finiteDuration;
+		const normalizedCurrentTime =
+			typeof input.currentTime === 'number' && Number.isFinite(input.currentTime)
+				? Math.max(0, input.currentTime)
+				: typeof currentOutputs.lastKnownTime === 'number'
+					? Math.max(0, currentOutputs.lastKnownTime)
+					: startSeconds;
+		const watchPercent =
+			segmentLength && segmentLength > 0
+				? Math.max(0, Math.min(1, (normalizedCurrentTime - startSeconds) / segmentLength))
+				: typeof currentOutputs.watchPercent === 'number'
+					? Math.max(0, Math.min(1, currentOutputs.watchPercent))
+					: 0;
+		const completed = input.eventType === 'completed' || currentOutputs.completed === true;
+		const completedAt =
+			completed && typeof currentOutputs.completedAt === 'string'
+				? currentOutputs.completedAt
+				: completed
+					? new Date().toISOString()
+					: undefined;
+		const outputs: JsonRecord = {
+			...currentOutputs,
+			started: currentOutputs.started === true || input.eventType === 'started' || completed,
+			completed,
+			lastKnownTime: normalizedCurrentTime,
+			reachedPausePointIds,
+			videoId: block.videoId,
+			startSeconds: block.startSeconds ?? null,
+			endSeconds: block.endSeconds ?? null,
+			watchPercent,
+			...(completedAt ? { completedAt } : {})
+		};
+
+		const completedDate = completed ? new Date() : null;
+
+		await this.updateBlockVisit({
+			visitId: view.currentVisit.id,
+			status: completed ? lessonBlockVisitStatus.COMPLETED : lessonBlockVisitStatus.ACTIVE,
+			outputs,
+			completedAt: completedDate
+		});
+
+		await this.upsertBlockState({
+			sessionId: view.session.id,
+			blockId: block.id,
+			status: completed ? lessonBlockStateStatus.COMPLETED : lessonBlockStateStatus.ACTIVE,
+			outputs,
+			lastVisitId: view.currentVisit.id,
+			completedAt: completedDate
+		});
+
+		return { outputs, completed };
 	}
 
 	static async submitChoice(input: {
@@ -3334,6 +3455,21 @@ export class LessonService {
 			};
 		}
 
+		if (block.kind === 'youtube') {
+			return {
+				...block,
+				title: this.resolveStringTemplate(block.title, context),
+				body: this.resolveStringTemplate(block.body || '', context),
+				continueLabel: this.resolveStringTemplate(block.continueLabel || '', context),
+				pausePoints: (block.pausePoints ?? []).map((pausePoint) => ({
+					...pausePoint,
+					title: this.resolveStringTemplate(pausePoint.title || '', context),
+					body: this.resolveStringTemplate(pausePoint.body || '', context),
+					resumeLabel: this.resolveStringTemplate(pausePoint.resumeLabel || '', context)
+				}))
+			};
+		}
+
 		return {
 			...block,
 			title: this.resolveStringTemplate(block.title, context),
@@ -3802,7 +3938,9 @@ export class LessonService {
 						? 'check'
 						: kind === 'agent'
 							? 'agent'
-							: 'end';
+							: kind === 'youtube'
+								? 'youtube'
+								: 'end';
 		const blockId = this.createUniqueBlockId(baseId, existingIds);
 		const defaultTarget =
 			definition.blocks.find((block) => block.kind === 'end')?.id ??
@@ -3899,6 +4037,21 @@ export class LessonService {
 					enabledToolIds: undefined,
 					outputSchema: []
 				}
+			};
+		}
+
+		if (kind === 'youtube') {
+			return {
+				id: blockId,
+				kind,
+				title: 'Nuevo video YouTube',
+				body: '',
+				videoId: '',
+				startSeconds: null,
+				endSeconds: null,
+				continueLabel: 'Continuar',
+				pausePoints: [],
+				next: defaultTarget ?? null
 			};
 		}
 
@@ -4481,6 +4634,16 @@ export class LessonService {
 						...block.checkConfig.options.flatMap((option) => [
 							...extractTemplateRefs(option.label),
 							...extractTemplateRefs(option.description)
+						])
+					]
+				: []),
+			...(block.kind === 'youtube'
+				? [
+						...extractTemplateRefs(block.continueLabel),
+						...(block.pausePoints ?? []).flatMap((pausePoint) => [
+							...extractTemplateRefs(pausePoint.title),
+							...extractTemplateRefs(pausePoint.body),
+							...extractTemplateRefs(pausePoint.resumeLabel)
 						])
 					]
 				: []),

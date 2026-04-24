@@ -29,7 +29,8 @@
 		type LessonAssetRef,
 		type LessonBlock,
 		type LessonCheckMode,
-		type LessonTransition
+		type LessonTransition,
+		type LessonYoutubePausePoint
 	} from '$lib/types/lesson';
 	import {
 		ArrowRight,
@@ -47,7 +48,8 @@
 		Route,
 		Save,
 		Sparkles,
-		Trash2
+		Trash2,
+		Youtube
 	} from 'lucide-svelte';
 
 	type InlineUploadResult = {
@@ -359,6 +361,7 @@
 		if (block.kind === 'choice') return 'Decisión';
 		if (block.kind === 'check') return 'Evaluación';
 		if (block.kind === 'agent') return 'IA';
+		if (block.kind === 'youtube') return 'YouTube';
 		return 'Final';
 	}
 
@@ -367,6 +370,7 @@
 		if (block.kind === 'choice') return ListChecks;
 		if (block.kind === 'check') return CircleCheck;
 		if (block.kind === 'agent') return Bot;
+		if (block.kind === 'youtube') return Youtube;
 		return Flag;
 	}
 
@@ -374,11 +378,76 @@
 		return data.definition.blocks.find((block) => block.id === blockId)?.title ?? blockId;
 	}
 
+	function extractYoutubeVideoId(input: string): string | null {
+		const trimmed = input.trim();
+		if (!trimmed) return null;
+		if (/^[A-Za-z0-9_-]{11}$/.test(trimmed)) return trimmed;
+
+		try {
+			const url = new URL(trimmed);
+			const host = url.hostname.replace(/^www\./, '');
+			if (host === 'youtu.be') {
+				const candidate = url.pathname.split('/').filter(Boolean)[0];
+				return candidate && /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : null;
+			}
+			if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtube-nocookie.com') {
+				const watchId = url.searchParams.get('v');
+				if (watchId && /^[A-Za-z0-9_-]{11}$/.test(watchId)) return watchId;
+
+				const parts = url.pathname.split('/').filter(Boolean);
+				const candidate =
+					parts[0] === 'embed' || parts[0] === 'shorts' || parts[0] === 'live' ? parts[1] : null;
+				return candidate && /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : null;
+			}
+		} catch {
+			return null;
+		}
+
+		return null;
+	}
+
+	function updateYoutubeVideoInput(value: string) {
+		if (workingBlock.kind !== 'youtube') return;
+		workingBlock.videoId = extractYoutubeVideoId(value) ?? value.trim();
+		markDirty();
+	}
+
+	function updateYoutubeSeconds(field: 'startSeconds' | 'endSeconds', value: string) {
+		if (workingBlock.kind !== 'youtube') return;
+		const trimmed = value.trim();
+		workingBlock[field] = trimmed === '' ? null : Number(trimmed);
+		markDirty();
+	}
+
+	function addYoutubePausePoint() {
+		if (workingBlock.kind !== 'youtube') return;
+		const nextIndex = (workingBlock.pausePoints?.length ?? 0) + 1;
+		const start = workingBlock.startSeconds ?? 0;
+		const nextPausePoint: LessonYoutubePausePoint = {
+			id: `pause_${nextIndex}`,
+			seconds: start + nextIndex * 30,
+			title: `Pausa ${nextIndex}`,
+			body: '',
+			resumeLabel: 'Continuar video'
+		};
+		workingBlock.pausePoints = [...(workingBlock.pausePoints ?? []), nextPausePoint];
+		markDirty();
+	}
+
+	function removeYoutubePausePoint(index: number) {
+		if (workingBlock.kind !== 'youtube') return;
+		workingBlock.pausePoints = (workingBlock.pausePoints ?? []).filter(
+			(_, pauseIndex) => pauseIndex !== index
+		);
+		markDirty();
+	}
+
 	function addBranch() {
 		if (
 			workingBlock.kind !== 'content' &&
 			workingBlock.kind !== 'check' &&
-			workingBlock.kind !== 'agent'
+			workingBlock.kind !== 'agent' &&
+			workingBlock.kind !== 'youtube'
 		)
 			return;
 		const nextBranch: LessonTransition = {
@@ -398,7 +467,8 @@
 		if (
 			workingBlock.kind !== 'content' &&
 			workingBlock.kind !== 'check' &&
-			workingBlock.kind !== 'agent'
+			workingBlock.kind !== 'agent' &&
+			workingBlock.kind !== 'youtube'
 		)
 			return;
 		workingBlock.branches = (workingBlock.branches ?? []).filter(
@@ -1461,6 +1531,269 @@
 							</select>
 						</label>
 					</div>
+				{:else if workingBlock.kind === 'youtube'}
+					<div class="space-y-6">
+						<section class="space-y-5 rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
+							<div class="flex flex-wrap items-start justify-between gap-4">
+								<div>
+									<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Video YouTube</h2>
+									<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+										Pega la URL completa del video, un enlace corto o el ID de 11 caracteres. La
+										lección usará el reproductor guiado sin controles nativos.
+									</p>
+								</div>
+								<span
+									class="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 dark:bg-red-950/30 dark:text-red-200"
+								>
+									YouTube IFrame API
+								</span>
+							</div>
+
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+									URL o ID de YouTube
+								</span>
+								<input
+									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									value={workingBlock.videoId}
+									placeholder="https://www.youtube.com/watch?v=M7lc1UVf-VE"
+									oninput={(event) =>
+										updateYoutubeVideoInput((event.currentTarget as HTMLInputElement).value)}
+								/>
+								<div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+									<span class="text-gray-500 dark:text-gray-400">ID guardado:</span>
+									<code
+										class="rounded bg-gray-100 px-2 py-1 font-mono text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+									>
+										{workingBlock.videoId || 'sin configurar'}
+									</code>
+								</div>
+							</label>
+
+							{#if /^[A-Za-z0-9_-]{11}$/.test(workingBlock.videoId)}
+								<div class="overflow-hidden rounded-2xl bg-black shadow-sm">
+									<iframe
+										class="aspect-video w-full"
+										title={`Preview YouTube ${workingBlock.videoId}`}
+										src={`https://www.youtube-nocookie.com/embed/${workingBlock.videoId}?rel=0&modestbranding=1${workingBlock.startSeconds !== null && workingBlock.startSeconds !== undefined ? `&start=${Math.floor(workingBlock.startSeconds)}` : ''}${workingBlock.endSeconds !== null && workingBlock.endSeconds !== undefined ? `&end=${Math.floor(workingBlock.endSeconds)}` : ''}`}
+										allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+										allowfullscreen
+									></iframe>
+								</div>
+							{:else}
+								<div
+									class="rounded-2xl border border-dashed border-red-200 bg-red-50/70 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/10 dark:text-red-200"
+								>
+									Introduce una URL válida de YouTube o un ID de video de 11 caracteres para ver el
+									preview.
+								</div>
+							{/if}
+						</section>
+
+						<section class="space-y-5 rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
+							<div>
+								<h2 class="text-base font-semibold text-gray-900 dark:text-white">
+									Ritmo de reproducción
+								</h2>
+								<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+									Define si el alumno debe ver el video completo o solo un tramo concreto.
+								</p>
+							</div>
+
+							<label class="block">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+									Introducción antes del video
+								</span>
+								<textarea
+									class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									bind:value={workingBlock.body}
+									oninput={markDirty}
+									placeholder="Contexto breve, objetivo de observación o instrucción para el alumno."
+								></textarea>
+							</label>
+
+							<div class="grid gap-4 md:grid-cols-4">
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+										Inicio, segundos
+									</span>
+									<input
+										type="number"
+										min="0"
+										step="1"
+										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+										value={workingBlock.startSeconds ?? ''}
+										placeholder="0"
+										oninput={(event) =>
+											updateYoutubeSeconds(
+												'startSeconds',
+												(event.currentTarget as HTMLInputElement).value
+											)}
+									/>
+								</label>
+
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+										Fin, segundos
+									</span>
+									<input
+										type="number"
+										min="0"
+										step="1"
+										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+										value={workingBlock.endSeconds ?? ''}
+										placeholder="Sin límite"
+										oninput={(event) =>
+											updateYoutubeSeconds(
+												'endSeconds',
+												(event.currentTarget as HTMLInputElement).value
+											)}
+									/>
+								</label>
+
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+										Texto del botón
+									</span>
+									<input
+										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+										bind:value={workingBlock.continueLabel}
+										oninput={markDirty}
+										placeholder="Continuar"
+									/>
+								</label>
+
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+										Siguiente bloque
+									</span>
+									<select
+										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+										bind:value={workingBlock.next}
+										onchange={markDirty}
+									>
+										{#each availableBlockIds as blockId (blockId)}
+											<option value={blockId}>{blockId}</option>
+										{/each}
+									</select>
+								</label>
+							</div>
+						</section>
+
+						<section class="space-y-5 rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
+							<div class="flex flex-wrap items-start justify-between gap-4">
+								<div>
+									<h2 class="text-base font-semibold text-gray-900 dark:text-white">
+										Pausas guiadas
+									</h2>
+									<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+										En esos segundos el reproductor se pausa, oscurece el video y muestra el prompt
+										configurado.
+									</p>
+								</div>
+								<button
+									type="button"
+									class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+									onclick={addYoutubePausePoint}
+								>
+									<Plus class="mr-1 inline h-4 w-4" />
+									Añadir pausa
+								</button>
+							</div>
+
+							{#if (workingBlock.pausePoints?.length ?? 0) === 0}
+								<p class="text-sm text-gray-500 dark:text-gray-400">
+									No hay pausas configuradas. El bloque se completará al terminar el video o el
+									segmento.
+								</p>
+							{:else}
+								<div class="space-y-3">
+									{#each workingBlock.pausePoints ?? [] as pausePoint, pauseIndex (pausePoint.id)}
+										<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+											<div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem]">
+												<label class="block">
+													<span
+														class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+														>ID</span
+													>
+													<input
+														class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+														bind:value={pausePoint.id}
+														oninput={markDirty}
+													/>
+												</label>
+												<label class="block">
+													<span
+														class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+														>Segundo</span
+													>
+													<input
+														type="number"
+														min="0"
+														step="1"
+														class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+														bind:value={pausePoint.seconds}
+														oninput={markDirty}
+													/>
+												</label>
+											</div>
+
+											<div class="mt-3 grid gap-3 md:grid-cols-2">
+												<label class="block">
+													<span
+														class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+														>Título</span
+													>
+													<input
+														class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+														bind:value={pausePoint.title}
+														oninput={markDirty}
+														placeholder="Antes de continuar"
+													/>
+												</label>
+												<label class="block">
+													<span
+														class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+														>Botón de reanudar</span
+													>
+													<input
+														class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+														bind:value={pausePoint.resumeLabel}
+														oninput={markDirty}
+														placeholder="Continuar video"
+													/>
+												</label>
+											</div>
+
+											<label class="mt-3 block">
+												<span
+													class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
+													>Prompt visible</span
+												>
+												<textarea
+													class="min-h-24 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+													bind:value={pausePoint.body}
+													oninput={markDirty}
+													placeholder="Pregunta, reflexión o instrucción que verá el alumno."
+												></textarea>
+											</label>
+
+											<div class="mt-3 flex justify-end">
+												<button
+													type="button"
+													class="rounded-xl border border-red-200 px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
+													onclick={() => removeYoutubePausePoint(pauseIndex)}
+												>
+													<Trash2 class="mr-1 inline h-4 w-4" />
+													Eliminar pausa
+												</button>
+											</div>
+										</div>
+									{/each}
+								</div>
+							{/if}
+						</section>
+					</div>
 				{:else if workingBlock.kind === 'agent'}
 					<div class="space-y-6">
 						<section class="space-y-5 rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
@@ -2023,7 +2356,7 @@
 					</div>
 				{/if}
 
-				{#if workingBlock.kind === 'content' || workingBlock.kind === 'check' || workingBlock.kind === 'agent'}
+				{#if workingBlock.kind === 'content' || workingBlock.kind === 'check' || workingBlock.kind === 'agent' || workingBlock.kind === 'youtube'}
 					<details
 						class="rounded-2xl border border-dashed border-gray-300 p-4 dark:border-gray-700"
 					>

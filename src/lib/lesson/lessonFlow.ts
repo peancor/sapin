@@ -29,6 +29,7 @@ export function getLessonBlockKindLabel(kind: LessonBlock['kind']): string {
 	if (kind === 'choice') return 'Decision';
 	if (kind === 'check') return 'Evaluacion';
 	if (kind === 'agent') return 'Tutor IA';
+	if (kind === 'youtube') return 'YouTube';
 	return 'Final';
 }
 
@@ -55,6 +56,17 @@ export function summarizeLessonBlock(block: LessonBlock): string {
 
 	if (block.kind === 'check') {
 		return `${getLessonCheckModeLabel(block.checkConfig.mode)} · aprobar ${block.checkConfig.passingScore}${block.next ? ` · siguiente ${block.next}` : ''}`;
+	}
+
+	if (block.kind === 'youtube') {
+		const segment =
+			block.startSeconds !== null && block.startSeconds !== undefined
+				? `desde ${block.startSeconds}s${block.endSeconds ? ` a ${block.endSeconds}s` : ''}`
+				: block.endSeconds
+					? `hasta ${block.endSeconds}s`
+					: 'video completo';
+		const pauseCount = block.pausePoints?.length ?? 0;
+		return `${segment}${pauseCount ? ` · ${pauseCount} pausa${pauseCount === 1 ? '' : 's'}` : ''}${block.next ? ` · siguiente ${block.next}` : ''}`;
 	}
 
 	if (block.kind === 'end') {

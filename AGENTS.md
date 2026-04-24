@@ -479,6 +479,7 @@ El subsistema de lecciones soporta:
 - visitas por bloque
 - eventos de sesión
 - chats asociados a bloques
+- bloques guiados de YouTube con progreso, puntos de pausa y finalización persistida
 - preview aislado de revisión publicada y de borrador
 
 Detalles operativos importantes:
@@ -489,6 +490,7 @@ Detalles operativos importantes:
 - los previews usan scopes separados (`preview_published` / `preview_draft`) para no contaminar progreso, review ni analítica
 - el runtime y la review resuelven la definición desde `interactive_lesson_session.definitionRevisionId`
 - las sesiones legacy sin `definitionRevisionId` ya no se reutilizan ni aparecen en la review
+- los bloques `youtube` usan la YouTube IFrame Player API en cliente; el avance se desbloquea solo cuando el endpoint de progreso marca el bloque como completado
 
 Rutas y APIs relacionadas viven en:
 

@@ -33,3 +33,39 @@ test('parseLessonFlowDraft keeps incomplete choice targets editable in flow draf
 		false
 	);
 });
+
+test('parseLessonFlowDraft keeps YouTube blocks editable and normalizes URL input', () => {
+	const initialDefinition = LessonService.createDefaultDefinition();
+	const created = LessonService.createBlockDraft(initialDefinition, 'youtube');
+	const draftDefinition = structuredClone(created.definition);
+	const draftYoutube = draftDefinition.blocks.find((block) => block.id === created.block.id);
+
+	assert.equal(draftYoutube?.kind, 'youtube');
+	if (!draftYoutube || draftYoutube.kind !== 'youtube') {
+		throw new Error('Expected created block to be a YouTube block.');
+	}
+
+	draftYoutube.videoId = 'https://www.youtube.com/watch?v=M7lc1UVf-VE';
+	draftYoutube.next = null;
+	draftYoutube.pausePoints = [{ id: ' pause_1 ', seconds: 12, title: 'Alto' }];
+
+	assert.throws(
+		() => LessonService.parseDefinition(JSON.stringify(draftDefinition)),
+		(error: unknown) =>
+			error instanceof LessonServiceError && error.message.includes('necesita un siguiente bloque')
+	);
+
+	const parsedDraft = parseLessonFlowDraft(JSON.stringify(draftDefinition));
+	const parsedYoutube = parsedDraft.blocks.find((block) => block.id === draftYoutube.id);
+
+	assert.equal(parsedYoutube?.kind, 'youtube');
+	assert.equal(
+		parsedYoutube?.kind === 'youtube' ? parsedYoutube.videoId : undefined,
+		'M7lc1UVf-VE'
+	);
+	assert.equal(parsedYoutube?.kind === 'youtube' ? parsedYoutube.next : undefined, null);
+	assert.equal(
+		parsedYoutube?.kind === 'youtube' ? parsedYoutube.pausePoints?.[0]?.id : undefined,
+		'pause_1'
+	);
+});

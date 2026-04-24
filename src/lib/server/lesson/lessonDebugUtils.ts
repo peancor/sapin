@@ -163,7 +163,10 @@ export function resolveLessonDebugBlock(
 					block.agentConfig.continueLabel || '',
 					context
 				),
-				systemPrompt: resolveLessonDebugStringTemplate(block.agentConfig.systemPrompt || '', context),
+				systemPrompt: resolveLessonDebugStringTemplate(
+					block.agentConfig.systemPrompt || '',
+					context
+				),
 				promptTemplate: resolveLessonDebugStringTemplate(block.agentConfig.promptTemplate, context),
 				initialAssistantMessage: resolveLessonDebugStringTemplate(
 					block.agentConfig.initialAssistantMessage || '',
@@ -233,6 +236,21 @@ export function resolveLessonDebugBlock(
 		};
 	}
 
+	if (block.kind === 'youtube') {
+		return {
+			...block,
+			title: resolveLessonDebugStringTemplate(block.title, context),
+			body: resolveLessonDebugStringTemplate(block.body || '', context),
+			continueLabel: resolveLessonDebugStringTemplate(block.continueLabel || '', context),
+			pausePoints: (block.pausePoints ?? []).map((pausePoint) => ({
+				...pausePoint,
+				title: resolveLessonDebugStringTemplate(pausePoint.title || '', context),
+				body: resolveLessonDebugStringTemplate(pausePoint.body || '', context),
+				resumeLabel: resolveLessonDebugStringTemplate(pausePoint.resumeLabel || '', context)
+			}))
+		};
+	}
+
 	return {
 		...block,
 		title: resolveLessonDebugStringTemplate(block.title, context),
@@ -274,11 +292,13 @@ export function pickLessonDebugPreviewSession(input: {
 		if (requested) return requested;
 	}
 
-	return [...activeSessions].sort(
-		(left, right) =>
-			right.attemptNumber - left.attemptNumber ||
-			right.createdAt.getTime() - left.createdAt.getTime()
-	)[0] ?? null;
+	return (
+		[...activeSessions].sort(
+			(left, right) =>
+				right.attemptNumber - left.attemptNumber ||
+				right.createdAt.getTime() - left.createdAt.getTime()
+		)[0] ?? null
+	);
 }
 
 export function evaluateLessonDebugTransitions(input: {
@@ -378,12 +398,11 @@ export function buildLessonDebugBlockSummaries(input: {
 	blockVisits: LessonDebugVisitLike[];
 	events: LessonDebugEventLike[];
 	selectedBlockId: string;
-	getBlockGraphSummary: (
-		definition: LessonDefinition,
-		blockId: string
-	) => LessonBlockGraphSummary;
+	getBlockGraphSummary: (definition: LessonDefinition, blockId: string) => LessonBlockGraphSummary;
 }): LessonDebugBlockSummary[] {
-	const stateByBlock = new Map(input.blockStates.map((blockState) => [blockState.blockId, blockState]));
+	const stateByBlock = new Map(
+		input.blockStates.map((blockState) => [blockState.blockId, blockState])
+	);
 	const visitsByBlock = new Map<string, LessonDebugVisitLike[]>();
 	for (const visit of input.blockVisits) {
 		const bucket = visitsByBlock.get(visit.blockId) ?? [];
@@ -394,7 +413,8 @@ export function buildLessonDebugBlockSummaries(input: {
 	return input.definition.blocks.map((block) => {
 		const state = stateByBlock.get(block.id) ?? null;
 		const visits = visitsByBlock.get(block.id) ?? [];
-		const latestVisit = [...visits].sort((left, right) => right.visitNumber - left.visitNumber)[0] ?? null;
+		const latestVisit =
+			[...visits].sort((left, right) => right.visitNumber - left.visitNumber)[0] ?? null;
 		const outputs = parseLessonDebugJsonRecord(state?.outputsJson ?? latestVisit?.outputsJson);
 		const hasCheckAlert =
 			block.kind === 'check' &&

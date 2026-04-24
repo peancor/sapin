@@ -2,6 +2,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import LessonAgentChat from '$lib/components/lesson/LessonAgentChat.svelte';
 	import LessonAgentRuntimeChat from '$lib/components/lesson/LessonAgentRuntimeChat.svelte';
+	import LessonYoutubePlayer from '$lib/components/lesson/LessonYoutubePlayer.svelte';
 	import type { AgentDisplayPart } from '$lib/types/agent';
 	import { renderMarkdownMath } from '$lib/utils';
 	import { ArrowLeft, RotateCcw } from 'lucide-svelte';
@@ -13,12 +14,7 @@
 		onSessionReplaced?: ((sessionId: string) => void | Promise<void>) | undefined;
 	}
 
-	let {
-		data,
-		backHref,
-		backLabel = 'Volver',
-		onSessionReplaced
-	}: Props = $props();
+	let { data, backHref, backLabel = 'Volver', onSessionReplaced }: Props = $props();
 
 	interface AgentRuntimeState {
 		userTurnCount: number;
@@ -54,6 +50,9 @@
 	);
 	const resolvedCheckBlock = $derived.by(() =>
 		data.resolvedCurrentBlock.kind === 'check' ? data.resolvedCurrentBlock : null
+	);
+	const resolvedYoutubeBlock = $derived.by(() =>
+		data.resolvedCurrentBlock.kind === 'youtube' ? data.resolvedCurrentBlock : null
 	);
 	const bodyHtml = $derived.by(() =>
 		renderMarkdownMath((data.resolvedCurrentBlock as { body?: string }).body ?? '')
@@ -98,8 +97,9 @@
 				? `/api/lesson/${data.activity.id}/session/${data.session.id}/block/${data.currentBlock.id}/agent-chat/ask`
 				: `/api/lesson/${data.activity.id}/session/${data.session.id}/block/${data.currentBlock.id}/agent`
 	);
-	const agentAllowsInput = $derived.by(() =>
-		agentConfig !== null &&
+	const agentAllowsInput = $derived.by(
+		() =>
+			agentConfig !== null &&
 			agentConfig.interactionMode !== 'none' &&
 			agentConfig.executionTrigger === 'on_user_submit' &&
 			(agentConfig.interactionMode !== 'single_turn' || !agentHasUserResponse)
@@ -122,6 +122,14 @@
 		if (data.currentBlock.kind !== 'check') return true;
 		return (
 			data.currentVisit?.status === 'completed' || data.currentBlockState?.status === 'completed'
+		);
+	});
+	const youtubeCanContinue = $derived.by(() => {
+		if (data.currentBlock.kind !== 'youtube') return true;
+		return (
+			currentOutputs.completed === true ||
+			data.currentVisit?.status === 'completed' ||
+			data.currentBlockState?.status === 'completed'
 		);
 	});
 
@@ -157,9 +165,8 @@
 			? data.currentAgentMessages.filter(
 					(message: { role: string }) => message.role === 'assistant'
 				).length
-			: data.currentChatMessages.filter(
-					(message: { type: string }) => message.type === 'ASSISTANT'
-				).length;
+			: data.currentChatMessages.filter((message: { type: string }) => message.type === 'ASSISTANT')
+					.length;
 		const serverHasGeneratedResponse = agentUsesRuntime
 			? data.currentAgentMessages.some((message: { parts: RuntimeMessagePart[] }) =>
 					message.parts.some(
@@ -322,6 +329,21 @@
 			);
 		});
 	}
+
+	async function handleYoutubeProgress(payload: {
+		eventType: 'started' | 'pause_point_acknowledged' | 'completed';
+		currentTime?: number;
+		pausePointId?: string;
+		duration?: number;
+	}) {
+		await postJson(
+			`/api/lesson/${data.activity.id}/session/${data.session.id}/block/${data.currentBlock.id}/youtube-progress`,
+			payload
+		);
+		if (payload.eventType === 'completed') {
+			await invalidateAll();
+		}
+	}
 </script>
 
 <div class="space-y-6">
@@ -347,7 +369,7 @@
 		</div>
 
 		<div class="mt-4">
-			<p class="text-sm uppercase tracking-wide text-amber-600 dark:text-amber-400">
+			<p class="text-sm tracking-wide text-amber-600 uppercase dark:text-amber-400">
 				{data.sessionRevisionInfo.isPreview
 					? `${data.sessionRevisionInfo.scopeLabel} · intento ${data.session.attemptNumber}`
 					: `Lección viva · intento ${data.session.attemptNumber}`}
@@ -376,7 +398,9 @@
 
 		<div class="mt-4 flex flex-wrap gap-2">
 			{#each data.definition.blocks as block (block.id)}
-				{@const state = data.blockStates.find((item: { blockId: string }) => item.blockId === block.id)}
+				{@const state = data.blockStates.find(
+					(item: { blockId: string }) => item.blockId === block.id
+				)}
 				<span
 					class="rounded-full px-3 py-1 text-xs font-medium {data.currentBlock.id === block.id
 						? 'bg-primary-600 text-white'
@@ -392,7 +416,7 @@
 
 	<div class="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-900/40">
 		<div class="mb-4">
-			<p class="text-sm uppercase tracking-wide text-gray-500">{data.currentBlock.kind}</p>
+			<p class="text-sm tracking-wide text-gray-500 uppercase">{data.currentBlock.kind}</p>
 			<h2 class="text-xl font-semibold text-gray-900 dark:text-white">
 				{data.resolvedCurrentBlock.title}
 			</h2>
@@ -423,7 +447,7 @@
 			</div>
 		{/if}
 
-		<div class="prose max-w-none dark:prose-invert">
+		<div class="prose dark:prose-invert max-w-none">
 			{@html bodyHtml}
 		</div>
 
@@ -648,6 +672,29 @@
 								{resolvedCheckBlock.checkConfig.continueLabel || 'Continuar'}
 							</button>
 						{/if}
+					</div>
+				{/if}
+			</div>
+		{:else if data.currentBlock.kind === 'youtube'}
+			<div class="mt-6 space-y-4">
+				{#if resolvedYoutubeBlock}
+					{#key data.currentBlock.id}
+						<LessonYoutubePlayer
+							block={resolvedYoutubeBlock}
+							outputs={currentOutputs}
+							isReadOnly={data.isReadOnly}
+							onProgress={handleYoutubeProgress}
+						/>
+					{/key}
+
+					<div class="flex justify-end">
+						<button
+							class="bg-primary-600 hover:bg-primary-700 rounded-lg px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+							onclick={advance}
+							disabled={pending || data.isReadOnly || !youtubeCanContinue}
+						>
+							{resolvedYoutubeBlock.continueLabel || 'Continuar'}
+						</button>
 					</div>
 				{/if}
 			</div>

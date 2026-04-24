@@ -70,7 +70,8 @@
 		Route,
 		Save,
 		SquarePen,
-		Trash2
+		Trash2,
+		Youtube
 	} from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
 
@@ -108,6 +109,7 @@
 		{ kind: 'choice', label: 'Decisión', icon: ListChecks },
 		{ kind: 'check', label: 'Evaluación', icon: CircleCheck },
 		{ kind: 'agent', label: 'Tutor IA', icon: Bot },
+		{ kind: 'youtube', label: 'YouTube', icon: Youtube },
 		{ kind: 'end', label: 'Final', icon: Flag }
 	] as const;
 
@@ -304,6 +306,49 @@
 				: `Allowlist propia: ${metrics.total}`,
 			detail: `${metrics.total} tools · ${metrics.interactive} UI · ${metrics.hitl} HITL${metrics.persistent ? ` · ${metrics.persistent} persistentes` : ''}`
 		};
+	}
+
+	function extractYoutubeVideoId(input: string): string {
+		const value = input.trim();
+		if (/^[a-zA-Z0-9_-]{11}$/.test(value)) return value;
+
+		const urlMatch = value.match(
+			/(?:youtube\.com\/(?:watch\?[^#]*v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+		);
+		return urlMatch?.[1] ?? value;
+	}
+
+	function parseOptionalSeconds(input: string): number | null {
+		if (!input.trim()) return null;
+		const value = Number(input);
+		return Number.isFinite(value) ? Math.max(0, value) : null;
+	}
+
+	function addYoutubePausePointToSelectedBlock() {
+		updateSelectedBlock((block) => {
+			if (block.kind !== 'youtube') return;
+			const existingPausePoints = block.pausePoints ?? [];
+			const id = `pause_${existingPausePoints.length + 1}`;
+			block.pausePoints = [
+				...existingPausePoints,
+				{
+					id,
+					seconds: block.startSeconds ?? 0,
+					title: 'Pausa guiada',
+					body: '',
+					resumeLabel: 'Continuar video'
+				}
+			];
+		});
+	}
+
+	function removeYoutubePausePointFromSelectedBlock(pausePointId: string) {
+		updateSelectedBlock((block) => {
+			if (block.kind !== 'youtube') return;
+			block.pausePoints = (block.pausePoints ?? []).filter(
+				(pausePoint) => pausePoint.id !== pausePointId
+			);
+		});
 	}
 
 	function getInitialSelection(definition: LessonDefinition): SelectionState {
@@ -760,6 +805,12 @@
 				{ keywords: ['agent', 'ia', 'assistant'] }
 			),
 			createQuickMenuItem(
+				`${prefix}:youtube`,
+				'YouTube',
+				`${descriptionPrefix} un video guiado con pausas.`,
+				{ keywords: ['youtube', 'video', 'iframe'] }
+			),
+			createQuickMenuItem(
 				`${prefix}:end`,
 				'Final',
 				`${descriptionPrefix} un cierre o hito final.`,
@@ -846,7 +897,8 @@
 			if (
 				selectedBlock.kind === 'content' ||
 				selectedBlock.kind === 'check' ||
-				selectedBlock.kind === 'agent'
+				selectedBlock.kind === 'agent' ||
+				selectedBlock.kind === 'youtube'
 			) {
 				items.push(
 					createQuickMenuItem(
@@ -931,6 +983,7 @@
 			choice: 'choice',
 			check: 'check',
 			agent: 'agent',
+			youtube: 'youtube',
 			end: 'end'
 		} satisfies Record<LessonBlock['kind'], string>;
 		const existingIds = new Set(definition.blocks.map((block) => block.id));
@@ -1046,6 +1099,22 @@
 			};
 		}
 
+		if (kind === 'youtube') {
+			return {
+				id,
+				kind,
+				title: 'Nuevo video YouTube',
+				body: '',
+				videoId: '',
+				startSeconds: null,
+				endSeconds: null,
+				continueLabel: 'Continuar',
+				pausePoints: [],
+				next: null,
+				graph
+			};
+		}
+
 		return {
 			id,
 			kind,
@@ -1137,12 +1206,19 @@
 			!selectedBlock ||
 			(selectedBlock.kind !== 'content' &&
 				selectedBlock.kind !== 'check' &&
-				selectedBlock.kind !== 'agent')
+				selectedBlock.kind !== 'agent' &&
+				selectedBlock.kind !== 'youtube')
 		)
 			return;
 
 		updateSelectedBlock((block) => {
-			if (block.kind !== 'content' && block.kind !== 'check' && block.kind !== 'agent') return;
+			if (
+				block.kind !== 'content' &&
+				block.kind !== 'check' &&
+				block.kind !== 'agent' &&
+				block.kind !== 'youtube'
+			)
+				return;
 
 			block.branches = [
 				...(block.branches ?? []),
@@ -1251,7 +1327,13 @@
 		updateSelectedEdge((definition, edge) => {
 			removeIncomingOrder(definition, edge.target, edge.id);
 			const block = definition.blocks.find((candidate) => candidate.id === edge.source);
-			if (!block || (block.kind !== 'content' && block.kind !== 'check' && block.kind !== 'agent'))
+			if (
+				!block ||
+				(block.kind !== 'content' &&
+					block.kind !== 'check' &&
+					block.kind !== 'agent' &&
+					block.kind !== 'youtube')
+			)
 				return;
 			block.branches = (block.branches ?? []).filter((_, index) => index !== branchIndex);
 		});
@@ -1296,7 +1378,13 @@
 			}
 
 			if (edge.data?.edgeType === 'branch') {
-				if (block.kind !== 'content' && block.kind !== 'check' && block.kind !== 'agent') return;
+				if (
+					block.kind !== 'content' &&
+					block.kind !== 'check' &&
+					block.kind !== 'agent' &&
+					block.kind !== 'youtube'
+				)
+					return;
 				const branchIndex = edge.data.branchIndex;
 				if (branchIndex === undefined || !block.branches?.[branchIndex]) return;
 				block.branches[branchIndex].targetBlockId = '';
@@ -2341,6 +2429,8 @@
 						'bg-emerald-100 text-emerald-700 hover:bg-emerald-200/80 border-emerald-200/80 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40 dark:hover:bg-emerald-950/50',
 					agent:
 						'bg-indigo-100 text-indigo-700 hover:bg-indigo-200/80 border-indigo-200/80 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-900/40 dark:hover:bg-indigo-950/50',
+					youtube:
+						'bg-red-100 text-red-700 hover:bg-red-200/80 border-red-200/80 dark:bg-red-950/30 dark:text-red-300 dark:border-red-900/40 dark:hover:bg-red-950/50',
 					end: 'bg-rose-100 text-rose-700 hover:bg-rose-200/80 border-rose-200/80 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40 dark:hover:bg-rose-950/50'
 				}[button.kind]}
 				<button
@@ -2618,7 +2708,9 @@
 													? 'Evaluación'
 													: selectedBlock.kind === 'agent'
 														? 'Tutor IA'
-														: 'Final'}
+														: selectedBlock.kind === 'youtube'
+															? 'YouTube'
+															: 'Final'}
 									</p>
 								</div>
 								<div
@@ -2684,6 +2776,280 @@
 										{/each}
 									</select>
 								</label>
+
+								<div
+									class="rounded-xl border border-dashed border-stone-300/70 bg-stone-50/40 px-3 py-3 dark:border-stone-700/60 dark:bg-stone-900/20"
+								>
+									<div class="flex items-center justify-between gap-3">
+										<div>
+											<p class="text-sm font-medium text-stone-900 dark:text-white">
+												Ramas condicionales
+											</p>
+											<p class="text-xs text-stone-500 dark:text-stone-400">
+												{selectedBlock.branches?.length ?? 0} rama{(selectedBlock.branches
+													?.length ?? 0) === 1
+													? ''
+													: 's'} activa{(selectedBlock.branches?.length ?? 0) === 1 ? '' : 's'}
+											</p>
+										</div>
+										<button
+											type="button"
+											class="rounded-xl border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:bg-stone-100 active:scale-95 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+											onclick={addBranchToSelectedBlock}
+										>
+											<GitBranch class="mr-1 inline h-4 w-4" />
+											Añadir rama
+										</button>
+									</div>
+								</div>
+							{:else if selectedBlock.kind === 'youtube'}
+								<label class="block">
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+										>URL o ID de YouTube</span
+									>
+									<input
+										class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
+										value={selectedBlock.videoId}
+										placeholder="https://youtu.be/M7lc1UVf-VE"
+										oninput={(event) =>
+											updateSelectedBlock((block) => {
+												if (block.kind !== 'youtube') return;
+												block.videoId = extractYoutubeVideoId(
+													(event.currentTarget as HTMLInputElement).value
+												);
+											})}
+									/>
+								</label>
+
+								<label class="block">
+									<span
+										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+										>Texto introductorio</span
+									>
+									<textarea
+										class="min-h-24 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
+										value={selectedBlock.body ?? ''}
+										oninput={(event) =>
+											updateSelectedBlock((block) => {
+												if (block.kind !== 'youtube') return;
+												block.body = (event.currentTarget as HTMLTextAreaElement).value;
+											})}
+									></textarea>
+								</label>
+
+								<div class="grid gap-4 md:grid-cols-2">
+									<label class="block">
+										<span
+											class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+											>Inicio (s)</span
+										>
+										<input
+											type="number"
+											min="0"
+											class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
+											value={selectedBlock.startSeconds ?? ''}
+											oninput={(event) =>
+												updateSelectedBlock((block) => {
+													if (block.kind !== 'youtube') return;
+													block.startSeconds = parseOptionalSeconds(
+														(event.currentTarget as HTMLInputElement).value
+													);
+												})}
+										/>
+									</label>
+
+									<label class="block">
+										<span
+											class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+											>Fin (s)</span
+										>
+										<input
+											type="number"
+											min="0"
+											class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
+											value={selectedBlock.endSeconds ?? ''}
+											oninput={(event) =>
+												updateSelectedBlock((block) => {
+													if (block.kind !== 'youtube') return;
+													block.endSeconds = parseOptionalSeconds(
+														(event.currentTarget as HTMLInputElement).value
+													);
+												})}
+										/>
+									</label>
+								</div>
+
+								<div class="grid gap-4 md:grid-cols-2">
+									<label class="block">
+										<span
+											class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+											>Botón continuar</span
+										>
+										<input
+											class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
+											value={selectedBlock.continueLabel ?? ''}
+											oninput={(event) =>
+												updateSelectedBlock((block) => {
+													if (block.kind !== 'youtube') return;
+													block.continueLabel = (event.currentTarget as HTMLInputElement).value;
+												})}
+										/>
+									</label>
+
+									<label class="block">
+										<span
+											class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+											>Siguiente bloque</span
+										>
+										<select
+											class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600"
+											value={selectedBlock.next ?? ''}
+											onchange={(event) =>
+												updateSelectedBlock((block) => {
+													if (block.kind !== 'youtube') return;
+													block.next = (event.currentTarget as HTMLSelectElement).value || null;
+												})}
+										>
+											<option value="">Sin siguiente</option>
+											{#each availableBlocks as blockOption (blockOption.id)}
+												<option value={blockOption.id}>{blockOption.label}</option>
+											{/each}
+										</select>
+									</label>
+								</div>
+
+								<div
+									class="rounded-xl border border-dashed border-stone-300/70 bg-stone-50/40 px-3 py-3 dark:border-stone-700/60 dark:bg-stone-900/20"
+								>
+									<div class="flex items-center justify-between gap-3">
+										<div>
+											<p class="text-sm font-medium text-stone-900 dark:text-white">
+												Puntos de pausa
+											</p>
+											<p class="text-xs text-stone-500 dark:text-stone-400">
+												{selectedBlock.pausePoints?.length ?? 0} pausa{(selectedBlock.pausePoints
+													?.length ?? 0) === 1
+													? ''
+													: 's'} configurada{(selectedBlock.pausePoints?.length ?? 0) === 1
+													? ''
+													: 's'}
+											</p>
+										</div>
+										<button
+											type="button"
+											class="rounded-xl border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:bg-stone-100 active:scale-95 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+											onclick={addYoutubePausePointToSelectedBlock}
+										>
+											<Plus class="mr-1 inline h-4 w-4" />
+											Añadir pausa
+										</button>
+									</div>
+
+									<div class="mt-3 space-y-3">
+										{#each selectedBlock.pausePoints ?? [] as pausePoint (pausePoint.id)}
+											<div
+												class="rounded-xl border border-stone-200 bg-white/70 p-3 dark:border-stone-800 dark:bg-stone-950/40"
+											>
+												<div class="mb-3 flex items-center justify-between gap-2">
+													<p class="font-mono text-xs text-stone-500">{pausePoint.id}</p>
+													<button
+														type="button"
+														class="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30"
+														onclick={() => removeYoutubePausePointFromSelectedBlock(pausePoint.id)}
+													>
+														Quitar
+													</button>
+												</div>
+												<div class="grid gap-3 md:grid-cols-2">
+													<label class="block">
+														<span
+															class="mb-1 block text-[11px] font-semibold text-stone-600 dark:text-stone-300"
+															>Segundo</span
+														>
+														<input
+															type="number"
+															min="0"
+															class="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-950 dark:text-white"
+															value={pausePoint.seconds}
+															oninput={(event) =>
+																updateSelectedBlock((block) => {
+																	if (block.kind !== 'youtube') return;
+																	const target = block.pausePoints?.find(
+																		(candidate) => candidate.id === pausePoint.id
+																	);
+																	if (!target) return;
+																	target.seconds =
+																		parseOptionalSeconds(
+																			(event.currentTarget as HTMLInputElement).value
+																		) ?? 0;
+																})}
+														/>
+													</label>
+													<label class="block">
+														<span
+															class="mb-1 block text-[11px] font-semibold text-stone-600 dark:text-stone-300"
+															>Título</span
+														>
+														<input
+															class="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-950 dark:text-white"
+															value={pausePoint.title ?? ''}
+															oninput={(event) =>
+																updateSelectedBlock((block) => {
+																	if (block.kind !== 'youtube') return;
+																	const target = block.pausePoints?.find(
+																		(candidate) => candidate.id === pausePoint.id
+																	);
+																	if (!target) return;
+																	target.title = (event.currentTarget as HTMLInputElement).value;
+																})}
+														/>
+													</label>
+												</div>
+												<label class="mt-3 block">
+													<span
+														class="mb-1 block text-[11px] font-semibold text-stone-600 dark:text-stone-300"
+														>Prompt</span
+													>
+													<textarea
+														class="min-h-20 w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-950 dark:text-white"
+														value={pausePoint.body ?? ''}
+														oninput={(event) =>
+															updateSelectedBlock((block) => {
+																if (block.kind !== 'youtube') return;
+																const target = block.pausePoints?.find(
+																	(candidate) => candidate.id === pausePoint.id
+																);
+																if (!target) return;
+																target.body = (event.currentTarget as HTMLTextAreaElement).value;
+															})}
+													></textarea>
+												</label>
+												<label class="mt-3 block">
+													<span
+														class="mb-1 block text-[11px] font-semibold text-stone-600 dark:text-stone-300"
+														>Botón reanudar</span
+													>
+													<input
+														class="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-950 dark:text-white"
+														value={pausePoint.resumeLabel ?? ''}
+														oninput={(event) =>
+															updateSelectedBlock((block) => {
+																if (block.kind !== 'youtube') return;
+																const target = block.pausePoints?.find(
+																	(candidate) => candidate.id === pausePoint.id
+																);
+																if (!target) return;
+																target.resumeLabel = (
+																	event.currentTarget as HTMLInputElement
+																).value;
+															})}
+													/>
+												</label>
+											</div>
+										{/each}
+									</div>
+								</div>
 
 								<div
 									class="rounded-xl border border-dashed border-stone-300/70 bg-stone-50/40 px-3 py-3 dark:border-stone-700/60 dark:bg-stone-900/20"
@@ -3178,7 +3544,8 @@
 													!block ||
 													(block.kind !== 'content' &&
 														block.kind !== 'check' &&
-														block.kind !== 'agent')
+														block.kind !== 'agent' &&
+														block.kind !== 'youtube')
 												)
 													return;
 												const branch = block.branches?.[edge.data?.branchIndex ?? -1];
@@ -3206,7 +3573,8 @@
 														!block ||
 														(block.kind !== 'content' &&
 															block.kind !== 'check' &&
-															block.kind !== 'agent')
+															block.kind !== 'agent' &&
+															block.kind !== 'youtube')
 													)
 														return;
 													const branch = block.branches?.[edge.data?.branchIndex ?? -1];
@@ -3238,7 +3606,8 @@
 														!block ||
 														(block.kind !== 'content' &&
 															block.kind !== 'check' &&
-															block.kind !== 'agent')
+															block.kind !== 'agent' &&
+															block.kind !== 'youtube')
 													)
 														return;
 													const branch = block.branches?.[edge.data?.branchIndex ?? -1];
@@ -3276,7 +3645,8 @@
 													!block ||
 													(block.kind !== 'content' &&
 														block.kind !== 'check' &&
-														block.kind !== 'agent')
+														block.kind !== 'agent' &&
+														block.kind !== 'youtube')
 												)
 													return;
 												const branch = block.branches?.[edge.data?.branchIndex ?? -1];

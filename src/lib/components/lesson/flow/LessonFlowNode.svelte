@@ -1,6 +1,14 @@
 <script lang="ts">
 	import { Handle, Position, type NodeProps } from '@xyflow/svelte';
-	import { BookOpenText, Bot, CircleCheck, Flag, GitBranch, ListChecks } from 'lucide-svelte';
+	import {
+		BookOpenText,
+		Bot,
+		CircleCheck,
+		Flag,
+		GitBranch,
+		ListChecks,
+		Youtube
+	} from 'lucide-svelte';
 	import type { LessonFlowNode } from '../../../types/lessonFlow';
 
 	let { data, selected = false }: NodeProps<LessonFlowNode> = $props();
@@ -42,6 +50,15 @@
 			footer: 'bg-indigo-50/60 border-t border-indigo-100/80',
 			badge: 'bg-indigo-100 text-indigo-800 ring-indigo-200/80'
 		},
+		youtube: {
+			band: 'bg-red-600',
+			bandText: 'text-red-50',
+			glow: 'shadow-[0_0_0_3px_rgba(220,38,38,0.55),0_22px_48px_-20px_rgba(220,38,38,0.4)]',
+			handle: '!bg-red-600',
+			handleRing: '!ring-red-200',
+			footer: 'bg-red-50/60 border-t border-red-100/80',
+			badge: 'bg-red-100 text-red-800 ring-red-200/80'
+		},
 		end: {
 			band: 'bg-rose-500',
 			bandText: 'text-rose-50',
@@ -58,6 +75,7 @@
 		if (kind === 'choice') return ListChecks;
 		if (kind === 'check') return CircleCheck;
 		if (kind === 'agent') return Bot;
+		if (kind === 'youtube') return Youtube;
 		return Flag;
 	}
 

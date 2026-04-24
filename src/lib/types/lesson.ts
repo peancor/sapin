@@ -1,4 +1,4 @@
-export const lessonBlockKinds = ['content', 'choice', 'check', 'agent', 'end'] as const;
+export const lessonBlockKinds = ['content', 'choice', 'check', 'agent', 'youtube', 'end'] as const;
 export type LessonBlockKind = (typeof lessonBlockKinds)[number];
 
 export const lessonDefinitionVersions = ['1', '2'] as const;
@@ -225,6 +225,24 @@ export interface LessonAgentBlock extends LessonBlockBase {
 	requiresResponse?: boolean;
 }
 
+export interface LessonYoutubePausePoint {
+	id: string;
+	seconds: number;
+	title?: string;
+	body?: string;
+	resumeLabel?: string;
+}
+
+export interface LessonYoutubeBlock extends LessonBlockBase {
+	kind: 'youtube';
+	videoId: string;
+	body?: string;
+	startSeconds?: number | null;
+	endSeconds?: number | null;
+	continueLabel?: string;
+	pausePoints?: LessonYoutubePausePoint[];
+}
+
 export interface LessonEndBlock extends LessonBlockBase {
 	kind: 'end';
 	body?: string;
@@ -236,6 +254,7 @@ export type LessonBlock =
 	| LessonChoiceBlock
 	| LessonCheckBlock
 	| LessonAgentBlock
+	| LessonYoutubeBlock
 	| LessonEndBlock;
 
 export interface LessonDefinition {
