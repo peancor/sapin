@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
+	import { beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import LessonAgentToolCatalog from '$lib/components/lesson/LessonAgentToolCatalog.svelte';
@@ -9,22 +10,9 @@
 		type LessonAgentToolPresentationItem
 	} from '$lib/lesson/lessonAgentToolPresentation';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
-	import { normalizeLessonAgentConfig, type LessonBlock } from '$lib/types/lesson';
-	import {
-		ArrowDown,
-		ArrowRight,
-		ArrowUp,
-		BookOpenText,
-		Bot,
-		CheckCircle2,
-		Flag,
-		ListChecks,
-		Paperclip,
-		Plus,
-		Route,
-		Settings2,
-		Trash2
-	} from 'lucide-svelte';
+	import { normalizeLessonAgentConfig } from '$lib/types/lesson';
+	import { ArrowRight, Bot, CheckCircle2, Paperclip, Route, Settings2 } from 'lucide-svelte';
+	import { onMount } from 'svelte';
 
 	let { data, form }: PageProps = $props();
 
@@ -68,6 +56,12 @@
 	const isAgentPolicySelectionEmpty = $derived(
 		agentPolicyMode === 'custom' && selectedAllowedAgentToolIds.length === 0
 	);
+	const totalFlowConnections = $derived(
+		data.graphSummaries.reduce((total, summary) => total + summary.outgoingBlockIds.length, 0)
+	);
+	const entryBlock = $derived(
+		data.definition.blocks.find((block) => block.id === data.definition.entryBlockId)
+	);
 	const agentBlocks = $derived.by(() =>
 		data.definition.blocks
 			.filter((block) => block.kind === 'agent')
@@ -88,6 +82,10 @@
 	const agentBlocksWithCustomSubset = $derived(
 		agentBlocks.filter((block) => block.usesCustomSubset).length
 	);
+	const agentBlocksInAgentRuntime = $derived(
+		agentBlocks.filter((block) => block.runtimeMode === 'agent').length
+	);
+	const hasUnsavedLessonSettings = $derived(isMetaDirty || isAgentPolicyDirty);
 
 	function markMetaDirty() {
 		isMetaDirty = true;
@@ -120,53 +118,11 @@
 		markAgentPolicyDirty();
 	}
 
-	function blockIcon(block: LessonBlock) {
-		if (block.kind === 'content') return BookOpenText;
-		if (block.kind === 'choice') return ListChecks;
-		if (block.kind === 'check') return CheckCircle2;
-		if (block.kind === 'agent') return Bot;
-		return Flag;
-	}
-
-	function blockKindLabel(block: LessonBlock) {
-		if (block.kind === 'content') return 'Contenido';
-		if (block.kind === 'choice') return 'Decisión';
-		if (block.kind === 'check') return 'Evaluación';
-		if (block.kind === 'agent') return 'IA';
-		return 'Final';
-	}
-
-	function blockSummary(block: LessonBlock) {
-		if (block.kind === 'choice') {
-			return `${block.options.length} opción${block.options.length === 1 ? '' : 'es'} · salida ${block.outputKey || 'selection'}`;
-		}
-
-		if (block.kind === 'check') {
-			return `${block.checkConfig.mode} · aprobar ${block.checkConfig.passingScore}`;
-		}
-
-		if (block.kind === 'end') {
-			return 'Bloque terminal';
-		}
-
-		const branches = block.branches?.length ?? 0;
-		return `${block.next ? `siguiente: ${block.next}` : 'sin siguiente'}${branches ? ` · ${branches} rama${branches === 1 ? '' : 's'}` : ''}`;
-	}
-
-	function graphSummary(blockId: string) {
-		return data.graphSummaries.find((summary) => summary.blockId === blockId);
-	}
-
-	function exposedFieldCount(blockId: string) {
-		const summary = graphSummary(blockId);
-		if (!summary) return 0;
-		return summary.contracts.state.length + summary.contracts.outputs.length;
-	}
-
-	function confirmDelete(event: SubmitEvent, blockTitle: string) {
-		if (!window.confirm(`Vas a eliminar "${blockTitle}". Esta acción no se puede deshacer.`)) {
-			event.preventDefault();
-		}
+	function confirmLeaveWithUnsavedSettings() {
+		if (!hasUnsavedLessonSettings) return true;
+		return window.confirm(
+			'Hay cambios sin guardar en la portada o en la política agéntica. ¿Deseas salir de todas formas?'
+		);
 	}
 
 	$effect(() => {
@@ -203,6 +159,23 @@
 			];
 		}
 	});
+
+	onMount(() => {
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			if (!hasUnsavedLessonSettings) return;
+			event.preventDefault();
+			event.returnValue = '';
+		};
+
+		window.addEventListener('beforeunload', handleBeforeUnload);
+		return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+	});
+
+	beforeNavigate((navigation) => {
+		if (!confirmLeaveWithUnsavedSettings()) {
+			navigation.cancel();
+		}
+	});
 </script>
 
 <div class="space-y-6">
@@ -227,18 +200,9 @@
 					</div>
 				</div>
 				<p class="text-sm leading-6 text-gray-600 dark:text-gray-300">
-					La portada de lesson queda reservada para la estructura general: metadatos, política de
-					sesión, orden de bloques y accesos rápidos al editor especializado de cada bloque.
+					Gestiona los metadatos, revisiones y política global de la lesson. La estructura y las
+					conexiones viven en el editor visual.
 				</p>
-				<div
-					class="mt-4 rounded-2xl border border-amber-200/80 bg-white/70 px-4 py-3 text-sm text-amber-900 shadow-sm dark:border-amber-900/50 dark:bg-gray-950/40 dark:text-amber-100"
-				>
-					<p class="font-medium">El orden de esta lista ya no define el flujo.</p>
-					<p class="mt-1 text-amber-800/80 dark:text-amber-100/80">
-						El runtime sigue las conexiones del grafo y reutiliza la última visita de cada bloque,
-						así que aquí solo mantenemos una vista editorial cómoda.
-					</p>
-				</div>
 			</div>
 
 			<div class="grid gap-3 sm:grid-cols-3">
@@ -695,70 +659,32 @@
 					{/if}
 
 					<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-						<div class="mb-4">
-							<h3 class="text-base font-semibold text-gray-900 dark:text-white">
-								Impacto en bloques IA
-							</h3>
-							<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-								Resumen rápido de qué bloques heredan la política global y cuáles mantienen un
-								subconjunto propio.
-							</p>
-						</div>
-
-						<div class="space-y-3">
-							{#if agentBlocks.length}
-								{#each agentBlocks as block (block.id)}
-									<div
-										class="flex flex-col gap-3 rounded-2xl border border-gray-200 px-4 py-4 md:flex-row md:items-center md:justify-between dark:border-gray-800"
-									>
-										<div>
-											<p class="text-sm font-semibold text-gray-900 dark:text-white">
-												{block.title}
-											</p>
-											<p class="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400">
-												{block.id}
-											</p>
-										</div>
-
-										<div class="flex flex-wrap items-center gap-2">
-											{#if block.runtimeMode !== 'agent'}
-												<span
-													class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-												>
-													Runtime básico
-												</span>
-											{:else if block.usesCustomSubset}
-												<span
-													class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
-												>
-													Allowlist propia: {block.selectedToolCount}
-												</span>
-											{:else}
-												<span
-													class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
-												>
-													Hereda allowlist
-												</span>
-											{/if}
-
-											<a
-												href={resolve(
-													`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${block.id}`
-												)}
-												class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-											>
-												Editar bloque
-											</a>
-										</div>
-									</div>
-								{/each}
-							{:else}
-								<p
-									class="rounded-2xl bg-gray-50 px-4 py-4 text-sm text-gray-500 dark:bg-gray-950/30 dark:text-gray-400"
-								>
-									Todavía no hay bloques IA en esta lesson.
+						<h3 class="text-base font-semibold text-gray-900 dark:text-white">Resumen de uso</h3>
+						<div class="mt-4 grid gap-3 sm:grid-cols-3">
+							<div class="rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950/40">
+								<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+									Bloques IA
 								</p>
-							{/if}
+								<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+									{agentBlocks.length}
+								</p>
+							</div>
+							<div class="rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950/40">
+								<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+									Modo agente
+								</p>
+								<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+									{agentBlocksInAgentRuntime}
+								</p>
+							</div>
+							<div class="rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950/40">
+								<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+									Allowlist propia
+								</p>
+								<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+									{agentBlocksWithCustomSubset}
+								</p>
+							</div>
 						</div>
 					</div>
 
@@ -792,224 +718,74 @@
 			<div
 				class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800"
 			>
-				<div class="mb-5 flex flex-wrap items-start justify-between gap-4">
-					<div>
-						<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Bloques</h2>
-						<p class="text-sm text-gray-500 dark:text-gray-400">
-							Ordena el flujo, marca la entrada y abre el editor dedicado de cada bloque.
+				<div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+					<div class="max-w-2xl">
+						<h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+							Estructura de la lesson
+						</h2>
+						<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+							El grafo, la entrada y las conexiones se editan desde el editor visual.
 						</p>
 					</div>
 
-					<div class="flex flex-wrap gap-2">
-						<a
-							href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit/flow`)}
-							class="border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 dark:border-primary-900/40 dark:bg-primary-950/20 dark:text-primary-300 dark:hover:bg-primary-950/30 rounded-xl border px-3 py-2 text-sm font-medium"
-						>
-							<Route class="mr-1 inline h-4 w-4" />
-							Editor visual
-						</a>
-						<a
-							href={resolve(
-								`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/new?kind=content`
-							)}
-							class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-						>
-							<Plus class="mr-1 inline h-4 w-4" />
-							Contenido
-						</a>
-						<a
-							href={resolve(
-								`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/new?kind=choice`
-							)}
-							class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-						>
-							<Plus class="mr-1 inline h-4 w-4" />
-							Decisión
-						</a>
-						<a
-							href={resolve(
-								`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/new?kind=agent`
-							)}
-							class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-						>
-							<Plus class="mr-1 inline h-4 w-4" />
-							IA
-						</a>
-						<a
-							href={resolve(
-								`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/new?kind=end`
-							)}
-							class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-						>
-							<Plus class="mr-1 inline h-4 w-4" />
-							Final
-						</a>
+					<a
+						href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit/flow`)}
+						class="bg-primary-600 hover:bg-primary-700 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm"
+					>
+						<Route class="mr-2 h-4 w-4" />
+						Abrir editor visual
+					</a>
+				</div>
+
+				<div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+						<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+							Bloques
+						</p>
+						<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+							{data.definition.blocks.length}
+						</p>
+					</div>
+					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+						<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+							Conexiones
+						</p>
+						<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+							{totalFlowConnections}
+						</p>
+					</div>
+					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+						<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+							Bloques IA
+						</p>
+						<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+							{agentBlocks.length}
+						</p>
+					</div>
+					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+						<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+							Entrada
+						</p>
+						<p class="mt-1 truncate text-sm font-semibold text-gray-900 dark:text-white">
+							{entryBlock?.title ?? data.definition.entryBlockId}
+						</p>
 					</div>
 				</div>
 
-				<div class="space-y-3">
-					{#each data.definition.blocks as block, index (block.id)}
-						{@const Icon = blockIcon(block)}
-						{@const summary = graphSummary(block.id)}
-						<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-							<div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-								<div class="flex min-w-0 items-start gap-4">
-									<div
-										class="rounded-2xl bg-gray-100 p-3 text-gray-700 dark:bg-gray-800 dark:text-gray-200"
-									>
-										<Icon class="h-5 w-5" />
-									</div>
-
-									<div class="min-w-0">
-										<div class="flex flex-wrap items-center gap-2">
-											<h3 class="truncate text-base font-semibold text-gray-900 dark:text-white">
-												{block.title}
-											</h3>
-											<span
-												class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-											>
-												{blockKindLabel(block)}
-											</span>
-											{#if data.definition.entryBlockId === block.id}
-												<span
-													class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
-												>
-													Entrada
-												</span>
-											{/if}
-										</div>
-										<p class="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400">
-											{block.id}
-										</p>
-										<p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
-											{blockSummary(block)}
-										</p>
-										<div class="mt-3 flex flex-wrap gap-2">
-											<span
-												class="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-950/30 dark:text-sky-300"
-											>
-												Entradas {summary?.incomingBlockIds.length ?? 0}
-											</span>
-											<span
-												class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
-											>
-												Salidas {summary?.outgoingBlockIds.length ?? 0}
-											</span>
-											<span
-												class="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-700 dark:bg-violet-950/30 dark:text-violet-300"
-											>
-												Expone {exposedFieldCount(block.id)} referencias
-											</span>
-										</div>
-										{#if summary}
-											<div
-												class="mt-3 grid gap-3 text-xs text-gray-500 sm:grid-cols-2 dark:text-gray-400"
-											>
-												<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
-													<p
-														class="mb-2 font-medium tracking-[0.12em] text-gray-500 uppercase dark:text-gray-400"
-													>
-														Llega desde
-													</p>
-													<div class="flex flex-wrap gap-2">
-														{#if summary.incomingBlockIds.length}
-															{#each summary.incomingBlockIds as sourceId (sourceId)}
-																<span
-																	class="rounded-full border border-gray-200 px-2.5 py-1 font-mono text-[11px] text-gray-600 dark:border-gray-800 dark:text-gray-300"
-																>
-																	{sourceId}
-																</span>
-															{/each}
-														{:else}
-															<span>Sin conexiones entrantes.</span>
-														{/if}
-													</div>
-												</div>
-												<div class="rounded-2xl bg-gray-50 px-3 py-3 dark:bg-gray-950/40">
-													<p
-														class="mb-2 font-medium tracking-[0.12em] text-gray-500 uppercase dark:text-gray-400"
-													>
-														Apunta a
-													</p>
-													<div class="flex flex-wrap gap-2">
-														{#if summary.outgoingBlockIds.length}
-															{#each summary.outgoingBlockIds as targetId (targetId)}
-																<span
-																	class="rounded-full border border-gray-200 px-2.5 py-1 font-mono text-[11px] text-gray-600 dark:border-gray-800 dark:text-gray-300"
-																>
-																	{targetId}
-																</span>
-															{/each}
-														{:else}
-															<span>Sin conexiones salientes.</span>
-														{/if}
-													</div>
-												</div>
-											</div>
-										{/if}
-									</div>
-								</div>
-
-								<div class="flex flex-wrap gap-2">
-									<a
-										href={resolve(
-											`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${block.id}`
-										)}
-										class="bg-primary-600 hover:bg-primary-700 rounded-xl px-3 py-2 text-sm font-medium text-white"
-									>
-										Editar
-									</a>
-
-									<form method="POST" action="?/reorderBlocks">
-										<input type="hidden" name="blockId" value={block.id} />
-										<input type="hidden" name="direction" value="up" />
-										<button
-											class="rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-											disabled={index === 0}
-										>
-											<ArrowUp class="h-4 w-4" />
-										</button>
-									</form>
-
-									<form method="POST" action="?/reorderBlocks">
-										<input type="hidden" name="blockId" value={block.id} />
-										<input type="hidden" name="direction" value="down" />
-										<button
-											class="rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-											disabled={index === data.definition.blocks.length - 1}
-										>
-											<ArrowDown class="h-4 w-4" />
-										</button>
-									</form>
-
-									<form method="POST" action="?/setEntryBlock">
-										<input type="hidden" name="blockId" value={block.id} />
-										<button
-											class="rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-											disabled={data.definition.entryBlockId === block.id}
-										>
-											Entrada
-										</button>
-									</form>
-
-									<form
-										method="POST"
-										action="?/deleteBlock"
-										onsubmit={(event) => confirmDelete(event, block.title)}
-									>
-										<input type="hidden" name="blockId" value={block.id} />
-										<button
-											class="rounded-xl border border-red-200 px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
-										>
-											<Trash2 class="mr-1 inline h-4 w-4" />
-											Eliminar
-										</button>
-									</form>
-								</div>
-							</div>
-						</div>
-					{/each}
-				</div>
+				{#if data.definition.blocks.length === 0}
+					<div
+						class="mt-5 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100"
+					>
+						<span>La lesson todavía no tiene estructura.</span>
+						<a
+							href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit/flow`)}
+							class="inline-flex items-center justify-center rounded-xl bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+						>
+							Crear estructura
+							<ArrowRight class="ml-2 h-4 w-4" />
+						</a>
+					</div>
+				{/if}
 			</div>
 		</div>
 
@@ -1065,30 +841,6 @@
 						<ArrowRight class="ml-1 inline h-4 w-4" />
 					</a>
 				</div>
-			</details>
-
-			<details
-				class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800"
-			>
-				<summary class="cursor-pointer list-none marker:hidden">
-					<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Siguiente paso</h2>
-				</summary>
-				<p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-					Usa el editor de bloque para trabajar el contenido real. Ahí es donde vive el markdown
-					rico, el branching detallado, la configuración IA y el pegado directo de imágenes.
-				</p>
-
-				{#if data.definition.blocks[0]}
-					<a
-						href={resolve(
-							`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${data.definition.blocks[0].id}`
-						)}
-						class="mt-5 inline-flex items-center rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-					>
-						Editar primer bloque
-						<ArrowRight class="ml-1 h-4 w-4" />
-					</a>
-				{/if}
 			</details>
 		</div>
 	</div>
