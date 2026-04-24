@@ -320,6 +320,54 @@
 		};
 	}
 
+	function getInitialSelection(definition: LessonDefinition): SelectionState {
+		const requestedBlockId = page.url.searchParams.get('blockId')?.trim();
+
+		if (requestedBlockId) {
+			return definition.blocks.some((block) => block.id === requestedBlockId)
+				? { kind: 'node', id: requestedBlockId }
+				: null;
+		}
+
+		return definition.blocks.some((block) => block.id === definition.entryBlockId)
+			? { kind: 'node', id: definition.entryBlockId }
+			: null;
+	}
+
+	function replaceSelectionUrl(blockId: string | null) {
+		const url = new URL(window.location.href);
+
+		if (blockId) {
+			url.searchParams.set('blockId', blockId);
+		} else {
+			url.searchParams.delete('blockId');
+		}
+
+		window.history.replaceState(
+			window.history.state,
+			'',
+			`${url.pathname}${url.search}${url.hash}`
+		);
+	}
+
+	async function focusSelectedNodeInCanvas(nextSelection: SelectionState = selection) {
+		if (nextSelection?.kind !== 'node') return;
+		await tick();
+
+		const node = flowNodes.find((candidate) => candidate.id === nextSelection.id);
+		if (!node) return;
+
+		const width = canvasElement?.clientWidth ?? stageElement?.clientWidth ?? 960;
+		const height = canvasElement?.clientHeight ?? stageElement?.clientHeight ?? 640;
+		const zoom = Math.min(Math.max(flowViewport?.zoom ?? 0.9, 0.55), 1.15);
+
+		flowViewport = {
+			x: Math.round(width / 2 - (node.position.x + 160) * zoom),
+			y: Math.round(height / 2 - (node.position.y + 90) * zoom),
+			zoom
+		};
+	}
+
 	function initializeCanvas(
 		definition: LessonDefinition,
 		nextSelection: SelectionState = { kind: 'node', id: definition.entryBlockId },
@@ -411,18 +459,21 @@
 	function selectNode(blockId: string) {
 		isRenamingSelectedBlock = false;
 		selection = { kind: 'node', id: blockId };
+		replaceSelectionUrl(blockId);
 		syncCanvasFromDraft();
 	}
 
 	function selectEdge(edgeId: string) {
 		isRenamingSelectedBlock = false;
 		selection = { kind: 'edge', id: edgeId };
+		replaceSelectionUrl(null);
 		syncCanvasFromDraft();
 	}
 
 	function clearSelection() {
 		isRenamingSelectedBlock = false;
 		selection = null;
+		replaceSelectionUrl(null);
 		syncCanvasFromDraft();
 	}
 
@@ -431,16 +482,19 @@
 
 		if (nodes.length === 1 && edges.length === 0) {
 			selection = { kind: 'node', id: nodes[0].id };
+			replaceSelectionUrl(nodes[0].id);
 			return;
 		}
 
 		if (edges.length === 1 && nodes.length === 0) {
 			selection = { kind: 'edge', id: edges[0].id };
+			replaceSelectionUrl(null);
 			return;
 		}
 
 		if (nodes.length === 0 && edges.length === 0) {
 			selection = null;
+			replaceSelectionUrl(null);
 		}
 	}
 
@@ -1374,12 +1428,34 @@
 			formData.set('definitionJson', JSON.stringify(synced));
 			const result = await postAction('saveFlow', formData);
 			initializeCanvas(result.definition, selection, result.message);
+			return true;
 		} catch (errorValue) {
 			actionError =
 				errorValue instanceof Error ? errorValue.message : 'No se pudo guardar el editor visual.';
+			return false;
 		} finally {
 			isSubmitting = false;
 		}
+	}
+
+	async function openSelectedBlockDetail() {
+		if (!selectedBlock) return;
+		const blockId = selectedBlock.id;
+		const destination = resolve(
+			`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${blockId}`
+		);
+
+		if (hasUnsavedChanges) {
+			const shouldSaveFirst = window.confirm(
+				'Hay cambios sin guardar en el mapa. Para editar el bloque en detalle conviene guardar primero las conexiones y posiciones actuales. ¿Quieres guardar el mapa y abrir el editor detallado?'
+			);
+
+			if (!shouldSaveFirst) return;
+			const saved = await saveFlow();
+			if (!saved) return;
+		}
+
+		window.location.href = destination;
 	}
 
 	async function createBlock(
@@ -1522,9 +1598,7 @@
 		}
 
 		if (actionId === 'open-detail-editor' && selectedBlock) {
-			window.location.href = resolve(
-				`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${selectedBlock.id}`
-			);
+			await openSelectedBlockDetail();
 			return;
 		}
 
@@ -1785,6 +1859,9 @@
 		};
 
 		window.addEventListener('beforeunload', handleBeforeUnload);
+		if (page.url.searchParams.get('blockId')) {
+			void focusSelectedNodeInCanvas();
+		}
 
 		return () => {
 			window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -1818,7 +1895,10 @@
 		]);
 	});
 
-	initializeCanvas(cloneLoadedDefinition());
+	{
+		const loadedDefinition = cloneLoadedDefinition();
+		initializeCanvas(loadedDefinition, getInitialSelection(loadedDefinition));
+	}
 </script>
 
 <svelte:window onkeydown={handleWindowKeydown} />
@@ -2831,15 +2911,15 @@
 												: 'Este bloque usa una allowlist propia dentro de la allowlist global.'}
 										</p>
 
-										<a
-											href={resolve(
-												`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${selectedBlock.id}`
-											)}
+										<button
+											type="button"
+											onclick={openSelectedBlockDetail}
+											disabled={isSubmitting}
 											class="mt-4 inline-flex items-center rounded-2xl border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-gray-800"
 										>
 											<SquarePen class="mr-1 h-4 w-4" />
 											Editar tools en bloque
-										</a>
+										</button>
 									</div>
 								{/if}
 
@@ -3004,15 +3084,15 @@
 							{/if}
 
 							<div class="grid gap-2">
-								<a
-									href={resolve(
-										`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${selectedBlock.id}`
-									)}
-									class="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 active:scale-95"
+								<button
+									type="button"
+									onclick={openSelectedBlockDetail}
+									disabled={isSubmitting}
+									class="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
 								>
 									<SquarePen class="h-4 w-4" />
-									Editar bloque en detalle
-								</a>
+									{hasUnsavedChanges ? 'Guardar mapa y editar detalle' : 'Editar bloque en detalle'}
+								</button>
 
 								<a
 									href={resolve(

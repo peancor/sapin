@@ -29,6 +29,7 @@ export const actions = {
 		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const blockJson = formData.get('blockJson')?.toString();
+		const redirectTo = formData.get('redirectTo')?.toString();
 
 		if (!blockJson) {
 			return fail(400, {
@@ -61,10 +62,12 @@ export const actions = {
 				actorUserId: user.id
 			});
 
-			redirect(
-				303,
-				`/course/${params.cid}/admin/interactives/${params.ilid}/lessonedit/blocks/${parsedBlock.id}`
-			);
+			const target =
+				redirectTo === 'flow'
+					? `/course/${params.cid}/admin/interactives/${params.ilid}/lessonedit/flow?blockId=${encodeURIComponent(parsedBlock.id)}`
+					: `/course/${params.cid}/admin/interactives/${params.ilid}/lessonedit/blocks/${parsedBlock.id}`;
+
+			redirect(303, target);
 		} catch (errorValue) {
 			if (errorValue instanceof LessonServiceError) {
 				return fail(errorValue.status, {
