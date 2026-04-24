@@ -17,10 +17,7 @@ import {
 	normalizeLessonCheckConfig
 } from '../../types/lesson.ts';
 import { LessonServiceError } from './LessonServiceError.ts';
-import {
-	getEffectiveLessonAllowedToolIds,
-	isLessonSafeAgentToolName
-} from './lessonAgentTools.ts';
+import { getEffectiveLessonAllowedToolIds, isLessonSafeAgentToolName } from './lessonAgentTools.ts';
 
 export interface LessonReferenceGroups {
 	session: LessonAvailableVariable[];
@@ -1136,17 +1133,21 @@ function assertLessonAgentToolConfiguration(definition: LessonDefinition): void 
 
 function buildTransitionGraph(definition: LessonDefinition): Map<string, Set<string>> {
 	const graph = new Map<string, Set<string>>();
+	const blockIds = new Set(definition.blocks.map((block) => block.id));
+	const addTarget = (targets: Set<string>, targetBlockId: string | null | undefined) => {
+		if (targetBlockId && blockIds.has(targetBlockId)) targets.add(targetBlockId);
+	};
 
 	for (const block of definition.blocks) {
 		const targets = new Set<string>();
-		if (block.next) targets.add(block.next);
+		addTarget(targets, block.next);
 
 		if (block.kind === 'choice') {
-			for (const option of block.options) targets.add(option.targetBlockId);
+			for (const option of block.options) addTarget(targets, option.targetBlockId);
 		}
 
 		for (const branch of block.branches ?? []) {
-			targets.add(branch.targetBlockId);
+			addTarget(targets, branch.targetBlockId);
 		}
 
 		graph.set(block.id, targets);
@@ -1157,25 +1158,26 @@ function buildTransitionGraph(definition: LessonDefinition): Map<string, Set<str
 
 function buildIncomingTransitionGraph(definition: LessonDefinition): Map<string, Set<string>> {
 	const incoming = new Map<string, Set<string>>();
+	const blockIds = new Set(definition.blocks.map((block) => block.id));
+	const addIncoming = (sourceBlockId: string, targetBlockId: string | null | undefined) => {
+		if (!targetBlockId || !blockIds.has(targetBlockId)) return;
+		if (!incoming.has(targetBlockId)) incoming.set(targetBlockId, new Set());
+		incoming.get(targetBlockId)?.add(sourceBlockId);
+	};
 
 	for (const block of definition.blocks) {
 		if (!incoming.has(block.id)) incoming.set(block.id, new Set());
 
-		if (block.next) {
-			if (!incoming.has(block.next)) incoming.set(block.next, new Set());
-			incoming.get(block.next)?.add(block.id);
-		}
+		addIncoming(block.id, block.next);
 
 		if (block.kind === 'choice') {
 			for (const option of block.options) {
-				if (!incoming.has(option.targetBlockId)) incoming.set(option.targetBlockId, new Set());
-				incoming.get(option.targetBlockId)?.add(block.id);
+				addIncoming(block.id, option.targetBlockId);
 			}
 		}
 
 		for (const branch of block.branches ?? []) {
-			if (!incoming.has(branch.targetBlockId)) incoming.set(branch.targetBlockId, new Set());
-			incoming.get(branch.targetBlockId)?.add(block.id);
+			addIncoming(block.id, branch.targetBlockId);
 		}
 	}
 

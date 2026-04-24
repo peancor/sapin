@@ -46,10 +46,7 @@ function asLessonError(errorValue: unknown, fallbackAction: string) {
 	throw errorValue;
 }
 
-function parseSelectedToolIds(
-	formData: FormData,
-	safeToolIds: string[]
-): string[] {
+function parseSelectedToolIds(formData: FormData, safeToolIds: string[]): string[] {
 	const safeToolIdSet = new Set(safeToolIds);
 	const rawValue = formData.get('selectedToolIdsJson')?.toString().trim();
 
@@ -75,12 +72,17 @@ export const load = (async ({ params, locals }) => {
 
 export const actions = {
 	updateLessonMeta: async ({ request, params, locals }) => {
-		const { activity, lessonConfig } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { activity, lessonConfig } = await requireLessonAdminContext(
+			params.cid,
+			params.ilid,
+			locals
+		);
 		const formData = await request.formData();
 		const name = formData.get('name')?.toString().trim();
 		const description = formData.get('description')?.toString() || null;
 		const sessionPolicyRaw = formData.get('sessionPolicy')?.toString();
-		const allowRestart = formData.get('allowRestart') === 'on' || formData.get('allowRestart') === 'true';
+		const allowRestart =
+			formData.get('allowRestart') === 'on' || formData.get('allowRestart') === 'true';
 		const status = parseStatus(formData.get('status'));
 
 		if (!name) {
@@ -218,10 +220,7 @@ export const actions = {
 		}
 
 		try {
-			const nextDefinition = LessonService.deleteBlock(
-				revisionState.draftDefinition,
-				blockId
-			);
+			const nextDefinition = LessonService.deleteBlock(revisionState.draftDefinition, blockId);
 			await persistDefinition({
 				ilid: params.ilid,
 				definition: nextDefinition,
@@ -249,10 +248,7 @@ export const actions = {
 		}
 
 		try {
-			const nextDefinition = LessonService.setEntryBlock(
-				revisionState.draftDefinition,
-				blockId
-			);
+			const nextDefinition = LessonService.setEntryBlock(revisionState.draftDefinition, blockId);
 			await persistDefinition({
 				ilid: params.ilid,
 				definition: nextDefinition,
@@ -266,16 +262,21 @@ export const actions = {
 
 	publishDraft: async ({ params, locals }) => {
 		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
-		await LessonRevisionService.publishDraftRevision({
-			interactiveLearningId: params.ilid,
-			actorUserId: user.id
-		});
 
-		return {
-			success: true,
-			action: 'publishDraft',
-			message: 'Borrador publicado. Los intentos nuevos ya usarán la revisión vigente.'
-		};
+		try {
+			await LessonRevisionService.publishDraftRevision({
+				interactiveLearningId: params.ilid,
+				actorUserId: user.id
+			});
+
+			return {
+				success: true,
+				action: 'publishDraft',
+				message: 'Borrador publicado. Los intentos nuevos ya usarán la revisión vigente.'
+			};
+		} catch (errorValue) {
+			return asLessonError(errorValue, 'publishDraft');
+		}
 	},
 
 	discardDraft: async ({ params, locals }) => {

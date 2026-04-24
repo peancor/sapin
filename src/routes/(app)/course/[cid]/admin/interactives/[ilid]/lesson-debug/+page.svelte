@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable svelte/no-navigation-without-resolve, svelte/prefer-svelte-reactivity */
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -35,7 +36,14 @@
 		(page.url.searchParams.get('tab') as InspectorTab | null) ?? 'definition'
 	);
 
-	const snapshot = $derived.by(() => data.snapshot);
+	const loadError = $derived.by(() => data.debugError ?? null);
+	const snapshot = $derived.by(() => {
+		if (!data.snapshot) {
+			throw new Error(loadError?.message ?? 'No se pudo preparar el debugger de la lesson.');
+		}
+
+		return data.snapshot;
+	});
 	const isBusy = $derived.by(() => pendingAction !== null || launchActionPending);
 	const activeView = $derived.by<DebuggerView>(() =>
 		page.url.searchParams.get('view') === 'debug' ? 'debug' : 'student'
@@ -834,199 +842,266 @@
 	</section>
 {/snippet}
 
-<div
-	class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.08),_transparent_22%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_18%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.1),_transparent_22%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_18%),linear-gradient(180deg,_#020617_0%,_#111827_100%)]"
->
+{#if loadError}
 	<div
-		class="sticky top-0 z-20 border-b border-white/70 bg-white/85 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/85"
+		class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.08),_transparent_22%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_18%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] px-4 py-6 sm:px-6 lg:px-8 dark:bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.1),_transparent_22%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_18%),linear-gradient(180deg,_#020617_0%,_#111827_100%)]"
 	>
-		<div class="flex w-full flex-wrap items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
-			<a
-				href={returnHref}
-				class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition-colors hover:border-sky-300 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-sky-700 dark:hover:text-sky-200"
-				aria-label={returnLabel}
-			>
-				<ArrowLeft class="h-4 w-4" />
-			</a>
+		<div class="mx-auto flex max-w-4xl flex-col gap-5">
+			<div class="flex flex-wrap items-center gap-3">
+				<a
+					href={returnHref}
+					class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition-colors hover:border-sky-300 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-sky-700 dark:hover:text-sky-200"
+					aria-label={returnLabel}
+				>
+					<ArrowLeft class="h-4 w-4" />
+				</a>
+				<div>
+					<p
+						class="text-[11px] font-semibold tracking-[0.24em] text-sky-700 uppercase dark:text-sky-300"
+					>
+						Lesson debugger
+					</p>
+					<h1 class="text-lg font-semibold text-slate-900 sm:text-xl dark:text-white">
+						No se puede abrir el debugger
+					</h1>
+				</div>
+			</div>
 
-			<div class="min-w-0 flex-1">
-				<p
-					class="text-[11px] font-semibold tracking-[0.24em] text-sky-700 uppercase dark:text-sky-300"
-				>
-					Lesson debugger
-				</p>
-				<h1 class="truncate text-lg font-semibold text-slate-900 sm:text-xl dark:text-white">
-					{snapshot.activity.name}
-				</h1>
-				<div
-					class="mt-2 flex flex-wrap gap-2 text-[11px] font-medium text-slate-500 dark:text-slate-400"
-				>
-					<span
-						class="rounded-full border border-slate-200 bg-white px-3 py-1 dark:border-slate-700 dark:bg-slate-900"
+			<section
+				class="rounded-[28px] border border-rose-200 bg-white/95 p-5 shadow-sm dark:border-rose-900/50 dark:bg-slate-900/90"
+			>
+				<div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+					<div
+						class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-200"
 					>
-						Bloque actual: {snapshot.currentBlockId}
-					</span>
-					<span
-						class="rounded-full border border-slate-200 bg-white px-3 py-1 dark:border-slate-700 dark:bg-slate-900"
+						<Bug class="h-5 w-5" />
+					</div>
+					<div class="min-w-0 flex-1">
+						<p class="text-sm font-semibold text-rose-900 dark:text-rose-100">
+							El diagrama necesita una corrección antes de depurarse.
+						</p>
+						<p class="mt-2 text-sm leading-6 text-rose-800 dark:text-rose-200">
+							{loadError.message}
+						</p>
+						<p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+							El debugger prepara una sesión de preview real, así que usa la misma validación de
+							runtime que publicar.
+						</p>
+					</div>
+				</div>
+
+				<div class="mt-5 flex flex-wrap gap-2">
+					<a
+						href={flowEditorHref}
+						class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-700 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
 					>
-						Seleccionado: {snapshot.selectedBlockId}
-					</span>
-					{#if selectedSession}
+						Volver al editor visual
+					</a>
+					<a
+						href={buildHref({ mode: 'published', sessionId: null, blockId: null })}
+						class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+					>
+						Probar revisión publicada
+					</a>
+				</div>
+			</section>
+		</div>
+	</div>
+{:else}
+	<div
+		class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.08),_transparent_22%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_18%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.1),_transparent_22%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_18%),linear-gradient(180deg,_#020617_0%,_#111827_100%)]"
+	>
+		<div
+			class="sticky top-0 z-20 border-b border-white/70 bg-white/85 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/85"
+		>
+			<div class="flex w-full flex-wrap items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
+				<a
+					href={returnHref}
+					class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition-colors hover:border-sky-300 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-sky-700 dark:hover:text-sky-200"
+					aria-label={returnLabel}
+				>
+					<ArrowLeft class="h-4 w-4" />
+				</a>
+
+				<div class="min-w-0 flex-1">
+					<p
+						class="text-[11px] font-semibold tracking-[0.24em] text-sky-700 uppercase dark:text-sky-300"
+					>
+						Lesson debugger
+					</p>
+					<h1 class="truncate text-lg font-semibold text-slate-900 sm:text-xl dark:text-white">
+						{snapshot.activity.name}
+					</h1>
+					<div
+						class="mt-2 flex flex-wrap gap-2 text-[11px] font-medium text-slate-500 dark:text-slate-400"
+					>
 						<span
 							class="rounded-full border border-slate-200 bg-white px-3 py-1 dark:border-slate-700 dark:bg-slate-900"
 						>
-							Intento #{selectedSession.attemptNumber}
+							Bloque actual: {snapshot.currentBlockId}
 						</span>
-					{/if}
-				</div>
-			</div>
-
-			<div class="flex flex-wrap items-center gap-2">
-				<a
-					href={flowEditorHref}
-					class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-				>
-					Flow editor
-				</a>
-				<a
-					href={activityHref}
-					class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-				>
-					Actividad
-				</a>
-				<div
-					class="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900"
-				>
-					<button
-						type="button"
-						class={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-							activeView === 'student'
-								? 'bg-sky-500 text-white'
-								: 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-						}`}
-						onclick={() => switchView('student')}
-					>
-						Vista alumno
-					</button>
-					<button
-						type="button"
-						class={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-							activeView === 'debug'
-								? 'bg-sky-500 text-white'
-								: 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-						}`}
-						onclick={() => switchView('debug')}
-					>
-						Cockpit técnico
-					</button>
-				</div>
-			</div>
-		</div>
-	</div>
-
-	<div class="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-		{#if launchActionPending}
-			<div
-				class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-200"
-			>
-				Preparando una sesión preview limpia y saltando al bloque seleccionado...
-			</div>
-		{/if}
-
-		{#if actionError}
-			<div
-				class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-200"
-			>
-				{actionError}
-			</div>
-		{/if}
-
-		{#if activeView === 'student'}
-			<div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-				<section class="min-w-0">
-					<LessonRuntimePanel
-						data={snapshot.runtimeView}
-						backHref={returnHref}
-						backLabel={returnLabel}
-						onSessionReplaced={handleSessionReplaced}
-					/>
-				</section>
-
-				<aside
-					class="space-y-5 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:self-start xl:overflow-y-auto xl:pr-1"
-				>
-					{@render controlsPanel()}
-					{@render blockNavigator()}
-					{@render inspectorPanel()}
-				</aside>
-			</div>
-		{:else}
-			<div class="grid gap-6 xl:grid-cols-[320px_minmax(0,1.3fr)_420px]">
-				<aside class="space-y-5 xl:sticky xl:top-24 xl:self-start">
-					{@render controlsPanel()}
-					{@render blockNavigator()}
-				</aside>
-
-				<section class="min-w-0 space-y-5">
-					{@render runtimeSummaryCards()}
-
-					<LessonRuntimePanel
-						data={snapshot.runtimeView}
-						backHref={returnHref}
-						backLabel={returnLabel}
-						onSessionReplaced={handleSessionReplaced}
-					/>
-				</section>
-
-				<aside class="space-y-5 xl:sticky xl:top-24 xl:self-start">
-					{@render inspectorPanel()}
-				</aside>
-			</div>
-		{/if}
-
-		{#if activeView === 'student' && selectedBlockSummary}
-			<div
-				class="rounded-[28px] border border-slate-200/80 bg-white/92 px-5 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/88"
-			>
-				<div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-					<div>
-						<p
-							class="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+						<span
+							class="rounded-full border border-slate-200 bg-white px-3 py-1 dark:border-slate-700 dark:bg-slate-900"
 						>
-							Foco actual
-						</p>
-						<p class="mt-1 text-base font-semibold text-slate-900 dark:text-white">
-							{selectedBlockSummary.title} · {selectedBlockSummary.blockId}
-						</p>
-						<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
-							La superficie principal replica el runtime. El rail lateral concentra el mapa, las
-							transiciones y la telemetría.
-						</p>
-					</div>
-
-					<div class="flex flex-wrap gap-2">
-						{#if snapshot.selectedBlockId !== snapshot.currentBlockId}
-							<button
-								type="button"
-								class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-								onclick={() => jumpToBlock(snapshot.selectedBlockId)}
-								disabled={isBusy}
+							Seleccionado: {snapshot.selectedBlockId}
+						</span>
+						{#if selectedSession}
+							<span
+								class="rounded-full border border-slate-200 bg-white px-3 py-1 dark:border-slate-700 dark:bg-slate-900"
 							>
-								<ArrowRightCircle class="h-4 w-4" />
-								Saltar a este bloque
-							</button>
+								Intento #{selectedSession.attemptNumber}
+							</span>
 						{/if}
+					</div>
+				</div>
+
+				<div class="flex flex-wrap items-center gap-2">
+					<a
+						href={flowEditorHref}
+						class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+					>
+						Flow editor
+					</a>
+					<a
+						href={activityHref}
+						class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+					>
+						Actividad
+					</a>
+					<div
+						class="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+					>
 						<button
 							type="button"
-							class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+							class={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+								activeView === 'student'
+									? 'bg-sky-500 text-white'
+									: 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+							}`}
+							onclick={() => switchView('student')}
+						>
+							Vista alumno
+						</button>
+						<button
+							type="button"
+							class={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+								activeView === 'debug'
+									? 'bg-sky-500 text-white'
+									: 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+							}`}
 							onclick={() => switchView('debug')}
 						>
-							<SquareTerminal class="h-4 w-4" />
-							Abrir cockpit técnico
+							Cockpit técnico
 						</button>
 					</div>
 				</div>
 			</div>
-		{/if}
+		</div>
+
+		<div class="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+			{#if launchActionPending}
+				<div
+					class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-200"
+				>
+					Preparando una sesión preview limpia y saltando al bloque seleccionado...
+				</div>
+			{/if}
+
+			{#if actionError}
+				<div
+					class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-200"
+				>
+					{actionError}
+				</div>
+			{/if}
+
+			{#if activeView === 'student'}
+				<div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+					<section class="min-w-0">
+						<LessonRuntimePanel
+							data={snapshot.runtimeView}
+							backHref={returnHref}
+							backLabel={returnLabel}
+							onSessionReplaced={handleSessionReplaced}
+						/>
+					</section>
+
+					<aside
+						class="space-y-5 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:self-start xl:overflow-y-auto xl:pr-1"
+					>
+						{@render controlsPanel()}
+						{@render blockNavigator()}
+						{@render inspectorPanel()}
+					</aside>
+				</div>
+			{:else}
+				<div class="grid gap-6 xl:grid-cols-[320px_minmax(0,1.3fr)_420px]">
+					<aside class="space-y-5 xl:sticky xl:top-24 xl:self-start">
+						{@render controlsPanel()}
+						{@render blockNavigator()}
+					</aside>
+
+					<section class="min-w-0 space-y-5">
+						{@render runtimeSummaryCards()}
+
+						<LessonRuntimePanel
+							data={snapshot.runtimeView}
+							backHref={returnHref}
+							backLabel={returnLabel}
+							onSessionReplaced={handleSessionReplaced}
+						/>
+					</section>
+
+					<aside class="space-y-5 xl:sticky xl:top-24 xl:self-start">
+						{@render inspectorPanel()}
+					</aside>
+				</div>
+			{/if}
+
+			{#if activeView === 'student' && selectedBlockSummary}
+				<div
+					class="rounded-[28px] border border-slate-200/80 bg-white/92 px-5 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/88"
+				>
+					<div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+						<div>
+							<p
+								class="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+							>
+								Foco actual
+							</p>
+							<p class="mt-1 text-base font-semibold text-slate-900 dark:text-white">
+								{selectedBlockSummary.title} · {selectedBlockSummary.blockId}
+							</p>
+							<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+								La superficie principal replica el runtime. El rail lateral concentra el mapa, las
+								transiciones y la telemetría.
+							</p>
+						</div>
+
+						<div class="flex flex-wrap gap-2">
+							{#if snapshot.selectedBlockId !== snapshot.currentBlockId}
+								<button
+									type="button"
+									class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+									onclick={() => jumpToBlock(snapshot.selectedBlockId)}
+									disabled={isBusy}
+								>
+									<ArrowRightCircle class="h-4 w-4" />
+									Saltar a este bloque
+								</button>
+							{/if}
+							<button
+								type="button"
+								class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+								onclick={() => switchView('debug')}
+							>
+								<SquareTerminal class="h-4 w-4" />
+								Abrir cockpit técnico
+							</button>
+						</div>
+					</div>
+				</div>
+			{/if}
+		</div>
 	</div>
-</div>
+{/if}

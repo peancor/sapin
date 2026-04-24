@@ -79,13 +79,11 @@ function disconnectBlockForFlowDraft(block: LessonBlock): LessonBlock {
 	return block;
 }
 
-async function persistDefinition(
-	input: {
-		ilid: string;
-		definition: ReturnType<typeof LessonService.parseDefinition>;
-		userId: string;
-	}
-) {
+async function persistDefinition(input: {
+	ilid: string;
+	definition: ReturnType<typeof LessonService.parseDefinition>;
+	userId: string;
+}) {
 	await LessonRevisionService.saveDraftDefinition({
 		interactiveLearningId: input.ilid,
 		definition: input.definition,
@@ -103,7 +101,7 @@ export const actions = {
 		const formData = await request.formData();
 
 		try {
-			const definition = parseDefinitionPayload(formData);
+			const definition = parseDefinitionPayload(formData, { allowDraft: true });
 			await persistDefinition({
 				ilid: params.ilid,
 				definition,
@@ -194,15 +192,20 @@ export const actions = {
 
 	publishDraft: async ({ params, locals }) => {
 		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
-		await LessonRevisionService.publishDraftRevision({
-			interactiveLearningId: params.ilid,
-			actorUserId: user.id
-		});
 
-		return {
-			success: true,
-			message: 'Borrador publicado. El publicado y el runtime ya apuntan a la nueva revisión.'
-		};
+		try {
+			await LessonRevisionService.publishDraftRevision({
+				interactiveLearningId: params.ilid,
+				actorUserId: user.id
+			});
+
+			return {
+				success: true,
+				message: 'Borrador publicado. El publicado y el runtime ya apuntan a la nueva revisión.'
+			};
+		} catch (errorValue) {
+			return asLessonError(errorValue, 'No se pudo publicar el borrador.');
+		}
 	},
 
 	discardDraft: async ({ params, locals }) => {

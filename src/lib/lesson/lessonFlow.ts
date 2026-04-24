@@ -112,8 +112,7 @@ export function createLessonFlowGraph(definition: LessonDefinition): LessonFlowG
 			...edgeInput,
 			sourceHandle: getLessonFlowSourceHandleId(edgeInput),
 			targetHandle:
-				targetHandleByEdgeId.get(edgeInput.id) ??
-				getLessonFlowIncomingHandleId(edgeInput.id)
+				targetHandleByEdgeId.get(edgeInput.id) ?? getLessonFlowIncomingHandleId(edgeInput.id)
 		})
 	);
 
@@ -144,7 +143,7 @@ export function applyLessonFlowGraph(
 		const nextGraph = {
 			...(block.graph ?? {}),
 			...(() => {
-				if (!supportsDynamicIncomingHandles(block)) return {};
+				if (!supportsDynamicIncomingHandles()) return {};
 				const incomingOrder = incomingOrderByBlockId.get(block.id) ?? [];
 				return incomingOrder.length > 0 ? { incomingOrder } : {};
 			})()
@@ -171,7 +170,7 @@ export function applyLessonFlowGraph(
 				const branchEdge = edgeById.get(getLessonFlowBranchEdgeId(block.id, branchIndex));
 				return {
 					...branch,
-					targetBlockId: branchEdge?.target ?? branch.targetBlockId
+					targetBlockId: branchEdge?.target ?? ''
 				};
 			});
 		}
@@ -181,7 +180,7 @@ export function applyLessonFlowGraph(
 				const choiceEdge = edgeById.get(getLessonFlowChoiceEdgeId(block.id, option.id));
 				return {
 					...option,
-					targetBlockId: choiceEdge?.target ?? option.targetBlockId
+					targetBlockId: choiceEdge?.target ?? ''
 				};
 			});
 		}
@@ -286,9 +285,12 @@ function collectEdgeInputs(definition: LessonDefinition): Array<{
 		conditionOperator?: LessonFlowEdgeData['conditionOperator'];
 		conditionValue?: LessonFlowEdgeData['conditionValue'];
 	}> = [];
+	const blockIds = new Set(definition.blocks.map((block) => block.id));
+	const hasExistingTarget = (targetBlockId: string | null | undefined): targetBlockId is string =>
+		hasConnectedTarget(targetBlockId) && blockIds.has(targetBlockId);
 
 	for (const block of definition.blocks) {
-		if (block.kind !== 'choice' && block.kind !== 'end' && hasConnectedTarget(block.next)) {
+		if (block.kind !== 'choice' && block.kind !== 'end' && hasExistingTarget(block.next)) {
 			edgeInputs.push({
 				id: getLessonFlowNextEdgeId(block.id),
 				source: block.id,
@@ -299,7 +301,7 @@ function collectEdgeInputs(definition: LessonDefinition): Array<{
 		}
 
 		for (const [branchIndex, branch] of (block.branches ?? []).entries()) {
-			if (!hasConnectedTarget(branch.targetBlockId)) continue;
+			if (!hasExistingTarget(branch.targetBlockId)) continue;
 
 			edgeInputs.push({
 				id: getLessonFlowBranchEdgeId(block.id, branchIndex),
@@ -316,7 +318,7 @@ function collectEdgeInputs(definition: LessonDefinition): Array<{
 
 		if (block.kind === 'choice') {
 			for (const option of block.options) {
-				if (!hasConnectedTarget(option.targetBlockId)) continue;
+				if (!hasExistingTarget(option.targetBlockId)) continue;
 
 				edgeInputs.push({
 					id: getLessonFlowChoiceEdgeId(block.id, option.id),
@@ -499,7 +501,7 @@ export function getLessonFlowIncomingAddHandleId(blockId: string): string {
 	return `in:add:${blockId}`;
 }
 
-function supportsDynamicIncomingHandles(_block: Pick<LessonBlock, 'kind'>): boolean {
+function supportsDynamicIncomingHandles(): boolean {
 	return true;
 }
 

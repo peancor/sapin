@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, ne } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { db } from '$lib/server/db';
 import {
@@ -26,6 +26,7 @@ import type {
 } from '$lib/types/lessonRevision';
 import { LessonServiceError } from './LessonServiceError';
 import { parseLessonDefinition } from './lessonGraph';
+import { parseLessonFlowDraft } from './lessonFlowDraft';
 
 type LessonRevisionState = {
 	activity: InteractiveLearning;
@@ -40,6 +41,14 @@ function normalizeDefinitionJson(content: string): string {
 	return JSON.stringify(parseLessonDefinition(content), null, 2);
 }
 
+function parseDraftDefinition(content: string): LessonDefinition {
+	try {
+		return parseLessonDefinition(content);
+	} catch {
+		return parseLessonFlowDraft(content);
+	}
+}
+
 function toRevisionSummary(revision: InteractiveLearningLessonRevision): LessonRevisionSummary {
 	return {
 		id: revision.id,
@@ -52,11 +61,13 @@ function toRevisionSummary(revision: InteractiveLearningLessonRevision): LessonR
 }
 
 function collectAssetFileIds(definition: LessonDefinition): string[] {
-	return [...new Set(
-		definition.blocks.flatMap((block) =>
-			block.kind === 'content' ? (block.assetRefs ?? []).map((asset) => asset.fileId) : []
+	return [
+		...new Set(
+			definition.blocks.flatMap((block) =>
+				block.kind === 'content' ? (block.assetRefs ?? []).map((asset) => asset.fileId) : []
+			)
 		)
-	)];
+	];
 }
 
 export function buildLessonRevisionDiffSummary(input: {
@@ -66,7 +77,9 @@ export function buildLessonRevisionDiffSummary(input: {
 	const publishedById = new Map(
 		input.publishedDefinition.blocks.map((block) => [block.id, JSON.stringify(block)])
 	);
-	const draftById = new Map(input.draftDefinition.blocks.map((block) => [block.id, JSON.stringify(block)]));
+	const draftById = new Map(
+		input.draftDefinition.blocks.map((block) => [block.id, JSON.stringify(block)])
+	);
 	const addedBlockIds = [...draftById.keys()].filter((blockId) => !publishedById.has(blockId));
 	const removedBlockIds = [...publishedById.keys()].filter((blockId) => !draftById.has(blockId));
 	const changedBlockIds = [...draftById.keys()].filter(
@@ -74,7 +87,8 @@ export function buildLessonRevisionDiffSummary(input: {
 	);
 
 	return {
-		entryBlockChanged: input.publishedDefinition.entryBlockId !== input.draftDefinition.entryBlockId,
+		entryBlockChanged:
+			input.publishedDefinition.entryBlockId !== input.draftDefinition.entryBlockId,
 		addedBlockIds,
 		removedBlockIds,
 		changedBlockIds,
@@ -124,9 +138,7 @@ export class LessonRevisionService {
 		return state.draftRevision;
 	}
 
-	static async resolveLessonDefinitionForSession(input: {
-		sessionId: string;
-	}): Promise<{
+	static async resolveLessonDefinitionForSession(input: { sessionId: string }): Promise<{
 		session: InteractiveLessonSession;
 		revision: InteractiveLearningLessonRevision;
 		definition: LessonDefinition;
@@ -168,7 +180,11 @@ export class LessonRevisionService {
 		options?: { actorUserId?: string | null }
 	): Promise<LessonRevisionState> {
 		const [activity, lesson] = await Promise.all([
-			db.select().from(interactiveLearning).where(eq(interactiveLearning.id, interactiveLearningId)).get(),
+			db
+				.select()
+				.from(interactiveLearning)
+				.where(eq(interactiveLearning.id, interactiveLearningId))
+				.get(),
 			db
 				.select()
 				.from(interactiveLearningLesson)
@@ -271,7 +287,7 @@ export class LessonRevisionService {
 			publishedRevision,
 			draftRevision,
 			publishedDefinition: this.parseDefinition(publishedRevision.definitionJson),
-			draftDefinition: this.parseDefinition(draftRevision.definitionJson)
+			draftDefinition: parseDraftDefinition(draftRevision.definitionJson)
 		};
 	}
 
@@ -327,10 +343,13 @@ export class LessonRevisionService {
 		const highestRevision = await db
 			.select()
 			.from(interactiveLearningLessonRevision)
-			.where(eq(interactiveLearningLessonRevision.interactiveLearningId, input.interactiveLearningId))
+			.where(
+				eq(interactiveLearningLessonRevision.interactiveLearningId, input.interactiveLearningId)
+			)
 			.orderBy(desc(interactiveLearningLessonRevision.revisionNumber))
 			.get();
-		const nextPublishedNumber = (highestRevision?.revisionNumber ?? state.draftRevision.revisionNumber) + 1;
+		const nextPublishedNumber =
+			(highestRevision?.revisionNumber ?? state.draftRevision.revisionNumber) + 1;
 		const nextDraftNumber = nextPublishedNumber + 1;
 
 		await db
@@ -341,10 +360,7 @@ export class LessonRevisionService {
 			})
 			.where(
 				and(
-					eq(
-						interactiveLearningLessonRevision.interactiveLearningId,
-						input.interactiveLearningId
-					),
+					eq(interactiveLearningLessonRevision.interactiveLearningId, input.interactiveLearningId),
 					inArray(interactiveLearningLessonRevision.id, [
 						state.publishedRevision.id,
 						state.draftRevision.id
@@ -455,8 +471,7 @@ export class LessonRevisionService {
 		const impact: LessonRevisionImpactSummary = {
 			activeAttemptsOnCurrentPublishedRevision: learnerSessions.filter(
 				(session) =>
-					session.status === 'active' &&
-					session.definitionRevisionId === state.publishedRevision.id
+					session.status === 'active' && session.definitionRevisionId === state.publishedRevision.id
 			).length,
 			activeAttemptsOnOlderRevisions: learnerSessions.filter(
 				(session) =>
@@ -471,7 +486,9 @@ export class LessonRevisionService {
 					session.definitionRevisionId !== state.publishedRevision.id
 			).length,
 			revisionsReferencedByLearnerAttempts: referencedRevisionIds.size,
-			referencedAssetFileIds: [...new Set(allDefinitions.flatMap((definition) => collectAssetFileIds(definition)))]
+			referencedAssetFileIds: [
+				...new Set(allDefinitions.flatMap((definition) => collectAssetFileIds(definition)))
+			]
 		};
 
 		return {

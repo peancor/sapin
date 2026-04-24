@@ -39,6 +39,7 @@
 	import {
 		getLessonCheckModeLabel,
 		normalizeLessonAgentConfig,
+		normalizeLessonCheckConfig,
 		type LessonAgentExecutionTrigger,
 		type LessonAgentInteractionMode,
 		type LessonAgentRuntimeMode,
@@ -527,6 +528,52 @@
 		}
 	}
 
+	function edgeIdStartsFromBlock(edgeId: string, blockId: string) {
+		return (
+			edgeId === getLessonFlowNextEdgeId(blockId) ||
+			edgeId.startsWith(`branch:${blockId}:`) ||
+			edgeId.startsWith(`choice:${blockId}:`)
+		);
+	}
+
+	function removeBlockConnections(definition: LessonDefinition, deletedBlockId: string) {
+		for (const block of definition.blocks) {
+			if (block.id === deletedBlockId) continue;
+
+			if (block.kind !== 'choice' && block.kind !== 'end' && block.next === deletedBlockId) {
+				block.next = null;
+			}
+
+			if (block.branches?.length) {
+				block.branches = block.branches.map((branch) => ({
+					...branch,
+					targetBlockId: branch.targetBlockId === deletedBlockId ? '' : branch.targetBlockId
+				}));
+			}
+
+			if (block.kind === 'choice') {
+				block.options = block.options.map((option) => ({
+					...option,
+					targetBlockId: option.targetBlockId === deletedBlockId ? '' : option.targetBlockId
+				}));
+			}
+
+			if (block.graph?.incomingOrder?.length) {
+				const incomingOrder = block.graph.incomingOrder.filter(
+					(edgeId) => !edgeIdStartsFromBlock(edgeId, deletedBlockId)
+				);
+
+				if (incomingOrder.length > 0) {
+					block.graph = { ...block.graph, incomingOrder };
+				} else if (block.graph.position) {
+					block.graph = { position: block.graph.position };
+				} else {
+					delete block.graph;
+				}
+			}
+		}
+	}
+
 	function getEdgeIdFromConnection(connection: Connection): string | null {
 		if (!connection.source) return null;
 
@@ -754,9 +801,7 @@
 				);
 			}
 
-			if (selectedBlock.kind !== 'choice' && selectedBlock.kind !== 'end') {
-				items.push(...buildCreateBlockQuickMenuItems('create-connected', 'Crea y conecta'));
-			}
+			items.push(...buildCreateBlockQuickMenuItems('create-connected', 'Crea junto a este bloque'));
 
 			if (
 				selectedBlock.kind === 'content' ||
@@ -863,6 +908,114 @@
 		return nextId;
 	}
 
+	function createDraftBlockTemplate(
+		definition: LessonDefinition,
+		kind: LessonBlock['kind'],
+		position: { x: number; y: number }
+	): LessonBlock {
+		const id = createUniqueBlockId(definition, kind);
+		const graph = { position };
+
+		if (kind === 'content') {
+			return {
+				id,
+				kind,
+				title: 'Nuevo contenido',
+				body: '',
+				continueLabel: 'Siguiente',
+				next: null,
+				assetRefs: [],
+				graph
+			};
+		}
+
+		if (kind === 'choice') {
+			return {
+				id,
+				kind,
+				title: 'Nueva decisión',
+				body: '',
+				outputKey: 'selection',
+				options: [
+					{
+						id: 'option_1',
+						label: 'Opción 1',
+						value: 'option_1',
+						description: '',
+						targetBlockId: ''
+					}
+				],
+				graph
+			};
+		}
+
+		if (kind === 'check') {
+			return {
+				id,
+				kind,
+				title: 'Nueva evaluación',
+				body: '',
+				next: null,
+				checkConfig: normalizeLessonCheckConfig({
+					mode: 'single_choice',
+					submitLabel: 'Enviar',
+					retryLabel: 'Reintentar',
+					continueLabel: 'Continuar',
+					options: [
+						{
+							id: 'option_1',
+							label: 'Opción 1',
+							value: 'option_1',
+							description: ''
+						},
+						{
+							id: 'option_2',
+							label: 'Opción 2',
+							value: 'option_2',
+							description: ''
+						}
+					],
+					correctOptionIds: ['option_1']
+				}),
+				graph
+			};
+		}
+
+		if (kind === 'agent') {
+			return {
+				id,
+				kind,
+				title: 'Nuevo bloque IA',
+				body: '',
+				next: null,
+				requiresResponse: true,
+				agentConfig: normalizeLessonAgentConfig({
+					runtimeMode: 'basic',
+					interactionMode: 'single_turn',
+					executionTrigger: 'on_user_submit',
+					autoStartOnEnter: false,
+					promptTemplate: '',
+					systemPrompt: '',
+					placeholder: 'Escribe tu respuesta',
+					submitLabel: 'Enviar',
+					continueLabel: 'Continuar',
+					enabledToolIds: undefined,
+					outputSchema: []
+				}),
+				graph
+			};
+		}
+
+		return {
+			id,
+			kind,
+			title: 'Bloque final',
+			body: 'Has llegado al final de esta lección.',
+			ctaLabel: 'Volver al curso',
+			graph
+		};
+	}
+
 	function disconnectBlockCopy(block: LessonBlock) {
 		if (block.kind !== 'choice' && block.kind !== 'end') {
 			block.next = null;
@@ -955,7 +1108,7 @@
 				...(block.branches ?? []),
 				{
 					label: `Rama ${(block.branches?.length ?? 0) + 1}`,
-					targetBlockId: draftDefinition.entryBlockId,
+					targetBlockId: '',
 					condition: {
 						source: 'session.attemptNumber',
 						operator: 'equals',
@@ -1121,21 +1274,21 @@
 	function handleConnect(connection: Connection) {
 		if (!connection.source || !connection.target) return;
 
-		const sourceBlock = draftDefinition.blocks.find((block) => block.id === connection.source);
-		if (!sourceBlock) return;
+		const nextDefinition = structuredClone(commitCanvasGraph());
+		const connected = applyConnectionToDefinition(nextDefinition, connection);
 
-		if (sourceBlock.kind === 'end') {
-			actionError = 'Un bloque final no puede abrir nuevas salidas.';
+		if (!connected) {
+			actionError = '';
 			actionMessage = '';
 			return;
 		}
 
-		mutateDefinition(
-			(definition) => {
-				applyConnectionToDefinition(definition, connection);
-			},
-			{ kind: 'node', id: connection.source }
-		);
+		draftDefinition = nextDefinition;
+		selection = { kind: 'node', id: connection.source };
+		hasUnsavedChanges = true;
+		actionMessage = '';
+		actionError = '';
+		syncCanvasFromDraft();
 	}
 
 	function centerCanvas() {
@@ -1186,10 +1339,7 @@
 		};
 	}
 
-	async function postAction(
-		actionName: 'saveFlow' | 'createBlock' | 'deleteBlock',
-		formData: FormData
-	) {
+	async function postAction(actionName: 'saveFlow', formData: FormData) {
 		const response = await fetch(`?/${actionName}`, {
 			method: 'POST',
 			headers: {
@@ -1236,82 +1386,73 @@
 		kind: (typeof createButtons)[number]['kind'],
 		options: CreateBlockOptions = {}
 	) {
-		isSubmitting = true;
 		actionError = '';
 		actionMessage = '';
 
 		try {
-			const synced = commitCanvasGraph();
 			const position = getSuggestedPosition(
 				options.connectFrom?.sourceBlockId ?? null,
 				options.position ?? null
 			);
-			const formData = new FormData();
-			formData.set('definitionJson', JSON.stringify(synced));
-			formData.set('kind', kind);
-			formData.set('positionX', String(position.x));
-			formData.set('positionY', String(position.y));
+			const nextDefinition = structuredClone(commitCanvasGraph());
+			const block = createDraftBlockTemplate(nextDefinition, kind, position);
+			nextDefinition.blocks.push(block);
 
-			const result = await postAction('createBlock', formData);
+			if (!nextDefinition.entryBlockId || nextDefinition.blocks.length === 1) {
+				nextDefinition.entryBlockId = block.id;
+			}
 
-			let nextDefinition = result.definition;
-			if (result.blockId && options.connectFrom) {
-				const connected = applyConnectionToDefinition(nextDefinition, {
+			let connected = false;
+			if (options.connectFrom) {
+				connected = applyConnectionToDefinition(nextDefinition, {
 					source: options.connectFrom.sourceBlockId,
-					target: result.blockId,
+					target: block.id,
 					sourceHandle: options.connectFrom.sourceHandle,
 					targetHandle: null
 				});
-
-				if (connected) {
-					actionMessage = '';
-				}
 			}
 
 			applyActionDraft(
 				nextDefinition,
-				result.blockId ? { kind: 'node', id: result.blockId } : selection,
-				result.blockId && options.connectFrom
+				{ kind: 'node', id: block.id },
+				connected
 					? 'Bloque creado y conectado desde la salida activa.'
-					: result.message
+					: 'Bloque creado en el canvas. Puedes cablearlo cuando encaje.'
 			);
 		} catch (errorValue) {
 			actionError =
 				errorValue instanceof Error ? errorValue.message : 'No se pudo crear el bloque.';
-		} finally {
-			isSubmitting = false;
 		}
 	}
 
 	async function deleteSelectedBlock() {
 		if (!selectedBlock) return;
+		const blockId = selectedBlock.id;
+		const blockTitle = selectedBlock.title;
 		if (
-			!window.confirm(`Vas a eliminar "${selectedBlock.title}". Esta acción no se puede deshacer.`)
+			!window.confirm(
+				`Vas a eliminar "${blockTitle}" y sus conexiones. Esta acción no se puede deshacer.`
+			)
 		) {
 			return;
 		}
 
-		isSubmitting = true;
 		actionError = '';
 		actionMessage = '';
 
 		try {
-			const synced = commitCanvasGraph();
-			const formData = new FormData();
-			formData.set('definitionJson', JSON.stringify(synced));
-			formData.set('blockId', selectedBlock.id);
+			const nextDefinition = structuredClone(commitCanvasGraph());
+			removeBlockConnections(nextDefinition, blockId);
+			nextDefinition.blocks = nextDefinition.blocks.filter((block) => block.id !== blockId);
 
-			const result = await postAction('deleteBlock', formData);
-			applyActionDraft(
-				result.definition,
-				{ kind: 'node', id: result.definition.entryBlockId },
-				result.message
-			);
+			if (nextDefinition.entryBlockId === blockId) {
+				nextDefinition.entryBlockId = nextDefinition.blocks[0]?.id ?? '';
+			}
+
+			applyActionDraft(nextDefinition, null, 'Bloque eliminado. Sus conexiones se han retirado.');
 		} catch (errorValue) {
 			actionError =
 				errorValue instanceof Error ? errorValue.message : 'No se pudo eliminar el bloque.';
-		} finally {
-			isSubmitting = false;
 		}
 	}
 
@@ -1447,18 +1588,16 @@
 								sourceHandle: payload.sourceHandle ?? null
 							}
 						: null
-					: selectedBlock && selectedBlock.kind !== 'choice' && selectedBlock.kind !== 'end'
+					: selectedBlock && selectedBlock.kind !== 'end'
 						? {
 								sourceBlockId: selectedBlock.id,
-								sourceHandle: getLessonFlowNextHandleId()
+								sourceHandle: selectedBlock.kind === 'choice' ? null : getLessonFlowNextHandleId()
 							}
 						: null;
 
-			if (!connectFrom) return;
-
 			await createBlock(kind, {
 				position: payload.flowPosition ?? undefined,
-				connectFrom
+				...(connectFrom ? { connectFrom } : {})
 			});
 			return;
 		}
