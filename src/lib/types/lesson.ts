@@ -294,10 +294,12 @@ export function normalizeLessonAgentConfig(input: LessonAgentConfigInput): Lesso
 		input.executionTrigger ?? (interactionMode === 'none' ? 'on_enter' : 'on_user_submit');
 	const autoStartOnEnter = interactionMode === 'none' ? true : (input.autoStartOnEnter ?? false);
 	const enabledToolIds =
-		input.enabledToolIds
-			?.map((value) => value.trim())
-			.filter(Boolean)
-			.filter((value, index, list) => list.indexOf(value) === index) ?? [];
+		input.enabledToolIds === undefined
+			? undefined
+			: input.enabledToolIds
+					.map((value) => value.trim())
+					.filter(Boolean)
+					.filter((value, index, list) => list.indexOf(value) === index);
 
 	return {
 		runtimeMode,
@@ -310,7 +312,7 @@ export function normalizeLessonAgentConfig(input: LessonAgentConfigInput): Lesso
 		initialAssistantMessage: input.initialAssistantMessage,
 		launchMessageTemplate: input.launchMessageTemplate,
 		maxTurns: input.maxTurns ?? null,
-		enabledToolIds: enabledToolIds.length > 0 ? enabledToolIds : undefined,
+		enabledToolIds,
 		outputSchema: input.outputSchema,
 		interactionMode,
 		executionTrigger,

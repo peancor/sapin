@@ -50,8 +50,6 @@
 	const cid = $derived(page.params.cid);
 	const ilid = $derived(page.params.ilid);
 	const resourcesCount = $derived(data.files.length);
-	const previewPublishedHref = $derived(resolve(`/lesson/${ilid}?preview=published`));
-	const previewDraftHref = $derived(resolve(`/lesson/${ilid}?preview=draft`));
 	const revisionDiff = $derived(data.revisionSummary.diff);
 	const revisionImpact = $derived(data.revisionSummary.impact);
 	const hasDraftChanges = $derived(
@@ -76,8 +74,7 @@
 			.map((block) => {
 				const normalizedConfig = normalizeLessonAgentConfig(block.agentConfig);
 				const usesCustomSubset =
-					normalizedConfig.runtimeMode === 'agent' &&
-					Boolean(normalizedConfig.enabledToolIds?.length);
+					normalizedConfig.runtimeMode === 'agent' && normalizedConfig.enabledToolIds !== undefined;
 
 				return {
 					id: block.id,
@@ -300,12 +297,14 @@
 	>
 		<div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
 			<div class="max-w-3xl">
-				<p class="text-sm font-semibold tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+				<p
+					class="text-sm font-semibold tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400"
+				>
 					Revisiones
 				</p>
 				<h2 class="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
-					Publicado en revisión #{data.revisionSummary.published.revisionNumber} · borrador en
-					revisión #{data.revisionSummary.draft.revisionNumber}
+					Publicado en revisión #{data.revisionSummary.published.revisionNumber} · borrador en revisión
+					#{data.revisionSummary.draft.revisionNumber}
 				</h2>
 				<p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
 					Los intentos existentes siguen ligados a la revisión con la que comenzaron. Publicar
@@ -315,7 +314,7 @@
 
 			<div class="flex flex-wrap gap-2">
 				<a
-					href={previewPublishedHref}
+					href={resolve(`/lesson/${ilid}?preview=published`)}
 					target="_blank"
 					rel="noreferrer"
 					class="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
@@ -324,7 +323,7 @@
 					Preview publicado
 				</a>
 				<a
-					href={previewDraftHref}
+					href={resolve(`/lesson/${ilid}?preview=draft`)}
 					target="_blank"
 					rel="noreferrer"
 					class="rounded-xl border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
@@ -387,14 +386,14 @@
 					Impacto en intentos
 				</p>
 				<p class="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-					{revisionImpact.activeAttemptsOnCurrentPublishedRevision} activo{revisionImpact
-						.activeAttemptsOnCurrentPublishedRevision === 1
+					{revisionImpact.activeAttemptsOnCurrentPublishedRevision} activo{revisionImpact.activeAttemptsOnCurrentPublishedRevision ===
+					1
 						? ''
 						: 's'} en la revisión publicada
 				</p>
 				<p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
-					{revisionImpact.activeAttemptsOnOlderRevisions} activo{revisionImpact
-						.activeAttemptsOnOlderRevisions === 1
+					{revisionImpact.activeAttemptsOnOlderRevisions} activo{revisionImpact.activeAttemptsOnOlderRevisions ===
+					1
 						? ''
 						: 's'} ya siguen revisiones antiguas y no se migran automáticamente.
 				</p>
@@ -405,15 +404,16 @@
 					Histórico y assets
 				</p>
 				<p class="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-					{revisionImpact.completedAttemptsOnHistoricalRevisions} intento{revisionImpact
-						.completedAttemptsOnHistoricalRevisions === 1
+					{revisionImpact.completedAttemptsOnHistoricalRevisions} intento{revisionImpact.completedAttemptsOnHistoricalRevisions ===
+					1
 						? ''
-						: 's'} completado{revisionImpact.completedAttemptsOnHistoricalRevisions === 1 ? '' : 's'} ya
-					quedarán en histórico
+						: 's'} completado{revisionImpact.completedAttemptsOnHistoricalRevisions === 1
+						? ''
+						: 's'} ya quedarán en histórico
 				</p>
 				<p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
-					{revisionImpact.revisionsReferencedByLearnerAttempts} revisiones están referenciadas por
-					intentos learner y {revisionImpact.referencedAssetFileIds.length} asset
+					{revisionImpact.revisionsReferencedByLearnerAttempts} revisiones están referenciadas por intentos
+					learner y {revisionImpact.referencedAssetFileIds.length} asset
 					{revisionImpact.referencedAssetFileIds.length === 1 ? '' : 's'} siguen en uso.
 				</p>
 			</div>
@@ -554,61 +554,63 @@
 				</form>
 			</div>
 
-			<div
+			<details
 				class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800"
 			>
-				<div class="mb-5 flex flex-wrap items-start justify-between gap-4">
-					<div class="max-w-3xl">
-						<h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-							Capacidades agénticas
-						</h2>
-						<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-							Aquí decides la política global de tools para toda la lesson. Los bloques IA solo
-							podrán heredar esta allowlist o elegir un subconjunto dentro de ella.
-						</p>
+				<summary class="cursor-pointer list-none marker:hidden">
+					<div class="flex flex-wrap items-start justify-between gap-4">
+						<div class="max-w-3xl">
+							<h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+								Capacidades agénticas
+							</h2>
+							<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+								Aquí decides la política global de tools para toda la lesson. Los bloques IA solo
+								podrán heredar esta allowlist o elegir un subconjunto dentro de ella.
+							</p>
+						</div>
+						<div
+							class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+						>
+							<Bot class="mr-1 inline h-3.5 w-3.5" />
+							Política primero
+						</div>
 					</div>
-					<div
-						class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-					>
-						<Bot class="mr-1 inline h-3.5 w-3.5" />
-						Política primero
-					</div>
-				</div>
 
-				<div class="grid gap-3 md:grid-cols-4">
-					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
-						<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
-							Tools permitidas
-						</p>
-						<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
-							{selectedLessonPolicyMetrics.total}
-						</p>
+					<div class="mt-5 grid gap-3 md:grid-cols-4">
+						<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+							<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+								Tools permitidas
+							</p>
+							<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+								{selectedLessonPolicyMetrics.total}
+							</p>
+						</div>
+						<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+							<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+								UI interactivas
+							</p>
+							<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+								{selectedLessonPolicyMetrics.interactive}
+							</p>
+						</div>
+						<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+							<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+								HITL
+							</p>
+							<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+								{selectedLessonPolicyMetrics.hitl}
+							</p>
+						</div>
+						<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
+							<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
+								Bloques con override
+							</p>
+							<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+								{agentBlocksWithCustomSubset}
+							</p>
+						</div>
 					</div>
-					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
-						<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
-							UI interactivas
-						</p>
-						<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
-							{selectedLessonPolicyMetrics.interactive}
-						</p>
-					</div>
-					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
-						<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
-							HITL
-						</p>
-						<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
-							{selectedLessonPolicyMetrics.hitl}
-						</p>
-					</div>
-					<div class="rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800">
-						<p class="text-xs tracking-[0.16em] text-gray-500 uppercase dark:text-gray-400">
-							Bloques con override
-						</p>
-						<p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
-							{agentBlocksWithCustomSubset}
-						</p>
-					</div>
-				</div>
+				</summary>
 
 				<form
 					method="POST"
@@ -679,6 +681,8 @@
 								tools={data.lessonAgentTools}
 								selectedToolIds={selectedAllowedAgentToolIds}
 								onToggle={toggleAllowedAgentTool}
+								compact={true}
+								initiallyOpenGroupIds={['evaluation_interaction']}
 							/>
 						</div>
 					{:else}
@@ -727,7 +731,7 @@
 												<span
 													class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
 												>
-													Usa subconjunto propio: {block.selectedToolCount}
+													Allowlist propia: {block.selectedToolCount}
 												</span>
 											{:else}
 												<span
@@ -749,7 +753,9 @@
 									</div>
 								{/each}
 							{:else}
-								<p class="rounded-2xl bg-gray-50 px-4 py-4 text-sm text-gray-500 dark:bg-gray-950/30 dark:text-gray-400">
+								<p
+									class="rounded-2xl bg-gray-50 px-4 py-4 text-sm text-gray-500 dark:bg-gray-950/30 dark:text-gray-400"
+								>
 									Todavía no hay bloques IA en esta lesson.
 								</p>
 							{/if}
@@ -781,7 +787,7 @@
 						</button>
 					</div>
 				</form>
-			</div>
+			</details>
 
 			<div
 				class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800"
@@ -1007,21 +1013,32 @@
 			</div>
 		</div>
 
-		<div class="space-y-6">
-			<div
+		<div class="space-y-4">
+			<details
 				class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800"
 			>
-				<div class="mb-4 flex items-center gap-3">
-					<div class="rounded-2xl bg-sky-100 p-3 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300">
-						<Paperclip class="h-5 w-5" />
+				<summary
+					class="flex cursor-pointer list-none items-center justify-between gap-3 marker:hidden"
+				>
+					<div class="flex min-w-0 items-center gap-3">
+						<div
+							class="rounded-2xl bg-sky-100 p-3 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300"
+						>
+							<Paperclip class="h-5 w-5" />
+						</div>
+						<div>
+							<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Recursos</h2>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								Las subidas manuales viven en su propia página.
+							</p>
+						</div>
 					</div>
-					<div>
-						<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Recursos</h2>
-						<p class="text-sm text-gray-500 dark:text-gray-400">
-							Las subidas manuales viven en su propia página.
-						</p>
-					</div>
-				</div>
+					<span
+						class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+					>
+						{resourcesCount} recurso{resourcesCount === 1 ? '' : 's'}
+					</span>
+				</summary>
 
 				<p class="text-sm leading-6 text-gray-600 dark:text-gray-300">
 					Ahora la portada solo muestra el resumen de recursos. La gestión completa de imágenes y
@@ -1048,12 +1065,14 @@
 						<ArrowRight class="ml-1 inline h-4 w-4" />
 					</a>
 				</div>
-			</div>
+			</details>
 
-			<div
+			<details
 				class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200/80 dark:bg-gray-900/40 dark:ring-gray-800"
 			>
-				<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Siguiente paso</h2>
+				<summary class="cursor-pointer list-none marker:hidden">
+					<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Siguiente paso</h2>
+				</summary>
 				<p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
 					Usa el editor de bloque para trabajar el contenido real. Ahí es donde vive el markdown
 					rico, el branching detallado, la configuración IA y el pegado directo de imágenes.
@@ -1070,7 +1089,7 @@
 						<ArrowRight class="ml-1 h-4 w-4" />
 					</a>
 				{/if}
-			</div>
+			</details>
 		</div>
 	</div>
 </div>

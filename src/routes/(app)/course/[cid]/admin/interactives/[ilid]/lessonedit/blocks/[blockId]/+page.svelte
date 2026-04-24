@@ -96,11 +96,11 @@
 	);
 	const selectedBlockAgentToolIds = $derived(
 		workingBlock.kind === 'agent'
-			? (workingBlock.agentConfig.enabledToolIds === undefined
-					? effectiveAllowedAgentToolIds
-					: workingBlock.agentConfig.enabledToolIds.filter((toolId) =>
-							effectiveAllowedAgentToolIds.includes(toolId)
-						))
+			? workingBlock.agentConfig.enabledToolIds === undefined
+				? effectiveAllowedAgentToolIds
+				: workingBlock.agentConfig.enabledToolIds.filter((toolId) =>
+						effectiveAllowedAgentToolIds.includes(toolId)
+					)
 			: []
 	);
 	const selectedBlockAgentToolMetrics = $derived(
@@ -110,12 +110,6 @@
 					selectedBlockAgentToolIds
 				)
 			: null
-	);
-	const hasInvalidCustomAgentToolSelection = $derived(
-		workingBlock.kind === 'agent' &&
-			workingBlock.agentConfig.runtimeMode === 'agent' &&
-			workingBlock.agentConfig.enabledToolIds !== undefined &&
-			workingBlock.agentConfig.enabledToolIds.length === 0
 	);
 	const conditionOperators = [
 		'equals',
@@ -175,6 +169,8 @@
 		workingBlock.agentConfig.runtimeMode = runtimeMode;
 		if (runtimeMode === 'basic') {
 			workingBlock.agentConfig.enabledToolIds = undefined;
+		} else if (workingBlock.agentConfig.enabledToolIds === undefined) {
+			workingBlock.agentConfig.enabledToolIds = [];
 		}
 		markDirty();
 	}
@@ -186,9 +182,7 @@
 	function setAgentToolInheritance(inherit: boolean) {
 		if (workingBlock.kind !== 'agent') return;
 
-		workingBlock.agentConfig.enabledToolIds = inherit
-			? undefined
-			: [];
+		workingBlock.agentConfig.enabledToolIds = inherit ? undefined : [];
 		markDirty();
 	}
 
@@ -664,7 +658,7 @@
 					{/if}
 
 					<div class="grid gap-4 md:grid-cols-2">
-						<label class="block">
+						<label class="mt-5 block">
 							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 								>Texto del botón</span
 							>
@@ -1180,7 +1174,7 @@
 						</div>
 					{:else if workingBlock.checkConfig.mode === 'numeric'}
 						<div class="grid gap-4 md:grid-cols-3">
-							<label class="block">
+							<label class="mt-5 block">
 								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 									>Valor exacto</span
 								>
@@ -1196,7 +1190,7 @@
 								/>
 							</label>
 
-							<label class="block">
+							<label class="mt-5 block">
 								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 									>Mínimo</span
 								>
@@ -1614,15 +1608,15 @@
 						{/if}
 					</section>
 
-					<section class="space-y-5 rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
-						<div>
+					<details class="rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
+						<summary class="cursor-pointer list-none marker:hidden">
 							<h2 class="text-base font-semibold text-gray-900 dark:text-white">Prompts</h2>
 							<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
 								Aquí viven las instrucciones visibles y ocultas que guían la respuesta del bloque.
 							</p>
-						</div>
+						</summary>
 
-						<label class="block">
+						<label class="mt-5 block">
 							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 								>Prompt base</span
 							>
@@ -1678,12 +1672,14 @@
 								</p>
 							</label>
 						{/if}
-					</section>
+					</details>
 
 					{#if workingBlock.agentConfig.runtimeMode === 'agent'}
 						{@const inheritsTools = isInheritingAllowedAgentTools()}
-						<section class="space-y-5 rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
-							<div class="flex flex-wrap items-start justify-between gap-4">
+						<details class="rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
+							<summary
+								class="flex cursor-pointer list-none flex-wrap items-start justify-between gap-4 marker:hidden"
+							>
 								<div>
 									<h2 class="text-base font-semibold text-gray-900 dark:text-white">
 										Tools del bloque
@@ -1693,87 +1689,93 @@
 										estrecho.
 									</p>
 								</div>
+								<span
+									class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+								>
+									{inheritsTools
+										? `Hereda ${selectedBlockAgentToolMetrics?.total ?? 0}`
+										: `${workingBlock.agentConfig.enabledToolIds?.length ?? 0} seleccionadas`}
+								</span>
+							</summary>
+
+							<div class="mt-5 space-y-5">
 								<a
 									href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit`)}
-									class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+									class="inline-flex rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
 								>
 									Editar allowlist global
 								</a>
-							</div>
 
-							<label
-								class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-							>
-								<input
-									type="checkbox"
-									class="text-primary-600 h-4 w-4 rounded border-gray-300"
-									checked={inheritsTools}
-									onchange={(event) =>
-										setAgentToolInheritance((event.currentTarget as HTMLInputElement).checked)}
-								/>
-								<div>
-									<p class="text-sm font-medium text-gray-900 dark:text-white">
-										Heredar todas las tools permitidas por la lesson
-									</p>
-									<p class="text-xs text-gray-500 dark:text-gray-400">
-										La portada de la lesson define el catálogo global y este bloque puede usarlo
-										íntegro sin mantener una lista propia.
-									</p>
-								</div>
-							</label>
-
-							{#if inheritsTools}
-								<div
-									class="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+								<label
+									class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
 								>
-									<div class="flex flex-wrap items-center justify-between gap-3">
-										<div>
-											<p class="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-												Este bloque hereda la allowlist completa de la lesson
-											</p>
-											<p class="mt-1 text-sm text-emerald-800/80 dark:text-emerald-100/80">
-												{selectedBlockAgentToolMetrics?.total ?? 0} tools · {selectedBlockAgentToolMetrics
-													?.interactive ?? 0} UI · {selectedBlockAgentToolMetrics?.hitl ?? 0}
-												HITL
-											</p>
-										</div>
-										<span
-											class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
-										>
-											Allowlist lesson: {effectiveAllowedAgentToolIds.length}
-										</span>
-									</div>
-								</div>
-							{:else}
-								<div class="space-y-4">
-									<div
-										class="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100"
-									>
-										Este bloque usa un subconjunto propio. La lista empieza vacía por diseño para
-										que actives solo lo que realmente necesites.
-									</div>
-
-									{#if hasInvalidCustomAgentToolSelection}
-										<div
-											class="rounded-2xl border border-red-200 bg-red-50/80 px-4 py-4 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200"
-										>
-											Activa al menos una tool antes de guardar este subconjunto propio.
-										</div>
-									{/if}
-
-									<LessonAgentToolCatalog
-										tools={availableLessonAgentTools}
-										selectedToolIds={workingBlock.agentConfig.enabledToolIds ?? []}
-										onToggle={toggleAgentTool}
-										emptyMessage="La allowlist global no deja tools disponibles para este bloque."
+									<input
+										type="checkbox"
+										class="text-primary-600 h-4 w-4 rounded border-gray-300"
+										checked={inheritsTools}
+										onchange={(event) =>
+											setAgentToolInheritance((event.currentTarget as HTMLInputElement).checked)}
 									/>
-								</div>
-							{/if}
-						</section>
+									<div>
+										<p class="text-sm font-medium text-gray-900 dark:text-white">
+											Heredar todas las tools permitidas por la lesson
+										</p>
+										<p class="text-xs text-gray-500 dark:text-gray-400">
+											La portada de la lesson define el catálogo global y este bloque puede usarlo
+											íntegro sin mantener una lista propia.
+										</p>
+									</div>
+								</label>
+
+								{#if inheritsTools}
+									<div
+										class="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+									>
+										<div class="flex flex-wrap items-center justify-between gap-3">
+											<div>
+												<p class="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+													Este bloque hereda la allowlist completa de la lesson
+												</p>
+												<p class="mt-1 text-sm text-emerald-800/80 dark:text-emerald-100/80">
+													{selectedBlockAgentToolMetrics?.total ?? 0} tools · {selectedBlockAgentToolMetrics?.interactive ??
+														0} UI · {selectedBlockAgentToolMetrics?.hitl ?? 0}
+													HITL
+												</p>
+											</div>
+											<span
+												class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+											>
+												Allowlist lesson: {effectiveAllowedAgentToolIds.length}
+											</span>
+										</div>
+									</div>
+								{:else}
+									<div class="space-y-4">
+										<div
+											class="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100"
+										>
+											Este bloque usa un subconjunto propio. La lista empieza vacía por diseño para
+											que actives solo lo que realmente necesites.
+										</div>
+
+										<LessonAgentToolCatalog
+											tools={availableLessonAgentTools}
+											selectedToolIds={workingBlock.agentConfig.enabledToolIds ?? []}
+											onToggle={toggleAgentTool}
+											emptyMessage="La allowlist global no deja tools disponibles para este bloque."
+											compact={true}
+											initiallyOpenGroupIds={['evaluation_interaction']}
+										/>
+									</div>
+								{/if}
+							</div>
+						</details>
 					{/if}
 
-					<section class="space-y-5 rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
-						<div class="flex flex-wrap items-center justify-between gap-3">
+					<details class="rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
+						<summary
+							class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 marker:hidden"
+						>
 							<div>
 								<h2 class="text-base font-semibold text-gray-900 dark:text-white">
 									Salida estructurada
@@ -1782,6 +1784,17 @@
 									Campos disponibles luego como variables `blocks.{workingBlock.id}.outputs.*`.
 								</p>
 							</div>
+							<span
+								class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+							>
+								{workingBlock.agentConfig.outputSchema?.length ?? 0} campo{(workingBlock.agentConfig
+									.outputSchema?.length ?? 0) === 1
+									? ''
+									: 's'}
+							</span>
+						</summary>
+
+						<div class="mt-5 flex justify-end">
 							<button
 								type="button"
 								class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
@@ -1794,7 +1807,7 @@
 
 						{#if (workingBlock.agentConfig.outputSchema?.length ?? 0) === 0}
 							<div
-								class="rounded-2xl border border-dashed border-gray-300 px-4 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
+								class="mt-4 rounded-2xl border border-dashed border-gray-300 px-4 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
 							>
 								Este bloque todavía no define outputs estructurados. Puedes dejarlo así o añadir
 								campos para exponer datos reutilizables al resto del grafo.
@@ -1802,7 +1815,7 @@
 						{/if}
 
 						{#each workingBlock.agentConfig.outputSchema ?? [] as field, fieldIndex (`${field.key}-${fieldIndex}`)}
-							<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+							<div class="mt-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
 								<div class="grid gap-3 md:grid-cols-3">
 									<label class="block">
 										<span
@@ -1858,7 +1871,7 @@
 								</div>
 							</div>
 						{/each}
-					</section>
+					</details>
 				</div>
 			{:else}
 				<div class="space-y-4">
@@ -1889,16 +1902,26 @@
 			{/if}
 
 			{#if workingBlock.kind === 'content' || workingBlock.kind === 'check' || workingBlock.kind === 'agent'}
-				<div
-					class="space-y-4 rounded-2xl border border-dashed border-gray-300 p-4 dark:border-gray-700"
-				>
-					<div class="flex flex-wrap items-center justify-between gap-3">
+				<details class="rounded-2xl border border-dashed border-gray-300 p-4 dark:border-gray-700">
+					<summary
+						class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 marker:hidden"
+					>
 						<div>
 							<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Branching</h2>
 							<p class="text-sm text-gray-500 dark:text-gray-400">
 								Ramas condicionales evaluadas antes del siguiente bloque por defecto.
 							</p>
 						</div>
+						<span
+							class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+						>
+							{workingBlock.branches?.length ?? 0} rama{(workingBlock.branches?.length ?? 0) === 1
+								? ''
+								: 's'}
+						</span>
+					</summary>
+
+					<div class="mt-4 flex justify-end">
 						<button
 							type="button"
 							class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
@@ -1910,11 +1933,11 @@
 					</div>
 
 					{#if (workingBlock.branches?.length ?? 0) === 0}
-						<p class="text-sm text-gray-500 dark:text-gray-400">
+						<p class="mt-4 text-sm text-gray-500 dark:text-gray-400">
 							Todavía no hay ramas condicionales.
 						</p>
 					{:else}
-						<div class="space-y-3">
+						<div class="mt-4 space-y-3">
 							{#each workingBlock.branches ?? [] as branch, branchIndex (`${branch.label}-${branchIndex}`)}
 								{@const condition = ensureBranchCondition(branch)}
 								<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
@@ -2005,18 +2028,14 @@
 							{/each}
 						</div>
 					{/if}
-				</div>
+				</details>
 			{/if}
 
 			<div
 				class="flex flex-col gap-4 border-t border-gray-200 pt-5 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800"
 			>
 				<div>
-					{#if hasInvalidCustomAgentToolSelection}
-						<p class="text-sm text-red-700 dark:text-red-300">
-							El subconjunto propio necesita al menos una tool activa.
-						</p>
-					{:else if isDirty}
+					{#if isDirty}
 						<p class="text-sm text-amber-700 dark:text-amber-300">
 							Hay cambios pendientes en este bloque.
 						</p>
@@ -2028,7 +2047,7 @@
 				</div>
 
 				<button
-					disabled={isSaving || hasInvalidCustomAgentToolSelection}
+					disabled={isSaving}
 					class="bg-primary-600 hover:bg-primary-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					<Save class="mr-1 inline h-4 w-4" />

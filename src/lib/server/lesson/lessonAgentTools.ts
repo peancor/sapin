@@ -109,9 +109,9 @@ export async function resolveLessonAgentTools(input: {
 }): Promise<ToolDefinitionResolved[]> {
 	const allowedIds = new Set(getEffectiveLessonAllowedToolIds(input.allowedAgentToolIds));
 	const enabledIds =
-		input.enabledToolIds && input.enabledToolIds.length > 0
-			? new Set(input.enabledToolIds.filter((toolId) => allowedIds.has(toolId)))
-			: null;
+		input.enabledToolIds === undefined
+			? null
+			: new Set(input.enabledToolIds.filter((toolId) => allowedIds.has(toolId)));
 
 	let toolDefinitions = await DBAgentToolUtils.getActiveToolDefinitions(
 		BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT

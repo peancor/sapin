@@ -71,6 +71,7 @@
 		Trash2
 	} from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 
 	type FlowActionSuccess = {
 		success: true;
@@ -215,13 +216,13 @@
 	});
 	const quickMenuItems = $derived.by(() => getQuickMenuItems());
 
-	function buildLessonDebuggerHref(options?: {
+	function buildLessonDebuggerQuery(options?: {
 		blockId?: string;
 		view?: 'student' | 'debug';
 		intent?: 'inspect' | 'run';
 		fresh?: boolean;
 	}) {
-		const params = new URLSearchParams({
+		const params = new SvelteURLSearchParams({
 			mode: 'draft',
 			source: 'flow'
 		});
@@ -242,7 +243,7 @@
 			params.set('fresh', '1');
 		}
 
-		return `${resolve(`/course/${cid}/admin/interactives/${ilid}/lesson-debug`)}?${params.toString()}`;
+		return params.toString();
 	}
 
 	function openLessonDebugger(options?: {
@@ -251,7 +252,9 @@
 		intent?: 'inspect' | 'run';
 		fresh?: boolean;
 	}) {
-		window.location.href = buildLessonDebuggerHref(options);
+		window.location.href = resolve(
+			`/course/${cid}/admin/interactives/${ilid}/lesson-debug?${buildLessonDebuggerQuery(options)}`
+		);
 	}
 
 	$effect(() => {
@@ -291,25 +294,27 @@
 			block.agentConfig.runtimeMode = runtimeMode;
 			if (runtimeMode === 'basic') {
 				block.agentConfig.enabledToolIds = undefined;
+			} else if (block.agentConfig.enabledToolIds === undefined) {
+				block.agentConfig.enabledToolIds = [];
 			}
 		});
 	}
 
 	function getSelectedAgentToolSummary(block: Extract<LessonBlock, { kind: 'agent' }>) {
-		const effectiveToolIds = block.agentConfig.enabledToolIds?.length
-			? block.agentConfig.enabledToolIds.filter((toolId) =>
-					effectiveAllowedAgentToolIds.includes(toolId)
-				)
-			: effectiveAllowedAgentToolIds;
+		const selectedToolIds = block.agentConfig.enabledToolIds;
+		const inheritsAllowedTools = selectedToolIds === undefined;
+		const effectiveToolIds = inheritsAllowedTools
+			? effectiveAllowedAgentToolIds
+			: selectedToolIds.filter((toolId) => effectiveAllowedAgentToolIds.includes(toolId));
 		const metrics = getLessonAgentToolMetrics(
 			data.lessonAgentTools as LessonAgentToolPresentationItem[],
 			effectiveToolIds
 		);
 
 		return {
-			headline: block.agentConfig.enabledToolIds?.length
-				? `Subconjunto propio: ${metrics.total}`
-				: 'Usa todas las permitidas por la lesson',
+			headline: inheritsAllowedTools
+				? 'Hereda allowlist de la lesson'
+				: `Allowlist propia: ${metrics.total}`,
 			detail: `${metrics.total} tools · ${metrics.interactive} UI · ${metrics.hitl} HITL${metrics.persistent ? ` · ${metrics.persistent} persistentes` : ''}`
 		};
 	}
@@ -1776,7 +1781,12 @@
 				Preview publicado
 			</a>
 			<a
-				href={buildLessonDebuggerHref({ view: 'debug', intent: 'inspect' })}
+				href={resolve(
+					`/course/${cid}/admin/interactives/${ilid}/lesson-debug?${buildLessonDebuggerQuery({
+						view: 'debug',
+						intent: 'inspect'
+					})}`
+				)}
 				class="inline-flex items-center justify-center rounded-2xl border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800 shadow-sm hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
 			>
 				<Bug class="mr-2 h-4 w-4" />
@@ -2033,11 +2043,13 @@
 					<span class="hidden sm:inline">Borrador</span>
 				</a>
 				<a
-					href={buildLessonDebuggerHref({
-						blockId: selectedBlock?.id,
-						view: 'debug',
-						intent: 'inspect'
-					})}
+					href={resolve(
+						`/course/${cid}/admin/interactives/${ilid}/lesson-debug?${buildLessonDebuggerQuery({
+							blockId: selectedBlock?.id,
+							view: 'debug',
+							intent: 'inspect'
+						})}`
+					)}
 					title={selectedBlock
 						? `Abrir debugger en ${selectedBlock.title}`
 						: 'Abrir lesson debugger'}
@@ -2693,9 +2705,9 @@
 											{agentToolSummary.detail}
 										</p>
 										<p class="mt-2 text-xs text-stone-500 dark:text-stone-400">
-											{selectedBlock.agentConfig.enabledToolIds?.length
-												? 'Este bloque usa un subconjunto propio dentro de la allowlist global.'
-												: 'Este bloque hereda todas las tools permitidas por la lesson.'}
+											{selectedBlock.agentConfig.enabledToolIds === undefined
+												? 'Este bloque hereda todas las tools permitidas por la lesson.'
+												: 'Este bloque usa una allowlist propia dentro de la allowlist global.'}
 										</p>
 
 										<a
@@ -2882,11 +2894,15 @@
 								</a>
 
 								<a
-									href={buildLessonDebuggerHref({
-										blockId: selectedBlock.id,
-										view: 'debug',
-										intent: 'inspect'
-									})}
+									href={resolve(
+										`/course/${cid}/admin/interactives/${ilid}/lesson-debug?${buildLessonDebuggerQuery(
+											{
+												blockId: selectedBlock.id,
+												view: 'debug',
+												intent: 'inspect'
+											}
+										)}`
+									)}
 									class="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm font-semibold text-sky-800 shadow-sm transition hover:bg-sky-100 active:scale-95 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
 								>
 									<Bug class="h-4 w-4" />
@@ -2894,12 +2910,16 @@
 								</a>
 
 								<a
-									href={buildLessonDebuggerHref({
-										blockId: selectedBlock.id,
-										view: 'student',
-										intent: 'run',
-										fresh: true
-									})}
+									href={resolve(
+										`/course/${cid}/admin/interactives/${ilid}/lesson-debug?${buildLessonDebuggerQuery(
+											{
+												blockId: selectedBlock.id,
+												view: 'student',
+												intent: 'run',
+												fresh: true
+											}
+										)}`
+									)}
 									class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 active:scale-95 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
 								>
 									<Eye class="h-4 w-4" />
