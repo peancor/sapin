@@ -10,10 +10,7 @@ import {
 	message,
 	user
 } from '$lib/server/db/schema';
-import type {
-	InteractiveLessonBlockVisit,
-	InteractiveLearning
-} from '$lib/server/db/schema';
+import type { InteractiveLessonBlockVisit, InteractiveLearning } from '$lib/server/db/schema';
 import type { LessonDefinition } from '$lib/types/lesson';
 import type {
 	LessonReviewAttemptDetail,
@@ -77,7 +74,9 @@ export function buildLessonReviewStudentRows(input: {
 }): LessonReviewStudentRow[] {
 	return input.participants
 		.map((student) => {
-			const attempts = [...(input.attemptsByUser.get(student.id) ?? [])].sort(sortAttemptsDescending);
+			const attempts = [...(input.attemptsByUser.get(student.id) ?? [])].sort(
+				sortAttemptsDescending
+			);
 
 			return {
 				student,
@@ -88,18 +87,14 @@ export function buildLessonReviewStudentRows(input: {
 			} satisfies LessonReviewStudentRow;
 		})
 		.sort((left, right) => {
-			const rightTime =
-				right.latestAttempt?.lastActiveAt.getTime() ?? Number.NEGATIVE_INFINITY;
-			const leftTime =
-				left.latestAttempt?.lastActiveAt.getTime() ?? Number.NEGATIVE_INFINITY;
+			const rightTime = right.latestAttempt?.lastActiveAt.getTime() ?? Number.NEGATIVE_INFINITY;
+			const leftTime = left.latestAttempt?.lastActiveAt.getTime() ?? Number.NEGATIVE_INFINITY;
 			if (rightTime !== leftTime) return rightTime - leftTime;
 			return left.student.username.localeCompare(right.student.username, 'es');
 		});
 }
 
-export function buildLessonReviewStudentDirectory(
-	rows: LessonReviewStudentRow[]
-): {
+export function buildLessonReviewStudentDirectory(rows: LessonReviewStudentRow[]): {
 	students: LessonReviewStudentRow[];
 	summary: LessonReviewStudentDirectorySummary;
 } {
@@ -294,13 +289,18 @@ export class LessonReviewService {
 		}
 
 		if (session.scope !== lessonSessionScope.LEARNER) {
-			throw new LessonServiceError(404, 'El intento solicitado no forma parte de la revisión learner.');
+			throw new LessonServiceError(
+				404,
+				'El intento solicitado no forma parte de la revisión learner.'
+			);
 		}
 
 		const resolvedSession = await LessonRevisionService.ensureSessionRevisionBinding(session);
 
 		const participants = await this.getCourseParticipants(input.courseId);
-		const participantById = new Map(participants.map((participant) => [participant.id, participant]));
+		const participantById = new Map(
+			participants.map((participant) => [participant.id, participant])
+		);
 		const studentRecord =
 			participantById.get(resolvedSession.userId) ??
 			(await this.getFallbackParticipant(resolvedSession.userId));
@@ -335,7 +335,9 @@ export class LessonReviewService {
 				.where(eq(interactiveLessonEvent.sessionId, input.sessionId))
 				.all()
 		]);
-		const sessionVisits = sessionVisitsRaw.sort((left, right) => left.visitNumber - right.visitNumber);
+		const sessionVisits = sessionVisitsRaw.sort(
+			(left, right) => left.visitNumber - right.visitNumber
+		);
 		const branchEventByVisitId = new Map(
 			sessionEvents
 				.filter((event) => event.eventType === 'branch_taken' && event.visitId)
@@ -356,7 +358,9 @@ export class LessonReviewService {
 				const transcript = transcriptMessages.get(visit.id) ?? [];
 				const agentSummary =
 					createSnippet(
-						transcript.map((message) => `${message.role === 'USER' ? 'Alumno' : 'IA'}: ${message.content}`).join(' ')
+						transcript
+							.map((message) => `${message.role === 'USER' ? 'Alumno' : 'IA'}: ${message.content}`)
+							.join(' ')
 					) ?? createSnippet(String(outputs.response ?? ''));
 
 				return {
@@ -370,10 +374,8 @@ export class LessonReviewService {
 					completedAt: visit.completedAt ?? null,
 					branchTargetBlockId:
 						typeof branchPayload.targetBlockId === 'string' ? branchPayload.targetBlockId : null,
-					branchLabel:
-						typeof branchPayload.label === 'string' ? branchPayload.label : null,
-					contentSummary:
-						block && 'body' in block ? createSnippet(block.body) : null,
+					branchLabel: typeof branchPayload.label === 'string' ? branchPayload.label : null,
+					contentSummary: block && 'body' in block ? createSnippet(block.body) : null,
 					choice:
 						block?.kind === 'choice'
 							? {
@@ -389,25 +391,28 @@ export class LessonReviewService {
 										typeof branchPayload.targetBlockId === 'string'
 											? branchPayload.targetBlockId
 											: null
-							  }
+								}
 							: null,
 					check:
 						block?.kind === 'check'
 							? {
 									score: coerceNumber(outputs.score),
 									passed: coerceBoolean(outputs.passed),
-									feedback:
-										typeof outputs.feedback === 'string' ? outputs.feedback : null,
+									feedback: typeof outputs.feedback === 'string' ? outputs.feedback : null,
 									attemptCount: coerceNumber(outputs.attemptCount) ?? 0,
 									attemptsRemaining: coerceNumber(outputs.attemptsRemaining)
-							  }
+								}
 							: null,
 					agent:
 						block?.kind === 'agent'
 							? {
 									transcript,
-									summary: agentSummary
-							  }
+									summary: agentSummary,
+									extractionStatus:
+										typeof outputs.extractionStatus === 'string' ? outputs.extractionStatus : null,
+									extractionMessage:
+										typeof outputs.extractionMessage === 'string' ? outputs.extractionMessage : null
+								}
 							: null
 				} satisfies LessonReviewVisitDetail;
 			})
@@ -579,7 +584,9 @@ export class LessonReviewService {
 	private static async loadDefinitionsByRevisionId(
 		revisionIds: Array<string | null | undefined>
 	): Promise<Map<string, LessonDefinition>> {
-		const ids = [...new Set(revisionIds.filter((revisionId): revisionId is string => Boolean(revisionId)))];
+		const ids = [
+			...new Set(revisionIds.filter((revisionId): revisionId is string => Boolean(revisionId)))
+		];
 		if (ids.length === 0) {
 			return new Map();
 		}
@@ -653,11 +660,7 @@ export class LessonReviewService {
 			return new Map();
 		}
 
-		const messages = await db
-			.select()
-			.from(message)
-			.where(inArray(message.chatId, chatIds))
-			.all();
+		const messages = await db.select().from(message).where(inArray(message.chatId, chatIds)).all();
 		const visitIdByChatId = new Map(chatVisitPairs.map((pair) => [pair.chatId, pair.visitId]));
 		const transcriptByVisitId = new Map<string, LessonReviewVisitAgentMessage[]>();
 

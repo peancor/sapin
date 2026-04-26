@@ -176,7 +176,10 @@ interface LessonTemplateContext {
 type LessonAgentStreamResult = Awaited<ReturnType<typeof AIUtils.streamTextFromMessages>>;
 
 interface PreparedLessonAgentExecution {
-	view: LessonSessionView;
+	view: LessonSessionView & {
+		currentBlock: LessonAgentBlock;
+		resolvedCurrentBlock: LessonAgentBlock;
+	};
 	blockVisit: InteractiveLessonBlockVisit;
 	modelName: string;
 	currentOutputs: JsonRecord;
@@ -191,6 +194,23 @@ interface AgentConversationStats {
 	assistantTurns: number;
 	uiResponseCount: number;
 	userInteractionCount: number;
+}
+
+type LessonAgentAutoStartStatus = 'idle' | 'pending' | 'streaming' | 'completed' | 'failed';
+type LessonAgentExtractionStatus = 'not_configured' | 'ok' | 'failed' | 'missing_field' | 'coerced';
+
+interface LessonAgentOutputExtractionAudit {
+	status: LessonAgentExtractionStatus;
+	message: string;
+	missingFields: string[];
+	coercedFields: string[];
+	failedFields: string[];
+}
+
+interface LessonAgentOutputValueResult {
+	value: unknown;
+	coerced: boolean;
+	valid: boolean;
 }
 
 function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
@@ -220,13 +240,39 @@ function toModelRole(type: string): 'system' | 'user' | 'assistant' {
 	return 'user';
 }
 
-function coerceOutputValue(raw: unknown, field: LessonOutputField): unknown {
-	if (raw === undefined || raw === null) return null;
-	if (field.type === 'number') return typeof raw === 'number' ? raw : Number(raw);
-	if (field.type === 'boolean')
-		return typeof raw === 'boolean' ? raw : String(raw).toLowerCase() === 'true';
-	if (field.type === 'string') return String(raw);
-	return raw;
+function coerceOutputValueWithAudit(
+	raw: unknown,
+	field: LessonOutputField
+): LessonAgentOutputValueResult {
+	if (raw === undefined || raw === null) {
+		return { value: null, coerced: false, valid: false };
+	}
+
+	if (field.type === 'number') {
+		if (typeof raw === 'number') {
+			return { value: raw, coerced: false, valid: Number.isFinite(raw) };
+		}
+		const value = Number(raw);
+		return { value, coerced: true, valid: Number.isFinite(value) };
+	}
+
+	if (field.type === 'boolean') {
+		if (typeof raw === 'boolean') return { value: raw, coerced: false, valid: true };
+		const normalized = String(raw).trim().toLowerCase();
+		if (normalized === 'true') return { value: true, coerced: true, valid: true };
+		if (normalized === 'false') return { value: false, coerced: true, valid: true };
+		return { value: null, coerced: true, valid: false };
+	}
+
+	if (field.type === 'string') {
+		return {
+			value: typeof raw === 'string' ? raw : String(raw),
+			coerced: typeof raw !== 'string',
+			valid: true
+		};
+	}
+
+	return { value: raw, coerced: false, valid: true };
 }
 
 interface LessonCheckSubmissionResult {
@@ -1148,54 +1194,6 @@ export class LessonService {
 		const currentBlockContract = buildLessonBlockContract(currentBlock);
 		const currentChatId = currentVisit?.chatId ?? currentBlockState?.chatId ?? null;
 
-		if (
-			!input.skipAutoAgentExecution &&
-			currentBlock.kind === 'agent' &&
-			!isReadOnly &&
-			this.shouldAutoExecuteAgentBlock(currentBlock)
-		) {
-			const currentOutputs = normalizeOutputs(
-				currentVisit?.outputsJson ?? currentBlockState?.outputsJson
-			);
-
-			if (!currentOutputs.response) {
-				await this.executeAgentOnEnter({
-					activity: activityData.activity,
-					definition,
-					session: activeSession,
-					currentBlock,
-					resolvedCurrentBlock,
-					currentBlockState,
-					currentVisit,
-					blockStates,
-					blockVisits,
-					currentAssets,
-					currentChatMessages: [],
-					currentAgentMessages: [],
-					files,
-					filesById,
-					availableVariables: [],
-					availableReferenceGroups,
-					currentBlockContract,
-					currentVisitId: activeSession.currentVisitId ?? currentVisit?.id ?? null,
-					canRestart:
-						activityData.lesson.allowRestart &&
-						activeSession.userId === input.userId &&
-						activityData.activity.status === 'published',
-					canInteract: true,
-					revision,
-					sessionRevisionInfo: LessonRevisionService.getSessionRevisionInfo(activeSession),
-					isReadOnly: false,
-					lesson: activityData.lesson
-				});
-
-				return this.getSessionView({
-					...input,
-					skipAutoAgentExecution: true
-				});
-			}
-		}
-
 		const currentChatMessages =
 			currentBlock.kind === 'agent' &&
 			currentChatId &&
@@ -1311,6 +1309,16 @@ export class LessonService {
 			!normalizeOutputs(view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson)
 				.response
 		) {
+			const outputs = normalizeOutputs(
+				view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson
+			);
+			if (this.getAgentAutoStartStatus(outputs) === 'failed') {
+				throw new LessonServiceError(
+					400,
+					`El arranque automático del bloque IA falló: ${outputs.autoStartError ?? 'error desconocido'}`
+				);
+			}
+
 			throw new LessonServiceError(
 				400,
 				'Este bloque IA todavía no ha generado su arranque automático. Inténtalo de nuevo en unos segundos.'
@@ -1683,6 +1691,7 @@ export class LessonService {
 			assistantMessage: string;
 			outputs: JsonRecord;
 		}>;
+		fail: (message: string) => Promise<void>;
 	}> {
 		const prepared = input.autoStart
 			? await this.prepareAutoAgentExecution(input)
@@ -1699,7 +1708,12 @@ export class LessonService {
 		return {
 			textStream: streamResult.textStream,
 			complete: async (assistantMessage: string) =>
-				this.completePreparedAgentExecution(prepared, assistantMessage)
+				this.completePreparedAgentExecution(prepared, assistantMessage),
+			fail: async (message: string) => {
+				if (prepared.autoStarted) {
+					await this.markAgentAutoStartFailed(prepared.view, prepared.blockVisit, message);
+				}
+			}
 		};
 	}
 
@@ -1774,6 +1788,7 @@ export class LessonService {
 			view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson
 		);
 		const blockVisit = await this.ensureAgentBlockChat(view);
+		await this.markAgentAutoStartStatus(view, blockVisit, 'streaming');
 		const modelName = await this.resolveLessonModel(view.currentBlock);
 		const outputMessagesBase = await this.loadModelMessages(blockVisit.chatId!);
 		const launchMessage = await this.buildAutoAgentLaunchMessage(view);
@@ -1920,10 +1935,18 @@ export class LessonService {
 		const currentOutputs = normalizeOutputs(
 			view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson
 		);
-		if (currentOutputs.response) {
+		const autoStartStatus = this.getAgentAutoStartStatus(currentOutputs);
+		if (currentOutputs.response || autoStartStatus === 'completed') {
 			throw new LessonServiceError(
 				409,
 				'Este bloque IA ya completó su arranque automático en esta visita.'
+			);
+		}
+
+		if (autoStartStatus === 'streaming' || autoStartStatus === 'pending') {
+			throw new LessonServiceError(
+				409,
+				'Este bloque IA ya tiene un arranque automático en curso para esta visita.'
 			);
 		}
 	}
@@ -1963,6 +1986,63 @@ export class LessonService {
 		if (conversationStats.userInteractionCount >= maxTurns) {
 			throw new LessonServiceError(400, 'Este bloque ya alcanzó el máximo de turnos permitidos.');
 		}
+	}
+
+	private static getAgentAutoStartStatus(outputs: JsonRecord): LessonAgentAutoStartStatus {
+		const rawStatus = outputs.autoStartStatus;
+		if (
+			rawStatus === 'pending' ||
+			rawStatus === 'streaming' ||
+			rawStatus === 'completed' ||
+			rawStatus === 'failed'
+		) {
+			return rawStatus;
+		}
+
+		return outputs.autoStarted || outputs.response ? 'completed' : 'idle';
+	}
+
+	private static async markAgentAutoStartStatus(
+		view: LessonSessionView & { currentBlock: LessonAgentBlock },
+		blockVisit: InteractiveLessonBlockVisit,
+		status: LessonAgentAutoStartStatus,
+		errorMessage?: string
+	): Promise<void> {
+		const currentOutputs = normalizeOutputs(
+			blockVisit.outputsJson ??
+				view.currentVisit?.outputsJson ??
+				view.currentBlockState?.outputsJson
+		);
+		const outputs = {
+			...currentOutputs,
+			autoStarted: status === 'completed' || Boolean(currentOutputs.autoStarted),
+			autoStartStatus: status,
+			...(errorMessage ? { autoStartError: errorMessage } : { autoStartError: null })
+		};
+
+		await this.updateBlockVisit({
+			visitId: blockVisit.id,
+			status: lessonBlockVisitStatus.ACTIVE,
+			outputs,
+			chatId: blockVisit.chatId ?? undefined
+		});
+
+		await this.upsertBlockState({
+			sessionId: view.session.id,
+			blockId: view.currentBlock.id,
+			status: lessonBlockStateStatus.ACTIVE,
+			outputs,
+			chatId: blockVisit.chatId ?? undefined,
+			lastVisitId: blockVisit.id
+		});
+	}
+
+	private static async markAgentAutoStartFailed(
+		view: LessonSessionView & { currentBlock: LessonAgentBlock },
+		blockVisit: InteractiveLessonBlockVisit,
+		message: string
+	): Promise<void> {
+		await this.markAgentAutoStartStatus(view, blockVisit, 'failed', message);
 	}
 
 	private static evaluateCheckSubmission(input: {
@@ -2678,7 +2758,8 @@ export class LessonService {
 		const blockVisit = await this.ensureAgentBlockChat(view);
 		const enabledTools = await resolveLessonAgentTools({
 			allowedAgentToolIds: view.definition.allowedAgentToolIds,
-			enabledToolIds: view.currentBlock.agentConfig.enabledToolIds
+			enabledToolIds: view.currentBlock.agentConfig.enabledToolIds,
+			includePersistentTools: view.session.scope === lessonSessionScope.LEARNER
 		});
 		const enabledUIComponentKeys = deriveEnabledUIComponentKeysFromTools(enabledTools);
 		const templateContext = this.buildTemplateContext(
@@ -2758,6 +2839,7 @@ export class LessonService {
 			if (input.autoStart) {
 				this.assertAutoAgentExecutionAllowed(runtime.view);
 				userMessage = await this.buildAutoAgentLaunchMessage(runtime.view);
+				await this.markAgentAutoStartStatus(runtime.view, runtime.blockVisit, 'streaming');
 			} else {
 				this.assertManualAgentExecutionAllowed(runtime.view);
 				await this.assertManualAgentTurnCapacity(runtime.view);
@@ -2834,6 +2916,25 @@ export class LessonService {
 		return outputs;
 	}
 
+	static async failLessonAgentAutoStart(input: {
+		sessionId: string;
+		blockId: string;
+		userId: string;
+		userRoleLevel: number;
+		interactiveLearningId?: string;
+		message: string;
+	}): Promise<void> {
+		const runtime = await this.getLessonAgentRuntimeContext({
+			sessionId: input.sessionId,
+			blockId: input.blockId,
+			userId: input.userId,
+			userRoleLevel: input.userRoleLevel,
+			interactiveLearningId: input.interactiveLearningId
+		});
+
+		await this.markAgentAutoStartFailed(runtime.view, runtime.blockVisit, input.message);
+	}
+
 	private static async extractAgentOutputs(input: {
 		block: LessonAgentBlock;
 		modelName: string;
@@ -2852,6 +2953,16 @@ export class LessonService {
 	}): Promise<JsonRecord> {
 		const conversationStats =
 			input.conversationStats ?? this.countAgentConversationStats(input.messages);
+		const outputSchema = input.block.agentConfig.outputSchema ?? [];
+		const autoStarted = Boolean(input.currentOutputs.autoStarted) || input.autoStarted;
+		const currentAutoStartStatus = this.getAgentAutoStartStatus(input.currentOutputs);
+		const autoStartStatus: LessonAgentAutoStartStatus = autoStarted
+			? input.assistantMessage.trim()
+				? 'completed'
+				: currentAutoStartStatus === 'failed'
+					? 'failed'
+					: currentAutoStartStatus
+			: 'idle';
 		const baseOutputs: JsonRecord = {
 			response: input.assistantMessage,
 			lastUserMessage:
@@ -2867,9 +2978,19 @@ export class LessonService {
 			uiResponseCount: conversationStats.uiResponseCount,
 			userInteractionCount: conversationStats.userInteractionCount,
 			assistantTurnCount: conversationStats.assistantTurns,
-			autoStarted: Boolean(input.currentOutputs.autoStarted) || input.autoStarted
+			autoStarted,
+			autoStartStatus,
+			autoStartError:
+				autoStartStatus === 'failed' ? (input.currentOutputs.autoStartError ?? null) : null,
+			extractionStatus: outputSchema.length > 0 ? 'failed' : 'not_configured',
+			extractionMessage:
+				outputSchema.length > 0
+					? 'La salida estructurada todavia no se ha extraido.'
+					: 'Este bloque no define salida estructurada.',
+			extractionMissingFields: [],
+			extractionCoercedFields: [],
+			extractionFailedFields: []
 		};
-		const outputSchema = input.block.agentConfig.outputSchema ?? [];
 
 		if (outputSchema.length === 0) {
 			return baseOutputs;
@@ -2878,39 +2999,106 @@ export class LessonService {
 		const transcript = input.messages
 			.map((message) => `${message.role.toUpperCase()}: ${String(message.content)}`)
 			.join('\n\n');
-		const schemaDescription = outputSchema
-			.map((field) => `- ${field.key} (${field.type}): ${field.description || 'Sin descripción.'}`)
-			.join('\n');
 
 		try {
-			const extractionPrompt = [
-				'Eres un extractor de datos para una lesson basada en grafo.',
-				'Devuelve exclusivamente un objeto JSON válido que siga este esquema:',
-				schemaDescription,
-				'Conversación:',
-				transcript
-			].join('\n\n');
-			const extractedText = await AIUtils.generateText(
-				extractionPrompt,
+			const extractionMessages: ModelMessage[] = [
+				{
+					role: 'system',
+					content: [
+						'Eres un extractor de datos para una lesson basada en grafo.',
+						'Extrae únicamente datos observables en la conversación.',
+						'Si un campo no está respaldado por la conversación, déjalo ausente.'
+					].join('\n')
+				},
+				{
+					role: 'user',
+					content: [
+						'Campos requeridos por el autor:',
+						outputSchema
+							.map(
+								(field) =>
+									`- ${field.key} (${field.type}): ${field.description || 'Sin descripción.'}`
+							)
+							.join('\n'),
+						'Conversación:',
+						transcript
+					].join('\n\n')
+				}
+			];
+			const parsed = await AIUtils.generateObjectFromMessages(
+				extractionMessages,
 				input.modelName,
+				this.buildLessonOutputExtractionSchema(outputSchema),
 				input.context
 			);
-			const parsed = safeJsonParse<JsonRecord>(this.extractJsonObject(extractedText), {});
+			const parsedRecord = parsed as JsonRecord;
+			const audit: LessonAgentOutputExtractionAudit = {
+				status: 'ok',
+				message: 'Salida estructurada extraida correctamente.',
+				missingFields: [],
+				coercedFields: [],
+				failedFields: []
+			};
+
 			for (const field of outputSchema) {
-				baseOutputs[field.key] = coerceOutputValue(parsed[field.key], field);
+				const rawValue = parsedRecord[field.key];
+				const result = coerceOutputValueWithAudit(rawValue, field);
+				baseOutputs[field.key] = result.value;
+
+				if (rawValue === undefined || rawValue === null) {
+					audit.missingFields.push(field.key);
+					continue;
+				}
+
+				if (result.coerced) {
+					audit.coercedFields.push(field.key);
+				}
+
+				if (!result.valid) {
+					audit.failedFields.push(field.key);
+				}
 			}
+
+			if (audit.failedFields.length > 0) {
+				audit.status = 'failed';
+				audit.message = `No se pudieron validar los campos: ${audit.failedFields.join(', ')}.`;
+			} else if (audit.missingFields.length > 0) {
+				audit.status = 'missing_field';
+				audit.message = `Faltan campos sin evidencia suficiente: ${audit.missingFields.join(', ')}.`;
+			} else if (audit.coercedFields.length > 0) {
+				audit.status = 'coerced';
+				audit.message = `Se extrajeron campos con conversion de tipo: ${audit.coercedFields.join(', ')}.`;
+			}
+
+			baseOutputs.extractionStatus = audit.status;
+			baseOutputs.extractionMessage = audit.message;
+			baseOutputs.extractionMissingFields = audit.missingFields;
+			baseOutputs.extractionCoercedFields = audit.coercedFields;
+			baseOutputs.extractionFailedFields = audit.failedFields;
 		} catch (error) {
 			console.warn('[LessonService] No se pudo extraer salida estructurada', error);
+			baseOutputs.extractionStatus = 'failed';
+			baseOutputs.extractionMessage =
+				error instanceof Error
+					? `No se pudo extraer salida estructurada: ${error.message}`
+					: 'No se pudo extraer salida estructurada.';
+			baseOutputs.extractionFailedFields = outputSchema.map((field) => field.key);
 		}
 
 		return baseOutputs;
 	}
 
-	private static extractJsonObject(raw: string): string {
-		const firstBrace = raw.indexOf('{');
-		const lastBrace = raw.lastIndexOf('}');
-		if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) return '{}';
-		return raw.slice(firstBrace, lastBrace + 1);
+	private static buildLessonOutputExtractionSchema(outputSchema: LessonOutputField[]) {
+		return z.object(
+			Object.fromEntries(
+				outputSchema.map((field) => {
+					if (field.type === 'number') return [field.key, z.number().optional().nullable()];
+					if (field.type === 'boolean') return [field.key, z.boolean().optional().nullable()];
+					if (field.type === 'json') return [field.key, z.unknown().optional().nullable()];
+					return [field.key, z.string().optional().nullable()];
+				})
+			)
+		);
 	}
 
 	private static async assertSessionAccess(

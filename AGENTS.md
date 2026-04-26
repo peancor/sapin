@@ -102,6 +102,7 @@ Notas operativas:
 - `npm run preview`
 - `npm run check`
 - `npm run check:watch`
+- `npm test`
 - `npm run lint`
 - `npm run format`
 
@@ -323,25 +324,25 @@ El esquema Drizzle vive en `src/lib/server/db/schema/` y se reexporta desde `ind
 
 ### Tablas principales por archivo
 
-| Archivo | Tablas / grupos clave |
-| --- | --- |
-| `users.ts` | `user`, `session` |
-| `roles.ts` | `role`, `user_role`, `role_audit_log` |
-| `courses.ts` | `course`, `invite`, `course_file`, `course_role` |
-| `chat.ts` | `chat`, `message` |
-| `interactive.ts` | `interactive_learning`, `course_interactive_learning`, `interactive_learning_chat`, `user_interactive_learning_chat`, `interactive_learning_file`, `interactive_learning_rag_document` |
-| `lesson.ts` | `interactive_learning_lesson`, `interactive_learning_lesson_revision`, `interactive_lesson_session`, `interactive_lesson_block_state`, `interactive_lesson_block_visit`, `interactive_lesson_event` |
-| `progress.ts` | `learning_activity_progress`, `learning_progress_event`, `course_progress_summary` |
-| `files.ts` | `file_storage`, `file_access_log`, `file_system_setting` |
-| `notifications.ts` | `notification` |
-| `audit.ts` | `audit_log` |
-| `system.ts` | `app_setting` |
-| `analytics.ts` | `analytics_session`, `analytics_event`, `analytics_daily_stats` |
-| `ai.ts` | `ai_provider`, `ai_model`, `ai_request_capture_focus`, `ai_request_round`, `ai_usage_log`, `ai_quota`, `ai_usage_daily_stats` |
-| `agent.ts` | catálogo de tools/UI, `interactive_learning_agent`, `agent_activity_tool`, `agent_message`, `agent_tool_call`, `agent_ui_instance` |
-| `insightsAgent.ts` | `interactive_learning_insights_agent`, `insights_agent_activity_tool`, `insights_agent_run` |
-| `agentWorkspace.ts` | `agent_workspace`, `agent_workspace_tool`, `agent_thread` |
-| `memory.ts` | `agent_memory_canvas`, revisiones y eventos de sincronización |
+| Archivo             | Tablas / grupos clave                                                                                                                                                                               |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users.ts`          | `user`, `session`                                                                                                                                                                                   |
+| `roles.ts`          | `role`, `user_role`, `role_audit_log`                                                                                                                                                               |
+| `courses.ts`        | `course`, `invite`, `course_file`, `course_role`                                                                                                                                                    |
+| `chat.ts`           | `chat`, `message`                                                                                                                                                                                   |
+| `interactive.ts`    | `interactive_learning`, `course_interactive_learning`, `interactive_learning_chat`, `user_interactive_learning_chat`, `interactive_learning_file`, `interactive_learning_rag_document`              |
+| `lesson.ts`         | `interactive_learning_lesson`, `interactive_learning_lesson_revision`, `interactive_lesson_session`, `interactive_lesson_block_state`, `interactive_lesson_block_visit`, `interactive_lesson_event` |
+| `progress.ts`       | `learning_activity_progress`, `learning_progress_event`, `course_progress_summary`                                                                                                                  |
+| `files.ts`          | `file_storage`, `file_access_log`, `file_system_setting`                                                                                                                                            |
+| `notifications.ts`  | `notification`                                                                                                                                                                                      |
+| `audit.ts`          | `audit_log`                                                                                                                                                                                         |
+| `system.ts`         | `app_setting`                                                                                                                                                                                       |
+| `analytics.ts`      | `analytics_session`, `analytics_event`, `analytics_daily_stats`                                                                                                                                     |
+| `ai.ts`             | `ai_provider`, `ai_model`, `ai_request_capture_focus`, `ai_request_round`, `ai_usage_log`, `ai_quota`, `ai_usage_daily_stats`                                                                       |
+| `agent.ts`          | catálogo de tools/UI, `interactive_learning_agent`, `agent_activity_tool`, `agent_message`, `agent_tool_call`, `agent_ui_instance`                                                                  |
+| `insightsAgent.ts`  | `interactive_learning_insights_agent`, `insights_agent_activity_tool`, `insights_agent_run`                                                                                                         |
+| `agentWorkspace.ts` | `agent_workspace`, `agent_workspace_tool`, `agent_thread`                                                                                                                                           |
+| `memory.ts`         | `agent_memory_canvas`, revisiones y eventos de sincronización                                                                                                                                       |
 
 ### Helpers DB importantes
 
@@ -626,7 +627,8 @@ La configuración de notificaciones se guarda en `app_setting`.
 
 ## Estado actual de testing
 
-No hay un `npm test` oficial en `package.json`, pero sí existen tests propios con `node:test`, por ejemplo:
+Hay un `npm test` oficial que ejecuta los tests `node:test` con un loader local para resolver alias SvelteKit como `$lib`.
+Existen tests propios con `node:test`, por ejemplo:
 
 - `src/lib/math/expressionScope.test.ts`
 - `src/lib/server/agent/tools/operationalTools.manifest.test.ts`
@@ -634,8 +636,7 @@ No hay un `npm test` oficial en `package.json`, pero sí existen tests propios c
 
 Conclusión práctica:
 
-- la verificación mínima hoy es `npm run check` + `npm run lint`
-- si se amplía el set de tests, conviene añadir un script oficial y documentarlo aquí
+- la verificación mínima hoy es `npm test` + `npm run check` + `npm run lint`
 
 ## Ficheros generados o derivados
 

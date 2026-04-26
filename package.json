@@ -27,6 +27,7 @@
 		"docker:qdrant:debug:up": "docker compose -f docker-compose.yml -f docker-compose.qdrant-debug.yml up -d",
 		"docker:qdrant:debug:down": "docker compose -f docker-compose.yml -f docker-compose.qdrant-debug.yml down",
 		"preview": "vite preview",
+		"test": "node --import ./scripts/node-test-register.mjs --test \"src/**/*.test.ts\"",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",

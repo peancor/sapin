@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import LessonAgentChat from '$lib/components/lesson/LessonAgentChat.svelte';
 	import LessonAgentRuntimeChat from '$lib/components/lesson/LessonAgentRuntimeChat.svelte';
 	import LessonYoutubePlayer from '$lib/components/lesson/LessonYoutubePlayer.svelte';
@@ -8,6 +9,7 @@
 	import { ArrowLeft, RotateCcw } from 'lucide-svelte';
 
 	interface Props {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		data: any;
 		backHref: string;
 		backLabel?: string;
@@ -111,6 +113,18 @@
 				: !agentConfig?.autoStartOnEnter || agentHasGeneratedResponse
 			: true
 	);
+	const agentAutoStartStatus = $derived.by(() =>
+		typeof currentOutputs.autoStartStatus === 'string' ? currentOutputs.autoStartStatus : ''
+	);
+	const agentAutoStartError = $derived.by(() =>
+		typeof currentOutputs.autoStartError === 'string' ? currentOutputs.autoStartError : ''
+	);
+	const agentExtractionStatus = $derived.by(() =>
+		typeof currentOutputs.extractionStatus === 'string' ? currentOutputs.extractionStatus : ''
+	);
+	const agentExtractionMessage = $derived.by(() =>
+		typeof currentOutputs.extractionMessage === 'string' ? currentOutputs.extractionMessage : ''
+	);
 	const checkCanRetry = $derived.by(() => {
 		if (data.currentBlock.kind !== 'check') return false;
 		const attemptsRemaining = currentOutputs.attemptsRemaining;
@@ -201,6 +215,10 @@
 		};
 	});
 
+	function resolvePath(path: string): string {
+		return (resolve as unknown as (path: string) => string)(path);
+	}
+
 	async function handleAction(callback: () => Promise<void>) {
 		pending = true;
 		errorMessage = '';
@@ -239,7 +257,8 @@
 	}
 
 	function goBack() {
-		goto(backHref);
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		goto(resolvePath(backHref));
 	}
 
 	async function advance() {
@@ -270,7 +289,8 @@
 					return;
 				}
 
-				goto(`/course/${data.session.courseId}/run/lesson/${result.sessionId}`);
+				// eslint-disable-next-line svelte/no-navigation-without-resolve
+				goto(resolvePath(`/course/${data.session.courseId}/run/lesson/${result.sessionId}`));
 			}
 		});
 	}
@@ -448,6 +468,7 @@
 		{/if}
 
 		<div class="prose dark:prose-invert max-w-none">
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 			{@html bodyHtml}
 		</div>
 
@@ -467,9 +488,15 @@
 						{:else if asset.kind === 'audio'}
 							<audio src={asset.url} controls class="w-full"></audio>
 						{:else}
-							<a href={asset.url} target="_blank" class="text-primary-600 hover:underline">
+							<!-- eslint-disable svelte/no-navigation-without-resolve -->
+							<a
+								href={resolvePath(asset.url)}
+								target="_blank"
+								class="text-primary-600 hover:underline"
+							>
 								{asset.name}
 							</a>
+							<!-- eslint-enable svelte/no-navigation-without-resolve -->
 						{/if}
 						{#if asset.caption}
 							<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">{asset.caption}</p>
@@ -705,7 +732,9 @@
 						<LessonAgentRuntimeChat
 							initialMessages={data.currentAgentMessages}
 							apiEndpoint={agentApiEndpoint}
-							autoStartEnabled={agentConfig.autoStartOnEnter}
+							autoStartEnabled={agentConfig.autoStartOnEnter &&
+								agentAutoStartStatus !== 'streaming' &&
+								agentAutoStartStatus !== 'pending'}
 							showComposer={agentConfig.interactionMode !== 'none'}
 							composerDisabled={data.isReadOnly || !agentAllowsInput}
 							composerPlaceholder={agentConfig.placeholder || 'Escribe tu respuesta'}
@@ -723,11 +752,35 @@
 							canInteract={agentAllowsInput || agentConfig.interactionMode === 'none'}
 							isReadOnly={data.isReadOnly}
 							initialHasGeneratedResponse={agentHasGeneratedResponse}
+							autoStartEnabled={agentAutoStartStatus !== 'streaming' &&
+								agentAutoStartStatus !== 'pending'}
 							onStateChange={(state) => {
 								agentRuntimeState = state;
 							}}
 						/>
 					{/if}
+				{/if}
+
+				{#if agentAutoStartStatus === 'streaming' || agentAutoStartStatus === 'pending'}
+					<div
+						class="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-200"
+					>
+						La IA está preparando el arranque automático de este bloque.
+					</div>
+				{:else if agentAutoStartStatus === 'failed'}
+					<div
+						class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300"
+					>
+						{agentAutoStartError || 'El arranque automático del bloque IA ha fallado.'}
+					</div>
+				{/if}
+
+				{#if agentExtractionStatus === 'failed' || agentExtractionStatus === 'missing_field' || agentExtractionStatus === 'coerced'}
+					<div
+						class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
+					>
+						{agentExtractionMessage || 'La salida estructurada necesita revisión.'}
+					</div>
 				{/if}
 
 				<div class="flex justify-end">

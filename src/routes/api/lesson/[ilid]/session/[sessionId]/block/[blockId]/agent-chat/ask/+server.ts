@@ -34,18 +34,33 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 		const encoder = new TextEncoder();
 		const stream = new ReadableStream({
 			async start(controller) {
+				let streamErrorMessage: string | null = null;
 				try {
 					for await (const part of generator) {
+						if (part.type === 'error') {
+							streamErrorMessage = part.message;
+						}
 						controller.enqueue(encoder.encode(`data: ${JSON.stringify(part)}\n\n`));
 					}
 
-					await LessonService.syncLessonAgentBlockOutputs({
-						sessionId,
-						blockId,
-						userId: user.id,
-						userRoleLevel: user.highestRoleLevel,
-						interactiveLearningId: params.ilid
-					});
+					if (autoStart && streamErrorMessage) {
+						await LessonService.failLessonAgentAutoStart({
+							sessionId,
+							blockId,
+							userId: user.id,
+							userRoleLevel: user.highestRoleLevel,
+							interactiveLearningId: params.ilid,
+							message: streamErrorMessage
+						});
+					} else {
+						await LessonService.syncLessonAgentBlockOutputs({
+							sessionId,
+							blockId,
+							userId: user.id,
+							userRoleLevel: user.highestRoleLevel,
+							interactiveLearningId: params.ilid
+						});
+					}
 
 					controller.enqueue(encoder.encode('data: [DONE]\n\n'));
 				} catch (error) {
@@ -55,6 +70,16 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 							: error instanceof Error
 								? error.message
 								: 'Error interno del servidor';
+					if (autoStart) {
+						await LessonService.failLessonAgentAutoStart({
+							sessionId,
+							blockId,
+							userId: user.id,
+							userRoleLevel: user.highestRoleLevel,
+							interactiveLearningId: params.ilid,
+							message
+						}).catch(() => {});
+					}
 					controller.enqueue(
 						encoder.encode(
 							`data: ${JSON.stringify({ type: 'error', code: 'INTERNAL_ERROR', message })}\n\n`

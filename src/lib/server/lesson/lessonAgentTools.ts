@@ -11,6 +11,8 @@ const EXPLICIT_LESSON_SAFE_TOOL_NAMES = new Set([
 	'send_notification'
 ]);
 
+const PERSISTENT_LESSON_TOOL_NAMES = new Set(['save_grade', 'send_notification']);
+
 export interface LessonAgentToolCatalogItem {
 	id: string;
 	name: string;
@@ -50,6 +52,10 @@ function sortCatalogItems(items: LessonAgentToolCatalogItem[]): LessonAgentToolC
 
 export function isLessonSafeAgentToolName(name: string): boolean {
 	return name.startsWith('render_') || EXPLICIT_LESSON_SAFE_TOOL_NAMES.has(name);
+}
+
+export function isLessonPersistentAgentToolName(name: string): boolean {
+	return PERSISTENT_LESSON_TOOL_NAMES.has(name);
 }
 
 export function getAllLessonSafeAgentToolIds(): string[] {
@@ -106,12 +112,14 @@ export async function getLessonAgentToolCatalog(): Promise<LessonAgentToolCatalo
 export async function resolveLessonAgentTools(input: {
 	allowedAgentToolIds?: string[];
 	enabledToolIds?: string[];
+	includePersistentTools?: boolean;
 }): Promise<ToolDefinitionResolved[]> {
 	const allowedIds = new Set(getEffectiveLessonAllowedToolIds(input.allowedAgentToolIds));
 	const enabledIds =
 		input.enabledToolIds === undefined
 			? null
 			: new Set(input.enabledToolIds.filter((toolId) => allowedIds.has(toolId)));
+	const includePersistentTools = input.includePersistentTools ?? true;
 
 	let toolDefinitions = await DBAgentToolUtils.getActiveToolDefinitions(
 		BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
@@ -126,6 +134,7 @@ export async function resolveLessonAgentTools(input: {
 	return toolDefinitions
 		.filter((tool) => allowedIds.has(tool.name))
 		.filter((tool) => (enabledIds ? enabledIds.has(tool.name) : true))
+		.filter((tool) => includePersistentTools || !isLessonPersistentAgentToolName(tool.name))
 		.map((tool) => ({
 			id: tool.id,
 			name: tool.name,
@@ -136,7 +145,7 @@ export async function resolveLessonAgentTools(input: {
 			responseSchema: tool.responseSchema ? parseExecutorConfig(tool.responseSchema) : undefined,
 			executorType: tool.executorType as ToolDefinitionResolved['executorType'],
 			executorConfig: parseExecutorConfig(tool.executorConfig),
-			requiresConfirmation: tool.requiresConfirmation,
+			requiresConfirmation: tool.requiresConfirmation || isLessonPersistentAgentToolName(tool.name),
 			riskLevel: tool.riskLevel as ToolDefinitionResolved['riskLevel'],
 			usageDomain: tool.usageDomain ?? undefined,
 			configOverride: undefined

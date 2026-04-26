@@ -1,4 +1,4 @@
-import { generateText, streamText, type ModelMessage } from 'ai';
+import { generateText, Output, streamText, type ModelMessage } from 'ai';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -11,6 +11,7 @@ import { SystemPromptBuilder } from './services/SystemPromptBuilder';
 import { RagService, type RagContextOptions } from './services/RagService';
 import { resolveRagConfig } from '$lib/server/rag/config';
 import { AIRequestCaptureService } from './AIRequestCaptureService';
+import type { ZodType } from 'zod';
 
 export class AIUtils {
 	private static async logFailureUsage(params: {
@@ -378,6 +379,104 @@ export class AIUtils {
                 durationMs,
                 success: false,
                 errorMessage: error instanceof Error ? error.message : 'Unknown error'
+            });
+
+            throw error;
+        }
+    }
+
+    public static async generateObjectFromMessages<T>(
+        messages: ModelMessage[],
+        modelName: string,
+        schema: ZodType<T>,
+        context?: { userId?: string; courseId?: string; interactiveLearningId?: string; chatId?: string },
+        options?: { temperature?: number }
+    ): Promise<T> {
+        const startTime = Date.now();
+        const quotaCheck = await this.checkQuota(
+            modelName,
+            context?.userId,
+            context?.courseId,
+            context?.interactiveLearningId
+        );
+
+        if (!quotaCheck.allowed) {
+            await this.logFailureUsage({
+                modelName,
+                context,
+                operation: 'completion',
+                startTime,
+                errorMessage: `Cuota excedida: ${quotaCheck.reason}`,
+                metadata: { phase: 'quota_check', structuredOutput: true }
+            });
+            throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
+        }
+
+        let model;
+        try {
+            model = await this.buildChatModel(modelName);
+        } catch (error) {
+            await this.logFailureUsage({
+                modelName,
+                context,
+                operation: 'completion',
+                startTime,
+                errorMessage: error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
+                metadata: { phase: 'model_build', structuredOutput: true }
+            });
+            throw error;
+        }
+
+        try {
+            const result = await generateText({
+                model,
+                messages,
+                temperature: options?.temperature,
+                output: Output.object({ schema })
+            });
+
+            const durationMs = Date.now() - startTime;
+            const usage = result.usage;
+            const metadata: Record<string, unknown> = {
+                totalTokens: usage?.totalTokens,
+                reasoningTokens: usage?.reasoningTokens,
+                cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+                cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
+                messageCount: messages.length,
+                structuredOutput: true
+            };
+
+            await this.logUsage({
+                modelName,
+                userId: context?.userId,
+                courseId: context?.courseId,
+                interactiveLearningId: context?.interactiveLearningId,
+                chatId: context?.chatId,
+                operation: 'completion',
+                inputTokens: usage?.inputTokens ?? 0,
+                outputTokens: usage?.outputTokens ?? 0,
+                durationMs,
+                success: true,
+                metadata
+            });
+
+            return result.output as T;
+        } catch (error) {
+            const durationMs = Date.now() - startTime;
+
+            await this.logUsage({
+                modelName,
+                userId: context?.userId,
+                courseId: context?.courseId,
+                interactiveLearningId: context?.interactiveLearningId,
+                chatId: context?.chatId,
+                operation: 'completion',
+                inputTokens: 0,
+                outputTokens: 0,
+                durationMs,
+                success: false,
+                errorMessage: error instanceof Error ? error.message : 'Unknown error',
+                metadata: { structuredOutput: true }
             });
 
             throw error;

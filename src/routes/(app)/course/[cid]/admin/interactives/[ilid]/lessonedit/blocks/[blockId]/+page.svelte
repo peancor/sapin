@@ -236,7 +236,14 @@
 		markDirty();
 	}
 
-	function applyAgentPreset(preset: 'feedback' | 'generated_content' | 'summary') {
+	function applyAgentPreset(
+		preset:
+			| 'feedback'
+			| 'socratic_question'
+			| 'adaptive_generation'
+			| 'guided_practice'
+			| 'ui_evaluation'
+	) {
 		if (workingBlock.kind !== 'agent') return;
 
 		if (preset === 'feedback') {
@@ -253,7 +260,34 @@
 			workingBlock.agentConfig.initialAssistantMessage = '';
 		}
 
-		if (preset === 'generated_content') {
+		if (preset === 'socratic_question') {
+			workingBlock.agentConfig.runtimeMode = 'basic';
+			workingBlock.agentConfig.interactionMode = 'single_turn';
+			workingBlock.agentConfig.executionTrigger = 'on_user_submit';
+			workingBlock.agentConfig.autoStartOnEnter = true;
+			workingBlock.requiresResponse = true;
+			workingBlock.agentConfig.promptTemplate =
+				'Abre con una pregunta socrática breve basada en el contexto previo. Cuando el estudiante responda, repregunta o corrige con una pista concreta sin resolver todo de golpe.';
+			workingBlock.agentConfig.systemPrompt =
+				'Actúa como tutor socrático. Prioriza preguntas, evidencia del razonamiento del estudiante y pistas graduadas.';
+			workingBlock.agentConfig.initialAssistantMessage = '';
+			workingBlock.agentConfig.launchMessageTemplate =
+				'Formula una única pregunta socrática conectada con el progreso previo del estudiante.';
+			workingBlock.agentConfig.outputSchema = [
+				{
+					key: 'reasoning_quality',
+					type: 'string',
+					description: 'Calidad del razonamiento observado.'
+				},
+				{
+					key: 'needs_followup',
+					type: 'boolean',
+					description: 'Si conviene una intervención posterior.'
+				}
+			];
+		}
+
+		if (preset === 'adaptive_generation') {
 			workingBlock.agentConfig.interactionMode = 'none';
 			workingBlock.agentConfig.executionTrigger = 'on_enter';
 			workingBlock.agentConfig.autoStartOnEnter = true;
@@ -265,20 +299,56 @@
 			workingBlock.agentConfig.launchMessageTemplate =
 				'Produce el contenido que debe mostrarse ahora, apoyándote en la información reunida en bloques anteriores.';
 			workingBlock.agentConfig.initialAssistantMessage = '';
+			workingBlock.agentConfig.outputSchema = [
+				{
+					key: 'adaptation_basis',
+					type: 'string',
+					description: 'Qué evidencia del grafo motivó la adaptación.'
+				}
+			];
 		}
 
-		if (preset === 'summary') {
+		if (preset === 'guided_practice') {
 			workingBlock.agentConfig.interactionMode = 'single_turn';
 			workingBlock.agentConfig.executionTrigger = 'on_user_submit';
 			workingBlock.agentConfig.autoStartOnEnter = true;
 			workingBlock.requiresResponse = true;
 			workingBlock.agentConfig.promptTemplate =
-				'Pide al estudiante una síntesis y después genera una respuesta breve que valide, corrija y complete sus ideas.';
+				'Plantea una práctica breve. Tras la respuesta del estudiante, valida, corrige y completa sus ideas con feedback accionable.';
 			workingBlock.agentConfig.systemPrompt =
-				'Responde como tutor académico, ayudando a sintetizar y afinar conceptos clave.';
+				'Responde como tutor académico, ayudando a practicar un objetivo concreto sin perder el foco.';
 			workingBlock.agentConfig.initialAssistantMessage = '';
 			workingBlock.agentConfig.launchMessageTemplate =
-				'Abre el bloque con una pregunta breve que pida al alumno una síntesis de lo aprendido hasta ahora.';
+				'Abre el bloque con una tarea breve conectada con lo aprendido hasta ahora.';
+			workingBlock.agentConfig.outputSchema = [
+				{ key: 'mastery', type: 'number', description: 'Dominio estimado entre 0 y 1.' },
+				{ key: 'feedback_summary', type: 'string', description: 'Resumen breve del feedback dado.' }
+			];
+		}
+
+		if (preset === 'ui_evaluation') {
+			workingBlock.agentConfig.runtimeMode = 'agent';
+			workingBlock.agentConfig.interactionMode = 'single_turn';
+			workingBlock.agentConfig.executionTrigger = 'on_user_submit';
+			workingBlock.agentConfig.autoStartOnEnter = true;
+			workingBlock.requiresResponse = true;
+			workingBlock.agentConfig.enabledToolIds = ['render_quiz'];
+			workingBlock.agentConfig.promptTemplate =
+				'Genera una evaluación interactiva breve con la tool de quiz. Después de la respuesta, resume el desempeño y deja claros los siguientes pasos.';
+			workingBlock.agentConfig.systemPrompt =
+				'Usa UI estructurada cuando ayude a recoger evidencia de aprendizaje. Mantén la evaluación breve y accionable.';
+			workingBlock.agentConfig.initialAssistantMessage = '';
+			workingBlock.agentConfig.launchMessageTemplate =
+				'Presenta un quiz interactivo breve alineado con el bloque actual y el historial previo.';
+			workingBlock.agentConfig.outputSchema = [
+				{ key: 'score', type: 'number', description: 'Puntuación normalizada entre 0 y 1.' },
+				{
+					key: 'passed',
+					type: 'boolean',
+					description: 'Si el estudiante superó el criterio esperado.'
+				},
+				{ key: 'remediation_hint', type: 'string', description: 'Pista o recomendación siguiente.' }
+			];
 		}
 
 		markDirty();
@@ -1840,16 +1910,30 @@
 										<button
 											type="button"
 											class="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-950/30"
-											onclick={() => applyAgentPreset('generated_content')}
+											onclick={() => applyAgentPreset('socratic_question')}
 										>
-											Contenido generado
+											Pregunta socrática
 										</button>
 										<button
 											type="button"
 											class="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-950/30"
-											onclick={() => applyAgentPreset('summary')}
+											onclick={() => applyAgentPreset('adaptive_generation')}
 										>
-											Resumen y síntesis
+											Generación adaptativa
+										</button>
+										<button
+											type="button"
+											class="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-950/30"
+											onclick={() => applyAgentPreset('guided_practice')}
+										>
+											Práctica guiada
+										</button>
+										<button
+											type="button"
+											class="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-950/30"
+											onclick={() => applyAgentPreset('ui_evaluation')}
+										>
+											Evaluación con UI
 										</button>
 									</div>
 								</div>
@@ -2062,6 +2146,83 @@
 								</div>
 							{/if}
 						</section>
+
+						<details class="rounded-2xl border border-gray-200 p-5 dark:border-gray-800" open>
+							<summary
+								class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 marker:hidden"
+							>
+								<div>
+									<h2 class="text-base font-semibold text-gray-900 dark:text-white">
+										Contrato pedagógico
+									</h2>
+									<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+										Qué puede leer este bloque del grafo y qué deja disponible a los siguientes.
+									</p>
+								</div>
+								<span
+									class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+								>
+									{currentGraphSummary.incomingBlockIds.length} entradas · {currentGraphSummary
+										.outgoingBlockIds.length} salidas
+								</span>
+							</summary>
+
+							<div class="mt-5 grid gap-4 md:grid-cols-3">
+								<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+									<h3 class="text-sm font-semibold text-gray-900 dark:text-white">Lee de</h3>
+									{#if currentGraphSummary.incomingBlockIds.length === 0}
+										<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+											No hay bloques previos conectados.
+										</p>
+									{:else}
+										<div class="mt-3 flex flex-wrap gap-2">
+											{#each currentGraphSummary.incomingBlockIds as blockId (blockId)}
+												<span
+													class="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+												>
+													{blockLabel(blockId)}
+												</span>
+											{/each}
+										</div>
+									{/if}
+								</div>
+
+								<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+									<h3 class="text-sm font-semibold text-gray-900 dark:text-white">Escribe</h3>
+									<div class="mt-3 space-y-2">
+										{#each currentBlockContract.outputs.slice(0, 8) as field (field.path)}
+											<div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-950/30">
+												<p class="font-mono text-xs text-gray-900 dark:text-gray-100">
+													{field.path}
+												</p>
+												<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+													{field.description}
+												</p>
+											</div>
+										{/each}
+									</div>
+								</div>
+
+								<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+									<h3 class="text-sm font-semibold text-gray-900 dark:text-white">Puede activar</h3>
+									{#if currentGraphSummary.outgoingBlockIds.length === 0}
+										<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+											No hay salida conectada todavía.
+										</p>
+									{:else}
+										<div class="mt-3 flex flex-wrap gap-2">
+											{#each currentGraphSummary.outgoingBlockIds as blockId (blockId)}
+												<span
+													class="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+												>
+													{blockLabel(blockId)}
+												</span>
+											{/each}
+										</div>
+									{/if}
+								</div>
+							</div>
+						</details>
 
 						<details class="rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
 							<summary class="cursor-pointer list-none marker:hidden">

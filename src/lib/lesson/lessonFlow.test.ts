@@ -111,7 +111,10 @@ test('createLessonFlowGraph serializes nodes and edges with correct metadata', (
 	assert.equal(leftChoiceEdge?.sourceHandle, getLessonFlowChoiceHandleId('left'));
 	assert.deepEqual(
 		introNode?.data.incomingHandles.map((handle) => handle.id),
-		[getLessonFlowIncomingAddHandleId('intro')]
+		[
+			getLessonFlowIncomingHandleId(getLessonFlowBranchEdgeId('agent', 0)),
+			getLessonFlowIncomingAddHandleId('intro')
+		]
 	);
 	assert.deepEqual(
 		decisionNode?.data.incomingHandles.map((handle) => handle.id),

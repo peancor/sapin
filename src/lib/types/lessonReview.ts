@@ -113,28 +113,24 @@ export interface LessonReviewVisitDetail {
 	branchTargetBlockId: string | null;
 	branchLabel: string | null;
 	contentSummary: string | null;
-	choice:
-		| {
-				selectedLabel: string | null;
-				selectedValue: string | null;
-				targetBlockId: string | null;
-		  }
-		| null;
-	check:
-		| {
-				score: number | null;
-				passed: boolean;
-				feedback: string | null;
-				attemptCount: number;
-				attemptsRemaining: number | null;
-		  }
-		| null;
-	agent:
-		| {
-				transcript: LessonReviewVisitAgentMessage[];
-				summary: string | null;
-		  }
-		| null;
+	choice: {
+		selectedLabel: string | null;
+		selectedValue: string | null;
+		targetBlockId: string | null;
+	} | null;
+	check: {
+		score: number | null;
+		passed: boolean;
+		feedback: string | null;
+		attemptCount: number;
+		attemptsRemaining: number | null;
+	} | null;
+	agent: {
+		transcript: LessonReviewVisitAgentMessage[];
+		summary: string | null;
+		extractionStatus: string | null;
+		extractionMessage: string | null;
+	} | null;
 }
 
 export interface LessonReviewAttemptDetail {

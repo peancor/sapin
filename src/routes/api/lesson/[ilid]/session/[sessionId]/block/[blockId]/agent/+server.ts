@@ -64,6 +64,9 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 							: error instanceof Error
 								? error.message
 								: 'Error procesando la respuesta del bloque IA';
+					if (autoStart) {
+						await streamSession.fail(message);
+					}
 					controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`));
 					controller.enqueue(encoder.encode('data: [DONE]\n\n'));
 				} finally {

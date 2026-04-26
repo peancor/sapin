@@ -29,6 +29,7 @@
 		canInteract: boolean;
 		isReadOnly: boolean;
 		initialHasGeneratedResponse: boolean;
+		autoStartEnabled?: boolean;
 		onStateChange?: (state: LessonAgentChatState) => void;
 	}
 
@@ -42,6 +43,7 @@
 		canInteract,
 		isReadOnly,
 		initialHasGeneratedResponse,
+		autoStartEnabled = true,
 		onStateChange
 	}: Props = $props();
 
@@ -65,13 +67,9 @@
 		messages.filter((message) => message.type === 'ASSISTANT').length
 	);
 	const hasUserResponse = $derived(userTurnCount > 0);
-	const inputLocked = $derived(
-		agentConfig.interactionMode === 'single_turn' && userTurnCount > 0
-	);
+	const inputLocked = $derived(agentConfig.interactionMode === 'single_turn' && userTurnCount > 0);
 	const composerBlockedByAutoStart = $derived(
-		agentConfig.autoStartOnEnter &&
-			agentConfig.interactionMode !== 'none' &&
-			!hasGeneratedResponse
+		agentConfig.autoStartOnEnter && agentConfig.interactionMode !== 'none' && !hasGeneratedResponse
 	);
 	const canCompose = $derived(
 		canInteract &&
@@ -110,6 +108,7 @@
 		const currentAutoStartKey = `${syncKey}:${agentConfig.autoStartOnEnter}`;
 		if (
 			!agentConfig.autoStartOnEnter ||
+			!autoStartEnabled ||
 			autoStartAttemptKey === currentAutoStartKey ||
 			isReadOnly ||
 			!canInteract ||
@@ -331,7 +330,9 @@
 
 <div class="space-y-4">
 	{#if errorMessage}
-		<div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
+		<div
+			class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300"
+		>
 			{errorMessage}
 		</div>
 	{/if}
@@ -353,10 +354,11 @@
 			{#each messages as message (message.id)}
 				<div
 					class="rounded-lg px-4 py-3 {message.type === 'USER'
-						? 'ml-10 bg-primary-600 text-white'
+						? 'bg-primary-600 ml-10 text-white'
 						: 'mr-10 bg-white text-gray-900 dark:bg-gray-800 dark:text-white'}"
 				>
-					<div class="prose max-w-none dark:prose-invert">
+					<div class="prose dark:prose-invert max-w-none">
+						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 						{@html renderMarkdownMath(message.content)}
 					</div>
 				</div>
@@ -365,23 +367,32 @@
 	</div>
 
 	{#if agentConfig.interactionMode === 'none'}
-		<div class="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:bg-sky-950/20 dark:text-sky-200">
+		<div
+			class="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:bg-sky-950/20 dark:text-sky-200"
+		>
 			{isStreaming
 				? 'La IA está generando la respuesta de este bloque.'
 				: 'Este bloque IA se ejecuta automáticamente al entrar y muestra directamente la respuesta generada.'}
 		</div>
 	{:else if !isReadOnly && inputLocked}
-		<div class="rounded-lg bg-primary-50 px-4 py-3 text-sm text-primary-800 dark:bg-primary-950/20 dark:text-primary-200">
-			Este bloque acepta una única intervención del alumno. Ya puedes continuar cuando revises la respuesta.
+		<div
+			class="bg-primary-50 text-primary-800 dark:bg-primary-950/20 dark:text-primary-200 rounded-lg px-4 py-3 text-sm"
+		>
+			Este bloque acepta una única intervención del alumno. Ya puedes continuar cuando revises la
+			respuesta.
 		</div>
 	{:else if !isReadOnly && composerBlockedByAutoStart}
-		<div class="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:bg-sky-950/20 dark:text-sky-200">
+		<div
+			class="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:bg-sky-950/20 dark:text-sky-200"
+		>
 			{isStreaming
 				? 'La IA está preparando el arranque automático de este bloque.'
 				: 'Este bloque abrirá la conversación automáticamente antes de aceptar una respuesta del alumno.'}
 		</div>
 	{:else if !isReadOnly && agentConfig.autoStartOnEnter && assistantTurnCount > 0 && !hasUserResponse}
-		<div class="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:bg-sky-950/20 dark:text-sky-200">
+		<div
+			class="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:bg-sky-950/20 dark:text-sky-200"
+		>
 			La conversación se abrió automáticamente al entrar en el bloque. Ya puedes responder.
 		</div>
 	{/if}
@@ -398,7 +409,7 @@
 				disabled={!canCompose}
 			></textarea>
 			<button
-				class="inline-flex h-fit items-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+				class="bg-primary-600 hover:bg-primary-700 inline-flex h-fit items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
 				onclick={sendMessage}
 				disabled={!canCompose || !messageInput.trim()}
 			>

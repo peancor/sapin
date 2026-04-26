@@ -863,6 +863,77 @@ export function buildLessonBlockContract(block: LessonBlock): LessonBlockContrac
 				source: 'system',
 				namespace: 'outputs',
 				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.autoStartStatus`,
+				key: 'autoStartStatus',
+				label: `${block.title} · estado autoarranque`,
+				description:
+					'Estado del arranque automático: idle, pending, streaming, completed o failed.',
+				type: 'string',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.autoStartError`,
+				key: 'autoStartError',
+				label: `${block.title} · error autoarranque`,
+				description: 'Mensaje de error del arranque automático, si falló.',
+				type: 'string',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.extractionStatus`,
+				key: 'extractionStatus',
+				label: `${block.title} · estado extracción`,
+				description: 'Estado de la extracción estructurada del bloque IA.',
+				type: 'string',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.extractionMessage`,
+				key: 'extractionMessage',
+				label: `${block.title} · mensaje extracción`,
+				description: 'Diagnóstico legible de la extracción estructurada.',
+				type: 'string',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.extractionMissingFields`,
+				key: 'extractionMissingFields',
+				label: `${block.title} · campos sin extraer`,
+				description: 'Campos de salida estructurada que no tuvieron evidencia suficiente.',
+				type: 'json',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.extractionCoercedFields`,
+				key: 'extractionCoercedFields',
+				label: `${block.title} · campos convertidos`,
+				description: 'Campos de salida estructurada convertidos de tipo durante la extracción.',
+				type: 'json',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.extractionFailedFields`,
+				key: 'extractionFailedFields',
+				label: `${block.title} · campos fallidos`,
+				description: 'Campos de salida estructurada que no pudieron validarse.',
+				type: 'json',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
 			}
 		);
 

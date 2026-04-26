@@ -11,6 +11,8 @@ import {
 } from './lessonGraph.ts';
 import { LessonService } from './LessonService.ts';
 import { LessonServiceError } from './LessonServiceError.ts';
+import { AIUtils } from '../ai/AIUtils.ts';
+import { isLessonPersistentAgentToolName } from './lessonAgentTools.ts';
 
 function makeLinearDefinition(): LessonDefinition {
 	return {
@@ -62,7 +64,7 @@ test('parseDefinition normalizes lesson JSON to graph v2 while preserving block 
 	assert.deepEqual(definition.blocks[0]?.graph, { position: { x: 120, y: 80 } });
 });
 
-test('parseDefinition requires explicit interaction and trigger configuration in agent blocks', () => {
+test('parseDefinition normalizes legacy agent blocks to the shared IA contract', () => {
 	const rawDefinition = JSON.stringify({
 		entryBlockId: 'agent',
 		blocks: [
@@ -85,10 +87,17 @@ test('parseDefinition requires explicit interaction and trigger configuration in
 		]
 	});
 
-	assert.throws(
-		() => parseLessonDefinition(rawDefinition),
-		(error) => error instanceof LessonServiceError
-	);
+	const definition = parseLessonDefinition(rawDefinition);
+	const agentBlock = definition.blocks[0];
+
+	assert.equal(agentBlock?.kind, 'agent');
+	if (agentBlock?.kind !== 'agent') {
+		assert.fail('Expected normalized agent block');
+	}
+	assert.equal(agentBlock.agentConfig.runtimeMode, 'basic');
+	assert.equal(agentBlock.agentConfig.interactionMode, 'single_turn');
+	assert.equal(agentBlock.agentConfig.executionTrigger, 'on_user_submit');
+	assert.equal(agentBlock.agentConfig.autoStartOnEnter, false);
 });
 
 test('parseDefinition normalizes YouTube URLs and exposes guided video outputs', () => {
@@ -770,6 +779,141 @@ test('extractAgentOutputs counts UI responses as learner interaction in agent ru
 	assert.equal(outputs.uiResponseCount, 1);
 	assert.equal(outputs.userInteractionCount, 1);
 	assert.equal(outputs.assistantTurnCount, 1);
+});
+
+test('extractAgentOutputs validates structured outputs and records coercion audit', async () => {
+	const block: LessonAgentBlock = {
+		id: 'agent',
+		kind: 'agent',
+		title: 'Tutor',
+		body: 'Evalua',
+		next: 'end',
+		agentConfig: {
+			interactionMode: 'single_turn',
+			executionTrigger: 'on_user_submit',
+			autoStartOnEnter: false,
+			promptTemplate: 'Extrae evidencia',
+			maxTurns: null,
+			model: null,
+			systemPrompt: null,
+			outputSchema: [
+				{ key: 'mastery', type: 'number', description: 'Dominio' },
+				{ key: 'passed', type: 'boolean', description: 'Superado' },
+				{ key: 'feedback', type: 'string', description: 'Feedback' }
+			]
+		}
+	};
+	const aiUtilsForTest = AIUtils as unknown as {
+		generateObjectFromMessages: (...args: unknown[]) => Promise<unknown>;
+	};
+	const original = aiUtilsForTest.generateObjectFromMessages;
+	aiUtilsForTest.generateObjectFromMessages = async () => ({
+		mastery: 0.75,
+		passed: true,
+		feedback: 42
+	});
+
+	try {
+		const outputs = await (
+			LessonService as unknown as {
+				extractAgentOutputs(input: {
+					block: LessonAgentBlock;
+					modelName: string;
+					assistantMessage: string;
+					userMessage: string;
+					messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+					currentOutputs: Record<string, unknown>;
+					autoStarted: boolean;
+					context: Record<string, unknown>;
+				}): Promise<Record<string, unknown>>;
+			}
+		).extractAgentOutputs({
+			block,
+			modelName: 'mock-model',
+			assistantMessage: 'Buen trabajo',
+			userMessage: 'Mi respuesta',
+			messages: [{ role: 'assistant', content: 'Buen trabajo' }],
+			currentOutputs: {},
+			autoStarted: false,
+			context: {}
+		});
+
+		assert.equal(outputs.mastery, 0.75);
+		assert.equal(outputs.passed, true);
+		assert.equal(outputs.feedback, '42');
+		assert.equal(outputs.extractionStatus, 'coerced');
+		assert.deepEqual(outputs.extractionCoercedFields, ['feedback']);
+	} finally {
+		aiUtilsForTest.generateObjectFromMessages = original;
+	}
+});
+
+test('extractAgentOutputs surfaces missing and failed structured output fields', async () => {
+	const block: LessonAgentBlock = {
+		id: 'agent',
+		kind: 'agent',
+		title: 'Tutor',
+		body: 'Evalua',
+		next: 'end',
+		agentConfig: {
+			interactionMode: 'single_turn',
+			executionTrigger: 'on_user_submit',
+			autoStartOnEnter: false,
+			promptTemplate: 'Extrae evidencia',
+			maxTurns: null,
+			model: null,
+			systemPrompt: null,
+			outputSchema: [
+				{ key: 'mastery', type: 'number', description: 'Dominio' },
+				{ key: 'passed', type: 'boolean', description: 'Superado' }
+			]
+		}
+	};
+	const aiUtilsForTest = AIUtils as unknown as {
+		generateObjectFromMessages: (...args: unknown[]) => Promise<unknown>;
+	};
+	const original = aiUtilsForTest.generateObjectFromMessages;
+	aiUtilsForTest.generateObjectFromMessages = async () => ({
+		mastery: 'not-a-number'
+	});
+
+	try {
+		const outputs = await (
+			LessonService as unknown as {
+				extractAgentOutputs(input: {
+					block: LessonAgentBlock;
+					modelName: string;
+					assistantMessage: string;
+					userMessage: string;
+					messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+					currentOutputs: Record<string, unknown>;
+					autoStarted: boolean;
+					context: Record<string, unknown>;
+				}): Promise<Record<string, unknown>>;
+			}
+		).extractAgentOutputs({
+			block,
+			modelName: 'mock-model',
+			assistantMessage: 'Sin evidencia suficiente',
+			userMessage: 'No sé',
+			messages: [{ role: 'assistant', content: 'Sin evidencia suficiente' }],
+			currentOutputs: {},
+			autoStarted: false,
+			context: {}
+		});
+
+		assert.equal(outputs.extractionStatus, 'failed');
+		assert.deepEqual(outputs.extractionMissingFields, ['passed']);
+		assert.deepEqual(outputs.extractionFailedFields, ['mastery']);
+	} finally {
+		aiUtilsForTest.generateObjectFromMessages = original;
+	}
+});
+
+test('lesson agent policy marks persistent tools for guarded execution', () => {
+	assert.equal(isLessonPersistentAgentToolName('save_grade'), true);
+	assert.equal(isLessonPersistentAgentToolName('send_notification'), true);
+	assert.equal(isLessonPersistentAgentToolName('render_quiz'), false);
 });
 
 test('validateDefinition accepts future block references but rejects missing targets in templates', () => {
