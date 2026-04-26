@@ -28,7 +28,7 @@
 </script>
 
 <div
-	class="min-h-dvh bg-[linear-gradient(180deg,_#fff7ed_0%,_#f8fafc_42%,_#eef2f7_100%)] px-4 py-6 text-slate-950 sm:px-6 lg:px-8 dark:bg-[linear-gradient(180deg,_#1c1917_0%,_#0f172a_52%,_#020617_100%)] dark:text-slate-100"
+	class="min-h-full bg-[linear-gradient(180deg,_#fff7ed_0%,_#f8fafc_42%,_#eef2f7_100%)] px-4 py-6 text-slate-950 sm:px-6 lg:px-8 dark:bg-[linear-gradient(180deg,_#1c1917_0%,_#0f172a_52%,_#020617_100%)] dark:text-slate-100"
 >
 	<div class="mx-auto max-w-7xl space-y-6">
 		<section class="rounded-[28px] border border-amber-200/70 bg-white/92 p-6 shadow-sm dark:border-amber-900/40 dark:bg-slate-900/86">

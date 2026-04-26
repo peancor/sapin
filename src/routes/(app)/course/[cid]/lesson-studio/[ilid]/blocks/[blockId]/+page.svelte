@@ -712,7 +712,7 @@
 </script>
 
 <div
-	class="min-h-dvh bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.14),_transparent_28%),linear-gradient(180deg,_#f8f5ef_0%,_#efe8dc_100%)] p-4 text-stone-900 sm:p-6 dark:bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.1),_transparent_24%),linear-gradient(180deg,_#111315_0%,_#191c20_100%)] dark:text-stone-100"
+	class="min-h-full bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.14),_transparent_28%),linear-gradient(180deg,_#f8f5ef_0%,_#efe8dc_100%)] p-4 text-stone-900 sm:p-6 dark:bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.1),_transparent_24%),linear-gradient(180deg,_#111315_0%,_#191c20_100%)] dark:text-stone-100"
 >
 	<div class="mx-auto max-w-[1480px] space-y-5">
 		<div

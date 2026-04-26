@@ -67,7 +67,7 @@
 	]);
 </script>
 
-<div class="space-y-6">
+<div class="min-h-full space-y-6 p-4 sm:p-6 lg:p-8">
 	<div class="flex items-center justify-between gap-4">
 		<div>
 			<p class="text-sm uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Lesson</p>

@@ -39,7 +39,7 @@
 </script>
 
 <div
-	class="min-h-dvh bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.12),_transparent_26%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] p-4 text-slate-900 sm:p-6 dark:bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.11),_transparent_24%),linear-gradient(180deg,_#020617_0%,_#111827_100%)] dark:text-slate-100"
+	class="min-h-full bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.12),_transparent_26%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] p-4 text-slate-900 sm:p-6 dark:bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.11),_transparent_24%),linear-gradient(180deg,_#020617_0%,_#111827_100%)] dark:text-slate-100"
 >
 	<div class="mx-auto max-w-[1480px] space-y-5">
 		<div

@@ -180,7 +180,7 @@
 	});
 </script>
 
-<div class="space-y-6">
+<div class="min-h-full space-y-6 p-4 sm:p-6 lg:p-8">
 	<div
 		class="rounded-2xl bg-linear-to-br from-amber-100 via-orange-50 to-white p-6 shadow-sm ring-1 ring-amber-200/70 dark:from-amber-950/30 dark:via-gray-900 dark:to-gray-900 dark:ring-amber-900/40"
 	>

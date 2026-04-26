@@ -1978,7 +1978,7 @@
 <svelte:window onkeydown={handleWindowKeydown} />
 
 <div
-	class="min-h-dvh bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.16),_transparent_28%),linear-gradient(180deg,_#f8f5ef_0%,_#efe8dc_100%)] p-4 text-stone-900 sm:p-6 xl:hidden dark:bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.12),_transparent_24%),linear-gradient(180deg,_#111315_0%,_#191c20_100%)] dark:text-stone-100"
+	class="h-full overflow-y-auto bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.16),_transparent_28%),linear-gradient(180deg,_#f8f5ef_0%,_#efe8dc_100%)] p-4 text-stone-900 sm:p-6 xl:hidden dark:bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.12),_transparent_24%),linear-gradient(180deg,_#111315_0%,_#191c20_100%)] dark:text-stone-100"
 >
 	<div class="mx-auto max-w-3xl space-y-5">
 		<div
@@ -2217,202 +2217,8 @@
 </div>
 
 <div
-	class="lesson-flow-shell hidden h-dvh min-h-dvh overflow-hidden bg-[#ebe7e0] text-stone-900 xl:flex xl:flex-col dark:bg-[#141516] dark:text-stone-100"
+	class="lesson-flow-shell hidden h-full min-h-0 overflow-hidden bg-[#ebe7e0] text-stone-900 xl:flex dark:bg-[#141516] dark:text-stone-100"
 >
-	<header
-		class="studio-topbar shrink-0 border-b border-stone-300/60 bg-[#f7f3ec]/95 px-4 py-2.5 backdrop-blur-xl dark:border-stone-800 dark:bg-[#16181b]/95"
-	>
-		<div class="flex items-center gap-2">
-			<!-- Back + identity -->
-			<div class="flex min-w-0 flex-1 items-center gap-2.5">
-				<a
-					href={resolve(`/course/${cid}/lesson-studio/${ilid}`)}
-					class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-stone-300 bg-white text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
-					aria-label="Volver al editor lesson"
-					title="Volver al editor lesson"
-				>
-					<ArrowLeft class="h-3.5 w-3.5" />
-				</a>
-
-				<div class="min-w-0">
-					<div class="flex items-center gap-2">
-						<div class="rounded-lg bg-amber-500/12 p-1.5 text-amber-700 dark:text-amber-300">
-							<LayoutTemplate class="h-3.5 w-3.5" />
-						</div>
-						<p
-							class="text-[10px] font-semibold tracking-[0.22em] text-stone-400 uppercase dark:text-stone-500"
-						>
-							Lesson Studio
-						</p>
-					</div>
-					<div class="mt-0.5 flex items-center gap-2.5">
-						<h1
-							class="max-w-[220px] truncate text-sm font-semibold text-stone-900 dark:text-stone-100"
-						>
-							{data.activity.name}
-						</h1>
-
-						<!-- Status dot indicator -->
-						{#if actionError}
-							<span
-								class="flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300"
-							>
-								<span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
-								{actionError}
-							</span>
-						{:else if actionMessage}
-							<span
-								class="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300"
-							>
-								<span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-								{actionMessage}
-							</span>
-						{:else if hasUnsavedChanges}
-							<span
-								class="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300"
-							>
-								<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500"></span>
-								Sin guardar
-							</span>
-						{:else}
-							<span
-								class="flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-500"
-							>
-								<span class="h-1.5 w-1.5 rounded-full bg-stone-400 dark:bg-stone-500"></span>
-								Sincronizado
-							</span>
-						{/if}
-					</div>
-				</div>
-			</div>
-
-			<!-- Stats (compact, inline) -->
-			<div class="mr-1 hidden items-center gap-1 2xl:flex">
-				<div
-					class="rounded-lg border border-stone-200/80 bg-white/70 px-2.5 py-1.5 text-center dark:border-stone-700 dark:bg-stone-900/60"
-				>
-					<p class="text-[9px] font-semibold tracking-[0.16em] text-stone-400 uppercase">Bloques</p>
-					<p class="mt-0.5 text-sm leading-none font-bold text-stone-800 dark:text-stone-100">
-						{draftDefinition.blocks.length}
-					</p>
-				</div>
-				<div
-					class="rounded-lg border border-stone-200/80 bg-white/70 px-2.5 py-1.5 text-center dark:border-stone-700 dark:bg-stone-900/60"
-				>
-					<p class="text-[9px] font-semibold tracking-[0.16em] text-stone-400 uppercase">Rutas</p>
-					<p class="mt-0.5 text-sm leading-none font-bold text-stone-800 dark:text-stone-100">
-						{flowEdges.length}
-					</p>
-				</div>
-			</div>
-
-			<!-- Separator -->
-			<div class="hidden h-7 w-px bg-stone-300/70 2xl:block dark:bg-stone-700/70"></div>
-
-			<!-- Preview group -->
-			<div class="flex items-center gap-1">
-				<a
-					href={resolve(`/lesson/${ilid}?preview=published`)}
-					target="_blank"
-					rel="noreferrer"
-					title="Preview publicado"
-					class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-2 text-[11px] font-semibold text-emerald-800 shadow-sm transition hover:bg-emerald-100 active:scale-95 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
-				>
-					<Eye class="h-3.5 w-3.5" />
-					<span class="hidden sm:inline">Publicado</span>
-				</a>
-				<a
-					href={resolve(`/lesson/${ilid}?preview=draft`)}
-					target="_blank"
-					rel="noreferrer"
-					title="Preview borrador"
-					class="inline-flex items-center gap-1.5 rounded-xl border border-sky-300 bg-sky-50 px-2.5 py-2 text-[11px] font-semibold text-sky-800 shadow-sm transition hover:bg-sky-100 active:scale-95 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
-				>
-					<Eye class="h-3.5 w-3.5" />
-					<span class="hidden sm:inline">Borrador</span>
-				</a>
-				<a
-					href={resolve(
-						`/course/${cid}/lesson-studio/${ilid}/debug?${buildLessonDebuggerQuery({
-							blockId: selectedBlock?.id,
-							view: 'debug',
-							intent: 'inspect'
-						})}`
-					)}
-					title={selectedBlock
-						? `Abrir debugger en ${selectedBlock.title}`
-						: 'Abrir lesson debugger'}
-					class="inline-flex items-center gap-1.5 rounded-xl border border-sky-300 bg-sky-50 px-2.5 py-2 text-[11px] font-semibold text-sky-800 shadow-sm transition hover:bg-sky-100 active:scale-95 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
-				>
-					<Bug class="h-3.5 w-3.5" />
-					<span class="hidden sm:inline">Debugger</span>
-				</a>
-				<a
-					href={resolve(`/course/${cid}/admin/interactives/${ilid}`)}
-					title="Ficha de actividad"
-					class="inline-flex items-center rounded-xl border border-stone-300 bg-white px-2.5 py-2 text-[11px] font-semibold text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
-				>
-					Ficha
-				</a>
-			</div>
-
-			<!-- Separator -->
-			<div class="h-7 w-px bg-stone-300/70 dark:bg-stone-700/70"></div>
-
-			<!-- Action group -->
-			<div class="flex items-center gap-1">
-				<button
-					type="button"
-					title="Centrar vista (Home)"
-					class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-stone-300 bg-white text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
-					onclick={centerCanvas}
-				>
-					<MoveRight class="h-3.5 w-3.5" />
-				</button>
-
-				<button
-					type="button"
-					class="inline-flex items-center gap-1.5 rounded-xl bg-stone-800 px-3 py-2 text-[11px] font-semibold text-white shadow-sm transition hover:bg-stone-700 active:scale-95 disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
-					onclick={saveFlow}
-					disabled={isSubmitting}
-				>
-					<Save class="h-3.5 w-3.5" />
-					Guardar
-				</button>
-
-				<form
-					method="POST"
-					action="?/discardDraft"
-					onsubmit={(event) => {
-						if (
-							hasDraftChanges &&
-							!window.confirm('Vas a descartar el borrador actual del canvas.')
-						) {
-							event.preventDefault();
-						}
-					}}
-				>
-					<button
-						type="submit"
-						class="inline-flex items-center rounded-xl border border-stone-300 bg-white px-2.5 py-2 text-[11px] font-semibold text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
-						disabled={!hasDraftChanges || hasUnsavedChanges || isSubmitting}
-					>
-						Descartar
-					</button>
-				</form>
-				<form method="POST" action="?/publishDraft">
-					<button
-						type="submit"
-						class="inline-flex items-center rounded-xl bg-amber-500 px-3 py-2 text-[11px] font-semibold text-white shadow-sm transition hover:bg-amber-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-						disabled={!hasDraftChanges || hasUnsavedChanges || isSubmitting}
-					>
-						Publicar
-					</button>
-				</form>
-			</div>
-		</div>
-	</header>
-
 	<div class="flex min-h-0 flex-1 overflow-hidden">
 		<!-- Tool Rail — icon-only, 64px -->
 		<aside
@@ -2494,6 +2300,54 @@
 							renombrar · <kbd class="font-mono text-[9px]">⌘D</kbd> duplicar ·
 							<kbd class="font-mono text-[9px]">Home</kbd> centrar
 						</div>
+					</div>
+
+					<div class="absolute top-4 right-4 z-20 flex items-center gap-1.5">
+						{#if actionError}
+							<span
+								class="max-w-80 truncate rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-700 shadow-sm backdrop-blur-sm dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200"
+							>
+								{actionError}
+							</span>
+						{:else if actionMessage}
+							<span
+								class="max-w-80 truncate rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 shadow-sm backdrop-blur-sm dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200"
+							>
+								{actionMessage}
+							</span>
+						{:else if hasUnsavedChanges}
+							<span
+								class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700 shadow-sm backdrop-blur-sm dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+							>
+								Sin guardar
+							</span>
+						{/if}
+
+						<button
+							type="button"
+							title="Guardar mapa (Ctrl+S)"
+							class="inline-flex h-9 items-center gap-1.5 rounded-xl bg-stone-900 px-3 text-[11px] font-semibold text-white shadow-sm transition hover:bg-stone-700 active:scale-95 disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
+							onclick={saveFlow}
+							disabled={isSubmitting}
+						>
+							<Save class="h-3.5 w-3.5" />
+							Guardar
+						</button>
+						<button
+							type="button"
+							title="Inspeccionar selección en debugger"
+							class="inline-flex h-9 items-center gap-1.5 rounded-xl border border-sky-300 bg-sky-50 px-2.5 text-[11px] font-semibold text-sky-800 shadow-sm transition hover:bg-sky-100 active:scale-95 disabled:opacity-45 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
+							onclick={() =>
+								openLessonDebugger({
+									blockId: selectedBlock?.id,
+									view: 'debug',
+									intent: 'inspect'
+								})}
+							disabled={!selectedBlock}
+						>
+							<Bug class="h-3.5 w-3.5" />
+							Debug
+						</button>
 					</div>
 
 					<div
