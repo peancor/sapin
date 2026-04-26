@@ -1978,7 +1978,7 @@
 <svelte:window onkeydown={handleWindowKeydown} />
 
 <div
-	class="h-full overflow-y-auto bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.16),_transparent_28%),linear-gradient(180deg,_#f8f5ef_0%,_#efe8dc_100%)] p-4 text-stone-900 sm:p-6 xl:hidden dark:bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.12),_transparent_24%),linear-gradient(180deg,_#111315_0%,_#191c20_100%)] dark:text-stone-100"
+	class="h-full overflow-y-auto bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_28%),linear-gradient(180deg,_#f6fbff_0%,_#eef5ff_100%)] p-4 text-slate-950 sm:p-6 xl:hidden dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_24%),linear-gradient(180deg,_#0b1020_0%,_#10172a_100%)] dark:text-slate-100"
 >
 	<div class="mx-auto max-w-3xl space-y-5">
 		<div
@@ -1987,26 +1987,26 @@
 			<div class="flex items-start justify-between gap-4">
 				<div class="max-w-xl">
 					<div class="mb-3 flex items-center gap-3">
-						<div class="rounded-2xl bg-amber-500/15 p-3 text-amber-700 dark:text-amber-300">
+						<div class="rounded-2xl bg-blue-500/12 p-3 text-blue-700 dark:text-blue-300">
 							<LayoutTemplate class="h-5 w-5" />
 						</div>
 						<div>
 							<p
-								class="text-xs font-semibold tracking-[0.24em] text-stone-500 uppercase dark:text-stone-400"
+								class="text-xs font-semibold tracking-[0.24em] text-slate-500 uppercase dark:text-slate-400"
 							>
 								Studio lesson
 							</p>
 							<h1 class="mt-1 text-2xl font-semibold">{data.activity.name}</h1>
 						</div>
 					</div>
-					<p class="text-sm leading-6 text-stone-600 dark:text-stone-300">
+					<p class="text-sm leading-6 text-slate-600 dark:text-slate-300">
 						El editor visual está optimizado para escritorio para evitar scroll vertical y conservar
 						una lectura clara del grafo. En esta anchura te dejamos un fallback editorial para
 						seguir trabajando sin una experiencia comprimida.
 					</p>
 				</div>
 				<span
-					class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
+					class="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200"
 				>
 					Fallback responsive
 				</span>
@@ -2217,27 +2217,27 @@
 </div>
 
 <div
-	class="lesson-flow-shell hidden h-full min-h-0 overflow-hidden bg-[#e9e3d8] text-stone-900 xl:flex dark:bg-[#141516] dark:text-stone-100"
+	class="lesson-flow-shell hidden h-full min-h-0 overflow-hidden bg-[#edf5ff] text-slate-950 xl:flex dark:bg-[#0b1020] dark:text-slate-100"
 >
 	<div class="flex min-h-0 flex-1 overflow-hidden">
 		<!-- Tool Rail -->
 		<aside
-			class="studio-rail flex w-14 shrink-0 flex-col items-center gap-1.5 border-r border-stone-300/80 bg-[#f6f1e8]/96 px-1.5 py-2.5 dark:border-stone-800 dark:bg-[#17191c]"
+			class="studio-rail flex w-14 shrink-0 flex-col items-center gap-1.5 border-r border-blue-100/80 bg-white/78 px-1.5 py-2.5 shadow-[12px_0_36px_-32px_rgba(37,99,235,0.55)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#10172a]/92"
 		>
 			<!-- Create buttons (icon-only, colored by type) -->
 			{#each createButtons as button (button.kind)}
 				{@const railColors = {
 					content:
-						'bg-amber-100 text-amber-700 hover:bg-amber-200/80 border-amber-200/80 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/40 dark:hover:bg-amber-950/50',
+						'bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border-cyan-200/80 dark:bg-cyan-950/30 dark:text-cyan-300 dark:border-cyan-900/40 dark:hover:bg-cyan-950/50',
 					choice:
 						'bg-teal-100 text-teal-700 hover:bg-teal-200/80 border-teal-200/80 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/40 dark:hover:bg-teal-950/50',
 					check:
-						'bg-emerald-100 text-emerald-700 hover:bg-emerald-200/80 border-emerald-200/80 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40 dark:hover:bg-emerald-950/50',
+						'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200/80 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900/40 dark:hover:bg-blue-950/50',
 					agent:
-						'bg-indigo-100 text-indigo-700 hover:bg-indigo-200/80 border-indigo-200/80 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-900/40 dark:hover:bg-indigo-950/50',
+						'bg-violet-50 text-violet-700 hover:bg-violet-100 border-violet-200/80 dark:bg-violet-950/30 dark:text-violet-300 dark:border-violet-900/40 dark:hover:bg-violet-950/50',
 					youtube:
-						'bg-red-100 text-red-700 hover:bg-red-200/80 border-red-200/80 dark:bg-red-950/30 dark:text-red-300 dark:border-red-900/40 dark:hover:bg-red-950/50',
-					end: 'bg-rose-100 text-rose-700 hover:bg-rose-200/80 border-rose-200/80 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40 dark:hover:bg-rose-950/50'
+						'bg-rose-50 text-rose-700 hover:bg-rose-100 border-rose-200/80 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40 dark:hover:bg-rose-950/50',
+					end: 'bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-200/80 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-900/40 dark:hover:bg-orange-950/50'
 				}[button.kind]}
 				<button
 					type="button"
@@ -2252,14 +2252,14 @@
 			{/each}
 
 			<!-- Separator -->
-			<div class="my-1 h-px w-8 bg-stone-300/70 dark:bg-stone-700/70"></div>
+			<div class="my-1 h-px w-8 bg-blue-100 dark:bg-slate-700/70"></div>
 
 			<!-- Center canvas -->
 			<button
 				type="button"
 				title="Centrar vista (Home)"
 				aria-label="Centrar vista del canvas"
-				class="flex h-10 w-10 items-center justify-center rounded-lg border border-stone-300/80 bg-white/72 text-stone-500 shadow-[0_8px_18px_-16px_rgba(28,25,23,0.55)] transition duration-150 hover:bg-white hover:text-stone-700 active:scale-95 dark:border-stone-700 dark:bg-stone-900/50 dark:text-stone-400 dark:hover:bg-stone-900 dark:hover:text-stone-200"
+				class="flex h-10 w-10 items-center justify-center rounded-lg border border-blue-100 bg-white/80 text-blue-500 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.55)] transition duration-150 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 active:scale-95 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
 				onclick={centerCanvas}
 			>
 				<MoveRight class="h-4 w-4" />
@@ -2267,12 +2267,12 @@
 
 			<!-- Legend dots (mt-auto to push to bottom) -->
 			<div class="mt-auto flex flex-col items-center gap-1.5 pb-1">
-				<div class="mb-1 h-px w-6 bg-stone-300/60 dark:bg-stone-700/60"></div>
-				<span class="h-2.5 w-2.5 rounded-full bg-amber-500" title="Contenido"></span>
+				<div class="mb-1 h-px w-6 bg-blue-100 dark:bg-slate-700/60"></div>
+				<span class="h-2.5 w-2.5 rounded-full bg-cyan-400" title="Contenido"></span>
 				<span class="h-2.5 w-2.5 rounded-full bg-teal-500" title="Decisión"></span>
-				<span class="h-2.5 w-2.5 rounded-full bg-emerald-500" title="Evaluación"></span>
-				<span class="h-2.5 w-2.5 rounded-full bg-indigo-500" title="Tutor IA"></span>
-				<span class="h-2.5 w-2.5 rounded-full bg-rose-500" title="Final"></span>
+				<span class="h-2.5 w-2.5 rounded-full bg-blue-500" title="Evaluación"></span>
+				<span class="h-2.5 w-2.5 rounded-full bg-violet-500" title="Tutor IA"></span>
+				<span class="h-2.5 w-2.5 rounded-full bg-orange-400" title="Final"></span>
 			</div>
 		</aside>
 
@@ -2280,20 +2280,23 @@
 			<div class="flex min-h-0 flex-1 overflow-hidden p-1.5">
 				<div
 					bind:this={stageElement}
-					class="studio-stage relative min-h-0 flex-1 overflow-hidden rounded-lg border border-stone-300/90 bg-[#f8f4ec] shadow-[0_10px_30px_-28px_rgba(24,24,27,0.75)] dark:border-stone-700 dark:bg-[#111315]"
+					class="studio-stage relative min-h-0 flex-1 overflow-hidden rounded-xl border border-blue-100/90 bg-[#f7fbff] shadow-[0_24px_70px_-48px_rgba(37,99,235,0.65)] dark:border-slate-700 dark:bg-[#0f172a]"
 				>
 					<div
-						class="pointer-events-none absolute inset-x-0 top-0 z-10 h-18 bg-linear-to-b from-[#f8f4ec] via-[#f8f4ec]/65 to-transparent dark:from-[#111315] dark:via-[#111315]/65"
+						class="pointer-events-none absolute inset-x-0 top-0 z-10 h-18 bg-linear-to-b from-[#f7fbff] via-[#f7fbff]/65 to-transparent dark:from-[#0f172a] dark:via-[#0f172a]/65"
+					></div>
+					<div
+						class="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_34%,_rgba(34,211,238,0.12),_transparent_26%),radial-gradient(circle_at_50%_48%,_rgba(99,102,241,0.10),_transparent_36%)]"
 					></div>
 
 					<div class="pointer-events-none absolute top-3 left-3 z-20 flex flex-wrap gap-1.5">
 						<div
-							class="rounded-lg border border-stone-200/70 bg-white/82 px-2.5 py-1 text-[10px] font-medium text-stone-500 shadow-sm backdrop-blur-sm dark:border-white/8 dark:bg-stone-900/80 dark:text-stone-400"
+							class="rounded-lg border border-blue-100 bg-white/84 px-2.5 py-1 text-[10px] font-medium text-slate-500 shadow-sm backdrop-blur-sm dark:border-white/8 dark:bg-slate-900/80 dark:text-slate-400"
 						>
 							Arrastra para panear · inspector a la derecha
 						</div>
 						<div
-							class="hidden rounded-lg border border-stone-200/70 bg-white/82 px-2.5 py-1 text-[10px] font-medium text-stone-500 shadow-sm backdrop-blur-sm 2xl:block dark:border-white/8 dark:bg-stone-900/80 dark:text-stone-400"
+							class="hidden rounded-lg border border-blue-100 bg-white/84 px-2.5 py-1 text-[10px] font-medium text-slate-500 shadow-sm backdrop-blur-sm 2xl:block dark:border-white/8 dark:bg-slate-900/80 dark:text-slate-400"
 						>
 							<kbd class="font-mono text-[9px]">Shift+A</kbd> añadir ·
 							<kbd class="font-mono text-[9px]">F2</kbd>
@@ -2317,7 +2320,7 @@
 							</span>
 						{:else if hasUnsavedChanges}
 							<span
-								class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700 shadow-sm backdrop-blur-sm dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+								class="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[10px] font-semibold text-orange-700 shadow-sm backdrop-blur-sm dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-200"
 							>
 								Sin guardar
 							</span>
@@ -2326,7 +2329,7 @@
 						<button
 							type="button"
 							title="Guardar mapa (Ctrl+S)"
-							class="inline-flex h-8 items-center gap-1.5 rounded-lg bg-stone-900 px-3 text-[11px] font-semibold text-white shadow-sm transition duration-150 hover:bg-stone-700 active:scale-95 disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
+							class="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#081a3a] px-3 text-[11px] font-semibold text-white shadow-[0_16px_30px_-20px_rgba(8,26,58,0.85)] transition duration-150 hover:bg-blue-950 active:scale-95 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
 							onclick={saveFlow}
 							disabled={isSubmitting}
 						>
@@ -2336,7 +2339,7 @@
 						<button
 							type="button"
 							title="Inspeccionar selección en debugger"
-							class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-sky-300 bg-sky-50 px-2.5 text-[11px] font-semibold text-sky-800 shadow-sm transition duration-150 hover:bg-sky-100 active:scale-95 disabled:opacity-45 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
+							class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-blue-200 bg-white/86 px-2.5 text-[11px] font-semibold text-blue-700 shadow-sm transition duration-150 hover:bg-blue-50 active:scale-95 disabled:opacity-45 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200 dark:hover:bg-blue-950/50"
 							onclick={() =>
 								openLessonDebugger({
 									blockId: selectedBlock?.id,
@@ -2367,8 +2370,9 @@
 								{nodeTypes}
 								class="h-full w-full"
 								style="background:
-									radial-gradient(circle at top left, rgba(255,246,237,0.9), rgba(248,244,236,0.82) 32%, rgba(236,229,217,0.65) 100%),
-									linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0));"
+									radial-gradient(circle at 50% 34%, rgba(34,211,238,0.12), transparent 28%),
+									radial-gradient(circle at 52% 48%, rgba(99,102,241,0.10), transparent 38%),
+									linear-gradient(180deg, rgba(255,255,255,0.82), rgba(239,246,255,0.78));"
 								fitView
 								minZoom={0.35}
 								maxZoom={1.7}
@@ -2399,8 +2403,8 @@
 								onconnect={handleConnect}
 							>
 								<Background
-									bgColor="#f7f1e8"
-									patternColor="#d5c5b2"
+									bgColor="#f7fbff"
+									patternColor="#c7d2fe"
 									variant={BackgroundVariant.Dots}
 									gap={28}
 									size={1.05}
@@ -2433,11 +2437,11 @@
 
 		{#if isInspectorCollapsed}
 			<aside
-				class="flex w-11 shrink-0 flex-col items-center gap-3 border-l border-stone-300/70 bg-[#f6f1e8]/96 px-1.5 py-3 dark:border-stone-800 dark:bg-[#17191c]"
+				class="flex w-11 shrink-0 flex-col items-center gap-3 border-l border-blue-100/80 bg-white/78 px-1.5 py-3 shadow-[-12px_0_36px_-32px_rgba(37,99,235,0.55)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#10172a]/92"
 			>
 				<button
 					type="button"
-					class="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-300 bg-white text-stone-600 shadow-sm transition duration-150 hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+					class="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-100 bg-white text-blue-600 shadow-sm transition duration-150 hover:border-blue-200 hover:bg-blue-50 active:scale-95 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
 					onclick={() => {
 						isInspectorCollapsed = false;
 					}}
@@ -2449,19 +2453,19 @@
 			</aside>
 		{:else}
 			<aside
-				class="flex w-[368px] shrink-0 flex-col overflow-hidden border-l border-stone-300/70 bg-[#f6f1e8]/96 dark:border-stone-800 dark:bg-[#17191c]"
+				class="flex w-[368px] shrink-0 flex-col overflow-hidden border-l border-blue-100/80 bg-white/78 shadow-[-12px_0_36px_-32px_rgba(37,99,235,0.55)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#10172a]/92"
 			>
-				<div class="shrink-0 border-b border-stone-300/60 px-4 py-3 dark:border-stone-800">
+				<div class="shrink-0 border-b border-blue-100/80 px-4 py-3 dark:border-slate-800">
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0 flex-1">
-							<p class="text-[9px] font-bold text-stone-400 uppercase dark:text-stone-500">
+							<p class="text-[9px] font-bold tracking-[0.14em] text-blue-500 uppercase dark:text-blue-300">
 								Inspector
 							</p>
 							{#if selectedBlock && isRenamingSelectedBlock}
 								<input
 									bind:this={renameInputElement}
 									value={renameDraft}
-									class="mt-1.5 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-base font-semibold text-stone-900 outline-hidden focus:border-amber-400 focus:ring-2 focus:ring-amber-200 dark:border-amber-700 dark:bg-stone-950 dark:text-white"
+									class="mt-1.5 w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-base font-semibold text-slate-950 outline-hidden focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:border-blue-700 dark:bg-slate-950 dark:text-white"
 									oninput={(event) => {
 										renameDraft = (event.currentTarget as HTMLInputElement).value;
 									}}
@@ -2479,7 +2483,7 @@
 									onblur={commitRenameSelectedBlock}
 								/>
 							{:else}
-								<h2 class="mt-1 truncate text-base font-semibold text-stone-900 dark:text-white">
+								<h2 class="mt-1 truncate text-base font-semibold text-slate-950 dark:text-white">
 									{#if selectedBlock}
 										{selectedBlock.title}
 									{:else if selectedEdge}
@@ -2493,7 +2497,7 @@
 						</div>
 						<button
 							type="button"
-							class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-stone-300 bg-white text-stone-500 shadow-sm transition hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
+							class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-blue-100 bg-white text-blue-500 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 active:scale-95 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
 							title="Colapsar inspector"
 							onclick={() => {
 								isInspectorCollapsed = true;
@@ -2509,21 +2513,21 @@
 						<div class="space-y-4">
 							<!-- ID row + entry badge -->
 							<div
-								class="flex items-center justify-between gap-2 rounded-lg border border-stone-200/80 bg-white/62 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-950/20"
+								class="flex items-center justify-between gap-2 rounded-lg border border-blue-100 bg-white/72 px-3 py-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/20"
 							>
 								<div>
 									<p
-										class="text-[9px] font-bold text-stone-400 uppercase dark:text-stone-500"
+										class="text-[9px] font-bold text-slate-400 uppercase dark:text-slate-500"
 									>
 										ID técnico
 									</p>
-									<p class="mt-0.5 font-mono text-xs text-stone-600 dark:text-stone-300">
+									<p class="mt-0.5 font-mono text-xs text-slate-600 dark:text-slate-300">
 										{selectedBlock.id}
 									</p>
 								</div>
 								{#if draftDefinition.entryBlockId === selectedBlock.id}
 									<span
-										class="shrink-0 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+										class="shrink-0 rounded-md bg-cyan-100 px-2 py-0.5 text-[10px] font-semibold text-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300"
 									>
 										Entrada
 									</span>
@@ -2531,11 +2535,11 @@
 							</div>
 
 							<label class="block">
-								<span class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
+								<span class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300"
 									>Título</span
 								>
 								<input
-									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition placeholder:text-stone-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600 dark:focus:ring-amber-900/40"
+									class="w-full rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-200/70 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:border-blue-600 dark:focus:ring-blue-900/40"
 									value={selectedBlock.title}
 									oninput={(event) =>
 										updateSelectedBlock((block) => {
@@ -2546,14 +2550,14 @@
 
 							<div class="grid grid-cols-2 gap-2">
 								<div
-									class="rounded-lg border border-stone-200/80 bg-white/62 px-3 py-2 dark:border-stone-800 dark:bg-stone-950/20"
+									class="rounded-lg border border-blue-100 bg-white/72 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/20"
 								>
 									<p
-										class="text-[9px] font-bold text-stone-400 uppercase dark:text-stone-500"
+										class="text-[9px] font-bold text-slate-400 uppercase dark:text-slate-500"
 									>
 										Tipo
 									</p>
-									<p class="mt-0.5 text-xs font-semibold text-stone-800 dark:text-white">
+									<p class="mt-0.5 text-xs font-semibold text-slate-800 dark:text-white">
 										{selectedBlock.kind === 'content'
 											? 'Contenido'
 											: selectedBlock.kind === 'choice'
@@ -2568,14 +2572,14 @@
 									</p>
 								</div>
 								<div
-									class="rounded-lg border border-stone-200/80 bg-white/62 px-3 py-2 dark:border-stone-800 dark:bg-stone-950/20"
+									class="rounded-lg border border-blue-100 bg-white/72 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/20"
 								>
 									<p
-										class="text-[9px] font-bold text-stone-400 uppercase dark:text-stone-500"
+										class="text-[9px] font-bold text-slate-400 uppercase dark:text-slate-500"
 									>
 										Posición
 									</p>
-									<p class="mt-0.5 text-xs font-semibold text-stone-800 dark:text-white">
+									<p class="mt-0.5 text-xs font-semibold text-slate-800 dark:text-white">
 										{Math.round(selectedBlock.graph?.position?.x ?? 0)},
 										{Math.round(selectedBlock.graph?.position?.y ?? 0)}
 									</p>
@@ -2585,7 +2589,7 @@
 							{#if draftDefinition.entryBlockId !== selectedBlock.id}
 								<button
 									type="button"
-									class="w-full rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+									class="w-full rounded-lg border border-cyan-200 bg-cyan-50/70 px-4 py-2 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100 active:scale-95 dark:border-cyan-900/40 dark:bg-cyan-950/20 dark:text-cyan-300 dark:hover:bg-cyan-950/40"
 									onclick={() => setEntryBlock(selectedBlock.id)}
 								>
 									<Route class="mr-1 inline h-3.5 w-3.5" />
@@ -3294,7 +3298,7 @@
 									type="button"
 									onclick={openSelectedBlockDetail}
 									disabled={isSubmitting}
-									class="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+									class="inline-flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-blue-500 to-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_32px_-20px_rgba(79,70,229,0.75)] transition hover:from-blue-600 hover:to-violet-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
 								>
 									<SquarePen class="h-4 w-4" />
 									{hasUnsavedChanges ? 'Guardar mapa y editar detalle' : 'Editar bloque en detalle'}
@@ -3310,7 +3314,7 @@
 											}
 										)}`
 									)}
-									class="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm font-semibold text-sky-800 shadow-sm transition hover:bg-sky-100 active:scale-95 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
+									class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100 active:scale-95 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200 dark:hover:bg-blue-950/50"
 								>
 									<Bug class="h-4 w-4" />
 									Inspeccionar en debugger
@@ -3327,7 +3331,7 @@
 											}
 										)}`
 									)}
-									class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 active:scale-95 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+									class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0e3a75] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_32px_-22px_rgba(14,58,117,0.8)] transition hover:bg-blue-800 active:scale-95 dark:bg-blue-400 dark:text-slate-950 dark:hover:bg-blue-300"
 								>
 									<Eye class="h-4 w-4" />
 									Probar desde aquí
@@ -3643,14 +3647,14 @@
 	:global(.lesson-flow-shell .svelte-flow__controls) {
 		border-radius: 0.5rem;
 		overflow: hidden;
-		border: 1px solid rgba(214, 201, 183, 0.85);
-		box-shadow: 0 14px 28px -24px rgba(28, 25, 23, 0.42);
+		border: 1px solid rgba(191, 219, 254, 0.9);
+		box-shadow: 0 18px 38px -28px rgba(37, 99, 235, 0.52);
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__controls button) {
-		background: rgba(255, 252, 247, 0.96);
-		color: rgb(68, 64, 60);
-		border-bottom: 1px solid rgba(231, 229, 228, 0.95);
+		background: rgba(255, 255, 255, 0.92);
+		color: rgb(30, 64, 175);
+		border-bottom: 1px solid rgba(219, 234, 254, 0.95);
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__controls button:last-child) {
@@ -3658,28 +3662,29 @@
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__controls button:hover) {
-		background: rgba(255, 247, 237, 0.98);
+		background: rgba(239, 246, 255, 0.98);
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__minimap) {
-		background: rgba(255, 251, 245, 0.92);
-		border-radius: 0.5rem;
-		border: 1px solid rgba(214, 201, 183, 0.85);
-		box-shadow: 0 14px 28px -24px rgba(28, 25, 23, 0.42);
+		background: rgba(255, 255, 255, 0.86);
+		border-radius: 0.75rem;
+		border: 1px solid rgba(191, 219, 254, 0.9);
+		box-shadow: 0 18px 38px -28px rgba(37, 99, 235, 0.52);
+		backdrop-filter: blur(16px);
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__edge-textbg) {
-		fill: rgba(255, 251, 245, 0.96);
+		fill: rgba(255, 255, 255, 0.95);
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__edge.selected .svelte-flow__edge-path) {
-		stroke: rgb(124, 58, 237);
+		stroke: rgb(59, 130, 246);
 		stroke-width: 3.5;
-		filter: drop-shadow(0 4px 10px rgba(124, 58, 237, 0.28));
+		filter: drop-shadow(0 4px 10px rgba(59, 130, 246, 0.32));
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__edge.selected .svelte-flow__edge-text) {
-		fill: rgb(91, 33, 182);
+		fill: rgb(30, 64, 175);
 		font-weight: 700;
 	}
 
@@ -3688,7 +3693,7 @@
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__attribution) {
-		background: rgba(255, 251, 245, 0.9);
+		background: rgba(255, 255, 255, 0.8);
 		border-radius: 999px;
 		padding: 0.25rem 0.55rem;
 	}
@@ -3698,6 +3703,40 @@
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__minimap-mask) {
-		fill: rgba(120, 113, 108, 0.08);
+		fill: rgba(37, 99, 235, 0.08);
+	}
+
+	:global(.lesson-flow-shell aside label > span) {
+		color: rgb(71, 85, 105);
+	}
+
+	:global(.lesson-flow-shell aside input),
+	:global(.lesson-flow-shell aside select),
+	:global(.lesson-flow-shell aside textarea) {
+		background: rgba(255, 255, 255, 0.88);
+		border-color: rgba(191, 219, 254, 0.95);
+		color: rgb(15, 23, 42);
+		box-shadow: 0 10px 24px -22px rgba(37, 99, 235, 0.5);
+	}
+
+	:global(.lesson-flow-shell aside input:focus),
+	:global(.lesson-flow-shell aside select:focus),
+	:global(.lesson-flow-shell aside textarea:focus) {
+		border-color: rgb(96, 165, 250);
+		box-shadow:
+			0 0 0 2px rgba(147, 197, 253, 0.45),
+			0 12px 28px -22px rgba(37, 99, 235, 0.65);
+	}
+
+	:global(.dark .lesson-flow-shell aside label > span) {
+		color: rgb(203, 213, 225);
+	}
+
+	:global(.dark .lesson-flow-shell aside input),
+	:global(.dark .lesson-flow-shell aside select),
+	:global(.dark .lesson-flow-shell aside textarea) {
+		background: rgba(15, 23, 42, 0.88);
+		border-color: rgba(51, 65, 85, 0.95);
+		color: white;
 	}
 </style>

@@ -15,58 +15,58 @@
 
 	const kindConfig = {
 		content: {
-			band: 'bg-amber-50 text-amber-800 border-amber-200/80',
-			accent: 'bg-amber-500',
-			icon: 'bg-amber-100 text-amber-700',
-			handle: '!bg-amber-500',
-			handleRing: '!ring-amber-200',
-			footer: 'bg-amber-50/45 border-t border-amber-100/80',
-			badge: 'bg-amber-100 text-amber-800 ring-amber-200/80'
+			band: 'bg-cyan-50/95 text-cyan-700 border-cyan-200/80',
+			accent: 'bg-linear-to-r from-sky-500 to-cyan-400',
+			icon: 'bg-cyan-100 text-cyan-700 ring-1 ring-cyan-200/80',
+			handle: '!bg-cyan-400',
+			handleRing: '!ring-cyan-200',
+			footer: 'bg-cyan-50/35 border-t border-cyan-100/80',
+			badge: 'bg-cyan-100 text-cyan-800 ring-cyan-200/80'
 		},
 		choice: {
-			band: 'bg-teal-50 text-teal-800 border-teal-200/80',
-			accent: 'bg-teal-500',
-			icon: 'bg-teal-100 text-teal-700',
-			handle: '!bg-teal-500',
+			band: 'bg-teal-50/95 text-teal-700 border-teal-200/80',
+			accent: 'bg-linear-to-r from-teal-500 to-cyan-400',
+			icon: 'bg-teal-100 text-teal-700 ring-1 ring-teal-200/80',
+			handle: '!bg-teal-400',
 			handleRing: '!ring-teal-200',
-			footer: 'bg-teal-50/45 border-t border-teal-100/80',
+			footer: 'bg-teal-50/35 border-t border-teal-100/80',
 			badge: 'bg-teal-100 text-teal-800 ring-teal-200/80'
 		},
 		check: {
-			band: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
-			accent: 'bg-emerald-500',
-			icon: 'bg-emerald-100 text-emerald-700',
-			handle: '!bg-emerald-500',
-			handleRing: '!ring-emerald-200',
-			footer: 'bg-emerald-50/45 border-t border-emerald-100/80',
-			badge: 'bg-emerald-100 text-emerald-800 ring-emerald-200/80'
+			band: 'bg-blue-50/95 text-blue-700 border-blue-200/80',
+			accent: 'bg-linear-to-r from-blue-500 to-sky-400',
+			icon: 'bg-blue-100 text-blue-700 ring-1 ring-blue-200/80',
+			handle: '!bg-blue-500',
+			handleRing: '!ring-blue-200',
+			footer: 'bg-blue-50/35 border-t border-blue-100/80',
+			badge: 'bg-blue-100 text-blue-800 ring-blue-200/80'
 		},
 		agent: {
-			band: 'bg-indigo-50 text-indigo-800 border-indigo-200/80',
-			accent: 'bg-indigo-500',
-			icon: 'bg-indigo-100 text-indigo-700',
-			handle: '!bg-indigo-500',
+			band: 'bg-violet-50/95 text-violet-700 border-violet-200/80',
+			accent: 'bg-linear-to-r from-violet-600 to-indigo-500',
+			icon: 'bg-violet-100 text-violet-700 ring-1 ring-violet-200/80',
+			handle: '!bg-violet-500',
 			handleRing: '!ring-indigo-200',
-			footer: 'bg-indigo-50/45 border-t border-indigo-100/80',
+			footer: 'bg-violet-50/35 border-t border-violet-100/80',
 			badge: 'bg-indigo-100 text-indigo-800 ring-indigo-200/80'
 		},
 		youtube: {
-			band: 'bg-red-50 text-red-800 border-red-200/80',
-			accent: 'bg-red-600',
-			icon: 'bg-red-100 text-red-700',
-			handle: '!bg-red-600',
+			band: 'bg-rose-50/95 text-rose-700 border-rose-200/80',
+			accent: 'bg-linear-to-r from-rose-500 to-red-500',
+			icon: 'bg-rose-100 text-rose-700 ring-1 ring-rose-200/80',
+			handle: '!bg-rose-500',
 			handleRing: '!ring-red-200',
-			footer: 'bg-red-50/45 border-t border-red-100/80',
-			badge: 'bg-red-100 text-red-800 ring-red-200/80'
+			footer: 'bg-rose-50/35 border-t border-rose-100/80',
+			badge: 'bg-rose-100 text-rose-800 ring-rose-200/80'
 		},
 		end: {
-			band: 'bg-rose-50 text-rose-800 border-rose-200/80',
-			accent: 'bg-rose-500',
-			icon: 'bg-rose-100 text-rose-700',
-			handle: '!bg-rose-500',
-			handleRing: '!ring-rose-200',
-			footer: 'bg-rose-50/45 border-t border-rose-100/80',
-			badge: 'bg-rose-100 text-rose-800 ring-rose-200/80'
+			band: 'bg-orange-50/95 text-orange-700 border-orange-200/80',
+			accent: 'bg-linear-to-r from-orange-500 to-amber-400',
+			icon: 'bg-orange-100 text-orange-700 ring-1 ring-orange-200/80',
+			handle: '!bg-orange-400',
+			handleRing: '!ring-orange-200',
+			footer: 'bg-orange-50/35 border-t border-orange-100/80',
+			badge: 'bg-orange-100 text-orange-800 ring-orange-200/80'
 		}
 	} as const;
 
@@ -88,9 +88,9 @@
 
 	function incomingHandleClass(handle: LessonFlowNode['data']['incomingHandles'][number]) {
 		if (handle.incomingKind === 'add') {
-			return `!h-6 !w-6 !border-2 !border-dashed !border-stone-400 !bg-white/95 !rounded-full shadow-[0_4px_12px_-4px_rgba(24,24,27,0.35)] ring-2 !ring-white/80 transition-transform hover:scale-110`;
+			return `!h-6 !w-6 !border-2 !border-dashed !border-blue-300 !bg-white/95 !rounded-full shadow-[0_4px_14px_-5px_rgba(37,99,235,0.35)] ring-2 !ring-blue-50 transition-transform hover:scale-110`;
 		}
-		return `!h-5 !w-5 !border-[3px] !rounded-full ${cfg.handle} ${cfg.handleRing} !ring-2 shadow-[0_4px_12px_-4px_rgba(24,24,27,0.4)] transition-transform hover:scale-110`;
+		return `!h-5 !w-5 !border-[3px] !rounded-full ${cfg.handle} ${cfg.handleRing} !ring-2 shadow-[0_4px_14px_-5px_rgba(37,99,235,0.35)] transition-transform hover:scale-110`;
 	}
 
 	let Icon = $derived(iconFor(data.kind));
@@ -102,7 +102,7 @@
 	<!-- Incoming drop zone indicator -->
 	{#if !hasIncomingConnections}
 		<div
-			class="pointer-events-none absolute inset-x-0 top-0 z-0 -translate-y-[180%] text-center text-[9px] font-semibold text-stone-400 uppercase"
+			class="pointer-events-none absolute inset-x-0 top-0 z-0 -translate-y-[180%] text-center text-[9px] font-semibold text-slate-400 uppercase"
 		>
 			Suelta aqui
 		</div>
@@ -120,7 +120,7 @@
 		/>
 		{#if handle.incomingKind === 'add'}
 			<div
-				class="pointer-events-none absolute z-10 flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-bold text-stone-500"
+				class="pointer-events-none absolute z-10 flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-bold text-blue-500"
 				style={`left:${left};top:0;transform:translate(-50%,-50%);`}
 			>
 				+
@@ -130,14 +130,14 @@
 
 	<!-- Node card -->
 	<article
-		class={`relative w-[252px] overflow-hidden rounded-lg border bg-white shadow-[0_8px_24px_-16px_rgba(24,24,27,0.28)] transition-all duration-150 ${
+		class={`relative w-[252px] overflow-hidden rounded-xl border bg-white/94 shadow-[0_18px_44px_-32px_rgba(37,99,235,0.34)] backdrop-blur-sm transition-all duration-150 ${
 			selected
-				? 'border-sky-500 shadow-[0_0_0_1px_rgba(2,132,199,0.35),0_18px_44px_-24px_rgba(2,132,199,0.62)] ring-2 ring-sky-400/70 ring-offset-2 ring-offset-[#f8f4ec]'
-				: 'border-stone-200/90 hover:shadow-[0_12px_30px_-18px_rgba(24,24,27,0.38)]'
+				? 'border-cyan-400 shadow-[0_0_0_1px_rgba(34,211,238,0.4),0_22px_52px_-24px_rgba(6,182,212,0.65)] ring-2 ring-cyan-300/80 ring-offset-2 ring-offset-[#f7fbff]'
+				: 'border-blue-100/90 hover:border-blue-200 hover:shadow-[0_20px_44px_-30px_rgba(37,99,235,0.42)]'
 		}`}
 	>
 		{#if selected}
-			<div class="pointer-events-none absolute inset-y-0 left-0 z-10 w-1 bg-sky-500"></div>
+			<div class="pointer-events-none absolute inset-y-0 left-0 z-10 w-1 bg-cyan-400"></div>
 		{/if}
 		<div class={`h-1 ${cfg.accent}`}></div>
 
@@ -151,7 +151,7 @@
 			</div>
 			{#if data.isEntry}
 				<span
-					class="rounded-md bg-white/70 px-1.5 py-0.5 text-[10px] font-bold text-stone-700 uppercase ring-1 ring-black/5"
+					class="rounded-md bg-white/72 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 uppercase ring-1 ring-blue-100"
 				>
 					Entrada
 				</span>
@@ -160,11 +160,11 @@
 
 		<!-- Body -->
 		<div class="px-3 py-3">
-			<h3 class="line-clamp-2 text-[14px] leading-[1.35] font-semibold text-stone-900">
+			<h3 class="line-clamp-2 text-[14px] leading-[1.35] font-semibold text-slate-950">
 				{data.title}
 			</h3>
 			{#if data.summary}
-				<p class="mt-1.5 line-clamp-2 text-[12px] leading-[1.5] text-stone-500">{data.summary}</p>
+				<p class="mt-1.5 line-clamp-2 text-[12px] leading-[1.5] text-slate-500">{data.summary}</p>
 			{/if}
 
 			{#if data.kind === 'choice'}
@@ -178,13 +178,13 @@
 		<!-- Footer stats -->
 		<div class={`flex items-center gap-px px-3 py-2 ${cfg.footer}`}>
 			<div class="flex flex-1 items-center gap-1.5">
-				<span class="text-[10px] font-semibold text-stone-400 uppercase">In</span>
-				<span class="text-[13px] font-semibold text-stone-700">{data.incomingCount}</span>
+				<span class="text-[10px] font-semibold text-slate-400 uppercase">In</span>
+				<span class="text-[13px] font-semibold text-blue-700">{data.incomingCount}</span>
 			</div>
-			<div class="h-3 w-px bg-stone-200"></div>
+			<div class="h-3 w-px bg-blue-100"></div>
 			<div class="flex flex-1 items-center justify-end gap-1.5">
-				<span class="text-[13px] font-semibold text-stone-700">{data.outgoingCount}</span>
-				<span class="text-[10px] font-semibold text-stone-400 uppercase">Out</span>
+				<span class="text-[13px] font-semibold text-blue-700">{data.outgoingCount}</span>
+				<span class="text-[10px] font-semibold text-slate-400 uppercase">Out</span>
 			</div>
 		</div>
 	</article>
@@ -195,7 +195,7 @@
 			id={handle.id}
 			type="source"
 			position={Position.Bottom}
-			class={`!h-4.5 !w-4.5 !rounded-full !border-[3px] ${cfg.handle} ${cfg.handleRing} shadow-[0_4px_12px_-4px_rgba(24,24,27,0.45)] !ring-2 transition-transform hover:scale-125`}
+			class={`!h-4.5 !w-4.5 !rounded-full !border-[3px] ${cfg.handle} ${cfg.handleRing} shadow-[0_4px_14px_-5px_rgba(37,99,235,0.35)] !ring-2 transition-transform hover:scale-125`}
 			style={`left:${handleOffset(index, data.outgoingHandles.length)};bottom:0;transform:translate(-50%,50%);`}
 		/>
 	{/each}
