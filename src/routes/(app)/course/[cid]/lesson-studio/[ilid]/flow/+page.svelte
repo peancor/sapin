@@ -2217,12 +2217,12 @@
 </div>
 
 <div
-	class="lesson-flow-shell hidden h-full min-h-0 overflow-hidden bg-[#ebe7e0] text-stone-900 xl:flex dark:bg-[#141516] dark:text-stone-100"
+	class="lesson-flow-shell hidden h-full min-h-0 overflow-hidden bg-[#e9e3d8] text-stone-900 xl:flex dark:bg-[#141516] dark:text-stone-100"
 >
 	<div class="flex min-h-0 flex-1 overflow-hidden">
-		<!-- Tool Rail — icon-only, 64px -->
+		<!-- Tool Rail -->
 		<aside
-			class="studio-rail flex w-16 shrink-0 flex-col items-center gap-1.5 border-r border-stone-300/80 bg-[#f5f0e7]/90 px-2 py-3 dark:border-stone-800 dark:bg-[#17191c]"
+			class="studio-rail flex w-14 shrink-0 flex-col items-center gap-1.5 border-r border-stone-300/80 bg-[#f6f1e8]/96 px-1.5 py-2.5 dark:border-stone-800 dark:bg-[#17191c]"
 		>
 			<!-- Create buttons (icon-only, colored by type) -->
 			{#each createButtons as button (button.kind)}
@@ -2243,7 +2243,7 @@
 					type="button"
 					title={button.label}
 					aria-label="Añadir bloque: {button.label}"
-					class="flex h-11 w-11 items-center justify-center rounded-xl border shadow-sm transition active:scale-95 disabled:opacity-40 {railColors}"
+					class="flex h-10 w-10 items-center justify-center rounded-lg border shadow-[0_8px_18px_-16px_rgba(28,25,23,0.55)] transition duration-150 active:scale-95 disabled:opacity-40 {railColors}"
 					onclick={() => createBlock(button.kind)}
 					disabled={isSubmitting}
 				>
@@ -2259,7 +2259,7 @@
 				type="button"
 				title="Centrar vista (Home)"
 				aria-label="Centrar vista del canvas"
-				class="flex h-11 w-11 items-center justify-center rounded-xl border border-stone-300/80 bg-white/70 text-stone-500 shadow-sm transition hover:bg-white hover:text-stone-700 active:scale-95 dark:border-stone-700 dark:bg-stone-900/50 dark:text-stone-400 dark:hover:bg-stone-900 dark:hover:text-stone-200"
+				class="flex h-10 w-10 items-center justify-center rounded-lg border border-stone-300/80 bg-white/72 text-stone-500 shadow-[0_8px_18px_-16px_rgba(28,25,23,0.55)] transition duration-150 hover:bg-white hover:text-stone-700 active:scale-95 dark:border-stone-700 dark:bg-stone-900/50 dark:text-stone-400 dark:hover:bg-stone-900 dark:hover:text-stone-200"
 				onclick={centerCanvas}
 			>
 				<MoveRight class="h-4 w-4" />
@@ -2277,23 +2277,23 @@
 		</aside>
 
 		<section class="flex min-h-0 flex-1 flex-col overflow-hidden">
-			<div class="flex min-h-0 flex-1 overflow-hidden p-4">
+			<div class="flex min-h-0 flex-1 overflow-hidden p-1.5">
 				<div
 					bind:this={stageElement}
-					class="studio-stage relative min-h-0 flex-1 overflow-hidden rounded-[32px] border border-stone-300/80 bg-[#f8f4ec] shadow-[0_30px_70px_-45px_rgba(24,24,27,0.65)] dark:border-stone-700 dark:bg-[#111315]"
+					class="studio-stage relative min-h-0 flex-1 overflow-hidden rounded-lg border border-stone-300/90 bg-[#f8f4ec] shadow-[0_10px_30px_-28px_rgba(24,24,27,0.75)] dark:border-stone-700 dark:bg-[#111315]"
 				>
 					<div
-						class="pointer-events-none absolute inset-x-0 top-0 z-10 h-24 bg-linear-to-b from-[#f8f4ec] via-[#f8f4ec]/65 to-transparent dark:from-[#111315] dark:via-[#111315]/65"
+						class="pointer-events-none absolute inset-x-0 top-0 z-10 h-18 bg-linear-to-b from-[#f8f4ec] via-[#f8f4ec]/65 to-transparent dark:from-[#111315] dark:via-[#111315]/65"
 					></div>
 
-					<div class="pointer-events-none absolute top-4 left-4 z-20 flex flex-wrap gap-1.5">
+					<div class="pointer-events-none absolute top-3 left-3 z-20 flex flex-wrap gap-1.5">
 						<div
-							class="rounded-full border border-stone-200/70 bg-white/80 px-2.5 py-1 text-[10px] font-medium text-stone-500 shadow-sm backdrop-blur-sm dark:border-white/8 dark:bg-stone-900/80 dark:text-stone-400"
+							class="rounded-lg border border-stone-200/70 bg-white/82 px-2.5 py-1 text-[10px] font-medium text-stone-500 shadow-sm backdrop-blur-sm dark:border-white/8 dark:bg-stone-900/80 dark:text-stone-400"
 						>
-							Panea con arrastre · edita en el inspector · zoom para navegar
+							Arrastra para panear · inspector a la derecha
 						</div>
 						<div
-							class="rounded-full border border-stone-200/70 bg-white/80 px-2.5 py-1 text-[10px] font-medium text-stone-500 shadow-sm backdrop-blur-sm dark:border-white/8 dark:bg-stone-900/80 dark:text-stone-400"
+							class="hidden rounded-lg border border-stone-200/70 bg-white/82 px-2.5 py-1 text-[10px] font-medium text-stone-500 shadow-sm backdrop-blur-sm 2xl:block dark:border-white/8 dark:bg-stone-900/80 dark:text-stone-400"
 						>
 							<kbd class="font-mono text-[9px]">Shift+A</kbd> añadir ·
 							<kbd class="font-mono text-[9px]">F2</kbd>
@@ -2302,7 +2302,7 @@
 						</div>
 					</div>
 
-					<div class="absolute top-4 right-4 z-20 flex items-center gap-1.5">
+					<div class="absolute top-3 right-3 z-20 flex items-center gap-1.5">
 						{#if actionError}
 							<span
 								class="max-w-80 truncate rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-700 shadow-sm backdrop-blur-sm dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200"
@@ -2326,7 +2326,7 @@
 						<button
 							type="button"
 							title="Guardar mapa (Ctrl+S)"
-							class="inline-flex h-9 items-center gap-1.5 rounded-xl bg-stone-900 px-3 text-[11px] font-semibold text-white shadow-sm transition hover:bg-stone-700 active:scale-95 disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
+							class="inline-flex h-8 items-center gap-1.5 rounded-lg bg-stone-900 px-3 text-[11px] font-semibold text-white shadow-sm transition duration-150 hover:bg-stone-700 active:scale-95 disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
 							onclick={saveFlow}
 							disabled={isSubmitting}
 						>
@@ -2336,7 +2336,7 @@
 						<button
 							type="button"
 							title="Inspeccionar selección en debugger"
-							class="inline-flex h-9 items-center gap-1.5 rounded-xl border border-sky-300 bg-sky-50 px-2.5 text-[11px] font-semibold text-sky-800 shadow-sm transition hover:bg-sky-100 active:scale-95 disabled:opacity-45 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
+							class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-sky-300 bg-sky-50 px-2.5 text-[11px] font-semibold text-sky-800 shadow-sm transition duration-150 hover:bg-sky-100 active:scale-95 disabled:opacity-45 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
 							onclick={() =>
 								openLessonDebugger({
 									blockId: selectedBlock?.id,
@@ -2433,11 +2433,11 @@
 
 		{#if isInspectorCollapsed}
 			<aside
-				class="flex w-12 shrink-0 flex-col items-center gap-3 border-l border-stone-300/60 bg-[#f5f0e7]/90 px-2 py-4 dark:border-stone-800 dark:bg-[#17191c]"
+				class="flex w-11 shrink-0 flex-col items-center gap-3 border-l border-stone-300/70 bg-[#f6f1e8]/96 px-1.5 py-3 dark:border-stone-800 dark:bg-[#17191c]"
 			>
 				<button
 					type="button"
-					class="flex h-9 w-9 items-center justify-center rounded-xl border border-stone-300 bg-white text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+					class="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-300 bg-white text-stone-600 shadow-sm transition duration-150 hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
 					onclick={() => {
 						isInspectorCollapsed = false;
 					}}
@@ -2449,21 +2449,19 @@
 			</aside>
 		{:else}
 			<aside
-				class="flex w-[360px] shrink-0 flex-col overflow-hidden border-l border-stone-300/60 bg-[#f5f0e7]/90 dark:border-stone-800 dark:bg-[#17191c]"
+				class="flex w-[368px] shrink-0 flex-col overflow-hidden border-l border-stone-300/70 bg-[#f6f1e8]/96 dark:border-stone-800 dark:bg-[#17191c]"
 			>
-				<div class="shrink-0 border-b border-stone-300/60 px-4 py-3.5 dark:border-stone-800">
+				<div class="shrink-0 border-b border-stone-300/60 px-4 py-3 dark:border-stone-800">
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0 flex-1">
-							<p
-								class="text-[9px] font-bold tracking-[0.26em] text-stone-400 uppercase dark:text-stone-500"
-							>
+							<p class="text-[9px] font-bold text-stone-400 uppercase dark:text-stone-500">
 								Inspector
 							</p>
 							{#if selectedBlock && isRenamingSelectedBlock}
 								<input
 									bind:this={renameInputElement}
 									value={renameDraft}
-									class="mt-1.5 w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-base font-semibold text-stone-900 outline-hidden focus:border-amber-400 focus:ring-2 focus:ring-amber-200 dark:border-amber-700 dark:bg-stone-950 dark:text-white"
+									class="mt-1.5 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-base font-semibold text-stone-900 outline-hidden focus:border-amber-400 focus:ring-2 focus:ring-amber-200 dark:border-amber-700 dark:bg-stone-950 dark:text-white"
 									oninput={(event) => {
 										renameDraft = (event.currentTarget as HTMLInputElement).value;
 									}}
@@ -2495,7 +2493,7 @@
 						</div>
 						<button
 							type="button"
-							class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-stone-300 bg-white text-stone-500 shadow-sm transition hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
+							class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-stone-300 bg-white text-stone-500 shadow-sm transition hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
 							title="Colapsar inspector"
 							onclick={() => {
 								isInspectorCollapsed = true;
@@ -2511,11 +2509,11 @@
 						<div class="space-y-4">
 							<!-- ID row + entry badge -->
 							<div
-								class="flex items-center justify-between gap-2 rounded-xl border border-stone-200/80 bg-white/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-950/20"
+								class="flex items-center justify-between gap-2 rounded-lg border border-stone-200/80 bg-white/62 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-950/20"
 							>
 								<div>
 									<p
-										class="text-[9px] font-bold tracking-[0.18em] text-stone-400 uppercase dark:text-stone-500"
+										class="text-[9px] font-bold text-stone-400 uppercase dark:text-stone-500"
 									>
 										ID técnico
 									</p>
@@ -2525,7 +2523,7 @@
 								</div>
 								{#if draftDefinition.entryBlockId === selectedBlock.id}
 									<span
-										class="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+										class="shrink-0 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
 									>
 										Entrada
 									</span>
@@ -2537,7 +2535,7 @@
 									>Título</span
 								>
 								<input
-									class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition placeholder:text-stone-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600 dark:focus:ring-amber-900/40"
+									class="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm transition placeholder:text-stone-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:focus:border-amber-600 dark:focus:ring-amber-900/40"
 									value={selectedBlock.title}
 									oninput={(event) =>
 										updateSelectedBlock((block) => {
@@ -2548,10 +2546,10 @@
 
 							<div class="grid grid-cols-2 gap-2">
 								<div
-									class="rounded-xl border border-stone-200/80 bg-white/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-950/20"
+									class="rounded-lg border border-stone-200/80 bg-white/62 px-3 py-2 dark:border-stone-800 dark:bg-stone-950/20"
 								>
 									<p
-										class="text-[9px] font-bold tracking-[0.16em] text-stone-400 uppercase dark:text-stone-500"
+										class="text-[9px] font-bold text-stone-400 uppercase dark:text-stone-500"
 									>
 										Tipo
 									</p>
@@ -2570,10 +2568,10 @@
 									</p>
 								</div>
 								<div
-									class="rounded-xl border border-stone-200/80 bg-white/60 px-3 py-2 dark:border-stone-800 dark:bg-stone-950/20"
+									class="rounded-lg border border-stone-200/80 bg-white/62 px-3 py-2 dark:border-stone-800 dark:bg-stone-950/20"
 								>
 									<p
-										class="text-[9px] font-bold tracking-[0.16em] text-stone-400 uppercase dark:text-stone-500"
+										class="text-[9px] font-bold text-stone-400 uppercase dark:text-stone-500"
 									>
 										Posición
 									</p>
@@ -2587,7 +2585,7 @@
 							{#if draftDefinition.entryBlockId !== selectedBlock.id}
 								<button
 									type="button"
-									class="w-full rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+									class="w-full rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
 									onclick={() => setEntryBlock(selectedBlock.id)}
 								>
 									<Route class="mr-1 inline h-3.5 w-3.5" />
@@ -3643,10 +3641,10 @@
 
 <style>
 	:global(.lesson-flow-shell .svelte-flow__controls) {
-		border-radius: 1.25rem;
+		border-radius: 0.5rem;
 		overflow: hidden;
 		border: 1px solid rgba(214, 201, 183, 0.85);
-		box-shadow: 0 18px 35px -28px rgba(28, 25, 23, 0.45);
+		box-shadow: 0 14px 28px -24px rgba(28, 25, 23, 0.42);
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__controls button) {
@@ -3664,10 +3662,10 @@
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__minimap) {
-		background: rgba(255, 251, 245, 0.95);
-		border-radius: 1.1rem;
+		background: rgba(255, 251, 245, 0.92);
+		border-radius: 0.5rem;
 		border: 1px solid rgba(214, 201, 183, 0.85);
-		box-shadow: 0 18px 35px -28px rgba(28, 25, 23, 0.45);
+		box-shadow: 0 14px 28px -24px rgba(28, 25, 23, 0.42);
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__edge-textbg) {
@@ -3696,7 +3694,7 @@
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__panel) {
-		margin: 1rem;
+		margin: 0.75rem;
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__minimap-mask) {
