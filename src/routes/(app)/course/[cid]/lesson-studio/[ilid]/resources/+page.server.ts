@@ -1,13 +1,18 @@
 import type { Actions, PageServerLoad } from './$types';
-import { loadLessonAdminData, requireLessonAdminContext, uploadLessonFile, deleteLessonFile } from '../lessonAdmin';
+import {
+	deleteLessonStudioFile,
+	loadLessonStudioData,
+	requireLessonStudioContext,
+	uploadLessonStudioFile
+} from '$lib/server/lesson/LessonStudioService';
 
 export const load = (async ({ params, locals }) => {
-	return loadLessonAdminData(params.cid, params.ilid, locals);
+	return loadLessonStudioData(params.cid, params.ilid, locals);
 }) satisfies PageServerLoad;
 
 export const actions = {
 	uploadFile: async ({ request, params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const file = formData.get('file');
 
@@ -17,7 +22,7 @@ export const actions = {
 			};
 		}
 
-		await uploadLessonFile({
+		await uploadLessonStudioFile({
 			ilid: params.ilid,
 			userId: user.id,
 			file
@@ -27,7 +32,7 @@ export const actions = {
 	},
 
 	deleteFile: async ({ request, params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const fileId = formData.get('fileId')?.toString();
 
@@ -37,7 +42,7 @@ export const actions = {
 			};
 		}
 
-		await deleteLessonFile({
+		await deleteLessonStudioFile({
 			ilid: params.ilid,
 			fileId,
 			userId: user.id

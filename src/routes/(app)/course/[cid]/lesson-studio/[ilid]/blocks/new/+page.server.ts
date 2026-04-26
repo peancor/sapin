@@ -3,7 +3,11 @@ import { fail, redirect } from '@sveltejs/kit';
 import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
 import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
 import { lessonBlockKinds, type LessonBlockKind } from '$lib/types/lesson';
-import { loadLessonAdminData, requireLessonAdminContext } from '../../lessonAdmin';
+import {
+	loadLessonStudioData,
+	requireLessonStudioContext
+} from '$lib/server/lesson/LessonStudioService';
+import { lessonBlockHref } from '$lib/lesson/lessonStudioNavigation';
 
 function resolveRequestedKind(value: string | null | undefined): LessonBlockKind {
 	return lessonBlockKinds.includes(value as LessonBlockKind)
@@ -12,7 +16,7 @@ function resolveRequestedKind(value: string | null | undefined): LessonBlockKind
 }
 
 export const load = (async ({ params, locals, url }) => {
-	const data = await loadLessonAdminData(params.cid, params.ilid, locals);
+	const data = await loadLessonStudioData(params.cid, params.ilid, locals);
 	return {
 		...data,
 		selectedKind: resolveRequestedKind(url.searchParams.get('kind'))
@@ -21,7 +25,7 @@ export const load = (async ({ params, locals, url }) => {
 
 export const actions = {
 	createBlock: async ({ request, params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const kind = resolveRequestedKind(formData.get('kind')?.toString());
 
@@ -40,10 +44,7 @@ export const actions = {
 				actorUserId: user.id
 			});
 
-			redirect(
-				303,
-				`/course/${params.cid}/admin/interactives/${params.ilid}/lessonedit/blocks/${block.id}`
-			);
+			redirect(303, lessonBlockHref({ cid: params.cid, ilid: params.ilid }, block.id));
 		} catch (errorValue) {
 			if (errorValue instanceof LessonServiceError) {
 				return fail(errorValue.status, {

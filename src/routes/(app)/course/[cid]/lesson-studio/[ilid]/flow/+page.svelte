@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import '@xyflow/svelte/dist/style.css';
 
 	import type { PageProps } from './$types';
@@ -127,8 +127,8 @@
 	let flowRenderVersion = $state(0);
 	let isSubmitting = $state(false);
 	let hasUnsavedChanges = $state(false);
-	let actionMessage = $state(form?.message ?? '');
-	let actionError = $state(form?.error ?? '');
+	let actionMessage = $state('');
+	let actionError = $state('');
 	let isInspectorCollapsed = $state(false);
 	let quickMenuContext = $state<LessonFlowQuickMenuContext>('closed');
 	let quickMenuQuery = $state('');
@@ -242,7 +242,7 @@
 		fresh?: boolean;
 	}) {
 		window.location.href = resolve(
-			`/course/${cid}/admin/interactives/${ilid}/lesson-debug?${buildLessonDebuggerQuery(options)}`
+			`/course/${cid}/lesson-studio/${ilid}/debug?${buildLessonDebuggerQuery(options)}`
 		);
 	}
 
@@ -1516,7 +1516,7 @@
 		if (!selectedBlock) return;
 		const blockId = selectedBlock.id;
 		const destination = resolve(
-			`/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${blockId}`
+			`/course/${cid}/lesson-studio/${ilid}/blocks/${blockId}`
 		);
 
 		if (hasUnsavedChanges) {
@@ -1963,7 +1963,7 @@
 			},
 			{
 				label: 'Editor lesson',
-				href: `/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lessonedit`
+				href: `/course/${page.params.cid}/lesson-studio/${page.params.ilid}`
 			},
 			{ label: 'Editor visual' }
 		]);
@@ -2048,7 +2048,7 @@
 
 		<div class="grid gap-3 sm:grid-cols-4">
 			<a
-				href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit`)}
+				href={resolve(`/course/${cid}/lesson-studio/${ilid}`)}
 				class="inline-flex items-center justify-center rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm font-medium text-stone-700 shadow-sm hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-950/50 dark:text-stone-200 dark:hover:bg-stone-900"
 			>
 				<ArrowLeft class="mr-2 h-4 w-4" />
@@ -2071,7 +2071,7 @@
 			</a>
 			<a
 				href={resolve(
-					`/course/${cid}/admin/interactives/${ilid}/lesson-debug?${buildLessonDebuggerQuery({
+					`/course/${cid}/lesson-studio/${ilid}/debug?${buildLessonDebuggerQuery({
 						view: 'debug',
 						intent: 'inspect'
 					})}`
@@ -2226,7 +2226,7 @@
 			<!-- Back + identity -->
 			<div class="flex min-w-0 flex-1 items-center gap-2.5">
 				<a
-					href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit`)}
+					href={resolve(`/course/${cid}/lesson-studio/${ilid}`)}
 					class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-stone-300 bg-white text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
 					aria-label="Volver al editor lesson"
 					title="Volver al editor lesson"
@@ -2333,7 +2333,7 @@
 				</a>
 				<a
 					href={resolve(
-						`/course/${cid}/admin/interactives/${ilid}/lesson-debug?${buildLessonDebuggerQuery({
+						`/course/${cid}/lesson-studio/${ilid}/debug?${buildLessonDebuggerQuery({
 							blockId: selectedBlock?.id,
 							view: 'debug',
 							intent: 'inspect'
@@ -2498,6 +2498,8 @@
 
 					<div
 						bind:this={canvasElement}
+						role="application"
+						aria-label="Canvas de edición visual de lesson"
 						class="h-full w-full overflow-hidden"
 						onpointermove={(event) => {
 							rememberCanvasPointer(event);
@@ -3448,7 +3450,7 @@
 
 								<a
 									href={resolve(
-										`/course/${cid}/admin/interactives/${ilid}/lesson-debug?${buildLessonDebuggerQuery(
+										`/course/${cid}/lesson-studio/${ilid}/debug?${buildLessonDebuggerQuery(
 											{
 												blockId: selectedBlock.id,
 												view: 'debug',
@@ -3464,7 +3466,7 @@
 
 								<a
 									href={resolve(
-										`/course/${cid}/admin/interactives/${ilid}/lesson-debug?${buildLessonDebuggerQuery(
+										`/course/${cid}/lesson-studio/${ilid}/debug?${buildLessonDebuggerQuery(
 											{
 												blockId: selectedBlock.id,
 												view: 'student',

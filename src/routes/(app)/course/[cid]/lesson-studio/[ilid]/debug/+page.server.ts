@@ -2,10 +2,10 @@ import type { PageServerLoad } from './$types';
 
 import { LessonDebugService } from '$lib/server/lesson/LessonDebugService';
 import { LessonServiceError } from '$lib/server/lesson/LessonService';
-import { requireLessonAdminContext } from '../lessonedit/lessonAdmin';
+import { requireLessonStudioContext } from '$lib/server/lesson/LessonStudioService';
 
 export const load = (async ({ params, locals, url }) => {
-	const { user, activity } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+	const { user, activity } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 	const previewMode = url.searchParams.get('mode') === 'published' ? 'published' : 'draft';
 
 	try {

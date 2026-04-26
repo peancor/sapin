@@ -24,11 +24,13 @@
 		Route
 	} from 'lucide-svelte';
 	import { resolve } from '$app/paths';
+	import { lessonStudioHref } from '$lib/lesson/lessonStudioNavigation';
 
 	let { data, children }: { data: LayoutData; children: Snippet } = $props();
 
 	// Get the interactive and course IDs from the URL params
-	const { cid, ilid } = page.params;
+	const cid = $derived(page.params.cid ?? data.course.id);
+	const ilid = $derived(page.params.ilid ?? data.interactive.id);
 
 	// Sidebar state
 	const sidebarUi = uiHelpers();
@@ -51,7 +53,11 @@
 		{
 			id: 'editor',
 			label: 'Editor',
-			href: resolve(`/course/${cid}/admin/interactives/${ilid}/${isLesson ? 'lessonedit' : isAgent ? 'agentedit' : 'chatedit'}`),
+			href: resolve(
+				(isLesson
+					? lessonStudioHref({ cid, ilid })
+					: `/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chatedit'}`) as any
+			),
 			icon: Edit
 		},
 		...(isLesson
@@ -113,10 +119,10 @@
 
 	const previewHref = $derived(
 		isLesson
-			? resolve(`/lesson/${ilid}`)
+			? `/lesson/${ilid}`
 			: isAgent
-				? resolve(`/agent-chat/${ilid}`)
-				: resolve(`/interactive-chat/${ilid}`)
+				? `/agent-chat/${ilid}`
+				: `/interactive-chat/${ilid}`
 	);
 
 	const spanClass = 'ms-3 flex-1 whitespace-nowrap';
@@ -266,7 +272,7 @@
 						Acciones rápidas
 					</p>
 					<a
-						href={previewHref}
+						href={resolve(previewHref as any)}
 						target="_blank"
 						class="flex items-center gap-3 rounded-lg bg-green-50 p-3 text-green-700 transition-colors hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
 					>

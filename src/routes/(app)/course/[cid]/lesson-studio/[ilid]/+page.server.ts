@@ -8,10 +8,10 @@ import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonServ
 import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
 import { getAllLessonSafeAgentToolIds } from '$lib/server/lesson/lessonAgentTools';
 import {
-	loadLessonAdminData,
-	requireLessonAdminContext,
+	loadLessonStudioData,
+	requireLessonStudioContext,
 	resolveLifecycleUpdate
-} from './lessonAdmin';
+} from '$lib/server/lesson/LessonStudioService';
 
 async function persistDefinition(input: {
 	ilid: string;
@@ -67,12 +67,12 @@ function parseSelectedToolIds(formData: FormData, safeToolIds: string[]): string
 }
 
 export const load = (async ({ params, locals }) => {
-	return loadLessonAdminData(params.cid, params.ilid, locals);
+	return loadLessonStudioData(params.cid, params.ilid, locals);
 }) satisfies PageServerLoad;
 
 export const actions = {
 	updateLessonMeta: async ({ request, params, locals }) => {
-		const { activity, lessonConfig } = await requireLessonAdminContext(
+		const { activity, lessonConfig } = await requireLessonStudioContext(
 			params.cid,
 			params.ilid,
 			locals
@@ -121,7 +121,7 @@ export const actions = {
 	},
 
 	updateAgentPolicy: async ({ request, params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 		const revisionState = await LessonRevisionService.ensureLessonRevisionState(params.ilid, {
 			actorUserId: user.id
 		});
@@ -171,7 +171,7 @@ export const actions = {
 	},
 
 	reorderBlocks: async ({ request, params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 		const revisionState = await LessonRevisionService.ensureLessonRevisionState(params.ilid, {
 			actorUserId: user.id
 		});
@@ -205,7 +205,7 @@ export const actions = {
 	},
 
 	deleteBlock: async ({ request, params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 		const revisionState = await LessonRevisionService.ensureLessonRevisionState(params.ilid, {
 			actorUserId: user.id
 		});
@@ -233,7 +233,7 @@ export const actions = {
 	},
 
 	setEntryBlock: async ({ request, params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 		const revisionState = await LessonRevisionService.ensureLessonRevisionState(params.ilid, {
 			actorUserId: user.id
 		});
@@ -264,7 +264,7 @@ export const actions = {
 	},
 
 	publishDraft: async ({ params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 
 		try {
 			await LessonRevisionService.publishDraftRevision({
@@ -283,7 +283,7 @@ export const actions = {
 	},
 
 	discardDraft: async ({ params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 		await LessonRevisionService.discardDraftRevision({
 			interactiveLearningId: params.ilid,
 			actorUserId: user.id

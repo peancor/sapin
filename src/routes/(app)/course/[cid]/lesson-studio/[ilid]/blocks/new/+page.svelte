@@ -61,7 +61,7 @@
 		},
 		{
 			label: 'Editor lesson',
-			href: `/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lessonedit`
+			href: `/course/${page.params.cid}/lesson-studio/${page.params.ilid}`
 		},
 		{ label: 'Nuevo bloque' }
 	]);
@@ -79,7 +79,7 @@
 		</div>
 
 		<a
-			href={resolve(`/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lessonedit`)}
+			href={resolve(`/course/${page.params.cid}/lesson-studio/${page.params.ilid}`)}
 			class="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
 		>
 			<MoveLeft class="mr-1 inline h-4 w-4" />

@@ -40,16 +40,16 @@ export function lessonActivityHref({ cid, ilid }: LessonStudioRouteContext) {
 }
 
 export function lessonStudioHref({ cid, ilid }: LessonStudioRouteContext) {
-	return `/course/${cid}/admin/interactives/${ilid}/lessonedit`;
+	return `/course/${cid}/lesson-studio/${ilid}`;
 }
 
 export function lessonFlowHref({ cid, ilid }: LessonStudioRouteContext, blockId?: string | null) {
-	const base = `/course/${cid}/admin/interactives/${ilid}/lessonedit/flow`;
+	const base = `/course/${cid}/lesson-studio/${ilid}/flow`;
 	return blockId ? `${base}?blockId=${encodeURIComponent(blockId)}` : base;
 }
 
 export function lessonBlockHref({ cid, ilid }: LessonStudioRouteContext, blockId: string) {
-	return `/course/${cid}/admin/interactives/${ilid}/lessonedit/blocks/${encodeURIComponent(blockId)}`;
+	return `/course/${cid}/lesson-studio/${ilid}/blocks/${encodeURIComponent(blockId)}`;
 }
 
 export function lessonResourcesHref(
@@ -99,7 +99,7 @@ export function lessonDebuggerHref(
 		params.set('fresh', '1');
 	}
 
-	return `${lessonActivityHref(context)}/lesson-debug?${params.toString()}`;
+	return `${lessonStudioHref(context)}/debug?${params.toString()}`;
 }
 
 export function lessonStudioReturnTarget(

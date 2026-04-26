@@ -9,7 +9,10 @@ import {
 	type LessonBlockKind,
 	type LessonDefinition
 } from '$lib/types/lesson';
-import { loadLessonAdminData, requireLessonAdminContext } from '../lessonAdmin';
+import {
+	loadLessonStudioData,
+	requireLessonStudioContext
+} from '$lib/server/lesson/LessonStudioService';
 
 function asLessonError(errorValue: unknown, fallbackMessage: string) {
 	if (errorValue instanceof LessonServiceError) {
@@ -97,12 +100,12 @@ async function persistDefinition(input: {
 }
 
 export const load = (async ({ params, locals }) => {
-	return loadLessonAdminData(params.cid, params.ilid, locals);
+	return loadLessonStudioData(params.cid, params.ilid, locals);
 }) satisfies PageServerLoad;
 
 export const actions = {
 	saveFlow: async ({ request, params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 
 		try {
@@ -128,7 +131,7 @@ export const actions = {
 	},
 
 	createBlock: async ({ request, params, locals }) => {
-		await requireLessonAdminContext(params.cid, params.ilid, locals);
+		await requireLessonStudioContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 
 		try {
@@ -170,7 +173,7 @@ export const actions = {
 	},
 
 	deleteBlock: async ({ request, params, locals }) => {
-		await requireLessonAdminContext(params.cid, params.ilid, locals);
+		await requireLessonStudioContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const blockId = formData.get('blockId')?.toString().trim();
 
@@ -196,7 +199,7 @@ export const actions = {
 	},
 
 	publishDraft: async ({ params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 
 		try {
 			await LessonRevisionService.publishDraftRevision({
@@ -214,7 +217,7 @@ export const actions = {
 	},
 
 	discardDraft: async ({ params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 		await LessonRevisionService.discardDraftRevision({
 			interactiveLearningId: params.ilid,
 			actorUserId: user.id

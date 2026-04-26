@@ -20,13 +20,13 @@ import { fileStorageService } from '$lib/server/files/FileStorageService';
 import { AIUtils } from '$lib/server/ai/AIUtils';
 import { nanoid } from 'nanoid';
 
-type LessonAdminUser = {
+type LessonStudioUser = {
 	id: string;
 	highestRoleLevel: number;
 };
 
-type LessonAdminLocals = {
-	user?: LessonAdminUser | null;
+type LessonStudioLocals = {
+	user?: LessonStudioUser | null;
 };
 
 export function resolveLifecycleUpdate(
@@ -42,12 +42,12 @@ export function resolveLifecycleUpdate(
 	};
 }
 
-export async function requireLessonAdminContext(
+export async function requireLessonStudioContext(
 	cid: string,
 	ilid: string,
-	locals: LessonAdminLocals
+	locals: LessonStudioLocals
 ): Promise<{
-	user: LessonAdminUser;
+	user: LessonStudioUser;
 	activity: InteractiveLearning;
 	lessonConfig: InteractiveLearningLesson;
 }> {
@@ -86,10 +86,10 @@ export async function requireLessonAdminContext(
 	};
 }
 
-export async function loadLessonAdminData(
+export async function loadLessonStudioData(
 	cid: string,
 	ilid: string,
-	locals: LessonAdminLocals
+	locals: LessonStudioLocals
 ): Promise<{
 	activity: InteractiveLearning;
 	lessonConfig: InteractiveLearningLesson;
@@ -101,7 +101,7 @@ export async function loadLessonAdminData(
 	lessonAgentTools: Awaited<ReturnType<typeof getLessonAgentToolCatalog>>;
 	revisionSummary: Awaited<ReturnType<typeof LessonRevisionService.getRevisionAdminSummary>>;
 }> {
-	const { activity, lessonConfig } = await requireLessonAdminContext(cid, ilid, locals);
+	const { activity, lessonConfig } = await requireLessonStudioContext(cid, ilid, locals);
 	const [files, models, defaultModel, revisionState, revisionSummary, lessonAgentTools] =
 		await Promise.all([
 			db
@@ -137,7 +137,7 @@ export async function loadLessonAdminData(
 	};
 }
 
-export async function uploadLessonFile(input: {
+export async function uploadLessonStudioFile(input: {
 	ilid: string;
 	userId: string;
 	file: File;
@@ -178,7 +178,7 @@ export async function uploadLessonFile(input: {
 	return createdFile;
 }
 
-export async function deleteLessonFile(input: {
+export async function deleteLessonStudioFile(input: {
 	ilid: string;
 	fileId: string;
 	userId: string;

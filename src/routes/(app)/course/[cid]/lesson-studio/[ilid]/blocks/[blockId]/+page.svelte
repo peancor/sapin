@@ -673,7 +673,7 @@
 			},
 			{
 				label: 'Editor lesson',
-				href: `/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lessonedit`
+				href: `/course/${page.params.cid}/lesson-studio/${page.params.ilid}`
 			},
 			{
 				label: 'Mapa',

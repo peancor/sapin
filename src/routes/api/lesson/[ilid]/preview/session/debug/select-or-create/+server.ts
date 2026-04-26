@@ -49,7 +49,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			return json({ error: error.message }, { status: error.status });
 		}
 
-		console.error('[lesson-debug] select-or-create preview session error', error);
+		console.error('[lesson-studio-debug] select-or-create preview session error', error);
 		return json({ error: 'Internal server error' }, { status: 500 });
 	}
 };

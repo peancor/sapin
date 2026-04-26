@@ -12,6 +12,7 @@ import { generateSlug } from '$lib/utils/slug';
 import { interactiveLearningLesson } from '$lib/server/db/schema';
 import { LessonService } from '$lib/server/lesson/LessonService';
 import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
+import { lessonStudioHref } from '$lib/lesson/lessonStudioNavigation';
 
 function getClientIP(request: Request): string | null {
     return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -184,7 +185,7 @@ export const actions = {
             ? `/course/${params.cid}/admin/interactives/${id}/chatedit`
             : type === 'agent'
                 ? `/course/${params.cid}/admin/interactives/${id}/agentedit`
-                : `/course/${params.cid}/admin/interactives/${id}/lessonedit`;
+                : lessonStudioHref({ cid: params.cid, ilid: id });
 
         throw redirect(303, editPath);
     }

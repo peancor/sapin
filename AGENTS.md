@@ -497,9 +497,9 @@ Rutas y APIs relacionadas viven en:
 
 - `src/routes/(app)/course/[cid]/run/lesson/...`
 - `src/routes/(app)/lesson/[ilid]/...`
+- `src/routes/(app)/course/[cid]/lesson-studio/[ilid]/...`
 - `src/routes/api/lesson/...`
 - `src/routes/(app)/course/[cid]/admin/interactives/[ilid]/lesson-review/...`
-- `src/routes/(app)/course/[cid]/admin/interactives/[ilid]/lessonedit/...`
 
 ## Ficheros, imágenes y Qdrant
 

@@ -9,13 +9,13 @@ import {
 } from '$lib/lesson/lessonStudioNavigation';
 import type { LessonBlock } from '$lib/types/lesson';
 import {
-	loadLessonAdminData,
-	requireLessonAdminContext,
-	uploadLessonFile
-} from '../../lessonAdmin';
+	loadLessonStudioData,
+	requireLessonStudioContext,
+	uploadLessonStudioFile
+} from '$lib/server/lesson/LessonStudioService';
 
 export const load = (async ({ params, locals }) => {
-	const data = await loadLessonAdminData(params.cid, params.ilid, locals);
+	const data = await loadLessonStudioData(params.cid, params.ilid, locals);
 	const block = LessonService.getBlock(data.definition, params.blockId);
 	const graphSummary = LessonService.getBlockGraphSummary(data.definition, params.blockId);
 	const availableReferenceGroups = LessonService.getAvailableReferenceGroups(data.definition);
@@ -31,7 +31,7 @@ export const load = (async ({ params, locals }) => {
 
 export const actions = {
 	saveBlock: async ({ request, params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const blockJson = formData.get('blockJson')?.toString();
 		const redirectTo = formData.get('redirectTo')?.toString();
@@ -101,7 +101,7 @@ export const actions = {
 	},
 
 	uploadInlineImage: async ({ request, params, locals }) => {
-		const { user } = await requireLessonAdminContext(params.cid, params.ilid, locals);
+		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const file = formData.get('file');
 
@@ -117,7 +117,7 @@ export const actions = {
 			});
 		}
 
-		const createdFile = await uploadLessonFile({
+		const createdFile = await uploadLessonStudioFile({
 			ilid: params.ilid,
 			userId: user.id,
 			file,

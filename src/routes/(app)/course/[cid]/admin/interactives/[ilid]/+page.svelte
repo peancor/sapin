@@ -19,10 +19,16 @@
 		Wrench,
 		Route
 	} from 'lucide-svelte';
+	import {
+		lessonDebuggerHref,
+		lessonFlowHref,
+		lessonStudioHref
+	} from '$lib/lesson/lessonStudioNavigation';
 
 	let { data }: { data: PageData } = $props();
 
-	const { cid, ilid } = page.params;
+	const cid = $derived(page.params.cid ?? data.course.id);
+	const ilid = $derived(page.params.ilid ?? data.interactive.id);
 
 	function formatDate(date: string | number | Date | null | undefined) {
 		if (!date) return 'Sin actividad';
@@ -38,8 +44,14 @@
 
 	const isAgent = $derived(data.interactive.type === 'agent');
 	const isLesson = $derived(data.interactive.type === 'lesson');
-	const lessonPublishedPreviewHref = $derived(resolve(`/lesson/${ilid}?preview=published`));
-	const lessonDraftPreviewHref = $derived(resolve(`/lesson/${ilid}?preview=draft`));
+	const lessonStudioUrl = $derived(lessonStudioHref({ cid, ilid }));
+	const lessonFlowUrl = $derived(lessonFlowHref({ cid, ilid }));
+	const lessonDebugUrl = $derived(lessonDebuggerHref({ cid, ilid }, { source: 'activity' }));
+	const editActivityUrl = $derived(
+		isLesson
+			? lessonStudioUrl
+			: `/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chatedit'}`
+	);
 </script>
 
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -201,9 +213,7 @@
 				{/if}
 
 				<a
-					href={resolve(
-						`/course/${cid}/admin/interactives/${ilid}/${isLesson ? 'lessonedit' : isAgent ? 'agentedit' : 'chatedit'}`
-					)}
+					href={resolve(editActivityUrl as any)}
 					class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-purple-300 hover:bg-purple-50 dark:border-gray-700 dark:hover:border-purple-800 dark:hover:bg-purple-900/20"
 				>
 					<div
@@ -238,7 +248,7 @@
 					</a>
 
 					<a
-						href={resolve(`/course/${cid}/admin/interactives/${ilid}/lesson-debug`)}
+						href={resolve(lessonDebugUrl as any)}
 						class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-sky-300 hover:bg-sky-50 dark:border-gray-700 dark:hover:border-sky-800 dark:hover:bg-sky-900/20"
 					>
 						<div
@@ -253,7 +263,7 @@
 					</a>
 
 					<a
-						href={resolve(`/course/${cid}/admin/interactives/${ilid}/lessonedit/flow`)}
+						href={resolve(lessonFlowUrl as any)}
 						class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:hover:border-orange-800 dark:hover:bg-orange-900/20"
 					>
 						<div
@@ -309,9 +319,7 @@
 						Configuración de la actividad
 					</h2>
 					<a
-						href={resolve(
-							`/course/${cid}/admin/interactives/${ilid}/${isLesson ? 'lessonedit' : isAgent ? 'agentedit' : 'chatedit'}`
-						)}
+						href={resolve(editActivityUrl as any)}
 						class="text-primary-600 dark:text-primary-400 text-sm hover:underline"
 					>
 						Editar
@@ -505,7 +513,7 @@
 			{#if isLesson}
 				<div class="flex flex-wrap justify-center gap-3">
 					<a
-						href={lessonPublishedPreviewHref}
+						href={resolve(`/lesson/${ilid}?preview=published`)}
 						target="_blank"
 						class="bg-primary-600 hover:bg-primary-700 inline-flex items-center gap-2 rounded-lg px-6 py-3 text-white transition-colors"
 					>
@@ -513,7 +521,7 @@
 						Preview publicado
 					</a>
 					<a
-						href={lessonDraftPreviewHref}
+						href={resolve(`/lesson/${ilid}?preview=draft`)}
 						target="_blank"
 						class="inline-flex items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-6 py-3 text-sky-800 transition-colors hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50"
 					>
@@ -523,7 +531,7 @@
 				</div>
 			{:else}
 				<a
-					href={resolve(isAgent ? `/agent-chat/${ilid}` : `/interactive-chat/${ilid}`)}
+					href={resolve((isAgent ? `/agent-chat/${ilid}` : `/interactive-chat/${ilid}`) as any)}
 					target="_blank"
 					class="bg-primary-600 hover:bg-primary-700 inline-flex items-center gap-2 rounded-lg px-6 py-3 text-white transition-colors"
 				>
