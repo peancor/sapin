@@ -2217,26 +2217,26 @@
 </div>
 
 <div
-	class="lesson-flow-shell hidden h-full min-h-0 overflow-hidden bg-[#edf5ff] text-slate-950 xl:flex dark:bg-[#0b1020] dark:text-slate-100"
+	class="lesson-flow-shell hidden h-full min-h-0 overflow-hidden bg-[#f2f6f9] text-[#0f2537] xl:flex dark:bg-[#071423] dark:text-slate-100"
 >
 	<div class="flex min-h-0 flex-1 overflow-hidden">
 		<!-- Tool Rail -->
 		<aside
-			class="studio-rail flex w-14 shrink-0 flex-col items-center gap-1.5 border-r border-blue-100/80 bg-white/78 px-1.5 py-2.5 shadow-[12px_0_36px_-32px_rgba(37,99,235,0.55)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#10172a]/92"
+			class="studio-rail flex w-14 shrink-0 flex-col items-center gap-1.5 border-r border-[#d9e6dc] bg-white/88 px-1.5 py-2.5 shadow-[12px_0_36px_-32px_rgba(15,37,55,0.42)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#0b1b2b]/94"
 		>
 			<!-- Create buttons (icon-only, colored by type) -->
 			{#each createButtons as button (button.kind)}
 				{@const railColors = {
 					content:
-						'bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border-cyan-200/80 dark:bg-cyan-950/30 dark:text-cyan-300 dark:border-cyan-900/40 dark:hover:bg-cyan-950/50',
+						'bg-[#eaf7e9] text-[#2e7d32] hover:bg-[#dff2dc] border-[#2e7d32]/25 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40 dark:hover:bg-emerald-950/50',
 					choice:
-						'bg-teal-100 text-teal-700 hover:bg-teal-200/80 border-teal-200/80 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/40 dark:hover:bg-teal-950/50',
+						'bg-[#edf9d8] text-[#4b7f1f] hover:bg-[#dff4bf] border-[#a8e063]/50 dark:bg-lime-950/30 dark:text-lime-300 dark:border-lime-900/40 dark:hover:bg-lime-950/50',
 					check:
-						'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200/80 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900/40 dark:hover:bg-blue-950/50',
+						'bg-[#eef4f8] text-[#0f2537] hover:bg-white border-[#c9d8e5] dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900/40 dark:hover:bg-blue-950/50',
 					agent:
-						'bg-violet-50 text-violet-700 hover:bg-violet-100 border-violet-200/80 dark:bg-violet-950/30 dark:text-violet-300 dark:border-violet-900/40 dark:hover:bg-violet-950/50',
+						'bg-[#f2f6f9] text-[#305167] hover:bg-white border-[#c9d8e5] dark:bg-slate-900/60 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800',
 					youtube:
-						'bg-rose-50 text-rose-700 hover:bg-rose-100 border-rose-200/80 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40 dark:hover:bg-rose-950/50',
+						'bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-200/80 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-900/40 dark:hover:bg-orange-950/50',
 					end: 'bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-200/80 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-900/40 dark:hover:bg-orange-950/50'
 				}[button.kind]}
 				<button
@@ -2252,14 +2252,14 @@
 			{/each}
 
 			<!-- Separator -->
-			<div class="my-1 h-px w-8 bg-blue-100 dark:bg-slate-700/70"></div>
+			<div class="my-1 h-px w-8 bg-[#d9e6dc] dark:bg-slate-700/70"></div>
 
 			<!-- Center canvas -->
 			<button
 				type="button"
 				title="Centrar vista (Home)"
 				aria-label="Centrar vista del canvas"
-				class="flex h-10 w-10 items-center justify-center rounded-lg border border-blue-100 bg-white/80 text-blue-500 shadow-[0_8px_18px_-16px_rgba(37,99,235,0.55)] transition duration-150 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 active:scale-95 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
+				class="flex h-10 w-10 items-center justify-center rounded-lg border border-[#d9e6dc] bg-white/88 text-[#2e7d32] shadow-[0_8px_18px_-16px_rgba(46,125,50,0.55)] transition duration-150 hover:border-[#2e7d32]/35 hover:bg-[#f0faf0] active:scale-95 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
 				onclick={centerCanvas}
 			>
 				<MoveRight class="h-4 w-4" />
@@ -2267,11 +2267,11 @@
 
 			<!-- Legend dots (mt-auto to push to bottom) -->
 			<div class="mt-auto flex flex-col items-center gap-1.5 pb-1">
-				<div class="mb-1 h-px w-6 bg-blue-100 dark:bg-slate-700/60"></div>
-				<span class="h-2.5 w-2.5 rounded-full bg-cyan-400" title="Contenido"></span>
-				<span class="h-2.5 w-2.5 rounded-full bg-teal-500" title="Decisión"></span>
-				<span class="h-2.5 w-2.5 rounded-full bg-blue-500" title="Evaluación"></span>
-				<span class="h-2.5 w-2.5 rounded-full bg-violet-500" title="Tutor IA"></span>
+				<div class="mb-1 h-px w-6 bg-[#d9e6dc] dark:bg-slate-700/60"></div>
+				<span class="h-2.5 w-2.5 rounded-full bg-[#2e7d32]" title="Contenido"></span>
+				<span class="h-2.5 w-2.5 rounded-full bg-[#a8e063]" title="Decisión"></span>
+				<span class="h-2.5 w-2.5 rounded-full bg-[#0f2537]" title="Evaluación"></span>
+				<span class="h-2.5 w-2.5 rounded-full bg-[#9fb5c6]" title="Tutor IA"></span>
 				<span class="h-2.5 w-2.5 rounded-full bg-orange-400" title="Final"></span>
 			</div>
 		</aside>
@@ -2280,23 +2280,23 @@
 			<div class="flex min-h-0 flex-1 overflow-hidden p-1.5">
 				<div
 					bind:this={stageElement}
-					class="studio-stage relative min-h-0 flex-1 overflow-hidden rounded-xl border border-blue-100/90 bg-[#f7fbff] shadow-[0_24px_70px_-48px_rgba(37,99,235,0.65)] dark:border-slate-700 dark:bg-[#0f172a]"
+					class="studio-stage relative min-h-0 flex-1 overflow-hidden rounded-xl border border-[#d9e6dc] bg-[#f8fbf7] shadow-[0_24px_70px_-48px_rgba(15,37,55,0.55)] dark:border-slate-700 dark:bg-[#0f172a]"
 				>
 					<div
-						class="pointer-events-none absolute inset-x-0 top-0 z-10 h-18 bg-linear-to-b from-[#f7fbff] via-[#f7fbff]/65 to-transparent dark:from-[#0f172a] dark:via-[#0f172a]/65"
+						class="pointer-events-none absolute inset-x-0 top-0 z-10 h-18 bg-linear-to-b from-[#f8fbf7] via-[#f8fbf7]/68 to-transparent dark:from-[#0f172a] dark:via-[#0f172a]/65"
 					></div>
 					<div
-						class="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_34%,_rgba(34,211,238,0.12),_transparent_26%),radial-gradient(circle_at_50%_48%,_rgba(99,102,241,0.10),_transparent_36%)]"
+						class="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(135deg,_rgba(46,125,50,0.07)_0%,_transparent_32%),linear-gradient(180deg,_rgba(168,224,99,0.08)_0%,_transparent_42%)]"
 					></div>
 
 					<div class="pointer-events-none absolute top-3 left-3 z-20 flex flex-wrap gap-1.5">
 						<div
-							class="rounded-lg border border-blue-100 bg-white/84 px-2.5 py-1 text-[10px] font-medium text-slate-500 shadow-sm backdrop-blur-sm dark:border-white/8 dark:bg-slate-900/80 dark:text-slate-400"
+							class="rounded-lg border border-[#d9e6dc] bg-white/88 px-2.5 py-1 text-[10px] font-medium text-[#506173] shadow-sm backdrop-blur-sm dark:border-white/8 dark:bg-slate-900/80 dark:text-slate-400"
 						>
 							Arrastra para panear · inspector a la derecha
 						</div>
 						<div
-							class="hidden rounded-lg border border-blue-100 bg-white/84 px-2.5 py-1 text-[10px] font-medium text-slate-500 shadow-sm backdrop-blur-sm 2xl:block dark:border-white/8 dark:bg-slate-900/80 dark:text-slate-400"
+							class="hidden rounded-lg border border-[#d9e6dc] bg-white/88 px-2.5 py-1 text-[10px] font-medium text-[#506173] shadow-sm backdrop-blur-sm 2xl:block dark:border-white/8 dark:bg-slate-900/80 dark:text-slate-400"
 						>
 							<kbd class="font-mono text-[9px]">Shift+A</kbd> añadir ·
 							<kbd class="font-mono text-[9px]">F2</kbd>
@@ -2329,7 +2329,7 @@
 						<button
 							type="button"
 							title="Guardar mapa (Ctrl+S)"
-							class="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#081a3a] px-3 text-[11px] font-semibold text-white shadow-[0_16px_30px_-20px_rgba(8,26,58,0.85)] transition duration-150 hover:bg-blue-950 active:scale-95 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+							class="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#0f2537] px-3 text-[11px] font-semibold text-white shadow-[0_16px_30px_-20px_rgba(15,37,55,0.85)] transition duration-150 hover:bg-[#173c59] active:scale-95 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
 							onclick={saveFlow}
 							disabled={isSubmitting}
 						>
@@ -2339,7 +2339,7 @@
 						<button
 							type="button"
 							title="Inspeccionar selección en debugger"
-							class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-blue-200 bg-white/86 px-2.5 text-[11px] font-semibold text-blue-700 shadow-sm transition duration-150 hover:bg-blue-50 active:scale-95 disabled:opacity-45 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200 dark:hover:bg-blue-950/50"
+							class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#d9e6dc] bg-white/86 px-2.5 text-[11px] font-semibold text-[#2e7d32] shadow-sm transition duration-150 hover:bg-[#f0faf0] active:scale-95 disabled:opacity-45 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200 dark:hover:bg-blue-950/50"
 							onclick={() =>
 								openLessonDebugger({
 									blockId: selectedBlock?.id,
@@ -2370,9 +2370,8 @@
 								{nodeTypes}
 								class="h-full w-full"
 								style="background:
-									radial-gradient(circle at 50% 34%, rgba(34,211,238,0.12), transparent 28%),
-									radial-gradient(circle at 52% 48%, rgba(99,102,241,0.10), transparent 38%),
-									linear-gradient(180deg, rgba(255,255,255,0.82), rgba(239,246,255,0.78));"
+									linear-gradient(135deg, rgba(46,125,50,0.07), transparent 34%),
+									linear-gradient(180deg, rgba(255,255,255,0.9), rgba(242,246,249,0.82));"
 								fitView
 								minZoom={0.35}
 								maxZoom={1.7}
@@ -2403,8 +2402,8 @@
 								onconnect={handleConnect}
 							>
 								<Background
-									bgColor="#f7fbff"
-									patternColor="#c7d2fe"
+									bgColor="#f8fbf7"
+									patternColor="#b9d6bf"
 									variant={BackgroundVariant.Dots}
 									gap={28}
 									size={1.05}
@@ -2437,11 +2436,11 @@
 
 		{#if isInspectorCollapsed}
 			<aside
-				class="flex w-11 shrink-0 flex-col items-center gap-3 border-l border-blue-100/80 bg-white/78 px-1.5 py-3 shadow-[-12px_0_36px_-32px_rgba(37,99,235,0.55)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#10172a]/92"
+				class="flex w-11 shrink-0 flex-col items-center gap-3 border-l border-[#d9e6dc] bg-white/88 px-1.5 py-3 shadow-[-12px_0_36px_-32px_rgba(15,37,55,0.42)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#0b1b2b]/94"
 			>
 				<button
 					type="button"
-					class="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-100 bg-white text-blue-600 shadow-sm transition duration-150 hover:border-blue-200 hover:bg-blue-50 active:scale-95 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+					class="flex h-8 w-8 items-center justify-center rounded-lg border border-[#d9e6dc] bg-white text-[#2e7d32] shadow-sm transition duration-150 hover:border-[#2e7d32]/35 hover:bg-[#f0faf0] active:scale-95 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
 					onclick={() => {
 						isInspectorCollapsed = false;
 					}}
@@ -2453,19 +2452,19 @@
 			</aside>
 		{:else}
 			<aside
-				class="flex w-[368px] shrink-0 flex-col overflow-hidden border-l border-blue-100/80 bg-white/78 shadow-[-12px_0_36px_-32px_rgba(37,99,235,0.55)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#10172a]/92"
+				class="flex w-[368px] shrink-0 flex-col overflow-hidden border-l border-[#d9e6dc] bg-white/88 shadow-[-12px_0_36px_-32px_rgba(15,37,55,0.42)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#0b1b2b]/94"
 			>
-				<div class="shrink-0 border-b border-blue-100/80 px-4 py-3 dark:border-slate-800">
+				<div class="shrink-0 border-b border-[#d9e6dc] px-4 py-3 dark:border-slate-800">
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0 flex-1">
-							<p class="text-[9px] font-bold tracking-[0.14em] text-blue-500 uppercase dark:text-blue-300">
+							<p class="text-[9px] font-bold tracking-[0.14em] text-[#2e7d32] uppercase dark:text-emerald-300">
 								Inspector
 							</p>
 							{#if selectedBlock && isRenamingSelectedBlock}
 								<input
 									bind:this={renameInputElement}
 									value={renameDraft}
-									class="mt-1.5 w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-base font-semibold text-slate-950 outline-hidden focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:border-blue-700 dark:bg-slate-950 dark:text-white"
+									class="mt-1.5 w-full rounded-lg border border-[#d9e6dc] bg-white px-3 py-2 text-base font-semibold text-slate-950 outline-hidden focus:border-[#2e7d32] focus:ring-2 focus:ring-[#a8e063]/35 dark:border-blue-700 dark:bg-slate-950 dark:text-white"
 									oninput={(event) => {
 										renameDraft = (event.currentTarget as HTMLInputElement).value;
 									}}
@@ -2497,7 +2496,7 @@
 						</div>
 						<button
 							type="button"
-							class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-blue-100 bg-white text-blue-500 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 active:scale-95 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+							class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#d9e6dc] bg-white text-[#2e7d32] shadow-sm transition hover:border-[#2e7d32]/35 hover:bg-[#f0faf0] active:scale-95 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
 							title="Colapsar inspector"
 							onclick={() => {
 								isInspectorCollapsed = true;
@@ -2513,7 +2512,7 @@
 						<div class="space-y-4">
 							<!-- ID row + entry badge -->
 							<div
-								class="flex items-center justify-between gap-2 rounded-lg border border-blue-100 bg-white/72 px-3 py-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/20"
+								class="flex items-center justify-between gap-2 rounded-lg border border-[#d9e6dc] bg-white/72 px-3 py-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/20"
 							>
 								<div>
 									<p
@@ -2527,7 +2526,7 @@
 								</div>
 								{#if draftDefinition.entryBlockId === selectedBlock.id}
 									<span
-										class="shrink-0 rounded-md bg-cyan-100 px-2 py-0.5 text-[10px] font-semibold text-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300"
+										class="shrink-0 rounded-md bg-[#eaf7e9] px-2 py-0.5 text-[10px] font-semibold text-[#2e7d32] dark:bg-emerald-950/30 dark:text-emerald-300"
 									>
 										Entrada
 									</span>
@@ -2539,7 +2538,7 @@
 									>Título</span
 								>
 								<input
-									class="w-full rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-200/70 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:border-blue-600 dark:focus:ring-blue-900/40"
+									class="w-full rounded-lg border border-[#d9e6dc] bg-white px-3 py-2 text-sm text-slate-950 shadow-sm transition placeholder:text-slate-400 focus:border-[#2e7d32] focus:ring-2 focus:ring-[#a8e063]/35 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:border-blue-600 dark:focus:ring-blue-900/40"
 									value={selectedBlock.title}
 									oninput={(event) =>
 										updateSelectedBlock((block) => {
@@ -2550,7 +2549,7 @@
 
 							<div class="grid grid-cols-2 gap-2">
 								<div
-									class="rounded-lg border border-blue-100 bg-white/72 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/20"
+									class="rounded-lg border border-[#d9e6dc] bg-white/72 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/20"
 								>
 									<p
 										class="text-[9px] font-bold text-slate-400 uppercase dark:text-slate-500"
@@ -2572,7 +2571,7 @@
 									</p>
 								</div>
 								<div
-									class="rounded-lg border border-blue-100 bg-white/72 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/20"
+									class="rounded-lg border border-[#d9e6dc] bg-white/72 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/20"
 								>
 									<p
 										class="text-[9px] font-bold text-slate-400 uppercase dark:text-slate-500"
@@ -2589,7 +2588,7 @@
 							{#if draftDefinition.entryBlockId !== selectedBlock.id}
 								<button
 									type="button"
-									class="w-full rounded-lg border border-cyan-200 bg-cyan-50/70 px-4 py-2 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100 active:scale-95 dark:border-cyan-900/40 dark:bg-cyan-950/20 dark:text-cyan-300 dark:hover:bg-cyan-950/40"
+									class="w-full rounded-lg border border-[#2e7d32]/25 bg-[#eaf7e9] px-4 py-2 text-xs font-semibold text-[#2e7d32] transition hover:bg-[#dff2dc] active:scale-95 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
 									onclick={() => setEntryBlock(selectedBlock.id)}
 								>
 									<Route class="mr-1 inline h-3.5 w-3.5" />
@@ -3298,7 +3297,7 @@
 									type="button"
 									onclick={openSelectedBlockDetail}
 									disabled={isSubmitting}
-									class="inline-flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-blue-500 to-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_32px_-20px_rgba(79,70,229,0.75)] transition hover:from-blue-600 hover:to-violet-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+									class="inline-flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-[#2e7d32] to-[#79bf45] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_32px_-20px_rgba(46,125,50,0.75)] transition hover:from-[#279132] hover:to-[#8fcf4f] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
 								>
 									<SquarePen class="h-4 w-4" />
 									{hasUnsavedChanges ? 'Guardar mapa y editar detalle' : 'Editar bloque en detalle'}
@@ -3314,7 +3313,7 @@
 											}
 										)}`
 									)}
-									class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100 active:scale-95 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200 dark:hover:bg-blue-950/50"
+									class="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d9e6dc] bg-[#f6fbf3] px-4 py-2.5 text-sm font-semibold text-[#2e7d32] shadow-sm transition hover:bg-[#eaf7e9] active:scale-95 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200 dark:hover:bg-blue-950/50"
 								>
 									<Bug class="h-4 w-4" />
 									Inspeccionar en debugger
@@ -3647,14 +3646,14 @@
 	:global(.lesson-flow-shell .svelte-flow__controls) {
 		border-radius: 0.5rem;
 		overflow: hidden;
-		border: 1px solid rgba(191, 219, 254, 0.9);
-		box-shadow: 0 18px 38px -28px rgba(37, 99, 235, 0.52);
+		border: 1px solid rgba(217, 230, 220, 0.95);
+		box-shadow: 0 18px 38px -28px rgba(15, 37, 55, 0.42);
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__controls button) {
 		background: rgba(255, 255, 255, 0.92);
-		color: rgb(30, 64, 175);
-		border-bottom: 1px solid rgba(219, 234, 254, 0.95);
+		color: rgb(46, 125, 50);
+		border-bottom: 1px solid rgba(217, 230, 220, 0.95);
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__controls button:last-child) {
@@ -3662,14 +3661,14 @@
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__controls button:hover) {
-		background: rgba(239, 246, 255, 0.98);
+		background: rgba(246, 251, 243, 0.98);
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__minimap) {
 		background: rgba(255, 255, 255, 0.86);
 		border-radius: 0.75rem;
-		border: 1px solid rgba(191, 219, 254, 0.9);
-		box-shadow: 0 18px 38px -28px rgba(37, 99, 235, 0.52);
+		border: 1px solid rgba(217, 230, 220, 0.95);
+		box-shadow: 0 18px 38px -28px rgba(15, 37, 55, 0.42);
 		backdrop-filter: blur(16px);
 	}
 
@@ -3678,13 +3677,13 @@
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__edge.selected .svelte-flow__edge-path) {
-		stroke: rgb(59, 130, 246);
+		stroke: rgb(255, 159, 46);
 		stroke-width: 3.5;
-		filter: drop-shadow(0 4px 10px rgba(59, 130, 246, 0.32));
+		filter: drop-shadow(0 4px 10px rgba(255, 159, 46, 0.32));
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__edge.selected .svelte-flow__edge-text) {
-		fill: rgb(30, 64, 175);
+		fill: rgb(15, 37, 55);
 		font-weight: 700;
 	}
 
@@ -3703,7 +3702,7 @@
 	}
 
 	:global(.lesson-flow-shell .svelte-flow__minimap-mask) {
-		fill: rgba(37, 99, 235, 0.08);
+		fill: rgba(46, 125, 50, 0.1);
 	}
 
 	:global(.lesson-flow-shell aside label > span) {
@@ -3714,18 +3713,18 @@
 	:global(.lesson-flow-shell aside select),
 	:global(.lesson-flow-shell aside textarea) {
 		background: rgba(255, 255, 255, 0.88);
-		border-color: rgba(191, 219, 254, 0.95);
+		border-color: rgba(217, 230, 220, 0.95);
 		color: rgb(15, 23, 42);
-		box-shadow: 0 10px 24px -22px rgba(37, 99, 235, 0.5);
+		box-shadow: 0 10px 24px -22px rgba(15, 37, 55, 0.4);
 	}
 
 	:global(.lesson-flow-shell aside input:focus),
 	:global(.lesson-flow-shell aside select:focus),
 	:global(.lesson-flow-shell aside textarea:focus) {
-		border-color: rgb(96, 165, 250);
+		border-color: rgb(46, 125, 50);
 		box-shadow:
-			0 0 0 2px rgba(147, 197, 253, 0.45),
-			0 12px 28px -22px rgba(37, 99, 235, 0.65);
+			0 0 0 2px rgba(168, 224, 99, 0.35),
+			0 12px 28px -22px rgba(46, 125, 50, 0.5);
 	}
 
 	:global(.dark .lesson-flow-shell aside label > span) {

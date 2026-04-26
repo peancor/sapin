@@ -236,10 +236,10 @@ function createLessonFlowEdge(input: {
 }): LessonFlowEdge {
 	const style =
 		input.edgeType === 'next'
-			? 'stroke:#9a7b4f;stroke-width:2.4'
+			? 'stroke:#2e7d32;stroke-width:2.4'
 			: input.edgeType === 'branch'
-				? 'stroke:#0f766e;stroke-width:2.2;stroke-dasharray:7 5'
-				: 'stroke:#4f46e5;stroke-width:2.2';
+				? 'stroke:#ff9f2e;stroke-width:2.2;stroke-dasharray:7 5'
+				: 'stroke:#0f2537;stroke-width:2.2';
 
 	return {
 		id: input.id,
@@ -250,7 +250,7 @@ function createLessonFlowEdge(input: {
 		targetHandle: input.targetHandle,
 		label: input.label,
 		labelStyle:
-			'fill:var(--xy-edge-label-color,#3f3a32);font-size:12px;font-weight:600;background:transparent',
+			'fill:var(--xy-edge-label-color,#0f2537);font-size:12px;font-weight:600;background:transparent',
 		style,
 		markerEnd: {
 			type: MarkerType.ArrowClosed

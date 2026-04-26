@@ -59,10 +59,10 @@
 		}
 
 		if (item.tone === 'accent') {
-			return 'border-amber-200/80 bg-amber-50/80 text-amber-800 hover:border-amber-300 hover:bg-amber-100/80 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200 dark:hover:bg-amber-950/35';
+			return 'border-[#2e7d32]/25 bg-[#eaf7e9]/90 text-[#2e7d32] hover:border-[#2e7d32]/40 hover:bg-[#dff2dc]/90 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200 dark:hover:bg-emerald-950/35';
 		}
 
-		return 'border-stone-200/90 bg-white/92 text-stone-700 hover:border-stone-300 hover:bg-stone-50 dark:border-stone-800 dark:bg-stone-950/85 dark:text-stone-200 dark:hover:bg-stone-900';
+		return 'border-[#d9e6dc] bg-white/92 text-[#334e68] hover:border-[#2e7d32]/30 hover:bg-[#f6fbf3] dark:border-stone-800 dark:bg-stone-950/85 dark:text-stone-200 dark:hover:bg-stone-900';
 	}
 
 	async function focusInput() {
@@ -140,7 +140,7 @@
 		></button>
 
 		<div
-			class="absolute w-[min(22rem,calc(100%-1.5rem))] overflow-hidden rounded-2xl border border-stone-200/80 bg-[#fdfaf4]/97 shadow-[0_28px_80px_-36px_rgba(24,24,27,0.78)] backdrop-blur-xl dark:border-stone-700/80 dark:bg-[#17191c]/97"
+			class="absolute w-[min(22rem,calc(100%-1.5rem))] overflow-hidden rounded-2xl border border-[#d9e6dc] bg-white/97 shadow-[0_28px_80px_-36px_rgba(15,37,55,0.58)] backdrop-blur-xl dark:border-stone-700/80 dark:bg-[#17191c]/97"
 			style={panelStyle()}
 			role="dialog"
 			tabindex="-1"
@@ -149,15 +149,17 @@
 				event.preventDefault();
 			}}
 		>
-			<div class="border-b border-stone-200/70 px-4 py-3 dark:border-stone-800">
-				<p class="text-[9px] font-bold tracking-[0.26em] text-stone-400 uppercase dark:text-stone-500">{title}</p>
+			<div class="border-b border-[#d9e6dc] px-4 py-3 dark:border-stone-800">
+				<p class="text-[9px] font-bold tracking-[0.22em] text-[#2e7d32] uppercase dark:text-emerald-300">
+					{title}
+				</p>
 				{#if subtitle}
-					<p class="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">{subtitle}</p>
+					<p class="mt-1 text-xs leading-5 text-[#506173] dark:text-stone-400">{subtitle}</p>
 				{/if}
 				<input
 					bind:this={inputElement}
 					value={query}
-					class="mt-2.5 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-hidden shadow-sm transition placeholder:text-stone-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:placeholder:text-stone-500 dark:focus:border-amber-600"
+					class="mt-2.5 w-full rounded-xl border border-[#d9e6dc] bg-white px-3 py-2 text-sm text-[#0f2537] outline-hidden shadow-sm transition placeholder:text-stone-400 focus:border-[#2e7d32] focus:ring-2 focus:ring-[#a8e063]/35 dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:placeholder:text-stone-500 dark:focus:border-emerald-600"
 					placeholder="Buscar acción o tipo de bloque…"
 					oninput={(event) => onquerychange((event.currentTarget as HTMLInputElement).value)}
 				/>
@@ -169,7 +171,7 @@
 						{#each filteredItems as item, index (item.id)}
 							<button
 								type="button"
-							class={`flex w-full items-start justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition active:scale-98 ${toneClass(item)} ${index === activeIndex && !item.disabled ? 'ring-2 ring-amber-300/80 ring-offset-1 ring-offset-transparent dark:ring-amber-700/60' : ''}`}
+							class={`flex w-full items-start justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition active:scale-98 ${toneClass(item)} ${index === activeIndex && !item.disabled ? 'ring-2 ring-[#a8e063]/80 ring-offset-1 ring-offset-transparent dark:ring-emerald-700/60' : ''}`}
 								role="option"
 								aria-selected={index === activeIndex}
 								disabled={item.disabled}
