@@ -45,19 +45,20 @@ const definition: LessonDefinition = {
 			],
 			next: 'end',
 			checkConfig: {
-				mode: 'single_choice',
 				maxAttempts: 2,
 				completionRule: 'pass_or_exhaust',
 				passingScore: 1,
 				revealCorrectAnswer: false,
-				options: [{ id: 'a', label: 'A', value: 'A' }],
-				correctOptionIds: ['a'],
-				acceptedExact: null,
-				tolerance: null,
-				acceptedAnswers: [],
-				caseSensitive: false,
-				trimWhitespace: true,
-				matchMode: 'exact'
+				presentationMode: 'all_at_once',
+				questions: [
+					{
+						id: 'question_1',
+						prompt: 'Elige',
+						mode: 'single_choice',
+						options: [{ id: 'a', label: 'A', value: 'A' }],
+						correctOptionIds: ['a']
+					}
+				]
 			}
 		},
 		{

@@ -218,10 +218,27 @@ export function resolveLessonDebugBlock(
 					block.checkConfig.feedbackPartial || '',
 					context
 				),
-				options: block.checkConfig.options.map((option) => ({
-					...option,
-					label: resolveLessonDebugStringTemplate(option.label, context),
-					description: resolveLessonDebugStringTemplate(option.description || '', context)
+				questions: block.checkConfig.questions.map((question) => ({
+					...question,
+					prompt: resolveLessonDebugStringTemplate(question.prompt, context),
+					...(question.mode === 'single_choice' ||
+					question.mode === 'multiple_choice' ||
+					question.mode === 'true_false'
+						? {
+								options: question.options.map((option) => ({
+									...option,
+									label: resolveLessonDebugStringTemplate(option.label, context),
+									description: resolveLessonDebugStringTemplate(option.description || '', context)
+								}))
+							}
+						: {}),
+					...(question.mode === 'short_text'
+						? {
+								acceptedAnswers: question.acceptedAnswers.map((answer) =>
+									resolveLessonDebugStringTemplate(answer, context)
+								)
+							}
+						: {})
 				}))
 			}
 		};

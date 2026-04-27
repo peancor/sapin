@@ -38,7 +38,6 @@
 		LessonFlowQuickMenuItem
 	} from '$lib/lesson/lessonFlowQuickMenu';
 	import {
-		getLessonCheckModeLabel,
 		normalizeLessonAgentConfig,
 		normalizeLessonCheckConfig,
 		type LessonAgentExecutionTrigger,
@@ -1050,25 +1049,32 @@
 				body: '',
 				next: null,
 				checkConfig: normalizeLessonCheckConfig({
-					mode: 'single_choice',
 					submitLabel: 'Enviar',
 					retryLabel: 'Reintentar',
 					continueLabel: 'Continuar',
-					options: [
+					presentationMode: 'all_at_once',
+					questions: [
 						{
-							id: 'option_1',
-							label: 'Opción 1',
-							value: 'option_1',
-							description: ''
-						},
-						{
-							id: 'option_2',
-							label: 'Opción 2',
-							value: 'option_2',
-							description: ''
+							id: 'question_1',
+							prompt: 'Pregunta 1',
+							mode: 'single_choice',
+							options: [
+								{
+									id: 'option_1',
+									label: 'Opción 1',
+									value: 'option_1',
+									description: ''
+								},
+								{
+									id: 'option_2',
+									label: 'Opción 2',
+									value: 'option_2',
+									description: ''
+								}
+							],
+							correctOptionIds: ['option_1']
 						}
-					],
-					correctOptionIds: ['option_1']
+					]
 				}),
 				graph
 			};
@@ -2975,12 +2981,17 @@
 								<div class="block">
 									<span
 										class="mb-1.5 block text-xs font-semibold text-stone-600 dark:text-stone-300"
-										>Modo</span
+										>Banco</span
 									>
 									<p
 										class="rounded-xl border border-stone-200 bg-white/80 px-3 py-2 text-sm font-medium text-stone-800 dark:border-stone-700 dark:bg-stone-950 dark:text-white"
 									>
-										{getLessonCheckModeLabel(selectedBlock.checkConfig.mode)}
+										{selectedBlock.checkConfig.questions.length} pregunta{selectedBlock.checkConfig.questions
+											.length === 1
+											? ''
+											: 's'} · {selectedBlock.checkConfig.presentationMode === 'step_by_step'
+											? 'paso a paso'
+											: 'todas juntas'}
 									</p>
 								</div>
 

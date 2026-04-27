@@ -10,15 +10,17 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 	try {
 		const payload = (await request.json().catch(() => ({}))) as {
-			optionIds?: string[];
-			value?: string | number;
+			answers?: Array<{
+				questionId: string;
+				optionIds?: string[];
+				value?: string | number;
+			}>;
 		};
 
 		const result = await LessonService.submitCheck({
 			sessionId: params.sessionId,
 			blockId: params.blockId,
-			optionIds: payload.optionIds,
-			value: payload.value,
+			answers: Array.isArray(payload.answers) ? payload.answers : [],
 			userId: user.id,
 			userRoleLevel: user.highestRoleLevel,
 			interactiveLearningId: params.ilid

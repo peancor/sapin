@@ -53,6 +53,9 @@ export const lessonCheckModes = [
 ] as const;
 export type LessonCheckMode = (typeof lessonCheckModes)[number];
 
+export const lessonCheckPresentationModes = ['all_at_once', 'step_by_step'] as const;
+export type LessonCheckPresentationMode = (typeof lessonCheckPresentationModes)[number];
+
 export const lessonCheckCompletionRules = ['pass_or_exhaust', 'after_first_submit'] as const;
 export type LessonCheckCompletionRule = (typeof lessonCheckCompletionRules)[number];
 
@@ -145,8 +148,39 @@ export interface LessonCheckAcceptedRange {
 	max?: number;
 }
 
+interface LessonCheckQuestionBase {
+	id: string;
+	prompt: string;
+	mode: LessonCheckMode;
+}
+
+export interface LessonCheckChoiceQuestion extends LessonCheckQuestionBase {
+	mode: 'single_choice' | 'multiple_choice' | 'true_false';
+	options: LessonCheckOption[];
+	correctOptionIds: string[];
+}
+
+export interface LessonCheckNumericQuestion extends LessonCheckQuestionBase {
+	mode: 'numeric';
+	acceptedRange?: LessonCheckAcceptedRange;
+	acceptedExact: number | null;
+	tolerance: number | null;
+}
+
+export interface LessonCheckShortTextQuestion extends LessonCheckQuestionBase {
+	mode: 'short_text';
+	acceptedAnswers: string[];
+	caseSensitive: boolean;
+	trimWhitespace: boolean;
+	matchMode: LessonCheckTextMatchMode;
+}
+
+export type LessonCheckQuestion =
+	| LessonCheckChoiceQuestion
+	| LessonCheckNumericQuestion
+	| LessonCheckShortTextQuestion;
+
 export interface LessonCheckConfigInput {
-	mode?: LessonCheckMode;
 	submitLabel?: string;
 	continueLabel?: string;
 	retryLabel?: string;
@@ -157,31 +191,17 @@ export interface LessonCheckConfigInput {
 	feedbackIncorrect?: string;
 	feedbackPartial?: string;
 	revealCorrectAnswer?: boolean;
-	options?: LessonCheckOption[];
-	correctOptionIds?: string[];
-	acceptedRange?: LessonCheckAcceptedRange;
-	acceptedExact?: number | null;
-	tolerance?: number | null;
-	acceptedAnswers?: string[];
-	caseSensitive?: boolean;
-	trimWhitespace?: boolean;
-	matchMode?: LessonCheckTextMatchMode;
+	presentationMode?: LessonCheckPresentationMode;
+	questions?: LessonCheckQuestion[];
 }
 
-export interface LessonCheckConfig extends Omit<LessonCheckConfigInput, 'mode'> {
-	mode: LessonCheckMode;
+export interface LessonCheckConfig extends LessonCheckConfigInput {
 	maxAttempts: number | null;
 	completionRule: LessonCheckCompletionRule;
 	passingScore: number;
 	revealCorrectAnswer: boolean;
-	options: LessonCheckOption[];
-	correctOptionIds: string[];
-	acceptedExact: number | null;
-	tolerance: number | null;
-	acceptedAnswers: string[];
-	caseSensitive: boolean;
-	trimWhitespace: boolean;
-	matchMode: LessonCheckTextMatchMode;
+	presentationMode: LessonCheckPresentationMode;
+	questions: LessonCheckQuestion[];
 }
 
 export interface LessonCheckBlock extends LessonBlockBase {
@@ -356,24 +376,90 @@ export function createLessonCheckTrueFalseOptions(): LessonCheckOption[] {
 	];
 }
 
-export function normalizeLessonCheckConfig(input: LessonCheckConfigInput): LessonCheckConfig {
-	const mode = input.mode ?? 'single_choice';
-	const normalizedOptions =
-		mode === 'true_false'
-			? createLessonCheckTrueFalseOptions()
-			: (input.options ?? []).map((option) => ({
-					id: option.id,
-					label: option.label,
-					value: option.value,
-					description: option.description
-				}));
-	const correctOptionIds =
-		mode === 'true_false'
-			? [input.correctOptionIds?.[0] ?? 'true']
-			: [...(input.correctOptionIds ?? [])];
+function normalizeLessonCheckQuestion(question: LessonCheckQuestion, index: number): LessonCheckQuestion {
+	const id = question.id?.trim() || `question_${index + 1}`;
+	const prompt = question.prompt?.trim() || `Pregunta ${index + 1}`;
+
+	if (question.mode === 'true_false') {
+		const firstCorrect = question.correctOptionIds?.[0];
+		return {
+			id,
+			prompt,
+			mode: 'true_false',
+			options: createLessonCheckTrueFalseOptions(),
+			correctOptionIds: [firstCorrect === 'false' ? 'false' : 'true']
+		};
+	}
+
+	if (question.mode === 'single_choice' || question.mode === 'multiple_choice') {
+		const options = question.options.map((option, optionIndex) => {
+			const optionId = option.id?.trim() || `option_${optionIndex + 1}`;
+			return {
+				id: optionId,
+				label: option.label?.trim() || `Opcion ${optionIndex + 1}`,
+				value: option.value?.trim() || optionId,
+				description: option.description
+			};
+		});
+		const validOptionIds = new Set(options.map((option) => option.id));
+		const correctOptionIds = question.correctOptionIds.filter((optionId) =>
+			validOptionIds.has(optionId)
+		);
+
+		return {
+			id,
+			prompt,
+			mode: question.mode,
+			options,
+			correctOptionIds:
+				question.mode === 'multiple_choice'
+					? [...new Set(correctOptionIds)]
+					: correctOptionIds.slice(0, 1)
+		};
+	}
+
+	if (question.mode === 'numeric') {
+		return {
+			id,
+			prompt,
+			mode: 'numeric',
+			acceptedRange: question.acceptedRange
+				? {
+						...(question.acceptedRange.min !== undefined ? { min: question.acceptedRange.min } : {}),
+						...(question.acceptedRange.max !== undefined ? { max: question.acceptedRange.max } : {})
+					}
+				: undefined,
+			acceptedExact: question.acceptedExact ?? null,
+			tolerance: question.tolerance ?? null
+		};
+	}
+
+	if (question.mode === 'short_text') {
+		return {
+			id,
+			prompt,
+			mode: 'short_text',
+			acceptedAnswers: [...question.acceptedAnswers],
+			caseSensitive: question.caseSensitive ?? false,
+			trimWhitespace: question.trimWhitespace ?? true,
+			matchMode: question.matchMode ?? 'exact'
+		};
+	}
 
 	return {
-		mode,
+		id,
+		prompt,
+		mode: 'single_choice',
+		options: [
+			{ id: 'option_1', label: 'Opcion 1', value: 'option_1', description: '' },
+			{ id: 'option_2', label: 'Opcion 2', value: 'option_2', description: '' }
+		],
+		correctOptionIds: ['option_1']
+	};
+}
+
+export function normalizeLessonCheckConfig(input: LessonCheckConfigInput): LessonCheckConfig {
+	return {
 		submitLabel: input.submitLabel,
 		continueLabel: input.continueLabel,
 		retryLabel: input.retryLabel,
@@ -384,20 +470,8 @@ export function normalizeLessonCheckConfig(input: LessonCheckConfigInput): Lesso
 		feedbackIncorrect: input.feedbackIncorrect,
 		feedbackPartial: input.feedbackPartial,
 		revealCorrectAnswer: input.revealCorrectAnswer ?? false,
-		options: normalizedOptions,
-		correctOptionIds,
-		acceptedRange: input.acceptedRange
-			? {
-					...(input.acceptedRange.min !== undefined ? { min: input.acceptedRange.min } : {}),
-					...(input.acceptedRange.max !== undefined ? { max: input.acceptedRange.max } : {})
-				}
-			: undefined,
-		acceptedExact: input.acceptedExact ?? null,
-		tolerance: input.tolerance ?? null,
-		acceptedAnswers: [...(input.acceptedAnswers ?? [])],
-		caseSensitive: input.caseSensitive ?? false,
-		trimWhitespace: input.trimWhitespace ?? true,
-		matchMode: input.matchMode ?? 'exact'
+		presentationMode: input.presentationMode ?? 'all_at_once',
+		questions: (input.questions ?? []).map(normalizeLessonCheckQuestion)
 	};
 }
 

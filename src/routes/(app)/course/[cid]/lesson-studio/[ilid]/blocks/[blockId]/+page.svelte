@@ -21,6 +21,7 @@
 	import {
 		getLessonAgentInteractionDescription,
 		getLessonCheckModeLabel,
+		createLessonCheckTrueFalseOptions,
 		normalizeLessonAgentConfig,
 		normalizeLessonCheckConfig,
 		type LessonAgentExecutionTrigger,
@@ -29,10 +30,14 @@
 		type LessonAssetRef,
 		type LessonBlock,
 		type LessonCheckMode,
+		type LessonCheckOption,
+		type LessonCheckQuestion,
 		type LessonTransition,
 		type LessonYoutubePausePoint
 	} from '$lib/types/lesson';
 	import {
+		ArrowDown,
+		ArrowUp,
 		ArrowRight,
 		BookOpenText,
 		Bot,
@@ -45,6 +50,7 @@
 		MoveLeft,
 		Paperclip,
 		Plus,
+		Copy,
 		Route,
 		Save,
 		Sparkles,
@@ -70,6 +76,12 @@
 			}
 		}
 		if (block.kind === 'check') {
+			if (!Array.isArray((block.checkConfig as { questions?: unknown }).questions)) {
+				block.checkConfig = {
+					...block.checkConfig,
+					questions: [createCheckQuestion('single_choice', 0)]
+				};
+			}
 			block.checkConfig = normalizeLessonCheckConfig(block.checkConfig);
 		}
 		return block;
@@ -81,6 +93,20 @@
 	let isSaving = $state(false);
 	let isUploadingInlineImage = $state(false);
 	let inlineImageError = $state('');
+	let isGeneratingCheckQuestions = $state(false);
+	let checkGenerationError = $state('');
+	let checkGenerationModel = $state('');
+	let checkGenerationObjective = $state('');
+	let checkGenerationCount = $state(3);
+	let checkGenerationDifficulty = $state<'easy' | 'medium' | 'hard'>('medium');
+	let checkGenerationAllowedModes = $state<LessonCheckMode[]>([
+		'single_choice',
+		'multiple_choice',
+		'true_false'
+	]);
+	let generatedCheckQuestions = $state<LessonCheckQuestion[]>([]);
+	let selectedGeneratedQuestionIds = $state<string[]>([]);
+	let clientFetch: typeof fetch | null = null;
 
 	const cid = $derived(page.params.cid ?? '');
 	const ilid = $derived(page.params.ilid ?? '');
@@ -354,20 +380,116 @@
 		markDirty();
 	}
 
-	function updateCheckMode(mode: LessonCheckMode) {
+	function createCheckQuestion(mode: LessonCheckMode, index = 0): LessonCheckQuestion {
+		const id = `question_${Date.now().toString(36)}_${index + 1}`;
+		if (mode === 'true_false') {
+			return {
+				id,
+				prompt: 'Indica si la afirmación es verdadera o falsa.',
+				mode,
+				options: createLessonCheckTrueFalseOptions(),
+				correctOptionIds: ['true']
+			};
+		}
+		if (mode === 'single_choice' || mode === 'multiple_choice') {
+			const options: LessonCheckOption[] = [
+				{ id: 'option_1', label: 'Opción 1', value: 'option_1', description: '' },
+				{ id: 'option_2', label: 'Opción 2', value: 'option_2', description: '' }
+			];
+			if (mode === 'multiple_choice') {
+				options.push({ id: 'option_3', label: 'Opción 3', value: 'option_3', description: '' });
+			}
+			return {
+				id,
+				prompt: 'Nueva pregunta',
+				mode,
+				options,
+				correctOptionIds: mode === 'multiple_choice' ? ['option_1', 'option_2'] : ['option_1']
+			};
+		}
+		if (mode === 'numeric') {
+			return {
+				id,
+				prompt: 'Nueva pregunta numérica',
+				mode,
+				acceptedExact: 10,
+				acceptedRange: undefined,
+				tolerance: 0
+			};
+		}
+		return {
+			id,
+			prompt: 'Nueva pregunta de respuesta corta',
+			mode,
+			acceptedAnswers: ['respuesta esperada'],
+			caseSensitive: false,
+			trimWhitespace: true,
+			matchMode: 'exact'
+		};
+	}
+
+	function addCheckQuestion(mode: LessonCheckMode = 'single_choice') {
 		if (workingBlock.kind !== 'check') return;
-		workingBlock.checkConfig = normalizeLessonCheckConfig({
-			...workingBlock.checkConfig,
-			mode
-		});
+		workingBlock.checkConfig.questions = [
+			...workingBlock.checkConfig.questions,
+			createCheckQuestion(mode, workingBlock.checkConfig.questions.length)
+		];
 		markDirty();
 	}
 
-	function addCheckOption() {
+	function duplicateCheckQuestion(index: number) {
 		if (workingBlock.kind !== 'check') return;
-		const optionNumber = workingBlock.checkConfig.options.length + 1;
-		workingBlock.checkConfig.options = [
-			...workingBlock.checkConfig.options,
+		const source = workingBlock.checkConfig.questions[index];
+		if (!source) return;
+		const duplicate = structuredClone(source);
+		duplicate.id = `${source.id}_copy_${Date.now().toString(36)}`;
+		workingBlock.checkConfig.questions = [
+			...workingBlock.checkConfig.questions.slice(0, index + 1),
+			duplicate,
+			...workingBlock.checkConfig.questions.slice(index + 1)
+		];
+		markDirty();
+	}
+
+	function removeCheckQuestion(index: number) {
+		if (workingBlock.kind !== 'check') return;
+		workingBlock.checkConfig.questions = workingBlock.checkConfig.questions.filter(
+			(_, questionIndex) => questionIndex !== index
+		);
+		markDirty();
+	}
+
+	function moveCheckQuestion(index: number, direction: -1 | 1) {
+		if (workingBlock.kind !== 'check') return;
+		const nextIndex = index + direction;
+		if (nextIndex < 0 || nextIndex >= workingBlock.checkConfig.questions.length) return;
+		const questions = [...workingBlock.checkConfig.questions];
+		const [question] = questions.splice(index, 1);
+		if (!question) return;
+		questions.splice(nextIndex, 0, question);
+		workingBlock.checkConfig.questions = questions;
+		markDirty();
+	}
+
+	function updateCheckQuestionMode(index: number, mode: LessonCheckMode) {
+		if (workingBlock.kind !== 'check') return;
+		const previous = workingBlock.checkConfig.questions[index];
+		if (!previous) return;
+		const next = createCheckQuestion(mode, index);
+		next.id = previous.id;
+		next.prompt = previous.prompt;
+		workingBlock.checkConfig.questions[index] = next;
+		markDirty();
+	}
+
+	function addCheckQuestionOption(questionIndex: number) {
+		if (workingBlock.kind !== 'check') return;
+		const question = workingBlock.checkConfig.questions[questionIndex];
+		if (!question || question.mode === 'numeric' || question.mode === 'short_text') return;
+		if (question.mode === 'true_false') return;
+		const optionNumber = question.options.length + 1;
+		question.options = [
+			...question.options,
 			{
 				id: `option_${optionNumber}`,
 				label: `Opción ${optionNumber}`,
@@ -375,54 +497,157 @@
 				description: ''
 			}
 		];
-		if (workingBlock.checkConfig.correctOptionIds.length === 0) {
-			workingBlock.checkConfig.correctOptionIds = [`option_${optionNumber}`];
-		}
 		markDirty();
 	}
 
-	function removeCheckOption(index: number) {
+	function removeCheckQuestionOption(questionIndex: number, optionIndex: number) {
 		if (workingBlock.kind !== 'check') return;
-		const removedOptionId = workingBlock.checkConfig.options[index]?.id;
-		workingBlock.checkConfig.options = workingBlock.checkConfig.options.filter(
-			(_, optionIndex) => optionIndex !== index
-		);
+		const question = workingBlock.checkConfig.questions[questionIndex];
+		if (!question || question.mode === 'numeric' || question.mode === 'short_text') return;
+		if (question.mode === 'true_false') return;
+		const removedOptionId = question.options[optionIndex]?.id;
+		question.options = question.options.filter((_, index) => index !== optionIndex);
 		if (removedOptionId) {
-			workingBlock.checkConfig.correctOptionIds = workingBlock.checkConfig.correctOptionIds.filter(
+			question.correctOptionIds = question.correctOptionIds.filter(
 				(optionId) => optionId !== removedOptionId
 			);
 		}
+		if (question.correctOptionIds.length === 0 && question.options[0]) {
+			question.correctOptionIds = [question.options[0].id];
+		}
 		markDirty();
 	}
 
-	function applyCheckPreset(mode: LessonCheckMode) {
+	function updateCheckQuestionCorrectOption(
+		questionIndex: number,
+		optionId: string,
+		checked: boolean
+	) {
 		if (workingBlock.kind !== 'check') return;
-		workingBlock.checkConfig = normalizeLessonCheckConfig({
-			mode,
-			options:
-				mode === 'single_choice'
-					? [
-							{ id: 'option_1', label: 'Opción 1', value: 'option_1', description: '' },
-							{ id: 'option_2', label: 'Opción 2', value: 'option_2', description: '' }
-						]
-					: mode === 'multiple_choice'
-						? [
-								{ id: 'option_1', label: 'Opción 1', value: 'option_1', description: '' },
-								{ id: 'option_2', label: 'Opción 2', value: 'option_2', description: '' },
-								{ id: 'option_3', label: 'Opción 3', value: 'option_3', description: '' }
-							]
-						: undefined,
-			correctOptionIds:
-				mode === 'single_choice'
-					? ['option_1']
-					: mode === 'multiple_choice'
-						? ['option_1', 'option_2']
-						: undefined,
-			acceptedExact: mode === 'numeric' ? 10 : null,
-			tolerance: mode === 'numeric' ? 0 : null,
-			acceptedAnswers: mode === 'short_text' ? ['respuesta esperada'] : [],
-			matchMode: mode === 'short_text' ? 'exact' : undefined
+		const question = workingBlock.checkConfig.questions[questionIndex];
+		if (!question || question.mode === 'numeric' || question.mode === 'short_text') return;
+		if (question.mode === 'multiple_choice') {
+			question.correctOptionIds = checked
+				? [...new Set([...question.correctOptionIds, optionId])]
+				: question.correctOptionIds.filter((id) => id !== optionId);
+		} else {
+			question.correctOptionIds = checked ? [optionId] : [];
+		}
+		markDirty();
+	}
+
+	function toggleCheckGenerationMode(mode: LessonCheckMode, checked: boolean) {
+		checkGenerationAllowedModes = checked
+			? [...new Set([...checkGenerationAllowedModes, mode])]
+			: checkGenerationAllowedModes.filter((value) => value !== mode);
+		if (checkGenerationAllowedModes.length === 0) {
+			checkGenerationAllowedModes = [mode];
+		}
+	}
+
+	function toggleGeneratedQuestionSelection(questionId: string, checked: boolean) {
+		selectedGeneratedQuestionIds = checked
+			? [...new Set([...selectedGeneratedQuestionIds, questionId])]
+			: selectedGeneratedQuestionIds.filter((id) => id !== questionId);
+	}
+
+	async function generateCheckQuestions() {
+		if (workingBlock.kind !== 'check') return;
+		if (!clientFetch) {
+			checkGenerationError = 'La generación IA solo está disponible en el navegador.';
+			return;
+		}
+		checkGenerationError = '';
+		isGeneratingCheckQuestions = true;
+		try {
+			const response = await clientFetch(
+				`/api/course/${cid}/lesson/${ilid}/authoring/check/generate`,
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						blockId: workingBlock.id,
+						model: checkGenerationModel || data.defaultModel || data.models[0]?.name || '',
+						objective: checkGenerationObjective,
+						count: checkGenerationCount,
+						difficulty: checkGenerationDifficulty,
+						allowedModes: checkGenerationAllowedModes
+					})
+				}
+			);
+			const result = (await response.json().catch(() => ({}))) as {
+				error?: string;
+				questions?: LessonCheckQuestion[];
+			};
+			if (!response.ok) {
+				throw new Error(result.error || 'No se han podido generar preguntas.');
+			}
+			generatedCheckQuestions = result.questions ?? [];
+			selectedGeneratedQuestionIds = generatedCheckQuestions.map((question) => question.id);
+		} catch (errorValue) {
+			checkGenerationError =
+				errorValue instanceof Error ? errorValue.message : 'No se han podido generar preguntas.';
+		} finally {
+			isGeneratingCheckQuestions = false;
+		}
+	}
+
+	function selectedGeneratedQuestions() {
+		return generatedCheckQuestions.filter((question) =>
+			selectedGeneratedQuestionIds.includes(question.id)
+		);
+	}
+
+	function uniqueQuestionId(baseId: string, usedIds: Set<string>) {
+		const safeBase = baseId.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'question';
+		let candidate = safeBase;
+		let suffix = 2;
+		while (usedIds.has(candidate)) {
+			candidate = `${safeBase}_${suffix}`;
+			suffix += 1;
+		}
+		usedIds.add(candidate);
+		return candidate;
+	}
+
+	function cloneQuestionsForBank(
+		questions: LessonCheckQuestion[],
+		existingQuestions: LessonCheckQuestion[] = []
+	) {
+		const usedIds = new Set(existingQuestions.map((question) => question.id));
+		return questions.map((question, index) => {
+			const clone = structuredClone(question);
+			clone.id = uniqueQuestionId(clone.id || `question_${index + 1}`, usedIds);
+			return clone;
 		});
+	}
+
+	function appendSelectedGeneratedQuestions() {
+		if (workingBlock.kind !== 'check') return;
+		const selected = selectedGeneratedQuestions();
+		if (selected.length === 0) return;
+		workingBlock.checkConfig = {
+			...workingBlock.checkConfig,
+			questions: [
+				...workingBlock.checkConfig.questions,
+				...cloneQuestionsForBank(selected, workingBlock.checkConfig.questions)
+			]
+		};
+		generatedCheckQuestions = [];
+		selectedGeneratedQuestionIds = [];
+		markDirty();
+	}
+
+	function replaceWithSelectedGeneratedQuestions() {
+		if (workingBlock.kind !== 'check') return;
+		const selected = selectedGeneratedQuestions();
+		if (selected.length === 0) return;
+		workingBlock.checkConfig = {
+			...workingBlock.checkConfig,
+			questions: cloneQuestionsForBank(selected)
+		};
+		generatedCheckQuestions = [];
+		selectedGeneratedQuestionIds = [];
 		markDirty();
 	}
 
@@ -571,18 +796,6 @@
 		markDirty();
 	}
 
-	function updateCheckCorrectOption(optionId: string, checked: boolean) {
-		if (workingBlock.kind !== 'check') return;
-		if (workingBlock.checkConfig.mode === 'multiple_choice') {
-			workingBlock.checkConfig.correctOptionIds = checked
-				? [...workingBlock.checkConfig.correctOptionIds, optionId]
-				: workingBlock.checkConfig.correctOptionIds.filter((id) => id !== optionId);
-		} else {
-			workingBlock.checkConfig.correctOptionIds = checked ? [optionId] : [];
-		}
-		markDirty();
-	}
-
 	function removeChoiceOption(index: number) {
 		if (workingBlock.kind !== 'choice') return;
 		workingBlock.options = workingBlock.options.filter((_, optionIndex) => optionIndex !== index);
@@ -628,13 +841,16 @@
 	}
 
 	async function uploadInlineImage(file: File): Promise<InlineUploadResult> {
+		if (!clientFetch) {
+			throw new Error('La subida de imágenes solo está disponible en el navegador.');
+		}
 		isUploadingInlineImage = true;
 		inlineImageError = '';
 
 		try {
 			const formData = new FormData();
 			formData.append('file', file);
-			const response = await fetch('?/uploadInlineImage', {
+			const response = await clientFetch('?/uploadInlineImage', {
 				method: 'POST',
 				headers: { 'x-sveltekit-action': 'true' },
 				body: formData
@@ -687,6 +903,9 @@
 	});
 
 	onMount(() => {
+		clientFetch = window.fetch.bind(window);
+		checkGenerationModel = data.defaultModel || data.models[0]?.name || '';
+
 		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
 			if (!isDirty || isSaving) return;
 			event.preventDefault();
@@ -1167,52 +1386,19 @@
 							></textarea>
 						</label>
 
-						<div
-							class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/10"
-						>
-							<div class="flex flex-wrap items-center justify-between gap-3">
-								<div>
-									<h2 class="text-base font-semibold text-gray-900 dark:text-white">
-										Presets de evaluación
-									</h2>
-									<p class="text-sm text-gray-500 dark:text-gray-400">
-										Arranca con una configuración base y afínala después.
-									</p>
-								</div>
-								<div class="flex flex-wrap gap-2">
-									{#each checkModes as modeOption (modeOption.value)}
-										<button
-											type="button"
-											class="rounded-xl border border-emerald-300 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 dark:border-emerald-900/40 dark:text-emerald-200 dark:hover:bg-emerald-950/30"
-											onclick={() => applyCheckPreset(modeOption.value)}
-										>
-											{modeOption.label}
-										</button>
-									{/each}
-								</div>
-							</div>
-						</div>
-
-						<div class="grid gap-4 md:grid-cols-3">
+						<div class="grid gap-4 md:grid-cols-4">
 							<label class="block">
 								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-									>Modo</span
+									>Presentación</span
 								>
 								<select
 									class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-									bind:value={workingBlock.checkConfig.mode}
-									onchange={(event) =>
-										updateCheckMode(
-											(event.currentTarget as HTMLSelectElement).value as LessonCheckMode
-										)}
+									bind:value={workingBlock.checkConfig.presentationMode}
+									onchange={markDirty}
 								>
-									{#each checkModes as modeOption (modeOption.value)}
-										<option value={modeOption.value}>{modeOption.label}</option>
-									{/each}
+									<option value="all_at_once">Todas en pantalla</option>
+									<option value="step_by_step">Paso a paso</option>
 								</select>
-								<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-									Modo actual: {getLessonCheckModeLabel(workingBlock.checkConfig.mode)}
-								</p>
 							</label>
 
 							<label class="block">
@@ -1245,9 +1431,7 @@
 									<option value="after_first_submit">Tras el primer envío</option>
 								</select>
 							</label>
-						</div>
 
-						<div class="grid gap-4 md:grid-cols-4">
 							<label class="block">
 								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 									>Score de aprobado</span
@@ -1267,7 +1451,9 @@
 									}}
 								/>
 							</label>
+						</div>
 
+						<div class="grid gap-4 md:grid-cols-3">
 							<label class="block">
 								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 									>Botón enviar</span
@@ -1302,254 +1488,344 @@
 							</label>
 						</div>
 
-						<label
-							class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+						<div
+							class="grid gap-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-800 lg:grid-cols-[1.1fr_0.9fr]"
 						>
-							<input
-								type="checkbox"
-								class="text-primary-600 h-4 w-4 rounded border-gray-300"
-								bind:checked={workingBlock.checkConfig.revealCorrectAnswer}
-								onchange={markDirty}
-							/>
 							<div>
-								<p class="text-sm font-medium text-gray-900 dark:text-white">
-									Revelar respuesta correcta
-								</p>
-								<p class="text-xs text-gray-500 dark:text-gray-400">
-									Permite mostrar la solución al alumno tras la corrección.
+								<div class="flex items-center gap-2">
+									<Sparkles class="text-primary-600 h-5 w-5" />
+									<h2 class="text-base font-semibold text-gray-900 dark:text-white">
+										Generar con IA
+									</h2>
+								</div>
+								<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+									Las propuestas se revisan aquí y solo se guardan si las añades al banco.
 								</p>
 							</div>
-						</label>
-
-						{#if workingBlock.checkConfig.mode === 'single_choice' || workingBlock.checkConfig.mode === 'multiple_choice' || workingBlock.checkConfig.mode === 'true_false'}
-							<div class="space-y-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-								<div class="flex flex-wrap items-center justify-between gap-3">
-									<div>
-										<h2 class="text-base font-semibold text-gray-900 dark:text-white">
-											Opciones evaluables
-										</h2>
-										<p class="text-sm text-gray-500 dark:text-gray-400">
-											Marca las respuestas correctas que debe aceptar el bloque.
-										</p>
-									</div>
-									{#if workingBlock.checkConfig.mode !== 'true_false'}
-										<button
-											type="button"
-											class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-											onclick={addCheckOption}
-										>
-											<Plus class="mr-1 inline h-4 w-4" />
-											Añadir opción
-										</button>
-									{/if}
-								</div>
-
-								{#each workingBlock.checkConfig.options as option, optionIndex (option.id)}
-									<div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-										<div class="mb-3 flex items-start justify-between gap-3">
+							<div class="grid gap-3 sm:grid-cols-2">
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+										>Modelo</span
+									>
+									<select
+										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+										bind:value={checkGenerationModel}
+									>
+										{#each data.models as model (model.name)}
+											<option value={model.name}>{model.name}</option>
+										{/each}
+									</select>
+								</label>
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+										>Cantidad</span
+									>
+									<input
+										type="number"
+										min="1"
+										max="12"
+										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+										bind:value={checkGenerationCount}
+									/>
+								</label>
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+										>Dificultad</span
+									>
+									<select
+										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+										bind:value={checkGenerationDifficulty}
+									>
+										<option value="easy">Baja</option>
+										<option value="medium">Media</option>
+										<option value="hard">Alta</option>
+									</select>
+								</label>
+								<fieldset class="block">
+									<legend class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+										Tipos permitidos
+									</legend>
+									<div class="flex flex-wrap gap-2">
+										{#each checkModes as modeOption (modeOption.value)}
 											<label
-												class="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white"
+												class="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm dark:border-gray-800"
 											>
 												<input
-													type={workingBlock.checkConfig.mode === 'multiple_choice'
-														? 'checkbox'
-														: 'radio'}
-													name="correctOption"
-													class="text-primary-600 h-4 w-4 border-gray-300"
-													checked={workingBlock.checkConfig.correctOptionIds.includes(option.id)}
+													type="checkbox"
+													class="text-primary-600 h-4 w-4 rounded border-gray-300"
+													checked={checkGenerationAllowedModes.includes(modeOption.value)}
 													onchange={(event) =>
-														updateCheckCorrectOption(
-															option.id,
+														toggleCheckGenerationMode(
+															modeOption.value,
 															(event.currentTarget as HTMLInputElement).checked
 														)}
 												/>
-												Correcta
+												{modeOption.label}
 											</label>
-
-											{#if workingBlock.checkConfig.mode !== 'true_false'}
-												<button
-													type="button"
-													class="rounded-xl border border-red-200 px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
-													onclick={() => removeCheckOption(optionIndex)}
-												>
-													<Trash2 class="mr-1 inline h-4 w-4" />
-													Eliminar
-												</button>
-											{/if}
-										</div>
-
-										<div class="grid gap-3 md:grid-cols-3">
-											<label class="block">
-												<span
-													class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
-													>ID</span
-												>
-												<input
-													class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-													bind:value={option.id}
-													oninput={markDirty}
-													disabled={workingBlock.checkConfig.mode === 'true_false'}
-												/>
-											</label>
-
-											<label class="block">
-												<span
-													class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
-													>Etiqueta</span
-												>
-												<input
-													class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-													bind:value={option.label}
-													oninput={markDirty}
-												/>
-											</label>
-
-											<label class="block">
-												<span
-													class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
-													>Valor</span
-												>
-												<input
-													class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-													bind:value={option.value}
-													oninput={markDirty}
-												/>
-											</label>
-										</div>
-
-										<label class="mt-3 block">
-											<span
-												class="mb-1 block text-xs font-medium tracking-[0.14em] text-gray-500 uppercase"
-												>Descripción opcional</span
-											>
-											<textarea
-												class="min-h-24 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-												bind:value={option.description}
-												oninput={markDirty}
-											></textarea>
-										</label>
+										{/each}
 									</div>
-								{/each}
+								</fieldset>
 							</div>
-						{:else if workingBlock.checkConfig.mode === 'numeric'}
-							<div class="grid gap-4 md:grid-cols-3">
-								<label class="mt-5 block">
-									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-										>Valor exacto</span
-									>
-									<input
-										type="number"
-										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-										value={workingBlock.checkConfig.acceptedExact ?? ''}
-										oninput={(event) => {
-											const value = (event.currentTarget as HTMLInputElement).value;
-											workingBlock.checkConfig.acceptedExact = value ? Number(value) : null;
-											markDirty();
-										}}
-									/>
-								</label>
-
-								<label class="mt-5 block">
-									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-										>Mínimo</span
-									>
-									<input
-										type="number"
-										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-										value={workingBlock.checkConfig.acceptedRange?.min ?? ''}
-										oninput={(event) => {
-											const value = (event.currentTarget as HTMLInputElement).value;
-											workingBlock.checkConfig.acceptedRange = {
-												...(workingBlock.checkConfig.acceptedRange ?? {}),
-												min: value ? Number(value) : undefined
-											};
-											markDirty();
-										}}
-									/>
-								</label>
-
-								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-										>Máximo</span
-									>
-									<input
-										type="number"
-										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-										value={workingBlock.checkConfig.acceptedRange?.max ?? ''}
-										oninput={(event) => {
-											const value = (event.currentTarget as HTMLInputElement).value;
-											workingBlock.checkConfig.acceptedRange = {
-												...(workingBlock.checkConfig.acceptedRange ?? {}),
-												max: value ? Number(value) : undefined
-											};
-											markDirty();
-										}}
-									/>
-								</label>
+							<label class="block lg:col-span-2">
+								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>Objetivo e instrucciones</span
+								>
+								<textarea
+									class="min-h-24 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+									bind:value={checkGenerationObjective}
+									placeholder="Ej.: comprobar comprensión de los conceptos clave del bloque, con distractores plausibles."
+								></textarea>
+							</label>
+							<div class="flex flex-wrap items-center justify-between gap-3 lg:col-span-2">
+								{#if checkGenerationError}
+									<p class="text-sm text-red-600 dark:text-red-300">{checkGenerationError}</p>
+								{:else}
+									<span></span>
+								{/if}
+								<button
+									type="button"
+									class="bg-primary-600 hover:bg-primary-700 rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+									onclick={generateCheckQuestions}
+									disabled={isGeneratingCheckQuestions || !checkGenerationObjective.trim()}
+								>
+									<Sparkles class="mr-1 inline h-4 w-4" />
+									{isGeneratingCheckQuestions ? 'Generando...' : 'Generar propuestas'}
+								</button>
 							</div>
-						{:else if workingBlock.checkConfig.mode === 'short_text'}
-							<div class="space-y-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-								<label class="block">
-									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-										>Respuestas aceptadas</span
-									>
-									<textarea
-										class="min-h-32 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-										value={workingBlock.checkConfig.acceptedAnswers.join('\n')}
-										oninput={(event) => {
-											workingBlock.checkConfig.acceptedAnswers = (
-												event.currentTarget as HTMLTextAreaElement
-											).value
-												.split('\n')
-												.map((value) => value.trim())
-												.filter(Boolean);
-											markDirty();
-										}}
-									></textarea>
-								</label>
-
-								<div class="grid gap-4 md:grid-cols-3">
-									<label class="block">
-										<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-											>Modo de coincidencia</span
+							{#if generatedCheckQuestions.length > 0}
+								<div class="space-y-3 lg:col-span-2">
+									{#each generatedCheckQuestions as question (question.id)}
+										<label
+											class="flex items-start gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800"
 										>
-										<select
-											class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-											bind:value={workingBlock.checkConfig.matchMode}
-											onchange={markDirty}
+											<input
+												type="checkbox"
+												class="text-primary-600 mt-1 h-4 w-4 rounded border-gray-300"
+												checked={selectedGeneratedQuestionIds.includes(question.id)}
+												onchange={(event) =>
+													toggleGeneratedQuestionSelection(
+														question.id,
+														(event.currentTarget as HTMLInputElement).checked
+													)}
+											/>
+											<span>
+												<span class="text-sm font-medium text-gray-900 dark:text-white">
+													{getLessonCheckModeLabel(question.mode)} · {question.prompt}
+												</span>
+												<span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+													{question.mode === 'numeric'
+														? 'Respuesta numérica'
+														: question.mode === 'short_text'
+															? question.acceptedAnswers.join(', ')
+															: question.options.map((option) => option.label).join(', ')}
+												</span>
+											</span>
+										</label>
+									{/each}
+									<div class="flex flex-wrap justify-end gap-2">
+										<button
+											type="button"
+											class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+											onclick={() => {
+												generatedCheckQuestions = [];
+												selectedGeneratedQuestionIds = [];
+											}}
 										>
-											{#each checkTextMatchModes as matchModeOption (matchModeOption.value)}
-												<option value={matchModeOption.value}>{matchModeOption.label}</option>
-											{/each}
-										</select>
-									</label>
+											Descartar
+										</button>
+										<button
+											type="button"
+											class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+											onclick={appendSelectedGeneratedQuestions}
+											disabled={selectedGeneratedQuestionIds.length === 0}
+										>
+											Añadir seleccionadas
+										</button>
+										<button
+											type="button"
+											class="bg-primary-600 hover:bg-primary-700 rounded-xl px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+											onclick={replaceWithSelectedGeneratedQuestions}
+											disabled={selectedGeneratedQuestionIds.length === 0}
+										>
+											Reemplazar banco
+										</button>
+									</div>
+								</div>
+							{/if}
+						</div>
 
-									<label
-										class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-									>
-										<input
-											type="checkbox"
-											class="text-primary-600 h-4 w-4 rounded border-gray-300"
-											bind:checked={workingBlock.checkConfig.caseSensitive}
-											onchange={markDirty}
-										/>
-										<span class="text-sm text-gray-900 dark:text-white">Distinguir mayúsculas</span>
-									</label>
-
-									<label
-										class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-									>
-										<input
-											type="checkbox"
-											class="text-primary-600 h-4 w-4 rounded border-gray-300"
-											bind:checked={workingBlock.checkConfig.trimWhitespace}
-											onchange={markDirty}
-										/>
-										<span class="text-sm text-gray-900 dark:text-white">Recortar espacios</span>
-									</label>
+						<div class="space-y-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+							<div class="flex flex-wrap items-center justify-between gap-3">
+								<div>
+									<h2 class="text-base font-semibold text-gray-900 dark:text-white">
+										Banco de preguntas
+									</h2>
+									<p class="text-sm text-gray-500 dark:text-gray-400">
+										{workingBlock.checkConfig.questions.length} pregunta{workingBlock
+											.checkConfig.questions.length === 1
+											? ''
+											: 's'} configurada{workingBlock.checkConfig.questions.length === 1
+											? ''
+											: 's'}.
+									</p>
+								</div>
+								<div class="flex flex-wrap gap-2">
+									{#each checkModes as modeOption (modeOption.value)}
+										<button
+											type="button"
+											class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+											onclick={() => addCheckQuestion(modeOption.value)}
+										>
+											<Plus class="mr-1 inline h-4 w-4" />
+											{modeOption.label}
+										</button>
+									{/each}
 								</div>
 							</div>
-						{/if}
+
+							{#each workingBlock.checkConfig.questions as question, questionIndex (question.id)}
+								<fieldset class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+									<legend class="px-1 text-sm font-semibold text-gray-900 dark:text-white">
+										Pregunta {questionIndex + 1}
+									</legend>
+									<div class="flex flex-wrap items-center justify-between gap-2">
+										<select
+											class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+											value={question.mode}
+											onchange={(event) =>
+												updateCheckQuestionMode(
+													questionIndex,
+													(event.currentTarget as HTMLSelectElement).value as LessonCheckMode
+												)}
+										>
+											{#each checkModes as modeOption (modeOption.value)}
+												<option value={modeOption.value}>{modeOption.label}</option>
+											{/each}
+										</select>
+										<div class="flex gap-2">
+											<button type="button" class="rounded-xl border border-gray-300 p-2" onclick={() => moveCheckQuestion(questionIndex, -1)} disabled={questionIndex === 0}>
+												<ArrowUp class="h-4 w-4" />
+											</button>
+											<button type="button" class="rounded-xl border border-gray-300 p-2" onclick={() => moveCheckQuestion(questionIndex, 1)} disabled={questionIndex === workingBlock.checkConfig.questions.length - 1}>
+												<ArrowDown class="h-4 w-4" />
+											</button>
+											<button type="button" class="rounded-xl border border-gray-300 p-2" onclick={() => duplicateCheckQuestion(questionIndex)}>
+												<Copy class="h-4 w-4" />
+											</button>
+											<button type="button" class="rounded-xl border border-red-200 p-2 text-red-700" onclick={() => removeCheckQuestion(questionIndex)} disabled={workingBlock.checkConfig.questions.length <= 1}>
+												<Trash2 class="h-4 w-4" />
+											</button>
+										</div>
+									</div>
+									<label class="mt-4 block">
+										<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+											>Enunciado</span>
+										<textarea
+											class="min-h-24 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+											bind:value={question.prompt}
+											oninput={markDirty}
+										></textarea>
+									</label>
+
+									{#if question.mode === 'single_choice' || question.mode === 'multiple_choice' || question.mode === 'true_false'}
+										<div class="mt-4 space-y-3">
+											<div class="flex items-center justify-between gap-2">
+												<p class="text-sm font-medium text-gray-900 dark:text-white">
+													Opciones
+												</p>
+												{#if question.mode !== 'true_false'}
+													<button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-sm" onclick={() => addCheckQuestionOption(questionIndex)}>
+														<Plus class="mr-1 inline h-4 w-4" /> Añadir opción
+													</button>
+												{/if}
+											</div>
+											{#each question.options as option, optionIndex (option.id)}
+												<div class="grid gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 md:grid-cols-[auto_1fr_1fr_auto]">
+													<label class="flex items-center gap-2 text-sm">
+														<input
+															type={question.mode === 'multiple_choice' ? 'checkbox' : 'radio'}
+															name={`correct-${question.id}`}
+															class="text-primary-600 h-4 w-4 border-gray-300"
+															checked={question.correctOptionIds.includes(option.id)}
+															onchange={(event) =>
+																updateCheckQuestionCorrectOption(
+																	questionIndex,
+																	option.id,
+																	(event.currentTarget as HTMLInputElement).checked
+																)}
+														/>
+														Correcta
+													</label>
+													<input class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" bind:value={option.label} oninput={markDirty} />
+													<input class="rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" bind:value={option.id} oninput={markDirty} disabled={question.mode === 'true_false'} />
+													{#if question.mode !== 'true_false'}
+														<button type="button" class="rounded-xl border border-red-200 px-3 py-2 text-sm text-red-700" onclick={() => removeCheckQuestionOption(questionIndex, optionIndex)}>
+															Eliminar
+														</button>
+													{/if}
+													<textarea class="md:col-span-4 min-h-20 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" bind:value={option.description} oninput={markDirty} placeholder="Descripción opcional"></textarea>
+												</div>
+											{/each}
+										</div>
+									{:else if question.mode === 'numeric'}
+										<div class="mt-4 grid gap-4 md:grid-cols-4">
+											<label class="block">
+												<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Valor exacto</span>
+												<input type="number" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" value={question.acceptedExact ?? ''} oninput={(event) => { const value = (event.currentTarget as HTMLInputElement).value; question.acceptedExact = value ? Number(value) : null; markDirty(); }} />
+											</label>
+											<label class="block">
+												<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Tolerancia</span>
+												<input type="number" min="0" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" value={question.tolerance ?? ''} oninput={(event) => { const value = (event.currentTarget as HTMLInputElement).value; question.tolerance = value ? Number(value) : null; markDirty(); }} />
+											</label>
+											<label class="block">
+												<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Mínimo</span>
+												<input type="number" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" value={question.acceptedRange?.min ?? ''} oninput={(event) => { const value = (event.currentTarget as HTMLInputElement).value; question.acceptedRange = { ...(question.acceptedRange ?? {}), min: value ? Number(value) : undefined }; markDirty(); }} />
+											</label>
+											<label class="block">
+												<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Máximo</span>
+												<input type="number" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" value={question.acceptedRange?.max ?? ''} oninput={(event) => { const value = (event.currentTarget as HTMLInputElement).value; question.acceptedRange = { ...(question.acceptedRange ?? {}), max: value ? Number(value) : undefined }; markDirty(); }} />
+											</label>
+										</div>
+									{:else if question.mode === 'short_text'}
+										<div class="mt-4 grid gap-4 md:grid-cols-3">
+											<label class="block md:col-span-3">
+												<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Respuestas aceptadas</span>
+												<textarea class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" value={question.acceptedAnswers.join('\n')} oninput={(event) => { question.acceptedAnswers = (event.currentTarget as HTMLTextAreaElement).value.split('\n').map((value) => value.trim()).filter(Boolean); markDirty(); }}></textarea>
+											</label>
+											<label class="block">
+												<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Coincidencia</span>
+												<select class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" bind:value={question.matchMode} onchange={markDirty}>
+													{#each checkTextMatchModes as matchModeOption (matchModeOption.value)}
+														<option value={matchModeOption.value}>{matchModeOption.label}</option>
+													{/each}
+												</select>
+											</label>
+											<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+												<input type="checkbox" class="text-primary-600 h-4 w-4 rounded border-gray-300" bind:checked={question.caseSensitive} onchange={markDirty} />
+												<span class="text-sm text-gray-900 dark:text-white">Distinguir mayúsculas</span>
+											</label>
+											<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+												<input type="checkbox" class="text-primary-600 h-4 w-4 rounded border-gray-300" bind:checked={question.trimWhitespace} onchange={markDirty} />
+												<span class="text-sm text-gray-900 dark:text-white">Recortar espacios</span>
+											</label>
+										</div>
+									{/if}
+
+									<details class="mt-4">
+										<summary class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Campos técnicos</summary>
+										<label class="mt-3 block">
+											<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">ID de pregunta</span>
+											<input class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" bind:value={question.id} oninput={markDirty} />
+										</label>
+									</details>
+								</fieldset>
+							{/each}
+						</div>
+
+						<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+							<input type="checkbox" class="text-primary-600 h-4 w-4 rounded border-gray-300" bind:checked={workingBlock.checkConfig.revealCorrectAnswer} onchange={markDirty} />
+							<span class="text-sm font-medium text-gray-900 dark:text-white">Revelar respuesta correcta tras corregir</span>
+						</label>
 
 						<div class="grid gap-4 md:grid-cols-3">
 							<label class="block">

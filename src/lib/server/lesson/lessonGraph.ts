@@ -7,6 +7,7 @@ import type {
 	LessonBlockContractField,
 	LessonBlockGraphSummary,
 	LessonBlockReferenceGroups,
+	LessonCheckQuestion,
 	LessonDefinition,
 	LessonOutputField
 } from '../../types/lesson.ts';
@@ -113,8 +114,45 @@ const lessonCheckOptionSchema = z.object({
 	description: z.string().optional()
 });
 
+const lessonCheckAcceptedRangeSchema = z.object({
+	min: z.number().optional(),
+	max: z.number().optional()
+});
+
+const lessonCheckChoiceQuestionSchema = z.object({
+	id: z.string().min(1),
+	prompt: z.string().min(1),
+	mode: z.enum(['single_choice', 'multiple_choice', 'true_false']),
+	options: z.array(lessonCheckOptionSchema),
+	correctOptionIds: z.array(z.string().min(1))
+});
+
+const lessonCheckNumericQuestionSchema = z.object({
+	id: z.string().min(1),
+	prompt: z.string().min(1),
+	mode: z.literal('numeric'),
+	acceptedRange: lessonCheckAcceptedRangeSchema.optional(),
+	acceptedExact: z.number().nullable(),
+	tolerance: z.number().min(0).nullable()
+});
+
+const lessonCheckShortTextQuestionSchema = z.object({
+	id: z.string().min(1),
+	prompt: z.string().min(1),
+	mode: z.literal('short_text'),
+	acceptedAnswers: z.array(z.string()),
+	caseSensitive: z.boolean(),
+	trimWhitespace: z.boolean(),
+	matchMode: z.enum(['exact', 'contains', 'regex'])
+});
+
+const lessonCheckQuestionSchema = z.discriminatedUnion('mode', [
+	lessonCheckChoiceQuestionSchema,
+	lessonCheckNumericQuestionSchema,
+	lessonCheckShortTextQuestionSchema
+]);
+
 const lessonCheckConfigSchema = z.object({
-	mode: z.enum(['single_choice', 'multiple_choice', 'true_false', 'numeric', 'short_text']),
 	submitLabel: z.string().optional(),
 	continueLabel: z.string().optional(),
 	retryLabel: z.string().optional(),
@@ -125,20 +163,8 @@ const lessonCheckConfigSchema = z.object({
 	feedbackIncorrect: z.string().optional(),
 	feedbackPartial: z.string().optional(),
 	revealCorrectAnswer: z.boolean().optional(),
-	options: z.array(lessonCheckOptionSchema).optional(),
-	correctOptionIds: z.array(z.string().min(1)).optional(),
-	acceptedRange: z
-		.object({
-			min: z.number().optional(),
-			max: z.number().optional()
-		})
-		.optional(),
-	acceptedExact: z.number().nullable().optional(),
-	tolerance: z.number().min(0).nullable().optional(),
-	acceptedAnswers: z.array(z.string()).optional(),
-	caseSensitive: z.boolean().optional(),
-	trimWhitespace: z.boolean().optional(),
-	matchMode: z.enum(['exact', 'contains', 'regex']).optional()
+	presentationMode: z.enum(['all_at_once', 'step_by_step']).optional(),
+	questions: z.array(lessonCheckQuestionSchema)
 });
 
 const lessonAgentConfigSchema = z.object({
@@ -694,82 +720,46 @@ export function buildLessonBlockContract(block: LessonBlock): LessonBlockContrac
 				availableWhen: 'after_visit'
 			},
 			{
-				path: `blocks.${block.id}.outputs.mode`,
-				key: 'mode',
-				label: `${block.title} · modo`,
-				description: 'Modo de evaluación configurado para este bloque.',
-				type: 'string',
+				path: `blocks.${block.id}.outputs.correctCount`,
+				key: 'correctCount',
+				label: `${block.title} · correctas`,
+				description: 'Número de preguntas superadas en el último envío.',
+				type: 'integer',
 				source: 'system',
 				namespace: 'outputs',
-				availableWhen: 'always'
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.totalQuestions`,
+				key: 'totalQuestions',
+				label: `${block.title} · preguntas`,
+				description: 'Número total de preguntas evaluadas.',
+				type: 'integer',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.questionResults`,
+				key: 'questionResults',
+				label: `${block.title} · resultados`,
+				description: 'Resultado detallado por pregunta del último envío.',
+				type: 'json',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
+			},
+			{
+				path: `blocks.${block.id}.outputs.answers`,
+				key: 'answers',
+				label: `${block.title} · respuestas`,
+				description: 'Respuestas normalizadas del último envío.',
+				type: 'json',
+				source: 'system',
+				namespace: 'outputs',
+				availableWhen: 'after_visit'
 			}
 		);
-
-		const normalizedConfig = normalizeLessonCheckConfig(block.checkConfig);
-		if (
-			normalizedConfig.mode === 'single_choice' ||
-			normalizedConfig.mode === 'multiple_choice' ||
-			normalizedConfig.mode === 'true_false'
-		) {
-			outputs.push(
-				{
-					path: `blocks.${block.id}.outputs.selectedOptionIds`,
-					key: 'selectedOptionIds',
-					label: `${block.title} · opción IDs`,
-					description: 'IDs técnicos de las opciones elegidas.',
-					type: 'json',
-					source: 'system',
-					namespace: 'outputs',
-					availableWhen: 'after_visit'
-				},
-				{
-					path: `blocks.${block.id}.outputs.selectedValues`,
-					key: 'selectedValues',
-					label: `${block.title} · valores`,
-					description: 'Valores asociados a las opciones elegidas.',
-					type: 'json',
-					source: 'system',
-					namespace: 'outputs',
-					availableWhen: 'after_visit'
-				},
-				{
-					path: `blocks.${block.id}.outputs.selectedLabels`,
-					key: 'selectedLabels',
-					label: `${block.title} · etiquetas`,
-					description: 'Etiquetas visibles de las opciones elegidas.',
-					type: 'json',
-					source: 'system',
-					namespace: 'outputs',
-					availableWhen: 'after_visit'
-				}
-			);
-		}
-
-		if (normalizedConfig.mode === 'numeric') {
-			outputs.push({
-				path: `blocks.${block.id}.outputs.answerNumber`,
-				key: 'answerNumber',
-				label: `${block.title} · respuesta numérica`,
-				description: 'Último valor numérico enviado en el bloque.',
-				type: 'number',
-				source: 'system',
-				namespace: 'outputs',
-				availableWhen: 'after_visit'
-			});
-		}
-
-		if (normalizedConfig.mode === 'short_text') {
-			outputs.push({
-				path: `blocks.${block.id}.outputs.answerText`,
-				key: 'answerText',
-				label: `${block.title} · respuesta textual`,
-				description: 'Última respuesta textual enviada en el bloque.',
-				type: 'string',
-				source: 'system',
-				namespace: 'outputs',
-				availableWhen: 'after_visit'
-			});
-		}
 	}
 
 	if (block.kind === 'agent') {
@@ -1133,6 +1123,95 @@ function normalizeSimpleLinearOrphans(definition: LessonDefinition): LessonDefin
 	return definition;
 }
 
+function assertLessonCheckQuestionConfiguration(
+	blockId: string,
+	question: LessonCheckQuestion
+): void {
+	if (
+		question.mode === 'single_choice' ||
+		question.mode === 'multiple_choice' ||
+		question.mode === 'true_false'
+	) {
+		if (question.options.length === 0) {
+			throw new LessonServiceError(
+				400,
+				`La pregunta "${question.id}" del bloque "${blockId}" debe tener opciones.`
+			);
+		}
+
+		const duplicatedOptionIds = question.options
+			.map((option) => option.id)
+			.filter((id, index, list) => list.indexOf(id) !== index);
+
+		if (duplicatedOptionIds.length > 0) {
+			throw new LessonServiceError(
+				400,
+				`La pregunta "${question.id}" del bloque "${blockId}" tiene opciones duplicadas: ${[
+					...new Set(duplicatedOptionIds)
+				].join(', ')}.`
+			);
+		}
+
+		const optionIds = new Set(question.options.map((option) => option.id));
+		if (question.correctOptionIds.length === 0) {
+			throw new LessonServiceError(
+				400,
+				`La pregunta "${question.id}" del bloque "${blockId}" necesita respuesta correcta.`
+			);
+		}
+
+		for (const option of question.options) {
+			if (!option.id.match(/^[a-zA-Z0-9_-]+$/)) {
+				throw new LessonServiceError(
+					400,
+					`Una opción de la pregunta "${question.id}" usa un ID inválido.`
+				);
+			}
+
+			if (!option.label.trim()) {
+				throw new LessonServiceError(
+					400,
+					`Una opción de la pregunta "${question.id}" necesita una etiqueta visible.`
+				);
+			}
+		}
+
+		for (const optionId of question.correctOptionIds) {
+			if (!optionIds.has(optionId)) {
+				throw new LessonServiceError(
+					400,
+					`La pregunta "${question.id}" referencia una opción correcta inexistente: "${optionId}".`
+				);
+			}
+		}
+
+		if (question.mode !== 'multiple_choice' && question.correctOptionIds.length !== 1) {
+			throw new LessonServiceError(
+				400,
+				`La pregunta "${question.id}" solo puede tener una respuesta correcta en este modo.`
+			);
+		}
+	}
+
+	if (question.mode === 'numeric') {
+		const hasRange =
+			question.acceptedRange?.min !== undefined || question.acceptedRange?.max !== undefined;
+		if (question.acceptedExact === null && !hasRange) {
+			throw new LessonServiceError(
+				400,
+				`La pregunta "${question.id}" necesita un valor exacto o un rango para corregirse.`
+			);
+		}
+	}
+
+	if (question.mode === 'short_text' && question.acceptedAnswers.length === 0) {
+		throw new LessonServiceError(
+			400,
+			`La pregunta "${question.id}" debe definir al menos una respuesta textual aceptada.`
+		);
+	}
+}
+
 function assertBlockConfiguration(block: LessonBlock): void {
 	if (!block.id.match(/^[a-zA-Z0-9_-]+$/)) {
 		throw new LessonServiceError(
@@ -1158,93 +1237,43 @@ function assertBlockConfiguration(block: LessonBlock): void {
 
 	if (block.kind === 'check') {
 		const normalizedConfig = normalizeLessonCheckConfig(block.checkConfig);
-		const usesChoiceOptions =
-			normalizedConfig.mode === 'single_choice' ||
-			normalizedConfig.mode === 'multiple_choice' ||
-			normalizedConfig.mode === 'true_false';
 
-		if (usesChoiceOptions) {
-			if (normalizedConfig.options.length === 0) {
-				throw new LessonServiceError(
-					400,
-					`El bloque "${block.id}" debe tener al menos una opción evaluable.`
-				);
-			}
-
-			const duplicatedOptionIds = normalizedConfig.options
-				.map((option) => option.id)
-				.filter((id, index, list) => list.indexOf(id) !== index);
-
-			if (duplicatedOptionIds.length > 0) {
-				throw new LessonServiceError(
-					400,
-					`El bloque "${block.id}" tiene opciones duplicadas: ${[
-						...new Set(duplicatedOptionIds)
-					].join(', ')}.`
-				);
-			}
-
-			const optionIds = new Set(normalizedConfig.options.map((option) => option.id));
-			if (normalizedConfig.correctOptionIds.length === 0) {
-				throw new LessonServiceError(
-					400,
-					`El bloque "${block.id}" debe definir al menos una respuesta correcta.`
-				);
-			}
-
-			for (const option of normalizedConfig.options) {
-				if (!option.id.trim()) {
-					throw new LessonServiceError(
-						400,
-						`Una opción del bloque "${block.id}" necesita un ID válido.`
-					);
-				}
-
-				if (!option.label.trim()) {
-					throw new LessonServiceError(
-						400,
-						`Una opción del bloque "${block.id}" necesita una etiqueta visible.`
-					);
-				}
-			}
-
-			for (const optionId of normalizedConfig.correctOptionIds) {
-				if (!optionIds.has(optionId)) {
-					throw new LessonServiceError(
-						400,
-						`El bloque "${block.id}" referencia una opción correcta inexistente: "${optionId}".`
-					);
-				}
-			}
-
-			if (
-				normalizedConfig.mode !== 'multiple_choice' &&
-				normalizedConfig.correctOptionIds.length !== 1
-			) {
-				throw new LessonServiceError(
-					400,
-					`El bloque "${block.id}" solo puede tener una respuesta correcta en este modo.`
-				);
-			}
-		}
-
-		if (normalizedConfig.mode === 'numeric') {
-			const hasRange =
-				normalizedConfig.acceptedRange?.min !== undefined ||
-				normalizedConfig.acceptedRange?.max !== undefined;
-			if (normalizedConfig.acceptedExact === null && !hasRange) {
-				throw new LessonServiceError(
-					400,
-					`El bloque "${block.id}" necesita un valor exacto o un rango para corregirse.`
-				);
-			}
-		}
-
-		if (normalizedConfig.mode === 'short_text' && normalizedConfig.acceptedAnswers.length === 0) {
+		if (normalizedConfig.questions.length === 0) {
 			throw new LessonServiceError(
 				400,
-				`El bloque "${block.id}" debe definir al menos una respuesta textual aceptada.`
+				`El bloque "${block.id}" debe tener al menos una pregunta evaluable.`
 			);
+		}
+
+		const duplicatedQuestionIds = normalizedConfig.questions
+			.map((question) => question.id)
+			.filter((id, index, list) => list.indexOf(id) !== index);
+
+		if (duplicatedQuestionIds.length > 0) {
+			throw new LessonServiceError(
+				400,
+				`El bloque "${block.id}" tiene preguntas duplicadas: ${[
+					...new Set(duplicatedQuestionIds)
+				].join(', ')}.`
+			);
+		}
+
+		for (const question of normalizedConfig.questions) {
+			if (!question.id.match(/^[a-zA-Z0-9_-]+$/)) {
+				throw new LessonServiceError(
+					400,
+					`La pregunta "${question.id}" del bloque "${block.id}" usa un ID inválido.`
+				);
+			}
+
+			if (!question.prompt.trim()) {
+				throw new LessonServiceError(
+					400,
+					`La pregunta "${question.id}" del bloque "${block.id}" necesita un enunciado.`
+				);
+			}
+
+			assertLessonCheckQuestionConfiguration(block.id, question);
 		}
 	}
 
@@ -1551,9 +1580,24 @@ function extractBlockReferences(block: LessonBlock): string[] {
 		register(block.checkConfig.feedbackCorrect);
 		register(block.checkConfig.feedbackIncorrect);
 		register(block.checkConfig.feedbackPartial);
-		for (const option of block.checkConfig.options) {
-			register(option.label);
-			register(option.description);
+		for (const question of block.checkConfig.questions) {
+			register(question.prompt);
+			if (
+				question.mode === 'single_choice' ||
+				question.mode === 'multiple_choice' ||
+				question.mode === 'true_false'
+			) {
+				for (const option of question.options) {
+					register(option.label);
+					register(option.description);
+				}
+			}
+
+			if (question.mode === 'short_text') {
+				for (const answer of question.acceptedAnswers) {
+					register(answer);
+				}
+			}
 		}
 	}
 

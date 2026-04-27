@@ -2,7 +2,6 @@ import { MarkerType, Position, type XYPosition } from '@xyflow/svelte';
 import {
 	getLessonAgentInteractionLabel,
 	getLessonAgentExecutionTriggerLabel,
-	getLessonCheckModeLabel,
 	type LessonBlock,
 	type LessonDefinition
 } from '../types/lesson';
@@ -55,7 +54,10 @@ export function summarizeLessonBlock(block: LessonBlock): string {
 	}
 
 	if (block.kind === 'check') {
-		return `${getLessonCheckModeLabel(block.checkConfig.mode)} · aprobar ${block.checkConfig.passingScore}${block.next ? ` · siguiente ${block.next}` : ''}`;
+		const questionCount = block.checkConfig.questions.length;
+		const modeLabel =
+			block.checkConfig.presentationMode === 'step_by_step' ? 'paso a paso' : 'todas juntas';
+		return `${questionCount} pregunta${questionCount === 1 ? '' : 's'} · ${modeLabel} · aprobar ${block.checkConfig.passingScore}${block.next ? ` · siguiente ${block.next}` : ''}`;
 	}
 
 	if (block.kind === 'youtube') {

@@ -385,7 +385,19 @@ test('authoring draft deletes blocks and clears their connections', () => {
 				body: '',
 				next: 'end',
 				branches: [{ id: 'retry', label: 'Reintentar', targetBlockId: 'agent' }],
-				checkConfig: normalizeLessonCheckConfig({ mode: 'short_text' })
+				checkConfig: normalizeLessonCheckConfig({
+					questions: [
+						{
+							id: 'question_1',
+							prompt: 'Respuesta',
+							mode: 'short_text',
+							acceptedAnswers: ['ok'],
+							caseSensitive: false,
+							trimWhitespace: true,
+							matchMode: 'exact'
+						}
+					]
+				})
 			},
 			{
 				id: 'agent',
@@ -540,12 +552,18 @@ test('reference groups expose evaluation outputs for check blocks', () => {
 				body: 'Responde',
 				next: 'end',
 				checkConfig: normalizeLessonCheckConfig({
-					mode: 'single_choice',
-					options: [
-						{ id: 'a', label: 'A', value: 'a' },
-						{ id: 'b', label: 'B', value: 'b' }
-					],
-					correctOptionIds: ['a']
+					questions: [
+						{
+							id: 'question_1',
+							prompt: 'Elige',
+							mode: 'single_choice',
+							options: [
+								{ id: 'a', label: 'A', value: 'a' },
+								{ id: 'b', label: 'B', value: 'b' }
+							],
+							correctOptionIds: ['a']
+						}
+					]
 				})
 			},
 			{
@@ -565,9 +583,7 @@ test('reference groups expose evaluation outputs for check blocks', () => {
 		checkGroup?.outputs.some((variable) => variable.path === 'blocks.check.outputs.passed')
 	);
 	assert.ok(
-		checkGroup?.outputs.some(
-			(variable) => variable.path === 'blocks.check.outputs.selectedOptionIds'
-		)
+		checkGroup?.outputs.some((variable) => variable.path === 'blocks.check.outputs.questionResults')
 	);
 });
 
@@ -583,9 +599,15 @@ test('validateDefinition accepts check blocks with numeric rules', () => {
 				body: 'Calcula',
 				next: 'end',
 				checkConfig: normalizeLessonCheckConfig({
-					mode: 'numeric',
-					acceptedExact: 42,
-					tolerance: 0
+					questions: [
+						{
+							id: 'question_1',
+							prompt: 'Calcula',
+							mode: 'numeric',
+							acceptedExact: 42,
+							tolerance: 0
+						}
+					]
 				})
 			},
 			{
@@ -604,8 +626,13 @@ test('validateDefinition accepts check blocks with numeric rules', () => {
 	if (!checkBlock || checkBlock.kind !== 'check') {
 		throw new Error('Expected check block');
 	}
-	assert.equal(checkBlock.checkConfig.mode, 'numeric');
-	assert.equal(checkBlock.checkConfig.acceptedExact, 42);
+	assert.equal(checkBlock.checkConfig.questions[0]?.mode, 'numeric');
+	assert.equal(
+		checkBlock.checkConfig.questions[0]?.mode === 'numeric'
+			? checkBlock.checkConfig.questions[0].acceptedExact
+			: null,
+		42
+	);
 });
 
 test('evaluateCheckSubmission scores multiple choice and closes after exhaustion', () => {
@@ -616,14 +643,20 @@ test('evaluateCheckSubmission scores multiple choice and closes after exhaustion
 		body: 'Elige',
 		next: 'end',
 		checkConfig: normalizeLessonCheckConfig({
-			mode: 'multiple_choice',
 			maxAttempts: 2,
-			options: [
-				{ id: 'a', label: 'A', value: 'a' },
-				{ id: 'b', label: 'B', value: 'b' },
-				{ id: 'c', label: 'C', value: 'c' }
-			],
-			correctOptionIds: ['a', 'b']
+			questions: [
+				{
+					id: 'question_1',
+					prompt: 'Elige',
+					mode: 'multiple_choice',
+					options: [
+						{ id: 'a', label: 'A', value: 'a' },
+						{ id: 'b', label: 'B', value: 'b' },
+						{ id: 'c', label: 'C', value: 'c' }
+					],
+					correctOptionIds: ['a', 'b']
+				}
+			]
 		})
 	};
 
@@ -631,28 +664,26 @@ test('evaluateCheckSubmission scores multiple choice and closes after exhaustion
 		LessonService as unknown as {
 			evaluateCheckSubmission(input: {
 				block: LessonCheckBlock;
-				rawOptionIds?: string[];
-				rawValue?: string | number;
+				answers: Array<{ questionId: string; optionIds?: string[]; value?: string | number }>;
 				currentOutputs: Record<string, unknown>;
 			}): { outputs: Record<string, unknown>; completed: boolean };
 		}
 	).evaluateCheckSubmission({
 		block,
-		rawOptionIds: ['a'],
+		answers: [{ questionId: 'question_1', optionIds: ['a'] }],
 		currentOutputs: {}
 	});
 	const secondResult = (
 		LessonService as unknown as {
 			evaluateCheckSubmission(input: {
 				block: LessonCheckBlock;
-				rawOptionIds?: string[];
-				rawValue?: string | number;
+				answers: Array<{ questionId: string; optionIds?: string[]; value?: string | number }>;
 				currentOutputs: Record<string, unknown>;
 			}): { outputs: Record<string, unknown>; completed: boolean };
 		}
 	).evaluateCheckSubmission({
 		block,
-		rawOptionIds: ['c'],
+		answers: [{ questionId: 'question_1', optionIds: ['c'] }],
 		currentOutputs: firstResult.outputs
 	});
 
@@ -662,6 +693,94 @@ test('evaluateCheckSubmission scores multiple choice and closes after exhaustion
 	assert.equal(secondResult.completed, true);
 	assert.equal(secondResult.outputs.attemptCount, 2);
 	assert.equal(secondResult.outputs.attemptsRemaining, 0);
+});
+
+test('evaluateCheckSubmission averages mixed question bank results', () => {
+	const block: LessonCheckBlock = {
+		id: 'check',
+		kind: 'check',
+		title: 'Banco mixto',
+		body: 'Responde',
+		next: 'end',
+		checkConfig: normalizeLessonCheckConfig({
+			passingScore: 0.8,
+			questions: [
+				{
+					id: 'single',
+					prompt: 'Única',
+					mode: 'single_choice',
+					options: [
+						{ id: 'a', label: 'A', value: 'a' },
+						{ id: 'b', label: 'B', value: 'b' }
+					],
+					correctOptionIds: ['a']
+				},
+				{
+					id: 'multi',
+					prompt: 'Múltiple',
+					mode: 'multiple_choice',
+					options: [
+						{ id: 'a', label: 'A', value: 'a' },
+						{ id: 'b', label: 'B', value: 'b' },
+						{ id: 'c', label: 'C', value: 'c' }
+					],
+					correctOptionIds: ['a', 'b']
+				},
+				{
+					id: 'bool',
+					prompt: 'Verdadero',
+					mode: 'true_false',
+					options: [
+						{ id: 'true', label: 'Verdadero', value: 'true' },
+						{ id: 'false', label: 'Falso', value: 'false' }
+					],
+					correctOptionIds: ['true']
+				},
+				{
+					id: 'num',
+					prompt: 'Número',
+					mode: 'numeric',
+					acceptedExact: 42,
+					tolerance: 0
+				},
+				{
+					id: 'text',
+					prompt: 'Texto',
+					mode: 'short_text',
+					acceptedAnswers: ['sapin'],
+					caseSensitive: false,
+					trimWhitespace: true,
+					matchMode: 'exact'
+				}
+			]
+		})
+	};
+
+	const result = (
+		LessonService as unknown as {
+			evaluateCheckSubmission(input: {
+				block: LessonCheckBlock;
+				answers: Array<{ questionId: string; optionIds?: string[]; value?: string | number }>;
+				currentOutputs: Record<string, unknown>;
+			}): { outputs: Record<string, unknown>; completed: boolean };
+		}
+	).evaluateCheckSubmission({
+		block,
+		answers: [
+			{ questionId: 'single', optionIds: ['a'] },
+			{ questionId: 'multi', optionIds: ['a'] },
+			{ questionId: 'bool', optionIds: ['true'] },
+			{ questionId: 'num', value: 42 },
+			{ questionId: 'text', value: 'Sapin' }
+		],
+		currentOutputs: {}
+	});
+
+	assert.equal(result.outputs.totalQuestions, 5);
+	assert.equal(result.outputs.correctCount, 4);
+	assert.equal(result.outputs.score, 0.9);
+	assert.equal(result.outputs.passed, true);
+	assert.equal(result.outputs.isCorrect, false);
 });
 
 test('extractAgentOutputs preserves auto-start semantics without counting hidden launch messages', async () => {

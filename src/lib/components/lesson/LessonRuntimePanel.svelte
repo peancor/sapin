@@ -5,6 +5,7 @@
 	import LessonAgentRuntimeChat from '$lib/components/lesson/LessonAgentRuntimeChat.svelte';
 	import LessonYoutubePlayer from '$lib/components/lesson/LessonYoutubePlayer.svelte';
 	import type { AgentDisplayPart } from '$lib/types/agent';
+	import type { LessonCheckQuestion } from '$lib/types/lesson';
 	import { renderMarkdownMath } from '$lib/utils';
 	import { ArrowLeft, RotateCcw } from 'lucide-svelte';
 
@@ -30,9 +31,8 @@
 
 	let pending = $state(false);
 	let errorMessage = $state('');
-	let checkOptionIds = $state<string[]>([]);
-	let checkNumericValue = $state('');
-	let checkTextValue = $state('');
+	let checkAnswers = $state<Record<string, { optionIds: string[]; value: string }>>({});
+	let checkStepIndex = $state(0);
 	let agentRuntimeState = $state<AgentRuntimeState>({
 		userTurnCount: 0,
 		assistantTurnCount: 0,
@@ -85,6 +85,30 @@
 	);
 	const checkFeedback = $derived.by(() =>
 		typeof currentOutputs.feedback === 'string' ? currentOutputs.feedback : ''
+	);
+	const checkQuestions = $derived.by(
+		() => (resolvedCheckBlock?.checkConfig.questions ?? []) as LessonCheckQuestion[]
+	);
+	const checkQuestionResults = $derived.by(() =>
+		Array.isArray(currentOutputs.questionResults)
+			? currentOutputs.questionResults.filter(
+					(result): result is Record<string, unknown> =>
+						!!result && typeof result === 'object' && 'questionId' in result
+				)
+			: []
+	);
+	const checkCorrectCount = $derived.by(() =>
+		typeof currentOutputs.correctCount === 'number'
+			? currentOutputs.correctCount
+			: Number(currentOutputs.correctCount ?? 0)
+	);
+	const checkTotalQuestions = $derived.by(() =>
+		typeof currentOutputs.totalQuestions === 'number'
+			? currentOutputs.totalQuestions
+			: checkQuestions.length
+	);
+	const checkAnsweredCount = $derived.by(
+		() => checkQuestions.filter((question: LessonCheckQuestion) => questionHasAnswer(question)).length
 	);
 	const agentConfig = $derived.by(() =>
 		data.resolvedCurrentBlock.kind === 'agent' ? data.resolvedCurrentBlock.agentConfig : null
@@ -150,12 +174,27 @@
 	$effect(() => {
 		if (data.currentBlock.kind !== 'check') return;
 		const outputs = currentOutputs;
-		checkOptionIds = Array.isArray(outputs.selectedOptionIds)
-			? outputs.selectedOptionIds.filter((value): value is string => typeof value === 'string')
-			: [];
-		checkNumericValue =
-			typeof outputs.answerNumber === 'number' ? String(outputs.answerNumber) : '';
-		checkTextValue = typeof outputs.answerText === 'string' ? outputs.answerText : '';
+		const outputAnswers = Array.isArray(outputs.answers) ? outputs.answers : [];
+		const nextAnswers: Record<string, { optionIds: string[]; value: string }> = {};
+		for (const question of checkQuestions) {
+			const existing = outputAnswers.find(
+				(answer): answer is Record<string, unknown> =>
+					!!answer &&
+					typeof answer === 'object' &&
+					(answer as Record<string, unknown>).questionId === question.id
+			);
+			nextAnswers[question.id] = {
+				optionIds: Array.isArray(existing?.optionIds)
+					? existing.optionIds.filter((value): value is string => typeof value === 'string')
+					: [],
+				value:
+					typeof existing?.value === 'number' || typeof existing?.value === 'string'
+						? String(existing.value)
+						: ''
+			};
+		}
+		checkAnswers = nextAnswers;
+		checkStepIndex = Math.min(checkStepIndex, Math.max(checkQuestions.length - 1, 0));
 	});
 
 	$effect(() => {
@@ -295,49 +334,103 @@
 		});
 	}
 
-	function toggleCheckOption(optionId: string, checked: boolean) {
-		if (!resolvedCheckBlock) return;
-		if (resolvedCheckBlock.checkConfig.mode === 'multiple_choice') {
-			checkOptionIds = checked
-				? [...checkOptionIds, optionId]
-				: checkOptionIds.filter((value) => value !== optionId);
-			return;
-		}
+	function getCheckAnswer(questionId: string) {
+		return checkAnswers[questionId] ?? { optionIds: [], value: '' };
+	}
 
-		checkOptionIds = checked ? [optionId] : [];
+	function toggleCheckOption(question: LessonCheckQuestion, optionId: string, checked: boolean) {
+		const current = getCheckAnswer(question.id);
+		const optionIds =
+			question.mode === 'multiple_choice'
+				? checked
+					? [...new Set([...current.optionIds, optionId])]
+					: current.optionIds.filter((value) => value !== optionId)
+				: checked
+					? [optionId]
+					: [];
+		checkAnswers = {
+			...checkAnswers,
+			[question.id]: {
+				...current,
+				optionIds
+			}
+		};
+	}
+
+	function setCheckValue(questionId: string, value: string) {
+		const current = getCheckAnswer(questionId);
+		checkAnswers = {
+			...checkAnswers,
+			[questionId]: {
+				...current,
+				value
+			}
+		};
+	}
+
+	function questionHasAnswer(question: LessonCheckQuestion) {
+		const answer = getCheckAnswer(question.id);
+		if (
+			question.mode === 'single_choice' ||
+			question.mode === 'multiple_choice' ||
+			question.mode === 'true_false'
+		) {
+			return answer.optionIds.length > 0;
+		}
+		if (question.mode === 'numeric') {
+			return answer.value.trim() !== '' && Number.isFinite(Number(answer.value));
+		}
+		return answer.value.trim().length > 0;
 	}
 
 	function getCheckPayload() {
 		if (!resolvedCheckBlock) return null;
-		if (
-			resolvedCheckBlock.checkConfig.mode === 'single_choice' ||
-			resolvedCheckBlock.checkConfig.mode === 'multiple_choice' ||
-			resolvedCheckBlock.checkConfig.mode === 'true_false'
-		) {
-			return { optionIds: checkOptionIds };
-		}
-		if (resolvedCheckBlock.checkConfig.mode === 'numeric') {
-			return { value: Number(checkNumericValue) };
-		}
-		return { value: checkTextValue };
+		return {
+			answers: checkQuestions.map((question: LessonCheckQuestion) => {
+				const answer = getCheckAnswer(question.id);
+				if (
+					question.mode === 'single_choice' ||
+					question.mode === 'multiple_choice' ||
+					question.mode === 'true_false'
+				) {
+					return { questionId: question.id, optionIds: answer.optionIds };
+				}
+				if (question.mode === 'numeric') {
+					return { questionId: question.id, value: Number(answer.value) };
+				}
+				return { questionId: question.id, value: answer.value };
+			})
+		};
 	}
 
 	const canSubmitCheck = $derived.by(() => {
 		if (!resolvedCheckBlock || data.isReadOnly) return false;
-		if (resolvedCheckBlock.checkConfig.mode === 'multiple_choice') {
-			return checkOptionIds.length > 0;
-		}
-		if (
-			resolvedCheckBlock.checkConfig.mode === 'single_choice' ||
-			resolvedCheckBlock.checkConfig.mode === 'true_false'
-		) {
-			return checkOptionIds.length === 1;
-		}
-		if (resolvedCheckBlock.checkConfig.mode === 'numeric') {
-			return checkNumericValue.trim() !== '' && Number.isFinite(Number(checkNumericValue));
-		}
-		return checkTextValue.trim().length > 0;
+		return (
+			checkQuestions.length > 0 &&
+			checkQuestions.every((question: LessonCheckQuestion) => questionHasAnswer(question))
+		);
 	});
+
+	function getCheckQuestionResult(questionId: string) {
+		return checkQuestionResults.find((result) => result.questionId === questionId);
+	}
+
+	function getCorrectAnswerLabel(question: LessonCheckQuestion) {
+		if (question.mode === 'numeric') {
+			if (question.acceptedExact !== null) return String(question.acceptedExact);
+			const min = question.acceptedRange?.min;
+			const max = question.acceptedRange?.max;
+			if (min !== undefined && max !== undefined) return `${min} - ${max}`;
+			if (min !== undefined) return `>= ${min}`;
+			if (max !== undefined) return `<= ${max}`;
+			return 'Rango configurado';
+		}
+		if (question.mode === 'short_text') return question.acceptedAnswers.join(', ');
+		return question.options
+			.filter((option) => question.correctOptionIds.includes(option.id))
+			.map((option) => option.label)
+			.join(', ');
+	}
 
 	async function submitCheck() {
 		const payload = getCheckPayload();
@@ -365,6 +458,125 @@
 		}
 	}
 </script>
+
+{#snippet renderCheckQuestion(question: LessonCheckQuestion, index: number)}
+	<fieldset class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+		<legend class="px-1 text-sm font-semibold text-gray-900 dark:text-white">
+			{index + 1}. {question.prompt}
+		</legend>
+
+		{#if question.mode === 'single_choice' || question.mode === 'true_false'}
+			<div class="mt-3 grid gap-3">
+				{#each question.options as option (option.id)}
+					<label
+						class="hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl border border-gray-200 px-4 py-4 transition dark:border-gray-700"
+					>
+						<div class="flex items-start gap-3">
+							<input
+								type="radio"
+								name={`check-${question.id}`}
+								class="text-primary-600 mt-1 h-4 w-4 border-gray-300"
+								checked={getCheckAnswer(question.id).optionIds.includes(option.id)}
+								onchange={(event) =>
+									toggleCheckOption(
+										question,
+										option.id,
+										(event.currentTarget as HTMLInputElement).checked
+									)}
+								disabled={pending || data.isReadOnly || checkCanContinue}
+							/>
+							<span>
+								<span class="block font-medium text-gray-900 dark:text-white">{option.label}</span>
+								{#if option.description}
+									<span class="mt-1 block text-sm text-gray-500 dark:text-gray-400">
+										{option.description}
+									</span>
+								{/if}
+							</span>
+						</div>
+					</label>
+				{/each}
+			</div>
+		{:else if question.mode === 'multiple_choice'}
+			<div class="mt-3 grid gap-3">
+				{#each question.options as option (option.id)}
+					<label
+						class="hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl border border-gray-200 px-4 py-4 transition dark:border-gray-700"
+					>
+						<div class="flex items-start gap-3">
+							<input
+								type="checkbox"
+								class="text-primary-600 mt-1 h-4 w-4 rounded border-gray-300"
+								checked={getCheckAnswer(question.id).optionIds.includes(option.id)}
+								onchange={(event) =>
+									toggleCheckOption(
+										question,
+										option.id,
+										(event.currentTarget as HTMLInputElement).checked
+									)}
+								disabled={pending || data.isReadOnly || checkCanContinue}
+							/>
+							<span>
+								<span class="block font-medium text-gray-900 dark:text-white">{option.label}</span>
+								{#if option.description}
+									<span class="mt-1 block text-sm text-gray-500 dark:text-gray-400">
+										{option.description}
+									</span>
+								{/if}
+							</span>
+						</div>
+					</label>
+				{/each}
+			</div>
+		{:else if question.mode === 'numeric'}
+			<label class="mt-3 block">
+				<span class="sr-only">{question.prompt}</span>
+				<input
+					type="number"
+					class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+					value={getCheckAnswer(question.id).value}
+					oninput={(event) =>
+						setCheckValue(question.id, (event.currentTarget as HTMLInputElement).value)}
+					placeholder="Escribe tu respuesta numérica"
+					disabled={pending || data.isReadOnly || checkCanContinue}
+				/>
+			</label>
+		{:else}
+			<label class="mt-3 block">
+				<span class="sr-only">{question.prompt}</span>
+				<textarea
+					class="min-h-28 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+					value={getCheckAnswer(question.id).value}
+					oninput={(event) =>
+						setCheckValue(question.id, (event.currentTarget as HTMLTextAreaElement).value)}
+					placeholder="Escribe tu respuesta"
+					disabled={pending || data.isReadOnly || checkCanContinue}
+				></textarea>
+			</label>
+		{/if}
+
+		{#if checkSubmitted}
+			{@const result = getCheckQuestionResult(question.id)}
+			<div class="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-sm dark:bg-gray-950/30">
+				<span
+					class={result?.passed
+						? 'font-medium text-emerald-700 dark:text-emerald-300'
+						: 'font-medium text-amber-700 dark:text-amber-300'}
+				>
+					{result?.passed ? 'Correcta' : 'Revisar'}
+				</span>
+				<span class="text-gray-500 dark:text-gray-400">
+					· score {typeof result?.score === 'number' ? result.score.toFixed(2) : '0.00'}
+				</span>
+				{#if resolvedCheckBlock?.checkConfig.revealCorrectAnswer}
+					<p class="mt-1 text-gray-600 dark:text-gray-300">
+						Respuesta esperada: {getCorrectAnswerLabel(question)}
+					</p>
+				{/if}
+			</div>
+		{/if}
+	</fieldset>
+{/snippet}
 
 <div class="space-y-6">
 	<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-900/40">
@@ -534,82 +746,41 @@
 		{:else if data.currentBlock.kind === 'check'}
 			<div class="mt-6 space-y-4">
 				{#if resolvedCheckBlock}
-					{#if resolvedCheckBlock.checkConfig.mode === 'single_choice' || resolvedCheckBlock.checkConfig.mode === 'true_false'}
-						<div class="grid gap-3">
-							{#each resolvedCheckBlock.checkConfig.options as option (option.id)}
-								<label
-									class="hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl border border-gray-200 px-4 py-4 transition dark:border-gray-700"
+					{#if resolvedCheckBlock.checkConfig.presentationMode === 'step_by_step' && !checkSubmitted}
+						{@const currentQuestion = checkQuestions[checkStepIndex]}
+						{#if currentQuestion}
+							<div class="flex items-center justify-between gap-3 text-sm text-gray-500 dark:text-gray-400">
+								<span>Pregunta {checkStepIndex + 1} de {checkQuestions.length}</span>
+								<span>{checkAnsweredCount}/{checkQuestions.length} respondidas</span>
+							</div>
+							{@render renderCheckQuestion(currentQuestion, checkStepIndex)}
+
+							<div class="flex flex-wrap items-center justify-between gap-3">
+								<button
+									type="button"
+									class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+									onclick={() => (checkStepIndex = Math.max(checkStepIndex - 1, 0))}
+									disabled={pending || checkStepIndex === 0}
 								>
-									<div class="flex items-start gap-3">
-										<input
-											type="radio"
-											name="check-single"
-											class="text-primary-600 mt-1 h-4 w-4 border-gray-300"
-											checked={checkOptionIds.includes(option.id)}
-											onchange={(event) =>
-												toggleCheckOption(
-													option.id,
-													(event.currentTarget as HTMLInputElement).checked
-												)}
-											disabled={pending || data.isReadOnly}
-										/>
-										<div>
-											<p class="font-medium text-gray-900 dark:text-white">{option.label}</p>
-											{#if option.description}
-												<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-													{option.description}
-												</p>
-											{/if}
-										</div>
-									</div>
-								</label>
-							{/each}
-						</div>
-					{:else if resolvedCheckBlock.checkConfig.mode === 'multiple_choice'}
-						<div class="grid gap-3">
-							{#each resolvedCheckBlock.checkConfig.options as option (option.id)}
-								<label
-									class="hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl border border-gray-200 px-4 py-4 transition dark:border-gray-700"
+									Anterior
+								</button>
+								<button
+									type="button"
+									class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+									onclick={() =>
+										(checkStepIndex = Math.min(checkStepIndex + 1, checkQuestions.length - 1))}
+									disabled={pending || checkStepIndex >= checkQuestions.length - 1}
 								>
-									<div class="flex items-start gap-3">
-										<input
-											type="checkbox"
-											class="text-primary-600 mt-1 h-4 w-4 rounded border-gray-300"
-											checked={checkOptionIds.includes(option.id)}
-											onchange={(event) =>
-												toggleCheckOption(
-													option.id,
-													(event.currentTarget as HTMLInputElement).checked
-												)}
-											disabled={pending || data.isReadOnly}
-										/>
-										<div>
-											<p class="font-medium text-gray-900 dark:text-white">{option.label}</p>
-											{#if option.description}
-												<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-													{option.description}
-												</p>
-											{/if}
-										</div>
-									</div>
-								</label>
-							{/each}
-						</div>
-					{:else if resolvedCheckBlock.checkConfig.mode === 'numeric'}
-						<input
-							type="number"
-							class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-							bind:value={checkNumericValue}
-							placeholder="Escribe tu respuesta numérica"
-							disabled={pending || data.isReadOnly}
-						/>
+									Siguiente
+								</button>
+							</div>
+						{/if}
 					{:else}
-						<textarea
-							class="min-h-28 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-							bind:value={checkTextValue}
-							placeholder="Escribe tu respuesta"
-							disabled={pending || data.isReadOnly}
-						></textarea>
+						<div class="space-y-4">
+							{#each checkQuestions as question, index (question.id)}
+								{@render renderCheckQuestion(question, index)}
+							{/each}
+						</div>
 					{/if}
 
 					{#if checkSubmitted}
@@ -641,32 +812,15 @@
 										Restantes: {checkAttemptsRemaining}
 									</span>
 								{/if}
+								<span
+									class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+								>
+									Correctas: {Number.isFinite(checkCorrectCount) ? checkCorrectCount : 0}/{checkTotalQuestions}
+								</span>
 							</div>
 
 							{#if checkFeedback}
 								<p class="mt-3 text-sm text-gray-700 dark:text-gray-300">{checkFeedback}</p>
-							{/if}
-
-							{#if resolvedCheckBlock.checkConfig.revealCorrectAnswer}
-								<div class="mt-3 text-sm text-gray-600 dark:text-gray-300">
-									<p class="font-medium text-gray-900 dark:text-white">Respuesta correcta</p>
-									{#if resolvedCheckBlock.checkConfig.mode === 'numeric'}
-										<p class="mt-1">
-											{resolvedCheckBlock.checkConfig.acceptedExact ?? 'Rango configurado'}
-										</p>
-									{:else if resolvedCheckBlock.checkConfig.mode === 'short_text'}
-										<p class="mt-1">{resolvedCheckBlock.checkConfig.acceptedAnswers.join(', ')}</p>
-									{:else}
-										<p class="mt-1">
-											{resolvedCheckBlock.checkConfig.options
-												.filter((option: { id: string; label: string }) =>
-													resolvedCheckBlock.checkConfig.correctOptionIds.includes(option.id)
-												)
-												.map((option: { id: string; label: string }) => option.label)
-												.join(', ')}
-										</p>
-									{/if}
-								</div>
 							{/if}
 						</div>
 					{/if}

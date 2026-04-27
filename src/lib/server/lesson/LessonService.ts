@@ -41,6 +41,7 @@ import type {
 	LessonBlockReferenceGroups,
 	LessonCheckBlock,
 	LessonCheckMode,
+	LessonCheckQuestion,
 	LessonCheckTextMatchMode,
 	LessonBlockKind,
 	LessonConditionOperator,
@@ -79,6 +80,25 @@ import { validateLessonAuthoringDraft } from './lessonFlowDraft';
 export { LessonServiceError } from './LessonServiceError';
 
 type JsonRecord = Record<string, unknown>;
+
+interface LessonCheckAnswerInput {
+	questionId: string;
+	optionIds?: string[];
+	value?: string | number;
+}
+
+interface LessonCheckQuestionResult extends JsonRecord {
+	questionId: string;
+	mode: LessonCheckQuestion['mode'];
+	score: number;
+	passed: boolean;
+	isCorrect: boolean;
+	selectedOptionIds?: string[];
+	selectedValues?: string[];
+	selectedLabels?: string[];
+	answerNumber?: number;
+	answerText?: string;
+}
 
 const lessonTransitionSchema = z.object({
 	id: z.string().optional(),
@@ -1548,8 +1568,7 @@ export class LessonService {
 	static async submitCheck(input: {
 		sessionId: string;
 		blockId: string;
-		optionIds?: string[];
-		value?: string | number;
+		answers?: LessonCheckAnswerInput[];
 		userId: string;
 		userRoleLevel: number;
 		interactiveLearningId?: string;
@@ -1596,8 +1615,7 @@ export class LessonService {
 		);
 		const result = this.evaluateCheckSubmission({
 			block: resolvedBlock,
-			rawOptionIds: input.optionIds,
-			rawValue: input.value,
+			answers: input.answers ?? [],
 			currentOutputs
 		});
 
@@ -1629,10 +1647,11 @@ export class LessonService {
 				eventType: lessonEventType.BLOCK_COMPLETED,
 				payload: {
 					kind: 'check',
-					mode: resolvedBlock.checkConfig.mode,
 					score: result.outputs.score ?? 0,
 					passed: result.outputs.passed ?? false,
-					attemptCount: result.outputs.attemptCount ?? 0
+					attemptCount: result.outputs.attemptCount ?? 0,
+					correctCount: result.outputs.correctCount ?? 0,
+					totalQuestions: result.outputs.totalQuestions ?? 0
 				}
 			});
 		}
@@ -2047,119 +2066,186 @@ export class LessonService {
 
 	private static evaluateCheckSubmission(input: {
 		block: LessonCheckBlock;
-		rawOptionIds?: string[];
-		rawValue?: string | number;
+		answers: LessonCheckAnswerInput[];
 		currentOutputs: JsonRecord;
 	}): LessonCheckSubmissionResult {
 		const config = normalizeLessonCheckConfig(input.block.checkConfig);
+		if (config.questions.length === 0) {
+			throw new LessonServiceError(400, 'Este bloque de evaluación no tiene preguntas configuradas.');
+		}
+
 		const previousAttemptCount =
 			typeof input.currentOutputs.attemptCount === 'number'
 				? input.currentOutputs.attemptCount
 				: Number(input.currentOutputs.attemptCount ?? 0);
 		const attemptCount = Number.isFinite(previousAttemptCount) ? previousAttemptCount + 1 : 1;
-		let score = 0;
-		let feedback = '';
-		let answerOutputs: JsonRecord = {};
-		let metadata: JsonRecord = {};
+		const answerMap = new Map<string, LessonCheckAnswerInput>();
+		for (const answer of input.answers) {
+			if (!answer.questionId?.trim()) {
+				throw new LessonServiceError(400, 'Cada respuesta debe indicar la pregunta asociada.');
+			}
 
-		if (
-			config.mode === 'single_choice' ||
-			config.mode === 'multiple_choice' ||
-			config.mode === 'true_false'
-		) {
-			const selectedOptionIds = [...new Set(input.rawOptionIds ?? [])];
-			const optionMap = new Map(config.options.map((option) => [option.id, option]));
-			for (const optionId of selectedOptionIds) {
-				if (!optionMap.has(optionId)) {
+			if (answerMap.has(answer.questionId)) {
+				throw new LessonServiceError(
+					400,
+					`La pregunta "${answer.questionId}" tiene respuestas duplicadas.`
+				);
+			}
+
+			answerMap.set(answer.questionId, answer);
+		}
+
+		const configuredQuestionIds = new Set(config.questions.map((question) => question.id));
+		for (const questionId of answerMap.keys()) {
+			if (!configuredQuestionIds.has(questionId)) {
+				throw new LessonServiceError(
+					400,
+					`La pregunta "${questionId}" no existe en este bloque de evaluación.`
+				);
+			}
+		}
+
+		const normalizedAnswers: LessonCheckAnswerInput[] = [];
+		const questionResults: LessonCheckQuestionResult[] = config.questions.map((question) => {
+			const answer = answerMap.get(question.id);
+			if (!answer) {
+				throw new LessonServiceError(
+					400,
+					`Debes responder la pregunta "${question.prompt || question.id}" antes de enviar.`
+				);
+			}
+
+			if (
+				question.mode === 'single_choice' ||
+				question.mode === 'multiple_choice' ||
+				question.mode === 'true_false'
+			) {
+				const selectedOptionIds = [...new Set(answer.optionIds ?? [])];
+				const optionMap = new Map(question.options.map((option) => [option.id, option]));
+				for (const optionId of selectedOptionIds) {
+					if (!optionMap.has(optionId)) {
+						throw new LessonServiceError(
+							400,
+							`La opción "${optionId}" no existe en la pregunta "${question.id}".`
+						);
+					}
+				}
+
+				if (selectedOptionIds.length === 0) {
 					throw new LessonServiceError(
 						400,
-						`La opción "${optionId}" no existe en este bloque de evaluación.`
+						`Debes responder la pregunta "${question.prompt || question.id}".`
 					);
 				}
+
+				if (question.mode !== 'multiple_choice' && selectedOptionIds.length !== 1) {
+					throw new LessonServiceError(
+						400,
+						`La pregunta "${question.id}" solo acepta una respuesta.`
+					);
+				}
+
+				const questionScore = scoreCheckOptionSelection(
+					selectedOptionIds,
+					question.correctOptionIds,
+					question.mode
+				);
+				normalizedAnswers.push({ questionId: question.id, optionIds: selectedOptionIds });
+				return {
+					questionId: question.id,
+					mode: question.mode,
+					score: questionScore,
+					passed: questionScore >= 1,
+					isCorrect: questionScore >= 1,
+					selectedOptionIds,
+					selectedValues: selectedOptionIds
+						.map((optionId) => optionMap.get(optionId)?.value)
+						.filter((value): value is string => typeof value === 'string'),
+					selectedLabels: selectedOptionIds
+						.map((optionId) => optionMap.get(optionId)?.label)
+						.filter((value): value is string => typeof value === 'string')
+				};
 			}
 
-			if (selectedOptionIds.length === 0) {
-				throw new LessonServiceError(400, 'Debes enviar al menos una respuesta.');
+			if (question.mode === 'numeric') {
+				const numericValue =
+					typeof answer.value === 'number' ? answer.value : Number(String(answer.value ?? ''));
+				if (!Number.isFinite(numericValue)) {
+					throw new LessonServiceError(
+						400,
+						`Debes enviar un valor numérico válido para la pregunta "${question.id}".`
+					);
+				}
+
+				const tolerance = question.tolerance ?? 0;
+				const exactMatch =
+					question.acceptedExact !== null &&
+					Math.abs(numericValue - question.acceptedExact) <= tolerance;
+				const rangeMatch =
+					question.acceptedRange &&
+					(question.acceptedRange.min === undefined ||
+						numericValue >= question.acceptedRange.min) &&
+					(question.acceptedRange.max === undefined ||
+						numericValue <= question.acceptedRange.max);
+				const questionScore = exactMatch || rangeMatch ? 1 : 0;
+				normalizedAnswers.push({ questionId: question.id, value: numericValue });
+				return {
+					questionId: question.id,
+					mode: question.mode,
+					score: questionScore,
+					passed: questionScore >= 1,
+					isCorrect: questionScore >= 1,
+					answerNumber: numericValue
+				};
 			}
 
-			if (config.mode !== 'multiple_choice' && selectedOptionIds.length !== 1) {
-				throw new LessonServiceError(400, 'Este bloque de evaluación solo acepta una respuesta.');
+			if (question.mode !== 'short_text') {
+				throw new LessonServiceError(400, `La pregunta "${question.id}" no tiene un modo válido.`);
 			}
 
-			score = scoreCheckOptionSelection(selectedOptionIds, config.correctOptionIds, config.mode);
-			answerOutputs = {
-				selectedOptionIds,
-				selectedValues: selectedOptionIds
-					.map((optionId) => optionMap.get(optionId)?.value)
-					.filter((value): value is string => typeof value === 'string'),
-				selectedLabels: selectedOptionIds
-					.map((optionId) => optionMap.get(optionId)?.label)
-					.filter((value): value is string => typeof value === 'string')
-			};
-			metadata = {
-				...metadata,
-				correctOptionIds: config.correctOptionIds
-			};
-		}
-
-		if (config.mode === 'numeric') {
-			const numericValue =
-				typeof input.rawValue === 'number' ? input.rawValue : Number(String(input.rawValue ?? ''));
-			if (!Number.isFinite(numericValue)) {
-				throw new LessonServiceError(400, 'Debes enviar un valor numérico válido.');
-			}
-
-			const tolerance = config.tolerance ?? 0;
-			const exactMatch =
-				config.acceptedExact !== null && Math.abs(numericValue - config.acceptedExact) <= tolerance;
-			const rangeMatch =
-				config.acceptedRange &&
-				(config.acceptedRange.min === undefined || numericValue >= config.acceptedRange.min) &&
-				(config.acceptedRange.max === undefined || numericValue <= config.acceptedRange.max);
-			score = exactMatch || rangeMatch ? 1 : 0;
-			answerOutputs = {
-				answerNumber: numericValue
-			};
-			metadata = {
-				...metadata,
-				acceptedExact: config.acceptedExact,
-				acceptedRange: config.acceptedRange ?? null,
-				tolerance
-			};
-		}
-
-		if (config.mode === 'short_text') {
-			const rawText = String(input.rawValue ?? '');
+			const rawText = String(answer.value ?? '');
 			if (!rawText.trim()) {
-				throw new LessonServiceError(400, 'Debes escribir una respuesta antes de enviar.');
+				throw new LessonServiceError(
+					400,
+					`Debes escribir una respuesta para la pregunta "${question.id}".`
+				);
 			}
 
 			const normalizedCandidate = normalizeCheckTextValue(rawText, {
-				trimWhitespace: config.trimWhitespace,
-				caseSensitive: config.caseSensitive
+				trimWhitespace: question.trimWhitespace,
+				caseSensitive: question.caseSensitive
 			});
-			const acceptedAnswers = config.acceptedAnswers.map((answer) =>
-				normalizeCheckTextValue(answer, {
-					trimWhitespace: config.trimWhitespace,
-					caseSensitive: config.caseSensitive
+			const acceptedAnswers = question.acceptedAnswers.map((acceptedAnswer) =>
+				normalizeCheckTextValue(acceptedAnswer, {
+					trimWhitespace: question.trimWhitespace,
+					caseSensitive: question.caseSensitive
 				})
 			);
-			score = acceptedAnswers.some((acceptedAnswer) =>
-				matchShortTextAnswer(normalizedCandidate, acceptedAnswer, config.matchMode)
+			const questionScore = acceptedAnswers.some((acceptedAnswer) =>
+				matchShortTextAnswer(normalizedCandidate, acceptedAnswer, question.matchMode)
 			)
 				? 1
 				: 0;
-			answerOutputs = {
+			normalizedAnswers.push({ questionId: question.id, value: rawText });
+			return {
+				questionId: question.id,
+				mode: question.mode,
+				score: questionScore,
+				passed: questionScore >= 1,
+				isCorrect: questionScore >= 1,
 				answerText: rawText
 			};
-			metadata = {
-				...metadata,
-				matchMode: config.matchMode
-			};
-		}
+		});
 
+		const totalQuestions = questionResults.length;
+		const correctCount = questionResults.filter((result) => result.passed).length;
+		const score =
+			totalQuestions > 0
+				? questionResults.reduce((sum, result) => sum + result.score, 0) / totalQuestions
+				: 0;
+		let feedback = '';
 		const passed = score >= config.passingScore;
-		const isCorrect = score >= 1;
+		const isCorrect = correctCount === totalQuestions;
 		const exhausted =
 			config.maxAttempts !== null ? attemptCount >= Math.max(config.maxAttempts, 1) : false;
 		const completed = config.completionRule === 'after_first_submit' ? true : passed || exhausted;
@@ -2173,7 +2259,7 @@ export class LessonService {
 			feedback =
 				config.feedbackIncorrect?.trim() ||
 				'La respuesta no es correcta y ya no quedan más intentos en este bloque.';
-		} else if (score > 0 && score < 1) {
+		} else if (score > 0 && !passed) {
 			feedback =
 				config.feedbackPartial?.trim() || 'Respuesta parcialmente correcta. Revisa tu selección.';
 		} else {
@@ -2192,10 +2278,16 @@ export class LessonService {
 				attemptCount,
 				attemptsRemaining,
 				feedback,
-				mode: config.mode,
-				...answerOutputs
+				correctCount,
+				totalQuestions,
+				questionResults,
+				answers: normalizedAnswers
 			},
-			metadata,
+			metadata: {
+				questionIds: config.questions.map((question) => question.id),
+				questionResults,
+				presentationMode: config.presentationMode
+			},
 			completed
 		};
 	}
@@ -3625,10 +3717,27 @@ export class LessonService {
 						block.checkConfig.feedbackPartial || '',
 						context
 					),
-					options: block.checkConfig.options.map((option) => ({
-						...option,
-						label: this.resolveStringTemplate(option.label, context),
-						description: this.resolveStringTemplate(option.description || '', context)
+					questions: block.checkConfig.questions.map((question) => ({
+						...question,
+						prompt: this.resolveStringTemplate(question.prompt, context),
+						...(question.mode === 'single_choice' ||
+						question.mode === 'multiple_choice' ||
+						question.mode === 'true_false'
+							? {
+									options: question.options.map((option) => ({
+										...option,
+										label: this.resolveStringTemplate(option.label, context),
+										description: this.resolveStringTemplate(option.description || '', context)
+									}))
+								}
+							: {}),
+						...(question.mode === 'short_text'
+							? {
+									acceptedAnswers: question.acceptedAnswers.map((answer) =>
+										this.resolveStringTemplate(answer, context)
+									)
+								}
+							: {})
 					}))
 				}
 			};
@@ -4181,25 +4290,32 @@ export class LessonService {
 				body: '',
 				next: defaultTarget ?? null,
 				checkConfig: normalizeLessonCheckConfig({
-					mode: 'single_choice',
 					submitLabel: 'Enviar',
 					retryLabel: 'Reintentar',
 					continueLabel: 'Continuar',
-					options: [
+					presentationMode: 'all_at_once',
+					questions: [
 						{
-							id: 'option_1',
-							label: 'Opción 1',
-							value: 'option_1',
-							description: ''
-						},
-						{
-							id: 'option_2',
-							label: 'Opción 2',
-							value: 'option_2',
-							description: ''
+							id: 'question_1',
+							prompt: 'Pregunta 1',
+							mode: 'single_choice',
+							options: [
+								{
+									id: 'option_1',
+									label: 'Opción 1',
+									value: 'option_1',
+									description: ''
+								},
+								{
+									id: 'option_2',
+									label: 'Opción 2',
+									value: 'option_2',
+									description: ''
+								}
+							],
+							correctOptionIds: ['option_1']
 						}
-					],
-					correctOptionIds: ['option_1']
+					]
 				})
 			};
 		}
@@ -4819,9 +4935,19 @@ export class LessonService {
 						...extractTemplateRefs(block.checkConfig.feedbackCorrect),
 						...extractTemplateRefs(block.checkConfig.feedbackIncorrect),
 						...extractTemplateRefs(block.checkConfig.feedbackPartial),
-						...block.checkConfig.options.flatMap((option) => [
-							...extractTemplateRefs(option.label),
-							...extractTemplateRefs(option.description)
+						...block.checkConfig.questions.flatMap((question) => [
+							...extractTemplateRefs(question.prompt),
+							...(question.mode === 'single_choice' ||
+							question.mode === 'multiple_choice' ||
+							question.mode === 'true_false'
+								? question.options.flatMap((option) => [
+										...extractTemplateRefs(option.label),
+										...extractTemplateRefs(option.description)
+									])
+								: []),
+							...(question.mode === 'short_text'
+								? question.acceptedAnswers.flatMap((answer) => extractTemplateRefs(answer))
+								: [])
 						])
 					]
 				: []),
