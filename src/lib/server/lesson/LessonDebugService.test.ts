@@ -11,6 +11,7 @@ import type {
 import type { LessonDefinition } from '../../types/lesson.ts';
 import {
 	buildLessonDebugBlockSummaries,
+	evaluateLessonDebugCondition,
 	evaluateLessonDebugTransitions,
 	pickLessonDebugPreviewSession
 } from './lessonDebugUtils.ts';
@@ -229,6 +230,15 @@ test('evaluateLessonDebugTransitions resolves branch matches and fallback next c
 	assert.equal(evaluations[0]?.actualValue, false);
 	assert.equal(evaluations[1]?.kind, 'next');
 	assert.equal(evaluations[1]?.matches, true);
+});
+
+test('evaluateLessonDebugCondition accepts boolean-like expected values for boolean outputs', () => {
+	assert.equal(evaluateLessonDebugCondition('equals', true, 1), true);
+	assert.equal(evaluateLessonDebugCondition('equals', true, 'true'), true);
+	assert.equal(evaluateLessonDebugCondition('equals', false, 0), true);
+	assert.equal(evaluateLessonDebugCondition('not_equals', true, 0), true);
+	assert.equal(evaluateLessonDebugCondition('equals', true, '1'), true);
+	assert.equal(evaluateLessonDebugCondition('equals', false, 'false'), true);
 });
 
 test('buildLessonDebugBlockSummaries marks current, completed and revisited blocks with alerts', () => {

@@ -8,6 +8,7 @@ import type {
 	LessonDebugBlockSummary,
 	LessonDebugTransitionEvaluation
 } from '../../types/lessonDebug.ts';
+import { evaluateLessonCondition } from './lessonCondition.ts';
 
 type LessonDebugSessionLike = {
 	id: string;
@@ -281,18 +282,7 @@ export function evaluateLessonDebugCondition(
 	left: unknown,
 	right: unknown
 ): boolean {
-	if (operator === 'equals') return left === right;
-	if (operator === 'not_equals') return left !== right;
-	if (operator === 'contains') return String(left ?? '').includes(String(right ?? ''));
-	if (operator === 'exists') return left !== undefined && left !== null && String(left) !== '';
-	if (operator === 'not_exists') {
-		return left === undefined || left === null || String(left) === '';
-	}
-	if (operator === 'gt') return Number(left) > Number(right);
-	if (operator === 'gte') return Number(left) >= Number(right);
-	if (operator === 'lt') return Number(left) < Number(right);
-	if (operator === 'lte') return Number(left) <= Number(right);
-	return false;
+	return evaluateLessonCondition(operator, left, right);
 }
 
 export function pickLessonDebugPreviewSession(input: {
