@@ -16,7 +16,11 @@
 		lessonStudioHref,
 		lessonStudioReturnTarget
 	} from '$lib/lesson/lessonStudioNavigation';
-	import type { LessonDebugBlockSummary, LessonDebugPreviewMode } from '$lib/types/lessonDebug';
+	import type {
+		LessonDebugBlockSummary,
+		LessonDebugPreviewMode,
+		LessonDebugSnapshot
+	} from '$lib/types/lessonDebug';
 	import {
 		ArrowLeft,
 		ArrowRightCircle,
@@ -43,19 +47,28 @@
 		(page.url.searchParams.get('tab') as InspectorTab | null) ?? 'definition'
 	);
 
-	const loadError = $derived.by(() => data.debugError ?? null);
-	const snapshot = $derived.by(() => {
-		if (!data.snapshot) {
-			throw new Error(loadError?.message ?? 'No se pudo preparar el debugger de la lesson.');
-		}
-
-		return data.snapshot;
-	});
+	const routeContext = $derived({ cid: page.params.cid ?? '', ilid: page.params.ilid ?? '' });
+	const loadError = $derived.by(
+		() =>
+			data.debugError ??
+			(data.snapshot
+				? null
+				: {
+						message: 'No se pudo preparar la vista de debug de esta lesson.',
+						status: 500,
+						previewMode:
+							page.url.searchParams.get('mode') === 'published' ? 'published' : ('draft' as const)
+					})
+	);
+	const snapshot = $derived.by<LessonDebugSnapshot>(
+		() =>
+			data.snapshot ??
+			createEmptyDebugSnapshot(loadError?.previewMode === 'published' ? 'published' : 'draft')
+	);
 	const isBusy = $derived.by(() => pendingAction !== null || launchActionPending);
 	const activeView = $derived.by<DebuggerView>(() =>
 		page.url.searchParams.get('view') === 'debug' ? 'debug' : 'student'
 	);
-	const routeContext = $derived({ cid: page.params.cid ?? '', ilid: page.params.ilid ?? '' });
 	const selectedBlockIdFromUrl = $derived(page.url.searchParams.get('blockId'));
 	const sourceContext = $derived.by(() => {
 		const source = page.url.searchParams.get('source');
@@ -64,14 +77,16 @@
 	const activityHref = $derived.by(() => lessonActivityHref(routeContext));
 	const studioHref = $derived.by(() => lessonStudioHref(routeContext));
 	const returnBlockId = $derived.by(() => {
+		const availableSnapshot = data.snapshot;
 		if (
+			availableSnapshot &&
 			selectedBlockIdFromUrl &&
-			snapshot.blockSummaries.some((summary) => summary.blockId === selectedBlockIdFromUrl)
+			availableSnapshot.blockSummaries.some((summary) => summary.blockId === selectedBlockIdFromUrl)
 		) {
 			return selectedBlockIdFromUrl;
 		}
 
-		return snapshot.selectedBlockId;
+		return availableSnapshot?.selectedBlockId ?? selectedBlockIdFromUrl;
 	});
 	const flowEditorHref = $derived.by(() => lessonFlowHref(routeContext, returnBlockId));
 	const returnTarget = $derived.by(() =>
@@ -95,56 +110,72 @@
 			snapshot.blockSummaries.find((summary) => summary.blockId === snapshot.selectedBlockId) ??
 			null
 	);
-	const definitionSections = $derived.by(() => [
-		{
-			id: 'original-block',
-			label: 'Bloque original',
-			description: 'Definición persistida en la revisión activa.',
-			data: snapshot.inspector.originalBlock
-		},
-		{
-			id: 'graph-summary',
-			label: 'Grafo',
-			description: 'Entradas, salidas y contrato del bloque.',
-			data: snapshot.inspector.graph
-		}
-	]);
-	const resolvedSections = $derived.by(() => [
-		{
-			id: 'resolved-block',
-			label: 'Bloque resuelto',
-			description: 'Plantillas aplicadas con el estado actual de la preview.',
-			data: snapshot.inspector.resolvedBlock
-		}
-	]);
-	const stateSections = $derived.by(() => [
-		{
-			id: 'block-state',
-			label: 'Estado agregado',
-			description: 'Último estado consolidado del bloque.',
-			data: snapshot.inspector.state
-		},
-		{
-			id: 'latest-visit',
-			label: 'Última visita',
-			description: 'Instantánea de la visita más reciente del bloque.',
-			data: snapshot.inspector.latestVisit
-		}
-	]);
-	const eventSections = $derived.by(() => [
-		{
-			id: 'block-events',
-			label: 'Eventos del bloque',
-			description: 'Eventos filtrados para la selección actual.',
-			data: snapshot.inspector.sessionEvents
-		},
-		{
-			id: 'session-events',
-			label: 'Eventos de sesión',
-			description: 'Timeline completo de la sesión preview.',
-			data: snapshot.events
-		}
-	]);
+	const definitionSections = $derived.by(() =>
+		snapshot
+			? [
+					{
+						id: 'original-block',
+						label: 'Bloque original',
+						description: 'Definición persistida en la revisión activa.',
+						data: snapshot.inspector.originalBlock
+					},
+					{
+						id: 'graph-summary',
+						label: 'Grafo',
+						description: 'Entradas, salidas y contrato del bloque.',
+						data: snapshot.inspector.graph
+					}
+				]
+			: []
+	);
+	const resolvedSections = $derived.by(() =>
+		snapshot
+			? [
+					{
+						id: 'resolved-block',
+						label: 'Bloque resuelto',
+						description: 'Plantillas aplicadas con el estado actual de la preview.',
+						data: snapshot.inspector.resolvedBlock
+					}
+				]
+			: []
+	);
+	const stateSections = $derived.by(() =>
+		snapshot
+			? [
+					{
+						id: 'block-state',
+						label: 'Estado agregado',
+						description: 'Último estado consolidado del bloque.',
+						data: snapshot.inspector.state
+					},
+					{
+						id: 'latest-visit',
+						label: 'Última visita',
+						description: 'Instantánea de la visita más reciente del bloque.',
+						data: snapshot.inspector.latestVisit
+					}
+				]
+			: []
+	);
+	const eventSections = $derived.by(() =>
+		snapshot
+			? [
+					{
+						id: 'block-events',
+						label: 'Eventos del bloque',
+						description: 'Eventos filtrados para la selección actual.',
+						data: snapshot.inspector.sessionEvents
+					},
+					{
+						id: 'session-events',
+						label: 'Eventos de sesión',
+						description: 'Timeline completo de la sesión preview.',
+						data: snapshot.events
+					}
+				]
+			: []
+	);
 	const tabItems: Array<{ id: InspectorTab; label: string }> = [
 		{ id: 'definition', label: 'Definición' },
 		{ id: 'resolved', label: 'Resuelto' },
@@ -153,6 +184,55 @@
 		{ id: 'agent', label: 'Agent/Tools' },
 		{ id: 'events', label: 'Eventos' }
 	];
+
+	function createEmptyDebugSnapshot(previewMode: LessonDebugPreviewMode): LessonDebugSnapshot {
+		const fallbackBlock = {
+			id: '',
+			kind: 'content',
+			title: '',
+			body: ''
+		} satisfies LessonDebugSnapshot['inspector']['originalBlock'];
+		const fallbackGraph: LessonDebugSnapshot['inspector']['graph'] = {
+			blockId: '',
+			incomingBlockIds: [],
+			outgoingBlockIds: [],
+			contracts: {
+				blockId: '',
+				blockTitle: '',
+				blockKind: 'content',
+				state: [],
+				outputs: []
+			}
+		};
+
+		return {
+			activity: {
+				id: routeContext.ilid,
+				name: 'Lesson',
+				description: null,
+				status: 'draft'
+			},
+			previewMode,
+			sessionOptions: [],
+			currentBlockId: '',
+			selectedBlockId: '',
+			blockSummaries: [],
+			inspector: {
+				blockId: '',
+				originalBlock: fallbackBlock,
+				resolvedBlock: fallbackBlock,
+				graph: fallbackGraph,
+				state: null,
+				latestVisit: null,
+				visits: [],
+				transitions: [],
+				agentTranscript: null,
+				sessionEvents: []
+			},
+			events: [],
+			runtimeView: null
+		};
+	}
 
 	$effect(() => {
 		const tabFromUrl = page.url.searchParams.get('tab') as InspectorTab | null;
@@ -243,7 +323,7 @@
 	}
 
 	async function runFromSelectedBlock() {
-		if (!snapshot.selectedBlockId) return;
+		if (!snapshot?.selectedBlockId) return;
 
 		launchActionPending = true;
 		actionError = '';
@@ -298,7 +378,7 @@
 	}
 
 	async function switchPreviewMode(mode: LessonDebugPreviewMode) {
-		if (mode === snapshot.previewMode) return;
+		if (!snapshot || mode === snapshot.previewMode) return;
 		await goto(buildHref({ mode, sessionId: null, blockId: null }), {
 			invalidateAll: true,
 			keepFocus: true
@@ -340,6 +420,8 @@
 	}
 
 	async function createPreviewSession() {
+		if (!snapshot) return;
+
 		await runAction('new-session', async () => {
 			const result = await postJson(
 				`/api/lesson/${page.params.ilid}/preview/session/debug/select-or-create`,

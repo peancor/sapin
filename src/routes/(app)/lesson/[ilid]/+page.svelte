@@ -6,7 +6,9 @@
 
 	let { data }: { data: PageData } = $props();
 	let isStarting = $state(false);
+	let startError = $state('');
 	const isPreviewMode = $derived(data.previewMode !== null);
+	const runtimeValidationError = $derived(data.runtimeValidationError ?? null);
 	const startLabel = $derived.by(() => {
 		if (data.previewMode === 'draft') {
 			return data.latestSession ? 'Abrir preview borrador' : 'Probar borrador';
@@ -19,7 +21,13 @@
 
 	async function startLesson() {
 		if (!data.userAccess.courseId) return;
+		if (runtimeValidationError) {
+			startError = runtimeValidationError.message;
+			return;
+		}
+
 		isStarting = true;
+		startError = '';
 		try {
 			const endpoint = data.previewMode
 				? `/api/lesson/${data.interactiveLearning.id}/preview/session`
@@ -32,10 +40,24 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)
 			});
-			const result = (await response.json().catch(() => ({}))) as { sessionId?: string };
+			const result = (await response.json().catch(() => ({}))) as {
+				error?: string;
+				sessionId?: string;
+			};
+			if (!response.ok) {
+				startError = result.error || 'No se pudo preparar la sesión de la lesson.';
+				return;
+			}
 			if (response.ok && result.sessionId) {
 				goto(resolve(`/course/${data.userAccess.courseId}/run/lesson/${result.sessionId}`));
+				return;
 			}
+			startError = 'No se pudo preparar la sesión de la lesson.';
+		} catch (errorValue) {
+			startError =
+				errorValue instanceof Error
+					? errorValue.message
+					: 'No se pudo preparar la sesión de la lesson.';
 		} finally {
 			isStarting = false;
 		}
@@ -68,9 +90,28 @@
 				{/if}
 			</p>
 		{/if}
+		{#if runtimeValidationError}
+			<div class="mt-4 max-w-3xl rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-200">
+				<p class="font-semibold">El mapa necesita una corrección antes de poder ejecutarse.</p>
+				<p class="mt-1">{runtimeValidationError.message}</p>
+				{#if data.userAccess.canManage}
+					<a
+						class="mt-3 inline-flex items-center rounded-xl border border-rose-300 bg-white px-3 py-2 text-sm font-medium text-rose-800 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100 dark:hover:bg-rose-950/50"
+						href={resolve(`/course/${data.userAccess.courseId}/lesson-studio/${data.interactiveLearning.id}/flow`)}
+					>
+						Volver al mapa
+					</a>
+				{/if}
+			</div>
+		{/if}
+		{#if startError && !runtimeValidationError}
+			<p class="mt-4 max-w-3xl rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-200">
+				{startError}
+			</p>
+		{/if}
 
 		<div class="mt-8 flex flex-wrap gap-3">
-			<button class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-3 font-medium text-white hover:bg-primary-700 disabled:opacity-50" onclick={startLesson} disabled={isStarting || !data.userAccess.courseId}>
+			<button class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-3 font-medium text-white hover:bg-primary-700 disabled:opacity-50" onclick={startLesson} disabled={isStarting || !data.userAccess.courseId || !!runtimeValidationError}>
 				<Play class="h-5 w-5" />
 				{startLabel}
 			</button>

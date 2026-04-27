@@ -8,6 +8,7 @@ import {
 	interactiveLessonSession,
 	lessonSessionScope
 } from '$lib/server/db/schema';
+import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
 import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
 
 export const load = (async ({ params, locals, url }) => {
@@ -58,6 +59,28 @@ export const load = (async ({ params, locals, url }) => {
 		previewMode === 'draft'
 			? revisionState.draftDefinition
 			: revisionState.publishedDefinition;
+	let runtimeValidationError: { message: string; status: number } | null = null;
+
+	try {
+		LessonService.validateDefinition(definition);
+	} catch (errorValue) {
+		if (errorValue instanceof LessonServiceError) {
+			runtimeValidationError = {
+				message: errorValue.message,
+				status: errorValue.status
+			};
+		} else if (errorValue instanceof Error) {
+			runtimeValidationError = {
+				message: errorValue.message || 'La lesson necesita una corrección antes de ejecutarse.',
+				status: 400
+			};
+		} else {
+			runtimeValidationError = {
+				message: 'La lesson necesita una corrección antes de ejecutarse.',
+				status: 500
+			};
+		}
+	}
 	const latestScope =
 		previewMode === 'draft'
 			? lessonSessionScope.PREVIEW_DRAFT
@@ -91,6 +114,7 @@ export const load = (async ({ params, locals, url }) => {
 			published: revisionState.publishedRevision.revisionNumber,
 			draft: revisionState.draftRevision.revisionNumber
 		},
+		runtimeValidationError,
 		previewMode,
 		userAccess: {
 			courseId: access.courseId,
