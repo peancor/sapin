@@ -29,6 +29,8 @@
 		type LessonAgentRuntimeMode,
 		type LessonAssetRef,
 		type LessonBlock,
+		type LessonCheckGenerationProposal,
+		type LessonCheckGenerationRejection,
 		type LessonCheckMode,
 		type LessonCheckOption,
 		type LessonCheckQuestion,
@@ -95,7 +97,8 @@
 	let inlineImageError = $state('');
 	let isGeneratingCheckQuestions = $state(false);
 	let checkGenerationError = $state('');
-	let generatedCheckQuestions = $state<LessonCheckQuestion[]>([]);
+	let generatedCheckProposals = $state<LessonCheckGenerationProposal[]>([]);
+	let rejectedCheckProposals = $state<LessonCheckGenerationRejection[]>([]);
 	let selectedGeneratedQuestionIds = $state<string[]>([]);
 	let clientFetch: typeof fetch | null = null;
 
@@ -527,13 +530,14 @@
 		markDirty();
 	}
 
-	function toggleCheckGenerationMode(mode: LessonCheckMode, checked: boolean) {
+	function selectedCheckGenerationMode(): LessonCheckMode {
+		if (workingBlock.kind !== 'check') return 'single_choice';
+		return workingBlock.checkConfig.aiGeneration.allowedModes[0] ?? 'single_choice';
+	}
+
+	function setCheckGenerationMode(mode: LessonCheckMode) {
 		if (workingBlock.kind !== 'check') return;
-		const nextModes = checked
-			? [...new Set([...workingBlock.checkConfig.aiGeneration.allowedModes, mode])]
-			: workingBlock.checkConfig.aiGeneration.allowedModes.filter((value) => value !== mode);
-		workingBlock.checkConfig.aiGeneration.allowedModes =
-			nextModes.length > 0 ? nextModes : [mode];
+		workingBlock.checkConfig.aiGeneration.allowedModes = [mode];
 		markDirty();
 	}
 
@@ -575,19 +579,21 @@
 						objective: generationConfig.objective,
 						count: generationConfig.count,
 						difficulty: generationConfig.difficulty,
-						allowedModes: generationConfig.allowedModes
+						allowedModes: [selectedCheckGenerationMode()]
 					})
 				}
 			);
 			const result = (await response.json().catch(() => ({}))) as {
 				error?: string;
-				questions?: LessonCheckQuestion[];
+				proposals?: LessonCheckGenerationProposal[];
+				rejected?: LessonCheckGenerationRejection[];
 			};
 			if (!response.ok) {
 				throw new Error(result.error || 'No se han podido generar preguntas.');
 			}
-			generatedCheckQuestions = result.questions ?? [];
-			selectedGeneratedQuestionIds = generatedCheckQuestions.map((question) => question.id);
+			generatedCheckProposals = result.proposals ?? [];
+			rejectedCheckProposals = result.rejected ?? [];
+			selectedGeneratedQuestionIds = generatedCheckProposals.map((proposal) => proposal.id);
 		} catch (errorValue) {
 			checkGenerationError =
 				errorValue instanceof Error ? errorValue.message : 'No se han podido generar preguntas.';
@@ -597,9 +603,39 @@
 	}
 
 	function selectedGeneratedQuestions() {
-		return generatedCheckQuestions.filter((question) =>
-			selectedGeneratedQuestionIds.includes(question.id)
-		);
+		return generatedCheckProposals
+			.filter((proposal) => selectedGeneratedQuestionIds.includes(proposal.id))
+			.map((proposal) => proposal.question);
+	}
+
+	function formatCheckQuestionAnswer(question: LessonCheckQuestion) {
+		if (
+			question.mode === 'single_choice' ||
+			question.mode === 'multiple_choice' ||
+			question.mode === 'true_false'
+		) {
+			return question.options
+				.filter((option) => question.correctOptionIds.includes(option.id))
+				.map((option) => option.label)
+				.join(', ');
+		}
+		if (question.mode === 'numeric') {
+			if (question.acceptedExact !== null) {
+				return question.tolerance !== null
+					? `${question.acceptedExact} ± ${question.tolerance}`
+					: `${question.acceptedExact}`;
+			}
+			return [
+				question.acceptedRange?.min !== undefined ? `min ${question.acceptedRange.min}` : null,
+				question.acceptedRange?.max !== undefined ? `max ${question.acceptedRange.max}` : null
+			]
+				.filter(Boolean)
+				.join(', ');
+		}
+		if (question.mode === 'short_text') {
+			return question.acceptedAnswers.join(', ');
+		}
+		return '';
 	}
 
 	function uniqueQuestionId(baseId: string, usedIds: Set<string>) {
@@ -671,7 +707,8 @@
 				...cloneQuestionsForBank(selected, workingBlock.checkConfig.questions)
 			]
 		};
-		generatedCheckQuestions = [];
+		generatedCheckProposals = [];
+		rejectedCheckProposals = [];
 		selectedGeneratedQuestionIds = [];
 		markDirty();
 	}
@@ -684,7 +721,8 @@
 			...workingBlock.checkConfig,
 			questions: cloneQuestionsForBank(selected)
 		};
-		generatedCheckQuestions = [];
+		generatedCheckProposals = [];
+		rejectedCheckProposals = [];
 		selectedGeneratedQuestionIds = [];
 		markDirty();
 	}
@@ -1590,32 +1628,23 @@
 										<option value="hard">Alta</option>
 									</select>
 								</label>
-								<fieldset class="block">
-									<legend class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-										Tipos permitidos
-									</legend>
-									<div class="flex flex-wrap gap-2">
+								<label class="block">
+									<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+										>Tipo a generar</span
+									>
+									<select
+										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+										value={selectedCheckGenerationMode()}
+										onchange={(event) =>
+											setCheckGenerationMode(
+												(event.currentTarget as HTMLSelectElement).value as LessonCheckMode
+											)}
+									>
 										{#each checkModes as modeOption (modeOption.value)}
-											<label
-												class="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm dark:border-gray-800"
-											>
-												<input
-													type="checkbox"
-													class="text-primary-600 h-4 w-4 rounded border-gray-300"
-													checked={workingBlock.checkConfig.aiGeneration.allowedModes.includes(
-														modeOption.value
-													)}
-													onchange={(event) =>
-														toggleCheckGenerationMode(
-															modeOption.value,
-															(event.currentTarget as HTMLInputElement).checked
-														)}
-												/>
-												{modeOption.label}
-											</label>
+											<option value={modeOption.value}>{modeOption.label}</option>
 										{/each}
-									</div>
-								</fieldset>
+									</select>
+								</label>
 							</div>
 							<label class="block lg:col-span-2">
 								<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -1645,42 +1674,75 @@
 									{isGeneratingCheckQuestions ? 'Generando...' : 'Generar propuestas'}
 								</button>
 							</div>
-							{#if generatedCheckQuestions.length > 0}
+							{#if generatedCheckProposals.length > 0}
 								<div class="space-y-3 lg:col-span-2">
-									{#each generatedCheckQuestions as question (question.id)}
+									{#if generatedCheckProposals.length < workingBlock.checkConfig.aiGeneration.count}
+										<div
+											class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
+										>
+											Se han validado {generatedCheckProposals.length} de {workingBlock.checkConfig
+												.aiGeneration.count} propuestas solicitadas.
+										</div>
+									{/if}
+									{#each generatedCheckProposals as proposal (proposal.id)}
+										{@const question = proposal.question}
 										<label
-											class="flex items-start gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800"
+											class="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-950/30"
 										>
 											<input
 												type="checkbox"
 												class="text-primary-600 mt-1 h-4 w-4 rounded border-gray-300"
-												checked={selectedGeneratedQuestionIds.includes(question.id)}
+												checked={selectedGeneratedQuestionIds.includes(proposal.id)}
 												onchange={(event) =>
 													toggleGeneratedQuestionSelection(
-														question.id,
+														proposal.id,
 														(event.currentTarget as HTMLInputElement).checked
 													)}
 											/>
-											<span>
-												<span class="text-sm font-medium text-gray-900 dark:text-white">
+											<span class="min-w-0 flex-1 space-y-2">
+												<span class="block text-sm font-medium text-gray-900 dark:text-white">
 													{getLessonCheckModeLabel(question.mode)} · {question.prompt}
 												</span>
-												<span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
-													{question.mode === 'numeric'
-														? 'Respuesta numérica'
-														: question.mode === 'short_text'
-															? question.acceptedAnswers.join(', ')
-															: question.options.map((option) => option.label).join(', ')}
+												<span class="block text-xs text-emerald-700 dark:text-emerald-300">
+													Correcta: {formatCheckQuestionAnswer(question)}
+												</span>
+												<span class="block text-xs text-gray-600 dark:text-gray-300">
+													{proposal.answerRationale}
+												</span>
+												<span class="block text-xs text-gray-500 dark:text-gray-400">
+													{proposal.validationNotes} Confianza: {Math.round(
+														proposal.confidence * 100
+													)}%.
 												</span>
 											</span>
 										</label>
 									{/each}
+									{#if rejectedCheckProposals.length > 0}
+										<details
+											class="rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 dark:border-gray-800 dark:text-gray-300"
+										>
+											<summary class="cursor-pointer font-medium text-gray-800 dark:text-gray-100">
+												{rejectedCheckProposals.length} propuesta{rejectedCheckProposals.length ===
+												1
+													? ''
+													: 's'} descartada{rejectedCheckProposals.length === 1 ? '' : 's'}
+											</summary>
+											<ul class="mt-2 space-y-1">
+												{#each rejectedCheckProposals as rejected, rejectedIndex (rejectedIndex)}
+													<li>
+														{rejected.prompt ? `${rejected.prompt}: ` : ''}{rejected.reason}
+													</li>
+												{/each}
+											</ul>
+										</details>
+									{/if}
 									<div class="flex flex-wrap justify-end gap-2">
 										<button
 											type="button"
 											class="rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
 											onclick={() => {
-												generatedCheckQuestions = [];
+												generatedCheckProposals = [];
+												rejectedCheckProposals = [];
 												selectedGeneratedQuestionIds = [];
 											}}
 										>
@@ -1703,6 +1765,17 @@
 											Reemplazar banco
 										</button>
 									</div>
+								</div>
+							{:else if rejectedCheckProposals.length > 0}
+								<div
+									class="space-y-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800 lg:col-span-2 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
+								>
+									<p>No se ha validado ninguna propuesta en esta tanda.</p>
+									<ul class="space-y-1">
+										{#each rejectedCheckProposals as rejected, rejectedIndex (rejectedIndex)}
+											<li>{rejected.prompt ? `${rejected.prompt}: ` : ''}{rejected.reason}</li>
+										{/each}
+									</ul>
 								</div>
 							{/if}
 						</div>

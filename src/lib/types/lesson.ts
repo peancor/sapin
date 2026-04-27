@@ -198,6 +198,21 @@ export type LessonCheckQuestion =
 	| LessonCheckNumericQuestion
 	| LessonCheckShortTextQuestion;
 
+export interface LessonCheckGenerationProposal {
+	id: string;
+	question: LessonCheckQuestion;
+	answerRationale: string;
+	sourceRationale: string;
+	validationNotes: string;
+	confidence: number;
+}
+
+export interface LessonCheckGenerationRejection {
+	prompt?: string;
+	mode: LessonCheckMode;
+	reason: string;
+}
+
 export interface LessonCheckConfigInput {
 	submitLabel?: string;
 	continueLabel?: string;
@@ -493,8 +508,7 @@ function normalizeLessonCheckAiGenerationConfig(
 		objective: input?.objective?.trim() ?? '',
 		count,
 		difficulty,
-		allowedModes:
-			allowedModes.length > 0 ? allowedModes : ['single_choice', 'multiple_choice', 'true_false']
+		allowedModes: [allowedModes[0] ?? 'single_choice']
 	};
 }
 
