@@ -1838,7 +1838,7 @@
 											<button type="button" class="rounded-xl border border-gray-300 p-2" onclick={() => duplicateCheckQuestion(questionIndex)}>
 												<Copy class="h-4 w-4" />
 											</button>
-											<button type="button" class="rounded-xl border border-red-200 p-2 text-red-700" onclick={() => removeCheckQuestion(questionIndex)} disabled={workingBlock.checkConfig.questions.length <= 1}>
+											<button type="button" class="rounded-xl border border-red-200 p-2 text-red-700" onclick={() => removeCheckQuestion(questionIndex)}>
 												<Trash2 class="h-4 w-4" />
 											</button>
 										</div>
@@ -1890,9 +1890,16 @@
 														</button>
 													{/if}
 													<textarea class="md:col-span-4 min-h-20 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" bind:value={option.description} oninput={markDirty} placeholder="Descripción opcional"></textarea>
-												</div>
-											{/each}
-										</div>
+								</div>
+							{/each}
+							{#if workingBlock.checkConfig.questions.length === 0}
+								<div
+									class="rounded-xl border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
+								>
+									El banco está vacío. Añade una pregunta manualmente o genera propuestas con IA antes de publicar o previsualizar este bloque.
+								</div>
+							{/if}
+						</div>
 									{:else if question.mode === 'numeric'}
 										<div class="mt-4 grid gap-4 md:grid-cols-4">
 											<label class="block">

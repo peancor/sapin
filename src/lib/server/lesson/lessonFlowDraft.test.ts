@@ -69,3 +69,38 @@ test('parseLessonFlowDraft keeps YouTube blocks editable and normalizes URL inpu
 		'pause_1'
 	);
 });
+
+test('parseLessonFlowDraft keeps empty check question banks editable', () => {
+	const initialDefinition = LessonService.createDefaultDefinition();
+	const created = LessonService.createBlockDraft(initialDefinition, 'check');
+	const draftDefinition = structuredClone(created.definition);
+	const draftCheck = draftDefinition.blocks.find((block) => block.id === created.block.id);
+
+	assert.equal(draftCheck?.kind, 'check');
+	if (!draftCheck || draftCheck.kind !== 'check') {
+		throw new Error('Expected created block to be a check block.');
+	}
+
+	draftCheck.checkConfig.questions = [];
+	draftCheck.checkConfig.aiGeneration = {
+		model: 'authoring-model',
+		objective: 'Crear preguntas de repaso',
+		count: 4,
+		difficulty: 'hard',
+		allowedModes: ['short_text']
+	};
+
+	const parsedDraft = parseLessonFlowDraft(JSON.stringify(draftDefinition));
+	const parsedCheck = parsedDraft.blocks.find((block) => block.id === draftCheck.id);
+
+	assert.equal(parsedCheck?.kind, 'check');
+	assert.equal(parsedCheck?.kind === 'check' ? parsedCheck.checkConfig.questions.length : -1, 0);
+	assert.equal(
+		parsedCheck?.kind === 'check' ? parsedCheck.checkConfig.aiGeneration.model : '',
+		'authoring-model'
+	);
+	assert.deepEqual(
+		parsedCheck?.kind === 'check' ? parsedCheck.checkConfig.aiGeneration.allowedModes : [],
+		['short_text']
+	);
+});

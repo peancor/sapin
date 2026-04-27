@@ -14,6 +14,7 @@ import type {
 import {
 	isValidLessonAgentConfig,
 	lessonAgentRuntimeModes,
+	lessonCheckModes,
 	normalizeLessonAgentConfig,
 	normalizeLessonCheckConfig
 } from '../../types/lesson.ts';
@@ -152,6 +153,14 @@ const lessonCheckQuestionSchema = z.discriminatedUnion('mode', [
 	lessonCheckShortTextQuestionSchema
 ]);
 
+const lessonCheckAiGenerationConfigSchema = z.object({
+	model: z.string().optional(),
+	objective: z.string().optional(),
+	count: z.number().int().min(1).max(12).optional(),
+	difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
+	allowedModes: z.array(z.enum(lessonCheckModes)).optional()
+});
+
 const lessonCheckConfigSchema = z.object({
 	submitLabel: z.string().optional(),
 	continueLabel: z.string().optional(),
@@ -164,7 +173,8 @@ const lessonCheckConfigSchema = z.object({
 	feedbackPartial: z.string().optional(),
 	revealCorrectAnswer: z.boolean().optional(),
 	presentationMode: z.enum(['all_at_once', 'step_by_step']).optional(),
-	questions: z.array(lessonCheckQuestionSchema)
+	questions: z.array(lessonCheckQuestionSchema),
+	aiGeneration: lessonCheckAiGenerationConfigSchema.optional()
 });
 
 const lessonAgentConfigSchema = z.object({

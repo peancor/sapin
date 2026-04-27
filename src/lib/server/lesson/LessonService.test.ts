@@ -635,6 +635,60 @@ test('validateDefinition accepts check blocks with numeric rules', () => {
 	);
 });
 
+test('parseDefinition preserves check AI generation authoring config', () => {
+	const definition = LessonService.parseDefinition(
+		JSON.stringify({
+			version: '2',
+			entryBlockId: 'check',
+			blocks: [
+				{
+					id: 'check',
+					kind: 'check',
+					title: 'Evaluación',
+					next: 'end',
+					checkConfig: {
+						questions: [
+							{
+								id: 'question_1',
+								prompt: 'Elige',
+								mode: 'single_choice',
+								options: [
+									{ id: 'a', label: 'A', value: 'a' },
+									{ id: 'b', label: 'B', value: 'b' }
+								],
+								correctOptionIds: ['a']
+							}
+						],
+						aiGeneration: {
+							model: 'authoring-model',
+							objective: 'Repasar conceptos clave',
+							count: 5,
+							difficulty: 'hard',
+							allowedModes: ['short_text']
+						}
+					}
+				},
+				{
+					id: 'end',
+					kind: 'end',
+					title: 'Fin'
+				}
+			]
+		})
+	);
+	const checkBlock = definition.blocks.find((block) => block.id === 'check');
+
+	assert.equal(checkBlock?.kind, 'check');
+	assert.equal(
+		checkBlock?.kind === 'check' ? checkBlock.checkConfig.aiGeneration.model : '',
+		'authoring-model'
+	);
+	assert.deepEqual(
+		checkBlock?.kind === 'check' ? checkBlock.checkConfig.aiGeneration.allowedModes : [],
+		['short_text']
+	);
+});
+
 test('evaluateCheckSubmission scores multiple choice and closes after exhaustion', () => {
 	const block: LessonCheckBlock = {
 		id: 'check',
