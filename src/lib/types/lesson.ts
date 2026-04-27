@@ -148,6 +148,24 @@ export interface LessonCheckAcceptedRange {
 	max?: number;
 }
 
+export type LessonCheckAiGenerationDifficulty = 'easy' | 'medium' | 'hard';
+
+export interface LessonCheckAiGenerationConfigInput {
+	model?: string;
+	objective?: string;
+	count?: number;
+	difficulty?: LessonCheckAiGenerationDifficulty;
+	allowedModes?: LessonCheckMode[];
+}
+
+export interface LessonCheckAiGenerationConfig {
+	model: string;
+	objective: string;
+	count: number;
+	difficulty: LessonCheckAiGenerationDifficulty;
+	allowedModes: LessonCheckMode[];
+}
+
 interface LessonCheckQuestionBase {
 	id: string;
 	prompt: string;
@@ -193,6 +211,7 @@ export interface LessonCheckConfigInput {
 	revealCorrectAnswer?: boolean;
 	presentationMode?: LessonCheckPresentationMode;
 	questions?: LessonCheckQuestion[];
+	aiGeneration?: LessonCheckAiGenerationConfigInput;
 }
 
 export interface LessonCheckConfig extends LessonCheckConfigInput {
@@ -202,6 +221,7 @@ export interface LessonCheckConfig extends LessonCheckConfigInput {
 	revealCorrectAnswer: boolean;
 	presentationMode: LessonCheckPresentationMode;
 	questions: LessonCheckQuestion[];
+	aiGeneration: LessonCheckAiGenerationConfig;
 }
 
 export interface LessonCheckBlock extends LessonBlockBase {
@@ -458,6 +478,26 @@ function normalizeLessonCheckQuestion(question: LessonCheckQuestion, index: numb
 	};
 }
 
+function normalizeLessonCheckAiGenerationConfig(
+	input?: LessonCheckAiGenerationConfigInput
+): LessonCheckAiGenerationConfig {
+	const allowedModes =
+		input?.allowedModes
+			?.filter((mode) => lessonCheckModes.includes(mode))
+			.filter((mode, index, list) => list.indexOf(mode) === index) ?? [];
+	const difficulty = input?.difficulty ?? 'medium';
+	const count = Math.min(12, Math.max(1, Math.trunc(input?.count ?? 3)));
+
+	return {
+		model: input?.model?.trim() ?? '',
+		objective: input?.objective?.trim() ?? '',
+		count,
+		difficulty,
+		allowedModes:
+			allowedModes.length > 0 ? allowedModes : ['single_choice', 'multiple_choice', 'true_false']
+	};
+}
+
 export function normalizeLessonCheckConfig(input: LessonCheckConfigInput): LessonCheckConfig {
 	return {
 		submitLabel: input.submitLabel,
@@ -471,7 +511,8 @@ export function normalizeLessonCheckConfig(input: LessonCheckConfigInput): Lesso
 		feedbackPartial: input.feedbackPartial,
 		revealCorrectAnswer: input.revealCorrectAnswer ?? false,
 		presentationMode: input.presentationMode ?? 'all_at_once',
-		questions: (input.questions ?? []).map(normalizeLessonCheckQuestion)
+		questions: (input.questions ?? []).map(normalizeLessonCheckQuestion),
+		aiGeneration: normalizeLessonCheckAiGenerationConfig(input.aiGeneration)
 	};
 }
 

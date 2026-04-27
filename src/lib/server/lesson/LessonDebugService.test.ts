@@ -50,6 +50,13 @@ const definition: LessonDefinition = {
 				passingScore: 1,
 				revealCorrectAnswer: false,
 				presentationMode: 'all_at_once',
+				aiGeneration: {
+					model: '',
+					objective: '',
+					count: 3,
+					difficulty: 'medium',
+					allowedModes: ['single_choice', 'multiple_choice', 'true_false']
+				},
 				questions: [
 					{
 						id: 'question_1',

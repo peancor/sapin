@@ -95,15 +95,6 @@
 	let inlineImageError = $state('');
 	let isGeneratingCheckQuestions = $state(false);
 	let checkGenerationError = $state('');
-	let checkGenerationModel = $state('');
-	let checkGenerationObjective = $state('');
-	let checkGenerationCount = $state(3);
-	let checkGenerationDifficulty = $state<'easy' | 'medium' | 'hard'>('medium');
-	let checkGenerationAllowedModes = $state<LessonCheckMode[]>([
-		'single_choice',
-		'multiple_choice',
-		'true_false'
-	]);
 	let generatedCheckQuestions = $state<LessonCheckQuestion[]>([]);
 	let selectedGeneratedQuestionIds = $state<string[]>([]);
 	let clientFetch: typeof fetch | null = null;
@@ -537,12 +528,24 @@
 	}
 
 	function toggleCheckGenerationMode(mode: LessonCheckMode, checked: boolean) {
-		checkGenerationAllowedModes = checked
-			? [...new Set([...checkGenerationAllowedModes, mode])]
-			: checkGenerationAllowedModes.filter((value) => value !== mode);
-		if (checkGenerationAllowedModes.length === 0) {
-			checkGenerationAllowedModes = [mode];
+		if (workingBlock.kind !== 'check') return;
+		const nextModes = checked
+			? [...new Set([...workingBlock.checkConfig.aiGeneration.allowedModes, mode])]
+			: workingBlock.checkConfig.aiGeneration.allowedModes.filter((value) => value !== mode);
+		workingBlock.checkConfig.aiGeneration.allowedModes =
+			nextModes.length > 0 ? nextModes : [mode];
+		markDirty();
+	}
+
+	function updateCheckGenerationCount(value: string) {
+		if (workingBlock.kind !== 'check') return;
+		const parsed = Number(value || '1');
+		if (Number.isNaN(parsed)) {
+			workingBlock.checkConfig.aiGeneration.count = 1;
+		} else {
+			workingBlock.checkConfig.aiGeneration.count = Math.min(12, Math.max(1, Math.trunc(parsed)));
 		}
+		markDirty();
 	}
 
 	function toggleGeneratedQuestionSelection(questionId: string, checked: boolean) {
@@ -560,6 +563,7 @@
 		checkGenerationError = '';
 		isGeneratingCheckQuestions = true;
 		try {
+			const generationConfig = workingBlock.checkConfig.aiGeneration;
 			const response = await clientFetch(
 				`/api/course/${cid}/lesson/${ilid}/authoring/check/generate`,
 				{
@@ -567,11 +571,11 @@
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({
 						blockId: workingBlock.id,
-						model: checkGenerationModel || data.defaultModel || data.models[0]?.name || '',
-						objective: checkGenerationObjective,
-						count: checkGenerationCount,
-						difficulty: checkGenerationDifficulty,
-						allowedModes: checkGenerationAllowedModes
+						model: generationConfig.model || data.defaultModel || data.models[0]?.name || '',
+						objective: generationConfig.objective,
+						count: generationConfig.count,
+						difficulty: generationConfig.difficulty,
+						allowedModes: generationConfig.allowedModes
 					})
 				}
 			);
@@ -613,12 +617,46 @@
 	function cloneQuestionsForBank(
 		questions: LessonCheckQuestion[],
 		existingQuestions: LessonCheckQuestion[] = []
-	) {
+	): LessonCheckQuestion[] {
 		const usedIds = new Set(existingQuestions.map((question) => question.id));
 		return questions.map((question, index) => {
-			const clone = structuredClone(question);
-			clone.id = uniqueQuestionId(clone.id || `question_${index + 1}`, usedIds);
-			return clone;
+			const id = uniqueQuestionId(question.id || `question_${index + 1}`, usedIds);
+			const prompt = question.prompt;
+			if (
+				question.mode === 'single_choice' ||
+				question.mode === 'multiple_choice' ||
+				question.mode === 'true_false'
+			) {
+				return {
+					id,
+					prompt,
+					mode: question.mode,
+					options: question.options.map((option) => ({ ...option })),
+					correctOptionIds: [...question.correctOptionIds]
+				};
+			}
+			if (question.mode === 'numeric') {
+				return {
+					id,
+					prompt,
+					mode: 'numeric',
+					acceptedExact: question.acceptedExact,
+					acceptedRange: question.acceptedRange ? { ...question.acceptedRange } : undefined,
+					tolerance: question.tolerance
+				};
+			}
+			if (question.mode === 'short_text') {
+				return {
+					id,
+					prompt,
+					mode: 'short_text',
+					acceptedAnswers: [...question.acceptedAnswers],
+					caseSensitive: question.caseSensitive,
+					trimWhitespace: question.trimWhitespace,
+					matchMode: question.matchMode
+				};
+			}
+			return createCheckQuestion('single_choice', index);
 		});
 	}
 
@@ -904,7 +942,6 @@
 
 	onMount(() => {
 		clientFetch = window.fetch.bind(window);
-		checkGenerationModel = data.defaultModel || data.models[0]?.name || '';
 
 		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
 			if (!isDirty || isSaving) return;
@@ -1509,7 +1546,16 @@
 									>
 									<select
 										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-										bind:value={checkGenerationModel}
+										value={workingBlock.checkConfig.aiGeneration.model ||
+											data.defaultModel ||
+											data.models[0]?.name ||
+											''}
+										onchange={(event) => {
+											workingBlock.checkConfig.aiGeneration.model = (
+												event.currentTarget as HTMLSelectElement
+											).value;
+											markDirty();
+										}}
 									>
 										{#each data.models as model (model.name)}
 											<option value={model.name}>{model.name}</option>
@@ -1525,7 +1571,9 @@
 										min="1"
 										max="12"
 										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-										bind:value={checkGenerationCount}
+										value={workingBlock.checkConfig.aiGeneration.count}
+										oninput={(event) =>
+											updateCheckGenerationCount((event.currentTarget as HTMLInputElement).value)}
 									/>
 								</label>
 								<label class="block">
@@ -1534,7 +1582,8 @@
 									>
 									<select
 										class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-										bind:value={checkGenerationDifficulty}
+										bind:value={workingBlock.checkConfig.aiGeneration.difficulty}
+										onchange={markDirty}
 									>
 										<option value="easy">Baja</option>
 										<option value="medium">Media</option>
@@ -1553,7 +1602,9 @@
 												<input
 													type="checkbox"
 													class="text-primary-600 h-4 w-4 rounded border-gray-300"
-													checked={checkGenerationAllowedModes.includes(modeOption.value)}
+													checked={workingBlock.checkConfig.aiGeneration.allowedModes.includes(
+														modeOption.value
+													)}
 													onchange={(event) =>
 														toggleCheckGenerationMode(
 															modeOption.value,
@@ -1572,7 +1623,8 @@
 								>
 								<textarea
 									class="min-h-24 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-									bind:value={checkGenerationObjective}
+									bind:value={workingBlock.checkConfig.aiGeneration.objective}
+									oninput={markDirty}
 									placeholder="Ej.: comprobar comprensión de los conceptos clave del bloque, con distractores plausibles."
 								></textarea>
 							</label>
@@ -1586,7 +1638,8 @@
 									type="button"
 									class="bg-primary-600 hover:bg-primary-700 rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
 									onclick={generateCheckQuestions}
-									disabled={isGeneratingCheckQuestions || !checkGenerationObjective.trim()}
+									disabled={isGeneratingCheckQuestions ||
+										!workingBlock.checkConfig.aiGeneration.objective.trim()}
 								>
 									<Sparkles class="mr-1 inline h-4 w-4" />
 									{isGeneratingCheckQuestions ? 'Generando...' : 'Generar propuestas'}
