@@ -87,7 +87,20 @@ const lessonBlockGraphMetaSchema = z.object({
 			y: z.number()
 		})
 		.optional(),
-	incomingOrder: z.array(z.string().min(1)).optional()
+	incomingOrder: z.array(z.string().min(1)).optional(),
+	edgeRoutes: z
+		.record(
+			z.string().min(1),
+			z.object({
+				points: z.array(
+					z.object({
+						x: z.number(),
+						y: z.number()
+					})
+				)
+			})
+		)
+		.optional()
 });
 
 const lessonBlockExposureSchema = z.object({

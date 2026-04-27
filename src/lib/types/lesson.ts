@@ -79,6 +79,16 @@ export interface LessonBlockGraphMeta {
 		y: number;
 	};
 	incomingOrder?: string[];
+	edgeRoutes?: Record<string, LessonBlockGraphEdgeRoute>;
+}
+
+export interface LessonBlockGraphRoutePoint {
+	x: number;
+	y: number;
+}
+
+export interface LessonBlockGraphEdgeRoute {
+	points: LessonBlockGraphRoutePoint[];
 }
 
 export interface LessonBlockExposure {

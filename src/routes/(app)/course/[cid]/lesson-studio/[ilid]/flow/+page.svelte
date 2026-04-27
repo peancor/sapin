@@ -18,6 +18,7 @@
 	} from '@xyflow/svelte';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import {
+		applyLessonFlowGraph,
 		createLessonFlowGraph,
 		getLessonFlowBranchEdgeId,
 		getLessonFlowChoiceHandleId,
@@ -27,6 +28,7 @@
 		getLessonFlowNextHandleId
 	} from '$lib/lesson/lessonFlow';
 	import LessonFlowNodeComponent from '$lib/components/lesson/flow/LessonFlowNode.svelte';
+	import LessonFlowRouteEdge from '$lib/components/lesson/flow/LessonFlowRouteEdge.svelte';
 	import LessonFlowQuickMenu from '$lib/components/lesson/flow/LessonFlowQuickMenu.svelte';
 	import {
 		getLessonAgentToolMetrics,
@@ -49,8 +51,10 @@
 	} from '$lib/types/lesson';
 	import type {
 		LessonFlowEdge,
+		LessonFlowEdgeData,
 		LessonFlowGraph,
-		LessonFlowNode as LessonFlowGraphNode
+		LessonFlowNode as LessonFlowGraphNode,
+		LessonFlowRoutePoint
 	} from '$lib/types/lessonFlow';
 	import {
 		ArrowLeft,
@@ -101,6 +105,9 @@
 
 	const nodeTypes = {
 		'lesson-block': LessonFlowNodeComponent
+	};
+	const edgeTypes = {
+		'lesson-route': LessonFlowRouteEdge
 	};
 
 	const createButtons = [
@@ -435,7 +442,12 @@
 		}));
 		flowEdges = graph.edges.map((edge) => ({
 			...edge,
-			selected: nextSelection?.kind === 'edge' && nextSelection.id === edge.id
+			selected: nextSelection?.kind === 'edge' && nextSelection.id === edge.id,
+			data: {
+				...(edge.data as LessonFlowEdgeData),
+				onRoutePointChange: updateRoutePoint,
+				onRoutePointNudge: nudgeRoutePoint
+			}
 		}));
 		selection = nextSelection;
 	}
@@ -453,23 +465,178 @@
 	}
 
 	function commitCanvasGraph(): LessonDefinition {
-		const nextDefinition = structuredClone(draftDefinition);
-		const positions = new Map(flowNodes.map((node) => [node.id, node.position]));
-
-		for (const block of nextDefinition.blocks) {
-			const position = positions.get(block.id);
-			if (!position) continue;
-			block.graph = {
-				...(block.graph ?? {}),
-				position: {
-					x: position.x,
-					y: position.y
-				}
-			};
-		}
+		const nextDefinition = applyLessonFlowGraph(draftDefinition, {
+			nodes: flowNodes,
+			edges: flowEdges
+		});
 
 		draftDefinition = nextDefinition;
 		return nextDefinition;
+	}
+
+	function sanitizeRoutePoints(points: LessonFlowRoutePoint[]): LessonFlowRoutePoint[] {
+		return points
+			.filter(
+				(point) =>
+					Number.isFinite(point.x) &&
+					Number.isFinite(point.y) &&
+					Math.abs(point.x) < 100_000 &&
+					Math.abs(point.y) < 100_000
+			)
+			.slice(0, 12)
+			.map((point) => ({
+				x: Math.round(point.x),
+				y: Math.round(point.y)
+			}));
+	}
+
+	function updateFlowEdgeRoute(
+		edgeId: string,
+		points: LessonFlowRoutePoint[],
+		mode: 'manual' | 'auto' = 'manual'
+	) {
+		const routePoints = mode === 'manual' ? sanitizeRoutePoints(points) : [];
+		const nextEdges = flowEdges.map((edge) =>
+			edge.id === edgeId
+				? {
+						...edge,
+						data: {
+							...(edge.data as LessonFlowEdgeData),
+							routeMode: mode,
+							routePoints,
+							isAutoRouted: mode === 'auto' && routePoints.length > 0,
+							onRoutePointChange: updateRoutePoint,
+							onRoutePointNudge: nudgeRoutePoint
+						}
+					}
+				: edge
+		);
+		flowEdges = nextEdges;
+		draftDefinition = applyLessonFlowGraph(draftDefinition, {
+			nodes: flowNodes,
+			edges: nextEdges
+		});
+		selection = { kind: 'edge', id: edgeId };
+		hasUnsavedChanges = true;
+		actionMessage = '';
+		actionError = '';
+	}
+
+	function updateRoutePoint(edgeId: string, pointIndex: number, point: LessonFlowRoutePoint) {
+		const edge = flowEdges.find((candidate) => candidate.id === edgeId);
+		if (!edge) return;
+		const routePoints = [...(edge.data?.routePoints ?? [])];
+		if (!routePoints[pointIndex]) return;
+		routePoints[pointIndex] = point;
+		updateFlowEdgeRoute(edgeId, routePoints, 'manual');
+	}
+
+	function nudgeRoutePoint(edgeId: string, pointIndex: number, delta: LessonFlowRoutePoint) {
+		const edge = flowEdges.find((candidate) => candidate.id === edgeId);
+		const point = edge?.data?.routePoints?.[pointIndex];
+		if (!edge || !point) return;
+		updateRoutePoint(edgeId, pointIndex, {
+			x: point.x + delta.x,
+			y: point.y + delta.y
+		});
+	}
+
+	function setRoutePointCoordinate(
+		edgeId: string,
+		pointIndex: number,
+		axis: 'x' | 'y',
+		value: string
+	) {
+		const numericValue = Number(value);
+		if (!Number.isFinite(numericValue)) return;
+		const edge = flowEdges.find((candidate) => candidate.id === edgeId);
+		if (!edge) return;
+		const routePoints = [...(edge.data?.routePoints ?? [])];
+		const currentPoint = routePoints[pointIndex];
+		if (!currentPoint) return;
+		routePoints[pointIndex] = {
+			...currentPoint,
+			[axis]: numericValue
+		};
+		updateFlowEdgeRoute(edgeId, routePoints, 'manual');
+	}
+
+	function removeRoutePoint(edgeId: string, pointIndex: number) {
+		const edge = flowEdges.find((candidate) => candidate.id === edgeId);
+		if (!edge) return;
+		const routePoints = (edge.data?.routePoints ?? []).filter((_, index) => index !== pointIndex);
+		if (routePoints.length > 0) {
+			updateFlowEdgeRoute(edgeId, routePoints, 'manual');
+			return;
+		}
+
+		updateFlowEdgeRoute(edgeId, [], 'auto');
+		syncCanvasFromDraft();
+	}
+
+	function getNodeCenter(nodeId: string): LessonFlowRoutePoint | null {
+		const node = flowNodes.find((candidate) => candidate.id === nodeId);
+		if (!node) return null;
+		return {
+			x: node.position.x + 126,
+			y: node.position.y + 78
+		};
+	}
+
+	function createDefaultRoutePoint(edge: LessonFlowEdge): LessonFlowRoutePoint | null {
+		const sourceCenter = getNodeCenter(edge.source);
+		const targetCenter = getNodeCenter(edge.target);
+		if (!sourceCenter || !targetCenter) return null;
+
+		return {
+			x: Math.round((sourceCenter.x + targetCenter.x) / 2),
+			y: Math.round((sourceCenter.y + targetCenter.y) / 2)
+		};
+	}
+
+	function createSideRoutePoints(edge: LessonFlowEdge): LessonFlowRoutePoint[] {
+		const sourceNode = flowNodes.find((node) => node.id === edge.source);
+		const targetNode = flowNodes.find((node) => node.id === edge.target);
+		if (!sourceNode || !targetNode) return [];
+
+		const sourceIsBelowTarget = sourceNode.position.y > targetNode.position.y;
+		const laneX =
+			Math.min(sourceNode.position.x, targetNode.position.x) - (sourceIsBelowTarget ? 96 : 72);
+		return [
+			{
+				x: laneX,
+				y: sourceNode.position.y + 156
+			},
+			{
+				x: laneX,
+				y: Math.max(0, targetNode.position.y - 48)
+			}
+		];
+	}
+
+	function addRoutePointToSelectedEdge() {
+		if (!selectedEdge) return;
+		const routePoints = [...(selectedEdge.data?.routePoints ?? [])];
+		const point = createDefaultRoutePoint(selectedEdge);
+		if (!point) return;
+		updateFlowEdgeRoute(selectedEdge.id, [...routePoints, point], 'manual');
+	}
+
+	function applySideRouteToSelectedEdge() {
+		if (!selectedEdge) return;
+		const routePoints = createSideRoutePoints(selectedEdge);
+		if (routePoints.length === 0) return;
+		updateFlowEdgeRoute(selectedEdge.id, routePoints, 'manual');
+	}
+
+	function clearSelectedEdgeRoute() {
+		if (!selectedEdge) return;
+		updateFlowEdgeRoute(selectedEdge.id, [], 'auto');
+		const nextDefinition = commitCanvasGraph();
+		draftDefinition = nextDefinition;
+		syncCanvasFromDraft();
+		actionMessage = 'Ruta automatica restaurada.';
+		actionError = '';
 	}
 
 	function mutateDefinition(
@@ -2374,6 +2541,7 @@
 								bind:edges={flowEdges}
 								bind:viewport={flowViewport}
 								{nodeTypes}
+								{edgeTypes}
 								class="h-full w-full"
 								style="background:
 									linear-gradient(135deg, rgba(46,125,50,0.07), transparent 34%),
@@ -3393,6 +3561,124 @@
 									{/each}
 								</select>
 							</label>
+
+							<div
+								class="rounded-xl border border-stone-200/80 bg-white/60 px-3 py-3 dark:border-stone-800 dark:bg-stone-950/20"
+							>
+								<div class="flex items-start justify-between gap-3">
+									<div>
+										<p
+											class="text-xs font-semibold tracking-[0.14em] text-stone-500 uppercase dark:text-stone-400"
+										>
+											Ruta visual
+										</p>
+										<p class="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">
+											{selectedEdge.data?.routeMode === 'manual'
+												? `${selectedEdge.data.routePoints.length} punto${selectedEdge.data.routePoints.length === 1 ? '' : 's'} de ruta manual`
+												: selectedEdge.data?.isAutoRouted
+													? 'Ruta lateral automática'
+													: 'Ruta automática'}
+										</p>
+									</div>
+									<span
+										class="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-500 uppercase dark:bg-stone-800 dark:text-stone-300"
+									>
+										{selectedEdge.data?.routeMode === 'manual' ? 'Manual' : 'Auto'}
+									</span>
+								</div>
+
+								<div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+									<button
+										type="button"
+										class="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 shadow-sm transition hover:border-[#2e7d32]/40 hover:bg-[#eaf7e9]/45 active:scale-95 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-200"
+										onclick={addRoutePointToSelectedEdge}
+									>
+										<Plus class="mr-1 h-3.5 w-3.5" />
+										Añadir punto
+									</button>
+									<button
+										type="button"
+										class="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 shadow-sm transition hover:border-[#2e7d32]/40 hover:bg-[#eaf7e9]/45 active:scale-95 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-200"
+										onclick={applySideRouteToSelectedEdge}
+									>
+										<Route class="mr-1 h-3.5 w-3.5" />
+										Lateral
+									</button>
+									<button
+										type="button"
+										class="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 active:scale-95 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-200 dark:hover:border-red-900/50 dark:hover:bg-red-950/20 dark:hover:text-red-300"
+										onclick={clearSelectedEdgeRoute}
+									>
+										<Trash2 class="mr-1 h-3.5 w-3.5" />
+										Restablecer
+									</button>
+								</div>
+
+								{#if selectedEdge.data?.routeMode === 'manual' && selectedEdge.data.routePoints.length > 0}
+									<div class="mt-3 space-y-2">
+										{#each selectedEdge.data.routePoints as point, index (`${selectedEdge.id}:route-list:${index}`)}
+											<div
+												class="rounded-xl border border-stone-200/80 bg-stone-50 px-2.5 py-2 dark:border-stone-800 dark:bg-stone-900/60"
+											>
+												<div class="flex items-center justify-between gap-2">
+													<span class="text-[11px] font-semibold text-stone-600 dark:text-stone-300"
+														>Punto {index + 1}</span
+													>
+													<button
+														type="button"
+														class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 active:scale-95 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-300 dark:hover:border-red-900/50 dark:hover:bg-red-950/20 dark:hover:text-red-300"
+														title="Eliminar punto"
+														aria-label={`Eliminar punto ${index + 1}`}
+														onclick={() => removeRoutePoint(selectedEdge.id, index)}
+													>
+														<Trash2 class="h-3.5 w-3.5" />
+													</button>
+												</div>
+												<div class="mt-2 grid grid-cols-2 gap-2">
+													<label class="block">
+														<span
+															class="mb-1 block text-[10px] font-semibold text-stone-500 uppercase dark:text-stone-400"
+															>X</span
+														>
+														<input
+															type="number"
+															step="8"
+															class="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 font-mono text-xs text-stone-900 shadow-sm transition focus:border-[#2e7d32] focus:ring-2 focus:ring-[#a8e063]/30 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white"
+															value={point.x}
+															oninput={(event) =>
+																setRoutePointCoordinate(
+																	selectedEdge.id,
+																	index,
+																	'x',
+																	(event.currentTarget as HTMLInputElement).value
+																)}
+														/>
+													</label>
+													<label class="block">
+														<span
+															class="mb-1 block text-[10px] font-semibold text-stone-500 uppercase dark:text-stone-400"
+															>Y</span
+														>
+														<input
+															type="number"
+															step="8"
+															class="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 font-mono text-xs text-stone-900 shadow-sm transition focus:border-[#2e7d32] focus:ring-2 focus:ring-[#a8e063]/30 focus:outline-hidden dark:border-stone-700 dark:bg-stone-950 dark:text-white"
+															value={point.y}
+															oninput={(event) =>
+																setRoutePointCoordinate(
+																	selectedEdge.id,
+																	index,
+																	'y',
+																	(event.currentTarget as HTMLInputElement).value
+																)}
+														/>
+													</label>
+												</div>
+											</div>
+										{/each}
+									</div>
+								{/if}
+							</div>
 
 							{#if selectedEdge.data?.edgeType === 'branch' && selectedEdge.data.branchIndex !== undefined}
 								<label class="block">

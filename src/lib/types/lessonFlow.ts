@@ -3,6 +3,12 @@ import type { LessonBlockKind, LessonConditionOperator, LessonDefinition } from 
 
 export type LessonFlowEdgeType = 'next' | 'branch' | 'choice-option';
 export type LessonFlowIncomingHandleKind = 'single' | 'occupied' | 'add';
+export type LessonFlowEdgeRouteMode = 'auto' | 'manual';
+
+export interface LessonFlowRoutePoint {
+	x: number;
+	y: number;
+}
 
 export interface LessonFlowHandleDescriptor {
 	id: string;
@@ -32,15 +38,20 @@ export interface LessonFlowEdgeData extends Record<string, unknown> {
 	sourceBlockId: string;
 	targetBlockId: string;
 	label: string;
+	routeMode: LessonFlowEdgeRouteMode;
+	routePoints: LessonFlowRoutePoint[];
+	isAutoRouted: boolean;
 	branchIndex?: number;
 	optionId?: string;
 	optionValue?: string;
 	conditionSource?: string;
 	conditionOperator?: LessonConditionOperator;
 	conditionValue?: string | number | boolean | null;
+	onRoutePointChange?: (edgeId: string, pointIndex: number, point: LessonFlowRoutePoint) => void;
+	onRoutePointNudge?: (edgeId: string, pointIndex: number, delta: LessonFlowRoutePoint) => void;
 }
 
-export type LessonFlowEdge = Edge<LessonFlowEdgeData, 'smoothstep'>;
+export type LessonFlowEdge = Edge<LessonFlowEdgeData, 'lesson-route'>;
 
 export interface LessonFlowGraph {
 	nodes: LessonFlowNode[];

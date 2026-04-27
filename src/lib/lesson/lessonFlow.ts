@@ -3,24 +3,44 @@ import {
 	getLessonAgentInteractionLabel,
 	getLessonAgentExecutionTriggerLabel,
 	type LessonBlock,
+	type LessonBlockGraphEdgeRoute,
+	type LessonBlockGraphRoutePoint,
 	type LessonDefinition
 } from '../types/lesson';
 import type {
 	LessonFlowEdge,
 	LessonFlowEdgeData,
+	LessonFlowEdgeRouteMode,
 	LessonFlowEdgeType,
 	LessonFlowHandleDescriptor,
 	LessonFlowGraph,
-	LessonFlowNode
+	LessonFlowNode,
+	LessonFlowRoutePoint
 } from '../types/lessonFlow';
 
 const FLOW_NODE_GAP_X = 360;
 const FLOW_NODE_GAP_Y = 260;
-const FLOW_EDGE_TYPE = 'smoothstep';
+const FLOW_EDGE_TYPE = 'lesson-route';
 const LESSON_NODE_TYPE = 'lesson-block';
+const FLOW_NODE_WIDTH = 252;
+const FLOW_NODE_HEIGHT = 156;
+const RETURN_ROUTE_LANE_GAP = 96;
+const RETURN_ROUTE_EXTRA_LANE_GAPS = [0, 72, 144];
+const RETURN_ROUTE_EXIT_GAP = 56;
+const RETURN_ROUTE_ENTRY_GAP = 56;
+const RETURN_ROUTE_OBSTACLE_PADDING = 36;
+
 interface LessonFlowIncomingHandleState {
 	handles: LessonFlowHandleDescriptor[];
 	targetHandleByEdgeId: Map<string, string>;
+}
+
+interface LessonFlowRouteRect {
+	id: string;
+	left: number;
+	right: number;
+	top: number;
+	bottom: number;
 }
 
 export function getLessonBlockKindLabel(kind: LessonBlock['kind']): string {
@@ -121,14 +141,31 @@ export function createLessonFlowGraph(definition: LessonDefinition): LessonFlowG
 		}
 	}
 
-	const edges: LessonFlowEdge[] = edgeInputs.map((edgeInput) =>
-		createLessonFlowEdge({
+	const nodeById = new Map(nodes.map((node) => [node.id, node]));
+	const edges: LessonFlowEdge[] = edgeInputs.map((edgeInput) => {
+		const sourceHandle = getLessonFlowSourceHandleId(edgeInput);
+		const targetHandle =
+			targetHandleByEdgeId.get(edgeInput.id) ?? getLessonFlowIncomingHandleId(edgeInput.id);
+		const routePoints =
+			edgeInput.routePoints ??
+			createAutomaticRoutePoints({
+				edgeInput,
+				sourceNode: nodeById.get(edgeInput.source),
+				targetNode: nodeById.get(edgeInput.target),
+				nodes,
+				sourceHandle,
+				targetHandle
+			});
+
+		return createLessonFlowEdge({
 			...edgeInput,
-			sourceHandle: getLessonFlowSourceHandleId(edgeInput),
-			targetHandle:
-				targetHandleByEdgeId.get(edgeInput.id) ?? getLessonFlowIncomingHandleId(edgeInput.id)
-		})
-	);
+			sourceHandle,
+			targetHandle,
+			routePoints,
+			routeMode: edgeInput.routePoints ? 'manual' : 'auto',
+			isAutoRouted: !edgeInput.routePoints && routePoints.length > 0
+		});
+	});
 
 	return {
 		nodes,
@@ -143,6 +180,7 @@ export function applyLessonFlowGraph(
 	const nextDefinition = structuredClone(definition);
 	const positionById = new Map(graph.nodes.map((node) => [node.id, node.position]));
 	const edgeById = new Map(graph.edges.map((edge) => [edge.id, edge]));
+	const manualEdgeRoutesBySourceId = new Map<string, Record<string, LessonBlockGraphEdgeRoute>>();
 	const incomingOrderByBlockId = new Map(
 		graph.nodes.map((node) => [
 			node.id,
@@ -152,15 +190,27 @@ export function applyLessonFlowGraph(
 		])
 	);
 
+	for (const edge of graph.edges) {
+		if (edge.data?.routeMode !== 'manual') continue;
+		const points = sanitizeRoutePoints(edge.data.routePoints ?? []);
+		if (points.length === 0) continue;
+
+		const sourceRoutes = manualEdgeRoutesBySourceId.get(edge.source) ?? {};
+		sourceRoutes[edge.id] = { points };
+		manualEdgeRoutesBySourceId.set(edge.source, sourceRoutes);
+	}
+
 	for (const block of nextDefinition.blocks) {
 		const position = positionById.get(block.id);
+		const edgeRoutes = manualEdgeRoutesBySourceId.get(block.id);
 		const nextGraph = {
 			...(block.graph ?? {}),
 			...(() => {
 				if (!supportsDynamicIncomingHandles()) return {};
 				const incomingOrder = incomingOrderByBlockId.get(block.id) ?? [];
 				return incomingOrder.length > 0 ? { incomingOrder } : {};
-			})()
+			})(),
+			...(edgeRoutes ? { edgeRoutes } : {})
 		};
 
 		if (position) {
@@ -168,6 +218,10 @@ export function applyLessonFlowGraph(
 				x: position.x,
 				y: position.y
 			};
+		}
+
+		if (!edgeRoutes) {
+			delete nextGraph.edgeRoutes;
 		}
 
 		if (Object.keys(nextGraph).length > 0) {
@@ -235,6 +289,9 @@ function createLessonFlowEdge(input: {
 	conditionSource?: string;
 	conditionOperator?: LessonFlowEdgeData['conditionOperator'];
 	conditionValue?: LessonFlowEdgeData['conditionValue'];
+	routePoints: LessonFlowRoutePoint[];
+	routeMode: LessonFlowEdgeRouteMode;
+	isAutoRouted: boolean;
 }): LessonFlowEdge {
 	const style =
 		input.edgeType === 'next'
@@ -268,7 +325,10 @@ function createLessonFlowEdge(input: {
 			optionValue: input.optionValue,
 			conditionSource: input.conditionSource,
 			conditionOperator: input.conditionOperator,
-			conditionValue: input.conditionValue
+			conditionValue: input.conditionValue,
+			routePoints: input.routePoints,
+			routeMode: input.routeMode,
+			isAutoRouted: input.isAutoRouted
 		}
 	};
 }
@@ -285,6 +345,7 @@ function collectEdgeInputs(definition: LessonDefinition): Array<{
 	conditionSource?: string;
 	conditionOperator?: LessonFlowEdgeData['conditionOperator'];
 	conditionValue?: LessonFlowEdgeData['conditionValue'];
+	routePoints?: LessonFlowRoutePoint[];
 }> {
 	const edgeInputs: Array<{
 		id: string;
@@ -298,6 +359,7 @@ function collectEdgeInputs(definition: LessonDefinition): Array<{
 		conditionSource?: string;
 		conditionOperator?: LessonFlowEdgeData['conditionOperator'];
 		conditionValue?: LessonFlowEdgeData['conditionValue'];
+		routePoints?: LessonFlowRoutePoint[];
 	}> = [];
 	const blockIds = new Set(definition.blocks.map((block) => block.id));
 	const hasExistingTarget = (targetBlockId: string | null | undefined): targetBlockId is string =>
@@ -305,20 +367,23 @@ function collectEdgeInputs(definition: LessonDefinition): Array<{
 
 	for (const block of definition.blocks) {
 		if (block.kind !== 'choice' && block.kind !== 'end' && hasExistingTarget(block.next)) {
+			const edgeId = getLessonFlowNextEdgeId(block.id);
 			edgeInputs.push({
-				id: getLessonFlowNextEdgeId(block.id),
+				id: edgeId,
 				source: block.id,
 				target: block.next,
 				label: 'Continuar',
-				edgeType: 'next'
+				edgeType: 'next',
+				routePoints: getSavedRoutePoints(block, edgeId)
 			});
 		}
 
 		for (const [branchIndex, branch] of (block.branches ?? []).entries()) {
 			if (!hasExistingTarget(branch.targetBlockId)) continue;
+			const edgeId = getLessonFlowBranchEdgeId(block.id, branchIndex);
 
 			edgeInputs.push({
-				id: getLessonFlowBranchEdgeId(block.id, branchIndex),
+				id: edgeId,
 				source: block.id,
 				target: branch.targetBlockId,
 				label: branch.label?.trim() || `Rama ${branchIndex + 1}`,
@@ -326,28 +391,236 @@ function collectEdgeInputs(definition: LessonDefinition): Array<{
 				branchIndex,
 				conditionSource: branch.condition?.source,
 				conditionOperator: branch.condition?.operator,
-				conditionValue: branch.condition?.value ?? null
+				conditionValue: branch.condition?.value ?? null,
+				routePoints: getSavedRoutePoints(block, edgeId)
 			});
 		}
 
 		if (block.kind === 'choice') {
 			for (const option of block.options) {
 				if (!hasExistingTarget(option.targetBlockId)) continue;
+				const edgeId = getLessonFlowChoiceEdgeId(block.id, option.id);
 
 				edgeInputs.push({
-					id: getLessonFlowChoiceEdgeId(block.id, option.id),
+					id: edgeId,
 					source: block.id,
 					target: option.targetBlockId,
 					label: option.label,
 					edgeType: 'choice-option',
 					optionId: option.id,
-					optionValue: option.value
+					optionValue: option.value,
+					routePoints: getSavedRoutePoints(block, edgeId)
 				});
 			}
 		}
 	}
 
 	return edgeInputs;
+}
+
+function getSavedRoutePoints(block: LessonBlock, edgeId: string): LessonFlowRoutePoint[] | undefined {
+	const points = sanitizeRoutePoints(block.graph?.edgeRoutes?.[edgeId]?.points ?? []);
+	return points.length > 0 ? points : undefined;
+}
+
+function sanitizeRoutePoints(points: LessonBlockGraphRoutePoint[]): LessonFlowRoutePoint[] {
+	return points
+		.filter(
+			(point) =>
+				Number.isFinite(point.x) &&
+				Number.isFinite(point.y) &&
+				Math.abs(point.x) < 100_000 &&
+				Math.abs(point.y) < 100_000
+		)
+		.slice(0, 12)
+		.map((point) => ({
+			x: Math.round(point.x),
+			y: Math.round(point.y)
+		}));
+}
+
+function createAutomaticRoutePoints(input: {
+	edgeInput: { source: string; target: string };
+	sourceNode?: LessonFlowNode;
+	targetNode?: LessonFlowNode;
+	nodes: LessonFlowNode[];
+	sourceHandle: string;
+	targetHandle: string;
+}): LessonFlowRoutePoint[] {
+	const { sourceNode, targetNode } = input;
+	if (!sourceNode || !targetNode) return [];
+
+	const sourcePosition = sourceNode.position;
+	const targetPosition = targetNode.position;
+	const isReturnEdge = sourcePosition.y > targetPosition.y + FLOW_NODE_GAP_Y * 0.45;
+	if (!isReturnEdge) return [];
+
+	const sourceX = getNodeHandleX(sourceNode, 'source', input.sourceHandle);
+	const targetX = getNodeHandleX(targetNode, 'target', input.targetHandle);
+	const sourceExitY = sourcePosition.y + FLOW_NODE_HEIGHT + RETURN_ROUTE_EXIT_GAP;
+	const targetEntryY = Math.max(0, targetPosition.y - RETURN_ROUTE_ENTRY_GAP);
+	const relevantRects = getRouteRelevantRects(
+		input.nodes,
+		Math.min(targetEntryY, sourceExitY),
+		Math.max(targetEntryY, sourceExitY)
+	);
+	const baseLeftLane =
+		Math.min(...relevantRects.map((rect) => rect.left), sourcePosition.x, targetPosition.x) -
+		RETURN_ROUTE_LANE_GAP;
+	const baseRightLane =
+		Math.max(
+			...relevantRects.map((rect) => rect.right),
+			sourcePosition.x + FLOW_NODE_WIDTH,
+			targetPosition.x + FLOW_NODE_WIDTH
+		) + RETURN_ROUTE_LANE_GAP;
+	const obstacleRects = relevantRects.filter(
+		(rect) => rect.id !== input.edgeInput.source && rect.id !== input.edgeInput.target
+	);
+
+	const candidates = RETURN_ROUTE_EXTRA_LANE_GAPS.flatMap((extraGap) => [
+		createReturnRouteCandidate({
+			laneX: baseLeftLane - extraGap,
+			sourceX,
+			targetX,
+			sourceExitY,
+			targetEntryY,
+			obstacleRects
+		}),
+		createReturnRouteCandidate({
+			laneX: baseRightLane + extraGap,
+			sourceX,
+			targetX,
+			sourceExitY,
+			targetEntryY,
+			obstacleRects
+		})
+	]);
+
+	return candidates.sort((a, b) => a.score - b.score)[0]?.points ?? [];
+}
+
+function getNodeHandleX(
+	node: LessonFlowNode,
+	direction: 'source' | 'target',
+	handleId: string
+): number {
+	const handles = direction === 'source' ? node.data.outgoingHandles : node.data.incomingHandles;
+	const index = Math.max(
+		0,
+		handles.findIndex((handle) => handle.id === handleId)
+	);
+	const ratio = getHandleOffsetRatio(index, Math.max(handles.length, 1));
+	return Math.round(node.position.x + FLOW_NODE_WIDTH * ratio);
+}
+
+function getHandleOffsetRatio(index: number, total: number): number {
+	if (total <= 1) return 0.5;
+	const horizontalPadding = total === 2 ? 0.28 : 0.16;
+	const availableWidth = 1 - horizontalPadding * 2;
+	return horizontalPadding + (index / (total - 1)) * availableWidth;
+}
+
+function getRouteRelevantRects(
+	nodes: LessonFlowNode[],
+	routeTop: number,
+	routeBottom: number
+): LessonFlowRouteRect[] {
+	return nodes
+		.map((node) => createRouteRect(node, RETURN_ROUTE_OBSTACLE_PADDING))
+		.filter((rect) => rangesOverlap(rect.top, rect.bottom, routeTop, routeBottom));
+}
+
+function createRouteRect(node: LessonFlowNode, padding: number): LessonFlowRouteRect {
+	return {
+		id: node.id,
+		left: node.position.x - padding,
+		right: node.position.x + FLOW_NODE_WIDTH + padding,
+		top: node.position.y - padding,
+		bottom: node.position.y + FLOW_NODE_HEIGHT + padding
+	};
+}
+
+function createReturnRouteCandidate(input: {
+	laneX: number;
+	sourceX: number;
+	targetX: number;
+	sourceExitY: number;
+	targetEntryY: number;
+	obstacleRects: LessonFlowRouteRect[];
+}): { points: LessonFlowRoutePoint[]; score: number } {
+	const points = sanitizeRoutePoints([
+		{ x: input.sourceX, y: input.sourceExitY },
+		{ x: input.laneX, y: input.sourceExitY },
+		{ x: input.laneX, y: input.targetEntryY },
+		{ x: input.targetX, y: input.targetEntryY }
+	]);
+	const intersections = countRouteRectIntersections(points, input.obstacleRects);
+	const length = measureRouteLength(points);
+	const laneDistance = Math.abs(input.laneX - input.sourceX) + Math.abs(input.laneX - input.targetX);
+
+	return {
+		points,
+		score: intersections * 10_000 + length + laneDistance * 0.2
+	};
+}
+
+function countRouteRectIntersections(
+	points: LessonFlowRoutePoint[],
+	rects: LessonFlowRouteRect[]
+): number {
+	let intersections = 0;
+	for (let index = 1; index < points.length; index += 1) {
+		const start = points[index - 1];
+		const end = points[index];
+		for (const rect of rects) {
+			if (segmentIntersectsRect(start, end, rect)) {
+				intersections += 1;
+			}
+		}
+	}
+	return intersections;
+}
+
+function segmentIntersectsRect(
+	start: LessonFlowRoutePoint,
+	end: LessonFlowRoutePoint,
+	rect: LessonFlowRouteRect
+): boolean {
+	if (start.x === end.x) {
+		return (
+			start.x >= rect.left &&
+			start.x <= rect.right &&
+			rangesOverlap(start.y, end.y, rect.top, rect.bottom)
+		);
+	}
+
+	if (start.y === end.y) {
+		return (
+			start.y >= rect.top &&
+			start.y <= rect.bottom &&
+			rangesOverlap(start.x, end.x, rect.left, rect.right)
+		);
+	}
+
+	return false;
+}
+
+function rangesOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
+	const aMin = Math.min(aStart, aEnd);
+	const aMax = Math.max(aStart, aEnd);
+	const bMin = Math.min(bStart, bEnd);
+	const bMax = Math.max(bStart, bEnd);
+	return aMin <= bMax && bMin <= aMax;
+}
+
+function measureRouteLength(points: LessonFlowRoutePoint[]): number {
+	let length = 0;
+	for (let index = 1; index < points.length; index += 1) {
+		const start = points[index - 1];
+		const end = points[index];
+		length += Math.abs(end.x - start.x) + Math.abs(end.y - start.y);
+	}
+	return length;
 }
 
 function hasConnectedTarget(targetBlockId: string | null | undefined): targetBlockId is string {

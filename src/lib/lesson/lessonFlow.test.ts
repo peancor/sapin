@@ -109,6 +109,12 @@ test('createLessonFlowGraph serializes nodes and edges with correct metadata', (
 		getLessonFlowIncomingHandleId(getLessonFlowNextEdgeId('intro'))
 	);
 	assert.equal(leftChoiceEdge?.sourceHandle, getLessonFlowChoiceHandleId('left'));
+	const returnBranchEdge = graph.edges.find(
+		(edge) => edge.id === getLessonFlowBranchEdgeId('agent', 0)
+	);
+	if (!returnBranchEdge?.data) throw new Error('Missing return branch edge data');
+	assert.equal(returnBranchEdge.data.routeMode, 'auto');
+	assert.ok(returnBranchEdge.data.routePoints.length > 0);
 	assert.deepEqual(
 		introNode?.data.incomingHandles.map((handle) => handle.id),
 		[
@@ -123,6 +129,38 @@ test('createLessonFlowGraph serializes nodes and edges with correct metadata', (
 			getLessonFlowIncomingAddHandleId('decision')
 		]
 	);
+});
+
+test('createLessonFlowGraph resets return routes through the clearest side lane', () => {
+	const definition = makeDefinition();
+	for (const block of definition.blocks) {
+		if (block.id === 'intro') {
+			block.graph = { position: { x: 400, y: 80 } };
+		}
+		if (block.id === 'decision') {
+			block.graph = { position: { x: 80, y: 300 } };
+		}
+		if (block.id === 'agent') {
+			block.graph = { position: { x: 400, y: 520 } };
+		}
+		if (block.id === 'end') {
+			block.graph = { position: { x: 400, y: 780 } };
+		}
+	}
+
+	const graph = createLessonFlowGraph(definition);
+	const returnBranchEdge = graph.edges.find(
+		(edge) => edge.id === getLessonFlowBranchEdgeId('agent', 0)
+	);
+	if (!returnBranchEdge?.data) throw new Error('Missing return branch edge data');
+
+	assert.equal(returnBranchEdge.data.routeMode, 'auto');
+	assert.equal(returnBranchEdge.data.routePoints.length, 4);
+	assert.ok(
+		returnBranchEdge.data.routePoints[1]?.x > 650,
+		'expected the automatic route to avoid the left-side obstacle via a right lane'
+	);
+	assert.equal(returnBranchEdge.data.routePoints[1]?.x, returnBranchEdge.data.routePoints[2]?.x);
 });
 
 test('applyLessonFlowGraph preserves and updates graph positions', () => {
@@ -307,5 +345,45 @@ test('applyLessonFlowGraph persists incomingOrder from dynamic incoming handles'
 	assert.deepEqual(updatedDecision?.graph?.incomingOrder, [
 		getLessonFlowBranchEdgeId('agent', 0),
 		getLessonFlowNextEdgeId('intro')
+	]);
+});
+
+test('applyLessonFlowGraph persists manual edge route points and reloads them', () => {
+	const definition = makeDefinition();
+	const graph = createLessonFlowGraph(definition);
+	const branchEdgeId = getLessonFlowBranchEdgeId('agent', 0);
+	const routedEdges = graph.edges.map((edge) =>
+		edge.id === branchEdgeId
+			? {
+					...edge,
+					data: {
+						...edge.data!,
+						routeMode: 'manual' as const,
+						routePoints: [
+							{ x: 120.4, y: 240.6 },
+							{ x: 120.4, y: 48.2 }
+						],
+						isAutoRouted: false
+					}
+				}
+			: edge
+	);
+
+	const updated = applyLessonFlowGraph(definition, { nodes: graph.nodes, edges: routedEdges });
+	const updatedAgent = updated.blocks.find((block) => block.id === 'agent');
+
+	assert.deepEqual(updatedAgent?.graph?.edgeRoutes?.[branchEdgeId]?.points, [
+		{ x: 120, y: 241 },
+		{ x: 120, y: 48 }
+	]);
+
+	const reloadedGraph = createLessonFlowGraph(updated);
+	const reloadedBranchEdge = reloadedGraph.edges.find((edge) => edge.id === branchEdgeId);
+
+	if (!reloadedBranchEdge?.data) throw new Error('Missing reloaded branch edge data');
+	assert.equal(reloadedBranchEdge.data.routeMode, 'manual');
+	assert.deepEqual(reloadedBranchEdge.data.routePoints, [
+		{ x: 120, y: 241 },
+		{ x: 120, y: 48 }
 	]);
 });
