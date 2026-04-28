@@ -9,7 +9,8 @@
 		lessonStudioHref,
 		lessonStudioReturnTarget
 	} from '$lib/lesson/lessonStudioNavigation';
-	import { MoveLeft, Paperclip, Route, Settings2 } from 'lucide-svelte';
+	import { getFilenameFromContentDisposition, saveBlobAs } from '$lib/utils';
+	import { Download, MoveLeft, Paperclip, Route, Settings2, Upload } from 'lucide-svelte';
 
 	let { data }: PageProps = $props();
 	const getActivityName = () => data.activity.name;
@@ -20,6 +21,83 @@
 	const returnTarget = $derived(lessonStudioReturnTarget({ cid, ilid }, source, blockId));
 	const flowHref = $derived(lessonFlowHref({ cid, ilid }, blockId));
 	const studioHref = $derived(lessonStudioHref({ cid, ilid }));
+	let importingPackage = $state(false);
+	let importResult = $state<{
+		activityId: string;
+		message: string;
+		resourceCount: number;
+		revisionCount: number;
+	} | null>(null);
+	let packageMessage = $state('');
+
+	async function exportLessonPackage() {
+		packageMessage = '';
+
+		try {
+			const response = await fetch(`/api/interactive/export/${ilid}`);
+			if (!response.ok) throw new Error('No se pudo exportar el paquete.');
+
+			const blob = await response.blob();
+			const filename = getFilenameFromContentDisposition(
+				response.headers.get('Content-Disposition'),
+				`lesson-${ilid}.sapinlesson.zip`
+			);
+			const saveResult = await saveBlobAs(blob, filename);
+			if (saveResult === 'cancelled') {
+				packageMessage = 'Exportación cancelada.';
+				return;
+			}
+
+			packageMessage =
+				saveResult === 'saved'
+					? 'Paquete guardado correctamente.'
+					: 'Paquete exportado correctamente.';
+		} catch (error) {
+			packageMessage = error instanceof Error ? error.message : 'No se pudo exportar el paquete.';
+		}
+	}
+
+	async function importLessonPackage(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = '';
+		if (!file) return;
+
+		importingPackage = true;
+		importResult = null;
+
+		try {
+			const formData = new FormData();
+			formData.append('courseId', cid);
+			formData.append('file', file);
+			const response = await fetch('/api/interactive/import', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (!response.ok) {
+				const payload = await response.json().catch(() => ({ message: 'No se pudo importar.' }));
+				throw new Error(payload.message ?? 'No se pudo importar.');
+			}
+
+			const payload = await response.json();
+			importResult = {
+				activityId: payload.activityId,
+				message: payload.message ?? 'Lesson importada correctamente',
+				resourceCount: payload.resourceCount ?? 0,
+				revisionCount: payload.revisionCount ?? 0
+			};
+		} catch (error) {
+			importResult = {
+				activityId: '',
+				message: error instanceof Error ? error.message : 'No se pudo importar.',
+				resourceCount: 0,
+				revisionCount: 0
+			};
+		} finally {
+			importingPackage = false;
+		}
+	}
 
 	breadcrumb.set([
 		{ label: 'Inicio', href: '/' },
@@ -76,6 +154,27 @@
 				</div>
 
 				<div class="flex flex-wrap gap-2">
+					<button
+						type="button"
+						onclick={exportLessonPackage}
+						class="inline-flex items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200"
+					>
+						<Download class="mr-1 h-4 w-4" />
+						Exportar paquete
+					</button>
+					<label
+						class="inline-flex cursor-pointer items-center justify-center rounded-xl border border-sky-300 bg-sky-50 px-3 py-2.5 text-sm font-medium text-sky-800 hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200"
+					>
+						<Upload class="mr-1 h-4 w-4" />
+						{importingPackage ? 'Importando...' : 'Importar paquete'}
+						<input
+							type="file"
+							accept=".sapinlesson.zip,.zip,application/zip"
+							class="hidden"
+							disabled={importingPackage}
+							onchange={importLessonPackage}
+						/>
+					</label>
 					<a
 						href={returnTarget.href}
 						class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
@@ -100,6 +199,35 @@
 				</div>
 			</div>
 		</div>
+
+		{#if packageMessage}
+			<div
+				class="rounded-2xl bg-white/95 p-4 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900/88 dark:text-white dark:ring-slate-800"
+			>
+				{packageMessage}
+			</div>
+		{/if}
+
+		{#if importResult}
+			<div
+				class="rounded-2xl bg-white/95 p-4 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900/88 dark:ring-slate-800"
+			>
+				<p class="text-sm font-semibold text-slate-900 dark:text-white">{importResult.message}</p>
+				{#if importResult.activityId}
+					<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+						{importResult.resourceCount} recurso{importResult.resourceCount === 1 ? '' : 's'} y
+						{importResult.revisionCount} revisi{importResult.revisionCount === 1 ? 'ón' : 'ones'}
+						importad{importResult.revisionCount === 1 ? 'a' : 'as'}.
+					</p>
+					<a
+						href={`/course/${cid}/lesson-studio/${importResult.activityId}`}
+						class="mt-3 inline-flex text-sm font-semibold text-sky-700 hover:underline dark:text-sky-300"
+					>
+						Abrir lesson importada
+					</a>
+				{/if}
+			</div>
+		{/if}
 
 		<div
 			class="rounded-2xl bg-white/95 p-6 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900/88 dark:ring-slate-800"
