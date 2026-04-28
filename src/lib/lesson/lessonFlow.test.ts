@@ -115,6 +115,11 @@ test('createLessonFlowGraph serializes nodes and edges with correct metadata', (
 	if (!returnBranchEdge?.data) throw new Error('Missing return branch edge data');
 	assert.equal(returnBranchEdge.data.routeMode, 'auto');
 	assert.ok(returnBranchEdge.data.routePoints.length > 0);
+	assert.equal(
+		returnBranchEdge.data.routePoints.at(-1)?.x,
+		166,
+		'expected a single occupied incoming connection to target the center of the node'
+	);
 	assert.deepEqual(
 		introNode?.data.incomingHandles.map((handle) => handle.id),
 		[

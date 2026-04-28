@@ -86,6 +86,15 @@
 		return `${horizontalPadding + (index / (total - 1)) * availableWidth}%`;
 	}
 
+	function incomingHandleOffset(
+		handle: LessonFlowNode['data']['incomingHandles'][number],
+		index: number,
+		total: number
+	) {
+		if (handle.incomingKind === 'add') return '82%';
+		return handleOffset(index, total);
+	}
+
 	function incomingHandleClass(handle: LessonFlowNode['data']['incomingHandles'][number]) {
 		if (handle.incomingKind === 'add') {
 			return `!h-6 !w-6 !border-2 !border-dashed !border-[#a8e063] !bg-white/95 !rounded-full shadow-[0_4px_14px_-5px_rgba(46,125,50,0.35)] ring-2 !ring-[#eaf7e9] transition-transform hover:scale-110`;
@@ -96,6 +105,12 @@
 	let Icon = $derived(iconFor(data.kind));
 	let cfg = $derived(kindConfig[data.kind]);
 	let hasIncomingConnections = $derived(data.incomingCount > 0);
+	const occupiedIncomingHandles = $derived(
+		data.incomingHandles.filter((handle) => handle.incomingKind !== 'add')
+	);
+	const addIncomingHandle = $derived(
+		data.incomingHandles.find((handle) => handle.incomingKind === 'add') ?? null
+	);
 </script>
 
 <div class="relative w-[252px] py-4">
@@ -109,8 +124,8 @@
 	{/if}
 
 	<!-- Incoming handles -->
-	{#each data.incomingHandles as handle, index (handle.id)}
-		{@const left = handleOffset(index, data.incomingHandles.length)}
+	{#each occupiedIncomingHandles as handle, index (handle.id)}
+		{@const left = incomingHandleOffset(handle, index, occupiedIncomingHandles.length)}
 		<Handle
 			id={handle.id}
 			type="target"
@@ -118,15 +133,24 @@
 			class={incomingHandleClass(handle)}
 			style={`left:${left};top:0;transform:translate(-50%,-50%);`}
 		/>
-		{#if handle.incomingKind === 'add'}
-			<div
-				class="pointer-events-none absolute z-10 flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-bold text-[#2e7d32]"
-				style={`left:${left};top:0;transform:translate(-50%,-50%);`}
-			>
-				+
-			</div>
-		{/if}
 	{/each}
+
+	{#if addIncomingHandle}
+		{@const addLeft = incomingHandleOffset(addIncomingHandle, 0, 1)}
+		<Handle
+			id={addIncomingHandle.id}
+			type="target"
+			position={Position.Top}
+			class={incomingHandleClass(addIncomingHandle)}
+			style={`left:${addLeft};top:0;transform:translate(-50%,-50%);`}
+		/>
+		<div
+			class="pointer-events-none absolute z-10 flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-bold text-[#2e7d32]"
+			style={`left:${addLeft};top:0;transform:translate(-50%,-50%);`}
+		>
+			+
+		</div>
+	{/if}
 
 	<!-- Node card -->
 	<article

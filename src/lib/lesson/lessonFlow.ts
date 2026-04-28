@@ -504,7 +504,10 @@ function getNodeHandleX(
 	direction: 'source' | 'target',
 	handleId: string
 ): number {
-	const handles = direction === 'source' ? node.data.outgoingHandles : node.data.incomingHandles;
+	const handles =
+		direction === 'source'
+			? node.data.outgoingHandles
+			: node.data.incomingHandles.filter((handle) => handle.incomingKind !== 'add');
 	const index = Math.max(
 		0,
 		handles.findIndex((handle) => handle.id === handleId)
