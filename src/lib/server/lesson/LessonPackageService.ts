@@ -681,8 +681,8 @@ export class LessonPackageService {
 						id: activityId,
 						sessionPolicy: manifest.lessonConfig.sessionPolicy,
 						allowRestart: manifest.lessonConfig.allowRestart,
-						draftRevisionId: revisionIdMap.get(manifest.current.draftRevisionId) ?? null,
-						publishedRevisionId: revisionIdMap.get(manifest.current.publishedRevisionId) ?? null,
+						draftRevisionId: null,
+						publishedRevisionId: null,
 						metadata: manifest.lessonConfig.metadata ?? null,
 						createdAt: now,
 						updatedAt: now
@@ -706,15 +706,36 @@ export class LessonPackageService {
 							status: revision.status,
 							definitionJson: LessonRevisionService.serializeDefinition(definition),
 							createdBy: input.userId,
-							basedOnRevisionId: revision.basedOnRevisionId
-								? (revisionIdMap.get(revision.basedOnRevisionId) ?? null)
-								: null,
+							basedOnRevisionId: null,
 							publishedAt: parseDateOrNull(revision.publishedAt),
 							createdAt: parseDateOrNull(revision.createdAt) ?? now,
 							updatedAt: parseDateOrNull(revision.updatedAt) ?? now
 						})
 						.run();
 				}
+
+				for (const revision of manifest.revisions) {
+					const newRevisionId = revisionIdMap.get(revision.exportedId);
+					const newBasedOnRevisionId = revision.basedOnRevisionId
+						? revisionIdMap.get(revision.basedOnRevisionId)
+						: null;
+
+					if (newRevisionId && newBasedOnRevisionId) {
+						tx.update(interactiveLearningLessonRevision)
+							.set({ basedOnRevisionId: newBasedOnRevisionId })
+							.where(eq(interactiveLearningLessonRevision.id, newRevisionId))
+							.run();
+					}
+				}
+
+				tx.update(interactiveLearningLesson)
+					.set({
+						draftRevisionId: revisionIdMap.get(manifest.current.draftRevisionId) ?? null,
+						publishedRevisionId: revisionIdMap.get(manifest.current.publishedRevisionId) ?? null,
+						updatedAt: now
+					})
+					.where(eq(interactiveLearningLesson.id, activityId))
+					.run();
 
 				if (importedResources.length > 0) {
 					tx.insert(interactiveLearningFile)
