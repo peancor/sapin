@@ -82,6 +82,9 @@ import { evaluateLessonCondition } from './lessonCondition';
 export { LessonServiceError } from './LessonServiceError';
 
 type JsonRecord = Record<string, unknown>;
+type LessonDatabase = typeof db;
+type LessonTransaction = Parameters<Parameters<LessonDatabase['transaction']>[0]>[0];
+type LessonDbExecutor = LessonDatabase | LessonTransaction;
 
 interface LessonCheckAnswerInput {
 	questionId: string;
@@ -233,6 +236,19 @@ interface LessonAgentOutputValueResult {
 	value: unknown;
 	coerced: boolean;
 	valid: boolean;
+}
+
+interface LessonProgressMarkInput {
+	userId: string;
+	courseId: string;
+	activityId: string;
+	activityType: 'lesson';
+	source: string;
+}
+
+interface EnterBlockTransactionResult {
+	session: InteractiveLessonSession;
+	completionProgress: LessonProgressMarkInput | null;
 }
 
 function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
@@ -694,15 +710,29 @@ export class LessonService {
 			throw new LessonServiceError(403, access.reason || 'No tienes acceso a esta lesson.');
 		}
 
+		const courseId = await this.resolveCourseId(
+			input.interactiveLearningId,
+			input.courseId ?? access.courseId
+		);
+		const adminAccess = await CourseInteractiveAuthUtils.userCanAdminCourseInteractive(
+			input.userId,
+			courseId,
+			input.interactiveLearningId,
+			input.userRoleLevel
+		);
+
+		if (!adminAccess.allowed) {
+			throw new LessonServiceError(
+				403,
+				adminAccess.reason || 'No tienes permisos para previsualizar esta lesson.'
+			);
+		}
+
 		const revisionState = await LessonRevisionService.ensureLessonRevisionState(
 			input.interactiveLearningId,
 			{
 				actorUserId: input.userId
 			}
-		);
-		const courseId = await this.resolveCourseId(
-			input.interactiveLearningId,
-			input.courseId ?? access.courseId
 		);
 		const scope =
 			input.previewMode === 'draft'
@@ -811,15 +841,29 @@ export class LessonService {
 			throw new LessonServiceError(403, access.reason || 'No tienes acceso a esta lesson.');
 		}
 
+		const courseId = await this.resolveCourseId(
+			input.interactiveLearningId,
+			input.courseId ?? access.courseId
+		);
+		const adminAccess = await CourseInteractiveAuthUtils.userCanAdminCourseInteractive(
+			input.userId,
+			courseId,
+			input.interactiveLearningId,
+			input.userRoleLevel
+		);
+
+		if (!adminAccess.allowed) {
+			throw new LessonServiceError(
+				403,
+				adminAccess.reason || 'No tienes permisos para previsualizar esta lesson.'
+			);
+		}
+
 		const revisionState = await LessonRevisionService.ensureLessonRevisionState(
 			input.interactiveLearningId,
 			{
 				actorUserId: input.userId
 			}
-		);
-		const courseId = await this.resolveCourseId(
-			input.interactiveLearningId,
-			input.courseId ?? access.courseId
 		);
 		const scope =
 			input.previewMode === 'draft'
@@ -1558,61 +1602,74 @@ export class LessonService {
 			throw new LessonServiceError(409, 'No se pudo resolver la visita activa del bloque.');
 		}
 
-		await this.updateBlockVisit({
-			visitId: view.currentVisit.id,
-			status: lessonBlockVisitStatus.COMPLETED,
-			outputs,
-			lastChoiceValue: option.value,
-			completedAt: new Date()
+		const completedAt = new Date();
+		const result = db.transaction((tx): EnterBlockTransactionResult => {
+			this.updateBlockVisitWithExecutor(tx, {
+				visitId: view.currentVisit!.id,
+				status: lessonBlockVisitStatus.COMPLETED,
+				outputs,
+				lastChoiceValue: option.value,
+				completedAt
+			});
+
+			this.upsertBlockStateWithExecutor(tx, {
+				sessionId: view.session.id,
+				blockId: view.currentBlock.id,
+				scope: view.session.scope,
+				status: lessonBlockStateStatus.COMPLETED,
+				outputs,
+				lastChoiceValue: option.value,
+				lastVisitId: view.currentVisit!.id,
+				completedAt
+			});
+
+			this.insertLessonEventWithExecutor(tx, {
+				interactiveLearningId: view.activity.id,
+				sessionId: view.session.id,
+				userId: view.session.userId,
+				courseId: view.session.courseId,
+				scope: view.session.scope,
+				visitId: view.currentVisit!.id,
+				blockId: view.currentBlock.id,
+				eventType: lessonEventType.BLOCK_COMPLETED,
+				payload: {
+					kind: 'choice',
+					selectedOptionId: option.id,
+					selectedValue: rawOption?.value ?? option.value
+				}
+			});
+
+			this.insertLessonEventWithExecutor(tx, {
+				interactiveLearningId: view.activity.id,
+				sessionId: view.session.id,
+				userId: view.session.userId,
+				courseId: view.session.courseId,
+				scope: view.session.scope,
+				visitId: view.currentVisit!.id,
+				blockId: view.currentBlock.id,
+				eventType: lessonEventType.BRANCH_TAKEN,
+				payload: {
+					targetBlockId: option.targetBlockId,
+					label: option.label,
+					value: rawOption?.value ?? option.value
+				}
+			});
+
+			return this.enterBlockWithExecutor(
+				tx,
+				view.session,
+				option.targetBlockId,
+				view.activity,
+				view.lesson,
+				view.definition
+			);
 		});
 
-		await this.upsertBlockState({
-			sessionId: view.session.id,
-			blockId: view.currentBlock.id,
-			status: lessonBlockStateStatus.COMPLETED,
-			outputs,
-			lastChoiceValue: option.value,
-			lastVisitId: view.currentVisit.id,
-			completedAt: new Date()
-		});
+		if (result.completionProgress) {
+			await markActivityCompleted(result.completionProgress);
+		}
 
-		await this.logEvent({
-			interactiveLearningId: view.activity.id,
-			sessionId: view.session.id,
-			userId: view.session.userId,
-			courseId: view.session.courseId,
-			visitId: view.currentVisit.id,
-			blockId: view.currentBlock.id,
-			eventType: lessonEventType.BLOCK_COMPLETED,
-			payload: {
-				kind: 'choice',
-				selectedOptionId: option.id,
-				selectedValue: rawOption?.value ?? option.value
-			}
-		});
-
-		await this.logEvent({
-			interactiveLearningId: view.activity.id,
-			sessionId: view.session.id,
-			userId: view.session.userId,
-			courseId: view.session.courseId,
-			visitId: view.currentVisit.id,
-			blockId: view.currentBlock.id,
-			eventType: lessonEventType.BRANCH_TAKEN,
-			payload: {
-				targetBlockId: option.targetBlockId,
-				label: option.label,
-				value: rawOption?.value ?? option.value
-			}
-		});
-
-		return this.enterBlock(
-			view.session,
-			option.targetBlockId,
-			view.activity,
-			view.lesson,
-			view.definition
-		);
+		return result.session;
 	}
 
 	static async submitCheck(input: {
@@ -1669,42 +1726,47 @@ export class LessonService {
 			currentOutputs
 		});
 
-		await this.updateBlockVisit({
-			visitId: view.currentVisit.id,
-			status: result.completed ? lessonBlockVisitStatus.COMPLETED : lessonBlockVisitStatus.ACTIVE,
-			outputs: result.outputs,
-			completedAt: result.completed ? new Date() : null,
-			metadata: result.metadata
-		});
-
-		await this.upsertBlockState({
-			sessionId: view.session.id,
-			blockId: view.currentBlock.id,
-			status: result.completed ? lessonBlockStateStatus.COMPLETED : lessonBlockStateStatus.ACTIVE,
-			outputs: result.outputs,
-			lastVisitId: view.currentVisit.id,
-			completedAt: result.completed ? new Date() : null
-		});
-
-		if (result.completed) {
-			await this.logEvent({
-				interactiveLearningId: view.activity.id,
-				sessionId: view.session.id,
-				userId: view.session.userId,
-				courseId: view.session.courseId,
-				visitId: view.currentVisit.id,
-				blockId: view.currentBlock.id,
-				eventType: lessonEventType.BLOCK_COMPLETED,
-				payload: {
-					kind: 'check',
-					score: result.outputs.score ?? 0,
-					passed: result.outputs.passed ?? false,
-					attemptCount: result.outputs.attemptCount ?? 0,
-					correctCount: result.outputs.correctCount ?? 0,
-					totalQuestions: result.outputs.totalQuestions ?? 0
-				}
+		const completedAt = result.completed ? new Date() : null;
+		db.transaction((tx) => {
+			this.updateBlockVisitWithExecutor(tx, {
+				visitId: view.currentVisit!.id,
+				status: result.completed ? lessonBlockVisitStatus.COMPLETED : lessonBlockVisitStatus.ACTIVE,
+				outputs: result.outputs,
+				completedAt,
+				metadata: result.metadata
 			});
-		}
+
+			this.upsertBlockStateWithExecutor(tx, {
+				sessionId: view.session.id,
+				blockId: view.currentBlock.id,
+				scope: view.session.scope,
+				status: result.completed ? lessonBlockStateStatus.COMPLETED : lessonBlockStateStatus.ACTIVE,
+				outputs: result.outputs,
+				lastVisitId: view.currentVisit!.id,
+				completedAt
+			});
+
+			if (result.completed) {
+				this.insertLessonEventWithExecutor(tx, {
+					interactiveLearningId: view.activity.id,
+					sessionId: view.session.id,
+					userId: view.session.userId,
+					courseId: view.session.courseId,
+					scope: view.session.scope,
+					visitId: view.currentVisit!.id,
+					blockId: view.currentBlock.id,
+					eventType: lessonEventType.BLOCK_COMPLETED,
+					payload: {
+						kind: 'check',
+						score: result.outputs.score ?? 0,
+						passed: result.outputs.passed ?? false,
+						attemptCount: result.outputs.attemptCount ?? 0,
+						correctCount: result.outputs.correctCount ?? 0,
+						totalQuestions: result.outputs.totalQuestions ?? 0
+					}
+				});
+			}
+		});
 
 		if (shouldTrackLessonProgress(view.session.scope)) {
 			await markActivityInProgress({
@@ -2121,7 +2183,10 @@ export class LessonService {
 	}): LessonCheckSubmissionResult {
 		const config = normalizeLessonCheckConfig(input.block.checkConfig);
 		if (config.questions.length === 0) {
-			throw new LessonServiceError(400, 'Este bloque de evaluación no tiene preguntas configuradas.');
+			throw new LessonServiceError(
+				400,
+				'Este bloque de evaluación no tiene preguntas configuradas.'
+			);
 		}
 
 		const previousAttemptCount =
@@ -2235,8 +2300,7 @@ export class LessonService {
 					question.acceptedRange &&
 					(question.acceptedRange.min === undefined ||
 						numericValue >= question.acceptedRange.min) &&
-					(question.acceptedRange.max === undefined ||
-						numericValue <= question.acceptedRange.max);
+					(question.acceptedRange.max === undefined || numericValue <= question.acceptedRange.max);
 				const questionScore = exactMatch || rangeMatch ? 1 : 0;
 				normalizedAnswers.push({ questionId: question.id, value: numericValue });
 				return {
@@ -2419,66 +2483,26 @@ export class LessonService {
 		revision: InteractiveLearningLessonRevision;
 		entryBlockId: string;
 	}): Promise<InteractiveLessonSession> {
-		const [attemptStats] = await db
-			.select({ maxAttempt: max(interactiveLessonSession.attemptNumber) })
-			.from(interactiveLessonSession)
-			.where(
-				and(
-					eq(interactiveLessonSession.interactiveLearningId, input.interactiveLearningId),
-					eq(interactiveLessonSession.userId, input.userId),
-					eq(interactiveLessonSession.courseId, input.courseId),
-					eq(interactiveLessonSession.scope, input.scope),
-					isNotNull(interactiveLessonSession.definitionRevisionId)
-				)
-			);
-		const attemptNumber = (attemptStats?.maxAttempt ?? 0) + 1;
+		const activityData = await this.getLessonActivity(input.interactiveLearningId);
+		const definition = LessonRevisionService.parseDefinition(input.revision.definitionJson);
 		const now = new Date();
 		const sessionId = nanoid();
-
-		await db.insert(interactiveLessonSession).values({
-			id: sessionId,
-			interactiveLearningId: input.interactiveLearningId,
-			userId: input.userId,
-			courseId: input.courseId,
-			attemptNumber,
-			definitionRevisionId: input.revision.id,
-			definitionRevisionNumber: input.revision.revisionNumber,
-			bindingStatus: input.bindingStatus,
-			scope: input.scope,
-			status: lessonAttemptStatus.ACTIVE,
-			currentBlockId: input.entryBlockId,
-			currentVisitId: null,
-			sessionStateJson: JSON.stringify({ attemptNumber }),
-			startedAt: now,
-			lastActiveAt: now,
-			createdAt: now,
-			updatedAt: now
-		});
-
-		await this.logEvent({
-			interactiveLearningId: input.interactiveLearningId,
-			sessionId,
-			userId: input.userId,
-			courseId: input.courseId,
-			blockId: input.entryBlockId,
-			eventType: lessonEventType.SESSION_STARTED,
-			payload: { attemptNumber }
-		});
-
-		if (shouldTrackLessonProgress(input.scope)) {
-			await markActivityInProgress({
-				userId: input.userId,
-				courseId: input.courseId,
-				activityId: input.interactiveLearningId,
-				activityType: 'lesson',
-				source: 'lesson:create-session'
-			});
-		}
-
-		const activityData = await this.getLessonActivity(input.interactiveLearningId);
-
-		return this.enterBlock(
-			{
+		const result = db.transaction((tx): EnterBlockTransactionResult => {
+			const [attemptStats] = tx
+				.select({ maxAttempt: max(interactiveLessonSession.attemptNumber) })
+				.from(interactiveLessonSession)
+				.where(
+					and(
+						eq(interactiveLessonSession.interactiveLearningId, input.interactiveLearningId),
+						eq(interactiveLessonSession.userId, input.userId),
+						eq(interactiveLessonSession.courseId, input.courseId),
+						eq(interactiveLessonSession.scope, input.scope),
+						isNotNull(interactiveLessonSession.definitionRevisionId)
+					)
+				)
+				.all();
+			const attemptNumber = (attemptStats?.maxAttempt ?? 0) + 1;
+			const session: InteractiveLessonSession = {
 				id: sessionId,
 				interactiveLearningId: input.interactiveLearningId,
 				userId: input.userId,
@@ -2497,12 +2521,46 @@ export class LessonService {
 				completedAt: null,
 				createdAt: now,
 				updatedAt: now
-			},
-			input.entryBlockId,
-			activityData.activity,
-			activityData.lesson,
-			LessonRevisionService.parseDefinition(input.revision.definitionJson)
-		);
+			};
+
+			tx.insert(interactiveLessonSession).values(session).run();
+
+			this.insertLessonEventWithExecutor(tx, {
+				interactiveLearningId: input.interactiveLearningId,
+				sessionId,
+				userId: input.userId,
+				courseId: input.courseId,
+				scope: input.scope,
+				blockId: input.entryBlockId,
+				eventType: lessonEventType.SESSION_STARTED,
+				payload: { attemptNumber }
+			});
+
+			return this.enterBlockWithExecutor(
+				tx,
+				session,
+				input.entryBlockId,
+				activityData.activity,
+				activityData.lesson,
+				definition
+			);
+		});
+
+		if (shouldTrackLessonProgress(input.scope)) {
+			await markActivityInProgress({
+				userId: input.userId,
+				courseId: input.courseId,
+				activityId: input.interactiveLearningId,
+				activityType: 'lesson',
+				source: 'lesson:create-session'
+			});
+		}
+
+		if (result.completionProgress) {
+			await markActivityCompleted(result.completionProgress);
+		}
+
+		return result.session;
 	}
 
 	private static async completeBlockAndEnterNext(
@@ -2526,60 +2584,73 @@ export class LessonService {
 			throw new LessonServiceError(409, 'No se pudo resolver la visita activa del bloque.');
 		}
 
-		await this.updateBlockVisit({
-			visitId: view.currentVisit.id,
-			status: lessonBlockVisitStatus.COMPLETED,
-			outputs,
-			completedAt: new Date()
-		});
+		const completedAt = new Date();
+		const result = db.transaction((tx): EnterBlockTransactionResult => {
+			this.updateBlockVisitWithExecutor(tx, {
+				visitId: view.currentVisit!.id,
+				status: lessonBlockVisitStatus.COMPLETED,
+				outputs,
+				completedAt
+			});
 
-		await this.upsertBlockState({
-			sessionId: view.session.id,
-			blockId: view.currentBlock.id,
-			status: lessonBlockStateStatus.COMPLETED,
-			outputs,
-			lastVisitId: view.currentVisit.id,
-			completedAt: new Date()
-		});
+			this.upsertBlockStateWithExecutor(tx, {
+				sessionId: view.session.id,
+				blockId: view.currentBlock.id,
+				scope: view.session.scope,
+				status: lessonBlockStateStatus.COMPLETED,
+				outputs,
+				lastVisitId: view.currentVisit!.id,
+				completedAt
+			});
 
-		await this.logEvent({
-			interactiveLearningId: view.activity.id,
-			sessionId: view.session.id,
-			userId: view.session.userId,
-			courseId: view.session.courseId,
-			visitId: view.currentVisit.id,
-			blockId: view.currentBlock.id,
-			eventType: lessonEventType.BLOCK_COMPLETED,
-			payload: {
-				kind: view.currentBlock.kind,
-				targetBlockId: transition.targetBlockId
-			}
-		});
-
-		if ('condition' in transition || 'label' in transition) {
-			await this.logEvent({
+			this.insertLessonEventWithExecutor(tx, {
 				interactiveLearningId: view.activity.id,
 				sessionId: view.session.id,
 				userId: view.session.userId,
 				courseId: view.session.courseId,
-				visitId: view.currentVisit.id,
+				scope: view.session.scope,
+				visitId: view.currentVisit!.id,
 				blockId: view.currentBlock.id,
-				eventType: lessonEventType.BRANCH_TAKEN,
+				eventType: lessonEventType.BLOCK_COMPLETED,
 				payload: {
-					targetBlockId: transition.targetBlockId,
-					label: transition.label ?? null,
-					condition: transition.condition ?? null
+					kind: view.currentBlock.kind,
+					targetBlockId: transition.targetBlockId
 				}
 			});
+
+			if ('condition' in transition || 'label' in transition) {
+				this.insertLessonEventWithExecutor(tx, {
+					interactiveLearningId: view.activity.id,
+					sessionId: view.session.id,
+					userId: view.session.userId,
+					courseId: view.session.courseId,
+					scope: view.session.scope,
+					visitId: view.currentVisit!.id,
+					blockId: view.currentBlock.id,
+					eventType: lessonEventType.BRANCH_TAKEN,
+					payload: {
+						targetBlockId: transition.targetBlockId,
+						label: transition.label ?? null,
+						condition: transition.condition ?? null
+					}
+				});
+			}
+
+			return this.enterBlockWithExecutor(
+				tx,
+				view.session,
+				transition.targetBlockId,
+				view.activity,
+				view.lesson,
+				view.definition
+			);
+		});
+
+		if (result.completionProgress) {
+			await markActivityCompleted(result.completionProgress);
 		}
 
-		return this.enterBlock(
-			view.session,
-			transition.targetBlockId,
-			view.activity,
-			view.lesson,
-			view.definition
-		);
+		return result.session;
 	}
 
 	private static async enterBlock(
@@ -2589,6 +2660,26 @@ export class LessonService {
 		lesson: InteractiveLearningLesson,
 		definition: LessonDefinition
 	): Promise<InteractiveLessonSession> {
+		const result = db.transaction(
+			(tx): EnterBlockTransactionResult =>
+				this.enterBlockWithExecutor(tx, session, blockId, activity, lesson, definition)
+		);
+
+		if (result.completionProgress) {
+			await markActivityCompleted(result.completionProgress);
+		}
+
+		return result.session;
+	}
+
+	private static enterBlockWithExecutor(
+		executor: LessonDbExecutor,
+		session: InteractiveLessonSession,
+		blockId: string,
+		activity: InteractiveLearning,
+		lesson: InteractiveLearningLesson,
+		definition: LessonDefinition
+	): EnterBlockTransactionResult {
 		const block = definition.blocks.find((item) => item.id === blockId);
 		if (!block) {
 			throw new LessonServiceError(404, `El bloque "${blockId}" no existe.`);
@@ -2597,17 +2688,19 @@ export class LessonService {
 		const now = new Date();
 		const nextStatus =
 			block.kind === 'end' ? lessonAttemptStatus.COMPLETED : lessonAttemptStatus.ACTIVE;
-		const visit = await this.createBlockVisit({
+		const visit = this.createBlockVisitWithExecutor(executor, {
 			sessionId: session.id,
 			blockId,
+			scope: session.scope,
 			status:
 				block.kind === 'end' ? lessonBlockVisitStatus.COMPLETED : lessonBlockVisitStatus.ACTIVE,
 			completedAt: block.kind === 'end' ? now : null
 		});
 
-		await this.upsertBlockState({
+		this.upsertBlockStateWithExecutor(executor, {
 			sessionId: session.id,
 			blockId,
+			scope: session.scope,
 			status:
 				block.kind === 'end' ? lessonBlockStateStatus.COMPLETED : lessonBlockStateStatus.ACTIVE,
 			lastVisitId: visit.id,
@@ -2616,7 +2709,7 @@ export class LessonService {
 			completedAt: visit.completedAt ?? null
 		});
 
-		await db
+		executor
 			.update(interactiveLessonSession)
 			.set({
 				currentBlockId: blockId,
@@ -2632,25 +2725,29 @@ export class LessonService {
 				}),
 				updatedAt: now
 			})
-			.where(eq(interactiveLessonSession.id, session.id));
+			.where(eq(interactiveLessonSession.id, session.id))
+			.run();
 
-		await this.logEvent({
+		this.insertLessonEventWithExecutor(executor, {
 			interactiveLearningId: activity.id,
 			sessionId: session.id,
 			userId: session.userId,
 			courseId: session.courseId,
+			scope: session.scope,
 			visitId: visit.id,
 			blockId,
 			eventType: lessonEventType.BLOCK_ENTERED,
 			payload: { kind: block.kind, title: block.title }
 		});
 
+		let completionProgress: LessonProgressMarkInput | null = null;
 		if (block.kind === 'end') {
-			await this.logEvent({
+			this.insertLessonEventWithExecutor(executor, {
 				interactiveLearningId: activity.id,
 				sessionId: session.id,
 				userId: session.userId,
 				courseId: session.courseId,
+				scope: session.scope,
 				visitId: visit.id,
 				blockId,
 				eventType: lessonEventType.SESSION_COMPLETED,
@@ -2658,17 +2755,17 @@ export class LessonService {
 			});
 
 			if (shouldTrackLessonProgress(session.scope)) {
-				await markActivityCompleted({
+				completionProgress = {
 					userId: session.userId,
 					courseId: session.courseId,
 					activityId: activity.id,
 					activityType: 'lesson',
 					source: 'lesson:end-block'
-				});
+				};
 			}
 		}
 
-		const updatedSession = await db
+		const updatedSession = executor
 			.select()
 			.from(interactiveLessonSession)
 			.where(eq(interactiveLessonSession.id, session.id))
@@ -2678,7 +2775,7 @@ export class LessonService {
 			throw new LessonServiceError(500, 'No se pudo recargar la sesión de lesson.');
 		}
 
-		return updatedSession;
+		return { session: updatedSession, completionProgress };
 	}
 
 	private static async ensureAgentBlockChat(
@@ -3906,7 +4003,29 @@ export class LessonService {
 		enteredAt?: Date | null;
 		completedAt?: Date | null;
 	}): Promise<void> {
-		const existing = await db
+		const scope = input.scope ?? (await this.resolveSessionScope(input.sessionId));
+		db.transaction((tx) => {
+			this.upsertBlockStateWithExecutor(tx, { ...input, scope });
+		});
+	}
+
+	private static upsertBlockStateWithExecutor(
+		executor: LessonDbExecutor,
+		input: {
+			sessionId: string;
+			blockId: string;
+			status: InteractiveLessonBlockState['status'];
+			scope: InteractiveLessonSession['scope'];
+			outputs?: JsonRecord;
+			lastChoiceValue?: string;
+			chatId?: string;
+			lastVisitId?: string;
+			incrementVisitCount?: boolean;
+			enteredAt?: Date | null;
+			completedAt?: Date | null;
+		}
+	): void {
+		const existing = executor
 			.select()
 			.from(interactiveLessonBlockState)
 			.where(
@@ -3917,12 +4036,11 @@ export class LessonService {
 			)
 			.get();
 		const now = new Date();
-		const scope = input.scope ?? (await this.resolveSessionScope(input.sessionId));
 		const serializedOutputs = input.outputs ? JSON.stringify(input.outputs) : undefined;
 		const shouldIncrementVisit = Boolean(input.incrementVisitCount);
 
 		if (existing) {
-			await db
+			executor
 				.update(interactiveLessonBlockState)
 				.set({
 					status: input.status,
@@ -3944,35 +4062,39 @@ export class LessonService {
 					chatId: input.chatId ?? existing.chatId,
 					updatedAt: now
 				})
-				.where(eq(interactiveLessonBlockState.id, existing.id));
+				.where(eq(interactiveLessonBlockState.id, existing.id))
+				.run();
 			return;
 		}
 
-		await db.insert(interactiveLessonBlockState).values({
-			id: nanoid(),
-			sessionId: input.sessionId,
-			blockId: input.blockId,
-			scope,
-			status: input.status,
-			visitCount: shouldIncrementVisit ? 1 : 0,
-			lastVisitId: input.lastVisitId ?? null,
-			enteredAt:
-				input.enteredAt ??
-				(input.status === lessonBlockStateStatus.ACTIVE ||
-				input.status === lessonBlockStateStatus.COMPLETED
-					? now
-					: null),
-			completedAt:
-				input.status === lessonBlockStateStatus.COMPLETED
-					? (input.completedAt ?? now)
-					: (input.completedAt ?? null),
-			lastChoiceValue: input.lastChoiceValue ?? null,
-			outputsJson: serializedOutputs ?? null,
-			chatId: input.chatId ?? null,
-			metadata: null,
-			createdAt: now,
-			updatedAt: now
-		});
+		executor
+			.insert(interactiveLessonBlockState)
+			.values({
+				id: nanoid(),
+				sessionId: input.sessionId,
+				blockId: input.blockId,
+				scope: input.scope,
+				status: input.status,
+				visitCount: shouldIncrementVisit ? 1 : 0,
+				lastVisitId: input.lastVisitId ?? null,
+				enteredAt:
+					input.enteredAt ??
+					(input.status === lessonBlockStateStatus.ACTIVE ||
+					input.status === lessonBlockStateStatus.COMPLETED
+						? now
+						: null),
+				completedAt:
+					input.status === lessonBlockStateStatus.COMPLETED
+						? (input.completedAt ?? now)
+						: (input.completedAt ?? null),
+				lastChoiceValue: input.lastChoiceValue ?? null,
+				outputsJson: serializedOutputs ?? null,
+				chatId: input.chatId ?? null,
+				metadata: null,
+				createdAt: now,
+				updatedAt: now
+			})
+			.run();
 	}
 
 	private static async createBlockVisit(input: {
@@ -3987,33 +4109,58 @@ export class LessonService {
 		completedAt?: Date | null;
 		metadata?: JsonRecord | null;
 	}): Promise<InteractiveLessonBlockVisit> {
-		const [visitStats] = await db
+		const scope = input.scope ?? (await this.resolveSessionScope(input.sessionId));
+		return db.transaction(
+			(tx): InteractiveLessonBlockVisit =>
+				this.createBlockVisitWithExecutor(tx, { ...input, scope })
+		);
+	}
+
+	private static createBlockVisitWithExecutor(
+		executor: LessonDbExecutor,
+		input: {
+			sessionId: string;
+			blockId: string;
+			scope: InteractiveLessonSession['scope'];
+			status?: InteractiveLessonBlockVisit['status'];
+			outputs?: JsonRecord;
+			lastChoiceValue?: string;
+			chatId?: string;
+			enteredAt?: Date;
+			completedAt?: Date | null;
+			metadata?: JsonRecord | null;
+		}
+	): InteractiveLessonBlockVisit {
+		const [visitStats] = executor
 			.select({ maxVisit: max(interactiveLessonBlockVisit.visitNumber) })
 			.from(interactiveLessonBlockVisit)
-			.where(eq(interactiveLessonBlockVisit.sessionId, input.sessionId));
+			.where(eq(interactiveLessonBlockVisit.sessionId, input.sessionId))
+			.all();
 		const visitNumber = (visitStats?.maxVisit ?? 0) + 1;
 		const now = input.enteredAt ?? new Date();
 		const visitId = nanoid();
-		const scope = input.scope ?? (await this.resolveSessionScope(input.sessionId));
 
-		await db.insert(interactiveLessonBlockVisit).values({
-			id: visitId,
-			sessionId: input.sessionId,
-			blockId: input.blockId,
-			scope,
-			visitNumber,
-			status: input.status ?? lessonBlockVisitStatus.ACTIVE,
-			enteredAt: now,
-			completedAt: input.completedAt ?? null,
-			lastChoiceValue: input.lastChoiceValue ?? null,
-			outputsJson: input.outputs ? JSON.stringify(input.outputs) : null,
-			chatId: input.chatId ?? null,
-			metadata: input.metadata ? JSON.stringify(input.metadata) : null,
-			createdAt: now,
-			updatedAt: now
-		});
+		executor
+			.insert(interactiveLessonBlockVisit)
+			.values({
+				id: visitId,
+				sessionId: input.sessionId,
+				blockId: input.blockId,
+				scope: input.scope,
+				visitNumber,
+				status: input.status ?? lessonBlockVisitStatus.ACTIVE,
+				enteredAt: now,
+				completedAt: input.completedAt ?? null,
+				lastChoiceValue: input.lastChoiceValue ?? null,
+				outputsJson: input.outputs ? JSON.stringify(input.outputs) : null,
+				chatId: input.chatId ?? null,
+				metadata: input.metadata ? JSON.stringify(input.metadata) : null,
+				createdAt: now,
+				updatedAt: now
+			})
+			.run();
 
-		const createdVisit = await db
+		const createdVisit = executor
 			.select()
 			.from(interactiveLessonBlockVisit)
 			.where(eq(interactiveLessonBlockVisit.id, visitId))
@@ -4035,7 +4182,24 @@ export class LessonService {
 		completedAt?: Date | null;
 		metadata?: JsonRecord | null;
 	}): Promise<InteractiveLessonBlockVisit> {
-		const existing = await db
+		return db.transaction(
+			(tx): InteractiveLessonBlockVisit => this.updateBlockVisitWithExecutor(tx, input)
+		);
+	}
+
+	private static updateBlockVisitWithExecutor(
+		executor: LessonDbExecutor,
+		input: {
+			visitId: string;
+			status?: InteractiveLessonBlockVisit['status'];
+			outputs?: JsonRecord;
+			lastChoiceValue?: string;
+			chatId?: string;
+			completedAt?: Date | null;
+			metadata?: JsonRecord | null;
+		}
+	): InteractiveLessonBlockVisit {
+		const existing = executor
 			.select()
 			.from(interactiveLessonBlockVisit)
 			.where(eq(interactiveLessonBlockVisit.id, input.visitId))
@@ -4056,7 +4220,7 @@ export class LessonService {
 					? (existing.completedAt ?? now)
 					: null;
 
-		await db
+		executor
 			.update(interactiveLessonBlockVisit)
 			.set({
 				status: nextStatus,
@@ -4067,9 +4231,10 @@ export class LessonService {
 				metadata: input.metadata ? JSON.stringify(input.metadata) : existing.metadata,
 				updatedAt: now
 			})
-			.where(eq(interactiveLessonBlockVisit.id, input.visitId));
+			.where(eq(interactiveLessonBlockVisit.id, input.visitId))
+			.run();
 
-		const updatedVisit = await db
+		const updatedVisit = executor
 			.select()
 			.from(interactiveLessonBlockVisit)
 			.where(eq(interactiveLessonBlockVisit.id, input.visitId))
@@ -4195,19 +4360,41 @@ export class LessonService {
 		payload?: JsonRecord;
 	}): Promise<void> {
 		const scope = input.scope ?? (await this.resolveSessionScope(input.sessionId));
-		await db.insert(interactiveLessonEvent).values({
-			id: nanoid(),
-			interactiveLearningId: input.interactiveLearningId,
-			sessionId: input.sessionId,
-			userId: input.userId,
-			courseId: input.courseId,
-			scope,
-			visitId: input.visitId ?? null,
-			blockId: input.blockId ?? null,
-			eventType: input.eventType,
-			payloadJson: input.payload ? JSON.stringify(input.payload) : null,
-			createdAt: new Date()
+		db.transaction((tx) => {
+			this.insertLessonEventWithExecutor(tx, { ...input, scope });
 		});
+	}
+
+	private static insertLessonEventWithExecutor(
+		executor: LessonDbExecutor,
+		input: {
+			interactiveLearningId: string;
+			sessionId: string;
+			userId: string;
+			courseId: string;
+			scope: InteractiveLessonSession['scope'];
+			visitId?: string | null;
+			blockId?: string | null;
+			eventType: (typeof lessonEventType)[keyof typeof lessonEventType];
+			payload?: JsonRecord;
+		}
+	): void {
+		executor
+			.insert(interactiveLessonEvent)
+			.values({
+				id: nanoid(),
+				interactiveLearningId: input.interactiveLearningId,
+				sessionId: input.sessionId,
+				userId: input.userId,
+				courseId: input.courseId,
+				scope: input.scope,
+				visitId: input.visitId ?? null,
+				blockId: input.blockId ?? null,
+				eventType: input.eventType,
+				payloadJson: input.payload ? JSON.stringify(input.payload) : null,
+				createdAt: new Date()
+			})
+			.run();
 	}
 
 	private static async resolveSessionScope(
