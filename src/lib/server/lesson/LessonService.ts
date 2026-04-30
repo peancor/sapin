@@ -59,6 +59,7 @@ import { AgentEngine } from '$lib/server/agent/AgentEngine';
 import { AgentTranscriptService } from '$lib/server/agent/AgentTranscriptService';
 import { deriveEnabledUIComponentKeysFromTools } from '$lib/utils/agentToolUiMapping';
 import type { LessonSessionRevisionInfo } from '$lib/types/lessonRevision';
+import { getYoutubeSegmentProgress } from '$lib/lesson/youtubeProgress';
 import { and, desc, eq, inArray, isNotNull, max, ne } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
@@ -1302,12 +1303,34 @@ export class LessonService {
 			);
 		}
 
-		if (
-			view.currentBlock.kind === 'youtube' &&
-			view.currentVisit?.status !== lessonBlockVisitStatus.COMPLETED &&
-			view.currentBlockState?.status !== lessonBlockStateStatus.COMPLETED
-		) {
-			throw new LessonServiceError(400, 'Debes completar el video configurado antes de avanzar.');
+		if (view.currentBlock.kind === 'youtube') {
+			const youtubeOutputs = normalizeOutputs(
+				view.currentVisit?.outputsJson ?? view.currentBlockState?.outputsJson
+			);
+			const youtubeProgress = this.getYoutubeProgressFromOutputs(view.currentBlock, youtubeOutputs);
+			const youtubeCompleted =
+				view.currentVisit?.status === lessonBlockVisitStatus.COMPLETED ||
+				view.currentBlockState?.status === lessonBlockStateStatus.COMPLETED ||
+				youtubeProgress.completeEnough;
+
+			if (!youtubeCompleted) {
+				throw new LessonServiceError(400, 'Debes completar el video configurado antes de avanzar.');
+			}
+
+			if (
+				view.currentVisit?.status !== lessonBlockVisitStatus.COMPLETED &&
+				view.currentBlockState?.status !== lessonBlockStateStatus.COMPLETED
+			) {
+				return this.completeBlockAndEnterNext(view, {
+					...youtubeOutputs,
+					completed: true,
+					completedAt:
+						typeof youtubeOutputs.completedAt === 'string'
+							? youtubeOutputs.completedAt
+							: new Date().toISOString(),
+					watchPercent: youtubeProgress.watchPercent
+				});
+			}
 		}
 
 		if (view.currentBlock.kind === 'agent' && (view.currentBlock.requiresResponse ?? true)) {
@@ -1418,13 +1441,22 @@ export class LessonService {
 				: typeof currentOutputs.lastKnownTime === 'number'
 					? Math.max(0, currentOutputs.lastKnownTime)
 					: startSeconds;
-		const watchPercent =
-			segmentLength && segmentLength > 0
-				? Math.max(0, Math.min(1, (normalizedCurrentTime - startSeconds) / segmentLength))
-				: typeof currentOutputs.watchPercent === 'number'
-					? Math.max(0, Math.min(1, currentOutputs.watchPercent))
-					: 0;
-		const completed = input.eventType === 'completed' || currentOutputs.completed === true;
+		const currentDuration =
+			typeof currentOutputs.duration === 'number' &&
+			Number.isFinite(currentOutputs.duration) &&
+			currentOutputs.duration > 0
+				? currentOutputs.duration
+				: null;
+		const progress = getYoutubeSegmentProgress({
+			currentTime: normalizedCurrentTime,
+			startSeconds,
+			endSeconds: configuredEndSeconds,
+			duration: finiteDuration ?? currentDuration,
+			watchPercent:
+				typeof currentOutputs.watchPercent === 'number' ? currentOutputs.watchPercent : undefined,
+			alreadyCompleted: input.eventType === 'completed' || currentOutputs.completed === true
+		});
+		const completed = progress.completeEnough;
 		const completedAt =
 			completed && typeof currentOutputs.completedAt === 'string'
 				? currentOutputs.completedAt
@@ -1440,7 +1472,8 @@ export class LessonService {
 			videoId: block.videoId,
 			startSeconds: block.startSeconds ?? null,
 			endSeconds: block.endSeconds ?? null,
-			watchPercent,
+			duration: finiteDuration ?? currentDuration,
+			watchPercent: progress.watchPercent,
 			...(completedAt ? { completedAt } : {})
 		};
 
@@ -1463,6 +1496,22 @@ export class LessonService {
 		});
 
 		return { outputs, completed };
+	}
+
+	private static getYoutubeProgressFromOutputs(
+		block: Extract<LessonBlock, { kind: 'youtube' }>,
+		outputs: JsonRecord
+	) {
+		return getYoutubeSegmentProgress({
+			currentTime: typeof outputs.lastKnownTime === 'number' ? outputs.lastKnownTime : undefined,
+			startSeconds:
+				typeof outputs.startSeconds === 'number' ? outputs.startSeconds : (block.startSeconds ?? 0),
+			endSeconds:
+				typeof outputs.endSeconds === 'number' ? outputs.endSeconds : (block.endSeconds ?? null),
+			duration: typeof outputs.duration === 'number' ? outputs.duration : undefined,
+			watchPercent: typeof outputs.watchPercent === 'number' ? outputs.watchPercent : undefined,
+			alreadyCompleted: outputs.completed === true
+		});
 	}
 
 	static async submitChoice(input: {

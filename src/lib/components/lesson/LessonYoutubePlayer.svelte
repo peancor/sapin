@@ -71,6 +71,7 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { getYoutubeSegmentProgress } from '$lib/lesson/youtubeProgress';
 
 	interface Props {
 		block: LessonYoutubeBlock;
@@ -94,20 +95,16 @@
 
 	const segmentStart = $derived(block.startSeconds ?? 0);
 	const segmentEnd = $derived(block.endSeconds ?? null);
-	const segmentLength = $derived(
-		segmentEnd !== null && segmentEnd > segmentStart
-			? segmentEnd - segmentStart
-			: duration > segmentStart
-				? duration - segmentStart
-				: 0
+	const progress = $derived(
+		getYoutubeSegmentProgress({
+			currentTime,
+			startSeconds: segmentStart,
+			endSeconds: segmentEnd,
+			duration,
+			alreadyCompleted: completed
+		})
 	);
-	const watchPercent = $derived(
-		segmentLength > 0
-			? Math.max(0, Math.min(1, (currentTime - segmentStart) / segmentLength))
-			: completed
-				? 1
-				: 0
-	);
+	const watchPercent = $derived(progress.watchPercent);
 
 	$effect(() => {
 		if (initializedBlockId === block.id) return;
@@ -203,7 +200,7 @@
 
 		if (completed || activePausePoint) return;
 
-		if (segmentEnd !== null && currentTime >= segmentEnd - 0.35) {
+		if (progress.completeEnough) {
 			void markCompleted();
 			return;
 		}
