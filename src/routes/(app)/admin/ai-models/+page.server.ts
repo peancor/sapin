@@ -1,7 +1,18 @@
 import type { PageServerLoad, Actions } from './$types';
 import { AIModelService } from '$lib/server/ai/AIModelService';
-import { fail } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
+import { ROLE_LEVELS } from '$lib/server/roles';
 import * as table from '$lib/server/db/schema';
+
+function requireAdmin(locals: App.Locals) {
+	if (!locals.user) {
+		throw error(401, 'No autenticado');
+	}
+
+	if (locals.user.highestRoleLevel < ROLE_LEVELS.ADMIN) {
+		throw error(403, 'No autorizado');
+	}
+}
 
 export const load = (async () => {
 	// Seed defaults si es necesario
@@ -55,7 +66,8 @@ export const load = (async () => {
 }) satisfies PageServerLoad;
 
 export const actions = {
-	createProvider: async ({ request }) => {
+	createProvider: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 
 		const name = data.get('name')?.toString();
@@ -82,7 +94,8 @@ export const actions = {
 		}
 	},
 
-	updateProvider: async ({ request }) => {
+	updateProvider: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
@@ -103,7 +116,8 @@ export const actions = {
 		}
 	},
 
-	deleteProvider: async ({ request }) => {
+	deleteProvider: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
@@ -117,7 +131,8 @@ export const actions = {
 		}
 	},
 
-	createModel: async ({ request }) => {
+	createModel: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 
 		const providerId = data.get('providerId')?.toString();
@@ -152,7 +167,8 @@ export const actions = {
 		}
 	},
 
-	updateModel: async ({ request }) => {
+	updateModel: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
@@ -182,7 +198,8 @@ export const actions = {
 		}
 	},
 
-	deleteModel: async ({ request }) => {
+	deleteModel: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
@@ -196,7 +213,8 @@ export const actions = {
 		}
 	},
 
-	toggleModelActive: async ({ request }) => {
+	toggleModelActive: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 		const isActive = data.get('isActive') === 'true';
@@ -211,7 +229,8 @@ export const actions = {
 		}
 	},
 
-	setDefaultModel: async ({ request }) => {
+	setDefaultModel: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
@@ -225,7 +244,8 @@ export const actions = {
 		}
 	},
 
-	createQuota: async ({ request }) => {
+	createQuota: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 
 		const type = data.get('type')?.toString() as keyof typeof table.aiQuotaType;
@@ -250,7 +270,8 @@ export const actions = {
 		}
 	},
 
-	updateQuota: async ({ request }) => {
+	updateQuota: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
@@ -272,7 +293,8 @@ export const actions = {
 		}
 	},
 
-	deleteQuota: async ({ request }) => {
+	deleteQuota: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
@@ -286,7 +308,8 @@ export const actions = {
 		}
 	},
 
-	resetQuota: async ({ request }) => {
+	resetQuota: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 

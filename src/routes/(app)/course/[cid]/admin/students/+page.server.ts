@@ -2,7 +2,36 @@ import type { PageServerLoad, Actions } from './$types';
 import { db, CourseRoleUtils } from '$lib/server/db';
 import { interactiveLearning, courseInteractiveLearning, userInteractiveLearningChat } from '$lib/server/db/schema';
 import { eq, inArray } from 'drizzle-orm';
-import { fail } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
+import { ROLE_LEVELS } from '$lib/server/roles';
+
+async function requireManageUsers(locals: App.Locals, courseId: string) {
+    if (!locals.user) {
+        throw error(401, 'No autenticado');
+    }
+
+    if (locals.user.highestRoleLevel >= ROLE_LEVELS.ADMIN) {
+        return;
+    }
+
+    const canManageUsers = await CourseRoleUtils.userHasCoursePermission(
+        locals.user.id,
+        courseId,
+        'manageUsers'
+    );
+
+    if (!canManageUsers) {
+        throw error(403, 'No autorizado');
+    }
+}
+
+function rejectMismatchedCourse(formData: FormData, courseId: string) {
+    const postedCourseId = formData.get('courseId') as string | null;
+
+    if (postedCourseId && postedCourseId !== courseId) {
+        return fail(400, { message: 'El curso indicado no coincide con la ruta' });
+    }
+}
 
 export const load = (async ({ params }) => {
     // Get enrolled students usando el nuevo sistema de roles por curso
@@ -61,12 +90,16 @@ export const actions = {
     /**
      * Unenroll a single student from the course
      */
-    unenrollStudent: async ({ request }) => {
+    unenrollStudent: async ({ request, params, locals }) => {
         const formData = await request.formData();
+        const courseId = params.cid;
+        await requireManageUsers(locals, courseId);
+        const mismatch = rejectMismatchedCourse(formData, courseId);
+        if (mismatch) return mismatch;
+
         const studentId = formData.get('studentId') as string;
-        const courseId = formData.get('courseId') as string;
         
-        if (!studentId || !courseId) {
+        if (!studentId) {
             return fail(400, { message: 'Se requieren el ID del estudiante y el ID del curso' });
         }
         
@@ -95,12 +128,16 @@ export const actions = {
     /**
      * Unenroll multiple students from the course in bulk
      */
-    unenrollBulk: async ({ request }) => {
+    unenrollBulk: async ({ request, params, locals }) => {
         const formData = await request.formData();
+        const courseId = params.cid;
+        await requireManageUsers(locals, courseId);
+        const mismatch = rejectMismatchedCourse(formData, courseId);
+        if (mismatch) return mismatch;
+
         const studentIdsJSON = formData.get('studentIds') as string;
-        const courseId = formData.get('courseId') as string;
         
-        if (!studentIdsJSON || !courseId) {
+        if (!studentIdsJSON) {
             return fail(400, { message: 'Se requieren los IDs de los estudiantes y el ID del curso' });
         }
         
