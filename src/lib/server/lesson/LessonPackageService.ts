@@ -57,17 +57,6 @@ const packageLessonConfigSchema = z.object({
 	metadata: z.string().optional().nullable()
 });
 
-const packageRevisionSchema = z.object({
-	exportedId: z.string().min(1),
-	revisionNumber: z.number().int().positive(),
-	status: z.enum(['draft', 'published', 'archived']),
-	basedOnRevisionId: z.string().nullable().optional(),
-	publishedAt: z.string().nullable().optional(),
-	createdAt: z.string().nullable().optional(),
-	updatedAt: z.string().nullable().optional(),
-	definitionPath: z.string().min(1)
-});
-
 const packageResourceSchema = z.object({
 	exportedId: z.string().min(1),
 	fileStorageId: z.string().nullable().optional(),
@@ -85,10 +74,9 @@ const lessonPackageManifestSchema = z.object({
 	sapinVersion: z.string().optional().nullable(),
 	activity: packageActivitySchema,
 	lessonConfig: packageLessonConfigSchema,
-	revisions: z.array(packageRevisionSchema).min(1),
 	current: z.object({
-		publishedRevisionId: z.string().min(1),
-		draftRevisionId: z.string().min(1)
+		publishedDefinitionPath: z.string().min(1).nullable().optional(),
+		draftDefinitionPath: z.string().min(1)
 	}),
 	resources: z.array(packageResourceSchema)
 });
@@ -168,6 +156,14 @@ export function validateLessonPackageEntryPath(entryPath: string): string {
 		throw new LessonServiceError(400, `Entrada inesperada en el paquete: ${entryPath}`);
 	}
 
+	if (
+		topLevel === 'lesson' &&
+		normalized !== 'lesson/definition.published.json' &&
+		normalized !== 'lesson/definition.draft.json'
+	) {
+		throw new LessonServiceError(400, `Entrada inesperada en la lección: ${entryPath}`);
+	}
+
 	return normalized;
 }
 
@@ -183,16 +179,6 @@ function sanitizeResourceFilename(name: string): string {
 
 function makeResourceEntryPath(resource: InteractiveLearningFile): string {
 	return `resources/${resource.id}/${sanitizeResourceFilename(resource.name)}`;
-}
-
-function toIsoOrNull(value: Date | null): string | null {
-	return value ? value.toISOString() : null;
-}
-
-function parseDateOrNull(value: string | null | undefined): Date | null {
-	if (!value) return null;
-	const parsed = new Date(value);
-	return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function parseMetadataForImport(input: {
@@ -352,20 +338,17 @@ function validateManifestReferences(
 	manifest: LessonPackageManifest,
 	entries: Map<string, Uint8Array>
 ): void {
-	const revisionIds = new Set(manifest.revisions.map((revision) => revision.exportedId));
-
-	if (!revisionIds.has(manifest.current.publishedRevisionId)) {
-		throw new LessonServiceError(400, 'La revisión publicada del manifiesto no existe.');
+	const draftDefinitionPath = validateLessonPackageEntryPath(manifest.current.draftDefinitionPath);
+	if (!entries.has(draftDefinitionPath)) {
+		throw new LessonServiceError(400, `Falta la definición ${draftDefinitionPath}.`);
 	}
 
-	if (!revisionIds.has(manifest.current.draftRevisionId)) {
-		throw new LessonServiceError(400, 'La revisión borrador del manifiesto no existe.');
-	}
-
-	for (const revision of manifest.revisions) {
-		const definitionPath = validateLessonPackageEntryPath(revision.definitionPath);
-		if (!entries.has(definitionPath)) {
-			throw new LessonServiceError(400, `Falta la definición ${definitionPath}.`);
+	if (manifest.current.publishedDefinitionPath) {
+		const publishedDefinitionPath = validateLessonPackageEntryPath(
+			manifest.current.publishedDefinitionPath
+		);
+		if (!entries.has(publishedDefinitionPath)) {
+			throw new LessonServiceError(400, `Falta la definición ${publishedDefinitionPath}.`);
 		}
 	}
 
@@ -380,21 +363,45 @@ function validateManifestReferences(
 	}
 }
 
+function parsePackagedDefinition(
+	entries: Map<string, Uint8Array>,
+	definitionPath: string
+): LessonDefinition {
+	return LessonRevisionService.parseDefinition(
+		new TextDecoder().decode(requireEntry(entries, definitionPath))
+	);
+}
+
+function getPackagedLessonDefinitions(
+	manifest: LessonPackageManifest,
+	entries: Map<string, Uint8Array>
+): {
+	publishedDefinition: LessonDefinition | null;
+	draftDefinition: LessonDefinition;
+	allDefinitions: LessonDefinition[];
+} {
+	const draftDefinition = parsePackagedDefinition(entries, manifest.current.draftDefinitionPath);
+	const publishedDefinition = manifest.current.publishedDefinitionPath
+		? parsePackagedDefinition(entries, manifest.current.publishedDefinitionPath)
+		: null;
+
+	return {
+		publishedDefinition,
+		draftDefinition,
+		allDefinitions: publishedDefinition ? [publishedDefinition, draftDefinition] : [draftDefinition]
+	};
+}
+
 async function buildLessonPackageEntries(interactiveLearningId: string): Promise<{
 	entries: ZipEntryData[];
 	manifest: LessonPackageManifest;
 }> {
 	const state = await LessonRevisionService.ensureLessonRevisionState(interactiveLearningId);
-	const [resources, revisions, storageFiles] = await Promise.all([
+	const [resources, storageFiles] = await Promise.all([
 		db
 			.select()
 			.from(interactiveLearningFile)
 			.where(eq(interactiveLearningFile.interactiveLearningId, interactiveLearningId))
-			.all(),
-		db
-			.select()
-			.from(interactiveLearningLessonRevision)
-			.where(eq(interactiveLearningLessonRevision.interactiveLearningId, interactiveLearningId))
 			.all(),
 		db
 			.select()
@@ -419,24 +426,6 @@ async function buildLessonPackageEntries(interactiveLearningId: string): Promise
 			mimeType: mimeType ?? null
 		};
 	};
-
-	const revisionManifest = revisions
-		.sort((a, b) => a.revisionNumber - b.revisionNumber)
-		.map((revision) => {
-			const definitionPath = `lesson/revisions/${revision.revisionNumber}-${revision.status}-${revision.id}.json`;
-			addEntry(definitionPath, encodeJson(JSON.parse(revision.definitionJson)), 'application/json');
-
-			return {
-				exportedId: revision.id,
-				revisionNumber: revision.revisionNumber,
-				status: revision.status,
-				basedOnRevisionId: revision.basedOnRevisionId,
-				publishedAt: toIsoOrNull(revision.publishedAt),
-				createdAt: toIsoOrNull(revision.createdAt),
-				updatedAt: toIsoOrNull(revision.updatedAt),
-				definitionPath
-			};
-		});
 
 	addEntry(
 		'lesson/definition.published.json',
@@ -490,10 +479,9 @@ async function buildLessonPackageEntries(interactiveLearningId: string): Promise
 			allowRestart: state.lesson.allowRestart,
 			metadata: state.lesson.metadata
 		},
-		revisions: revisionManifest,
 		current: {
-			publishedRevisionId: state.publishedRevision.id,
-			draftRevisionId: state.draftRevision.id
+			publishedDefinitionPath: 'lesson/definition.published.json',
+			draftDefinitionPath: 'lesson/definition.draft.json'
 		},
 		resources: resourceManifest
 	};
@@ -546,13 +534,9 @@ export class LessonPackageService {
 		validateManifestReferences(manifest, entries);
 		validateLessonPackageChecksums(entries, checksums);
 
-		const definitions = manifest.revisions.map((revision) =>
-			LessonRevisionService.parseDefinition(
-				new TextDecoder().decode(requireEntry(entries, revision.definitionPath))
-			)
-		);
+		const definitions = getPackagedLessonDefinitions(manifest, entries);
 		assertAllLessonAssetRefsResolvable(
-			definitions,
+			definitions.allDefinitions,
 			new Set(manifest.resources.map((resource) => resource.exportedId))
 		);
 
@@ -584,6 +568,7 @@ export class LessonPackageService {
 			exportedId: string;
 			record: Omit<InteractiveLearningFile, 'createdAt'> & { createdAt: Date };
 		}> = [];
+		let importedRevisionCount = 0;
 
 		try {
 			for (const resource of manifest.resources) {
@@ -628,28 +613,17 @@ export class LessonPackageService {
 				});
 			}
 
-			const sourceDefinitionsByRevisionId = new Map<string, LessonDefinition>();
-			for (const revision of manifest.revisions) {
-				const parsedDefinition = LessonRevisionService.parseDefinition(
-					new TextDecoder().decode(requireEntry(entries, revision.definitionPath))
-				);
-				sourceDefinitionsByRevisionId.set(
-					revision.exportedId,
-					rewriteLessonDefinitionResourceIds(parsedDefinition, resourceIdMap)
-				);
-			}
-
-			const rewrittenPublished = sourceDefinitionsByRevisionId.get(
-				manifest.current.publishedRevisionId
+			const packagedDefinitions = getPackagedLessonDefinitions(manifest, entries);
+			const rewrittenPublished = packagedDefinitions.publishedDefinition
+				? rewriteLessonDefinitionResourceIds(packagedDefinitions.publishedDefinition, resourceIdMap)
+				: null;
+			const rewrittenDraft = rewriteLessonDefinitionResourceIds(
+				packagedDefinitions.draftDefinition,
+				resourceIdMap
 			);
-			if (!rewrittenPublished) {
-				throw new LessonServiceError(400, 'No se pudo resolver la revisión publicada importada.');
-			}
-
-			const revisionIdMap = new Map<string, string>();
-			for (const revision of manifest.revisions) {
-				revisionIdMap.set(revision.exportedId, nanoid());
-			}
+			const publishedRevisionId = rewrittenPublished ? nanoid() : null;
+			const draftRevisionId = nanoid();
+			importedRevisionCount = rewrittenPublished ? 2 : 1;
 
 			db.transaction((tx) => {
 				tx.insert(interactiveLearning)
@@ -660,7 +634,9 @@ export class LessonPackageService {
 						description: manifest.activity.description ?? null,
 						image: manifest.activity.image ?? null,
 						type: 'lesson',
-						content: LessonRevisionService.serializeDefinition(rewrittenPublished),
+						content: LessonRevisionService.serializeDefinition(
+							rewrittenPublished ?? rewrittenDraft
+						),
 						status: 'hidden',
 						publishedAt: null,
 						closedAt: null,
@@ -689,49 +665,42 @@ export class LessonPackageService {
 					})
 					.run();
 
-				for (const revision of manifest.revisions) {
-					const definition = sourceDefinitionsByRevisionId.get(revision.exportedId);
-					if (!definition) {
-						throw new LessonServiceError(
-							400,
-							`No se pudo resolver la revisión ${revision.exportedId}.`
-						);
-					}
-
+				if (rewrittenPublished && publishedRevisionId) {
 					tx.insert(interactiveLearningLessonRevision)
 						.values({
-							id: revisionIdMap.get(revision.exportedId)!,
+							id: publishedRevisionId,
 							interactiveLearningId: activityId,
-							revisionNumber: revision.revisionNumber,
-							status: revision.status,
-							definitionJson: LessonRevisionService.serializeDefinition(definition),
+							revisionNumber: 1,
+							status: 'published',
+							definitionJson: LessonRevisionService.serializeDefinition(rewrittenPublished),
 							createdBy: input.userId,
 							basedOnRevisionId: null,
-							publishedAt: parseDateOrNull(revision.publishedAt),
-							createdAt: parseDateOrNull(revision.createdAt) ?? now,
-							updatedAt: parseDateOrNull(revision.updatedAt) ?? now
+							publishedAt: now,
+							createdAt: now,
+							updatedAt: now
 						})
 						.run();
 				}
 
-				for (const revision of manifest.revisions) {
-					const newRevisionId = revisionIdMap.get(revision.exportedId);
-					const newBasedOnRevisionId = revision.basedOnRevisionId
-						? revisionIdMap.get(revision.basedOnRevisionId)
-						: null;
-
-					if (newRevisionId && newBasedOnRevisionId) {
-						tx.update(interactiveLearningLessonRevision)
-							.set({ basedOnRevisionId: newBasedOnRevisionId })
-							.where(eq(interactiveLearningLessonRevision.id, newRevisionId))
-							.run();
-					}
-				}
+				tx.insert(interactiveLearningLessonRevision)
+					.values({
+						id: draftRevisionId,
+						interactiveLearningId: activityId,
+						revisionNumber: rewrittenPublished ? 2 : 1,
+						status: 'draft',
+						definitionJson: LessonRevisionService.serializeDefinition(rewrittenDraft),
+						createdBy: input.userId,
+						basedOnRevisionId: null,
+						publishedAt: null,
+						createdAt: now,
+						updatedAt: now
+					})
+					.run();
 
 				tx.update(interactiveLearningLesson)
 					.set({
-						draftRevisionId: revisionIdMap.get(manifest.current.draftRevisionId) ?? null,
-						publishedRevisionId: revisionIdMap.get(manifest.current.publishedRevisionId) ?? null,
+						draftRevisionId,
+						publishedRevisionId,
 						updatedAt: now
 					})
 					.where(eq(interactiveLearningLesson.id, activityId))
@@ -783,7 +752,7 @@ export class LessonPackageService {
 			activityId,
 			activityName: manifest.activity.name,
 			resourceCount: importedResources.length,
-			revisionCount: manifest.revisions.length,
+			revisionCount: importedRevisionCount,
 			formatVersion: manifest.formatVersion
 		};
 	}

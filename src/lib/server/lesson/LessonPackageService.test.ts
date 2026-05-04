@@ -41,15 +41,16 @@ function makeDefinition(fileId = 'old_file'): LessonDefinition {
 
 test('validateLessonPackageEntryPath rejects traversal and unexpected top-level entries', () => {
 	assert.equal(
-		validateLessonPackageEntryPath('lesson/revisions/1.json'),
-		'lesson/revisions/1.json'
+		validateLessonPackageEntryPath('lesson/definition.published.json'),
+		'lesson/definition.published.json'
 	);
 
 	for (const entryPath of [
 		'../manifest.json',
 		'lesson/../../x',
 		'/manifest.json',
-		'evil/file.txt'
+		'evil/file.txt',
+		'lesson/revisions/1.json'
 	]) {
 		assert.throws(
 			() => validateLessonPackageEntryPath(entryPath),

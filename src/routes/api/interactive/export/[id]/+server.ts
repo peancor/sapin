@@ -74,7 +74,7 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 				type: 'lesson',
 				formatVersion: lessonPackage.manifest.formatVersion,
 				resourceCount: lessonPackage.manifest.resources.length,
-				revisionCount: lessonPackage.manifest.revisions.length
+				revisionCount: 2
 			},
 			ipAddress: getClientIP(request),
 			userAgent: request.headers.get('user-agent'),
