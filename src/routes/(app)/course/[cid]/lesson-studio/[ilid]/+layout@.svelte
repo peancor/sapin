@@ -1,8 +1,8 @@
 <script lang="ts">
+	/* eslint-disable svelte/no-navigation-without-resolve */
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 	import { page } from '$app/state';
-	import { resolve } from '$app/paths';
 	import {
 		Bug,
 		Boxes,
@@ -34,7 +34,7 @@
 	const resourcesHref = $derived(lessonResourcesHref(context, { source: 'studio' }));
 	const debugHref = $derived(lessonDebuggerHref(context, { source: 'studio' }));
 	const versionsHref = $derived(`${studioHref}/versions`);
-	const blocksHref = $derived(`${studioHref}/blocks/new`);
+	const blocksHref = $derived(`${studioHref}/blocks`);
 	const activityHref = $derived(lessonActivityHref(context));
 	const isWorkspaceMode = $derived(
 		activePath.startsWith(`${studioHref}/flow`) || activePath.startsWith(`${studioHref}/debug`)
@@ -46,7 +46,7 @@
 	const navItems = $derived([
 		{ label: 'Overview', href: studioHref, icon: LayoutDashboard, match: studioHref },
 		{ label: 'Mapa', href: flowHref, icon: Route, match: `${studioHref}/flow` },
-		{ label: 'Bloques', href: blocksHref, icon: Boxes, match: `${studioHref}/blocks` },
+		{ label: 'Estructura', href: blocksHref, icon: Boxes, match: `${studioHref}/blocks` },
 		{ label: 'Recursos', href: resourcesHref, icon: Paperclip, match: `${studioHref}/resources` },
 		{ label: 'Debug', href: debugHref, icon: Bug, match: `${studioHref}/debug` },
 		{ label: 'Versiones', href: versionsHref, icon: History, match: versionsHref }
@@ -66,7 +66,7 @@
 		>
 			<div class="flex min-h-11 items-center gap-3">
 				<a
-					href={resolve(activityHref as any)}
+					href={activityHref}
 					class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#d9e6dc] bg-white/90 text-[#0f2537] shadow-sm transition duration-150 hover:border-[#2e7d32]/35 hover:bg-[#f0faf0] hover:text-[#2e7d32] active:scale-95 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
 					aria-label="Volver a la actividad"
 					title="Volver a la actividad"
@@ -127,7 +127,7 @@
 					</span>
 
 					<a
-						href={resolve(`/lesson/${ilid}?preview=published`)}
+						href={`/lesson/${ilid}?preview=published`}
 						target="_blank"
 						rel="noreferrer"
 						class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#2e7d32]/25 bg-[#eaf7e9] px-2.5 text-xs font-semibold text-[#2e7d32] shadow-sm transition duration-150 hover:bg-[#dff2dc] active:scale-95 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
@@ -137,7 +137,7 @@
 						<span class="hidden md:inline">Publicado</span>
 					</a>
 					<a
-						href={resolve(`/lesson/${ilid}?preview=draft`)}
+						href={`/lesson/${ilid}?preview=draft`}
 						target="_blank"
 						rel="noreferrer"
 						class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#c9d8e5] bg-[#f2f6f9] px-2.5 text-xs font-semibold text-[#0f2537] shadow-sm transition duration-150 hover:bg-white active:scale-95 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200 dark:hover:bg-blue-950/50"
@@ -147,14 +147,14 @@
 						<span class="hidden md:inline">Borrador</span>
 					</a>
 					<a
-						href={resolve(debugHref as any)}
+						href={debugHref}
 						class="hidden h-9 items-center gap-1.5 rounded-lg border border-[#c9d8e5] bg-white/80 px-2.5 text-xs font-semibold text-[#0f2537] shadow-sm transition duration-150 hover:border-[#2e7d32]/25 hover:bg-[#f6fbf3] active:scale-95 lg:inline-flex dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200 dark:hover:bg-blue-950/50"
 						title="Abrir debugger"
 					>
 						<Bug class="h-3.5 w-3.5" />
 						Debug
 					</a>
-					<form method="POST" action={resolve(`${versionsHref}?/publishDraft` as any)}>
+					<form method="POST" action={`${versionsHref}?/publishDraft`}>
 						<button
 							type="submit"
 							class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-linear-to-r from-[#2e7d32] to-[#79bf45] px-3 text-xs font-semibold text-white shadow-[0_14px_28px_-18px_rgba(46,125,50,0.8)] transition duration-150 hover:from-[#279132] hover:to-[#8fcf4f] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
@@ -172,7 +172,7 @@
 				{#each navItems as item (item.label)}
 					{@const Icon = item.icon}
 					<a
-						href={resolve(item.href as any)}
+						href={item.href}
 						class={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition duration-150 ${
 							isActive(item.match)
 								? 'bg-linear-to-r from-[#2e7d32] to-[#79bf45] text-white shadow-[0_12px_24px_-18px_rgba(46,125,50,0.75)]'

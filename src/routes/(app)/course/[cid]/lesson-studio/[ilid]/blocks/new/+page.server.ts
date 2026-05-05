@@ -1,58 +1,15 @@
 import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
-import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
-import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
-import { lessonBlockKinds, type LessonBlockKind } from '$lib/types/lesson';
-import {
-	loadLessonStudioData,
-	requireLessonStudioContext
-} from '$lib/server/lesson/LessonStudioService';
-import { lessonBlockHref } from '$lib/lesson/lessonStudioNavigation';
+import { lessonFlowHref } from '$lib/lesson/lessonStudioNavigation';
 
-function resolveRequestedKind(value: string | null | undefined): LessonBlockKind {
-	return lessonBlockKinds.includes(value as LessonBlockKind)
-		? (value as LessonBlockKind)
-		: 'content';
-}
-
-export const load = (async ({ params, locals, url }) => {
-	const data = await loadLessonStudioData(params.cid, params.ilid, locals);
-	return {
-		...data,
-		selectedKind: resolveRequestedKind(url.searchParams.get('kind'))
-	};
+export const load = (async ({ params }) => {
+	redirect(303, lessonFlowHref({ cid: params.cid, ilid: params.ilid }));
 }) satisfies PageServerLoad;
 
 export const actions = {
-	createBlock: async ({ request, params, locals }) => {
-		const { user } = await requireLessonStudioContext(params.cid, params.ilid, locals);
-		const formData = await request.formData();
-		const kind = resolveRequestedKind(formData.get('kind')?.toString());
-
-		try {
-			const revisionState = await LessonRevisionService.ensureLessonRevisionState(params.ilid, {
-				actorUserId: user.id
-			});
-			const { definition, block } = LessonService.createBlockDraft(
-				revisionState.draftDefinition,
-				kind
-			);
-
-			await LessonRevisionService.saveDraftDefinition({
-				interactiveLearningId: params.ilid,
-				definition,
-				actorUserId: user.id
-			});
-
-			redirect(303, lessonBlockHref({ cid: params.cid, ilid: params.ilid }, block.id));
-		} catch (errorValue) {
-			if (errorValue instanceof LessonServiceError) {
-				return fail(errorValue.status, {
-					error: errorValue.message
-				});
-			}
-
-			throw errorValue;
-		}
+	createBlock: async () => {
+		return fail(410, {
+			error: 'Los bloques se crean desde el mapa para mantener posición y conexiones.'
+		});
 	}
 } satisfies Actions;
