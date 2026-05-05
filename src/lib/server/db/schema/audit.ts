@@ -21,6 +21,8 @@ export const auditAction = {
     ACTIVITY_CREATED: 'activity_created',
     ACTIVITY_UPDATED: 'activity_updated',
     ACTIVITY_DELETED: 'activity_deleted',
+    ACTIVITY_EXPORTED: 'activity_exported',
+    ACTIVITY_IMPORTED: 'activity_imported',
     // Notificaciones
     NOTIFICATION_SENT: 'notification_sent',
     NOTIFICATION_BULK_SENT: 'notification_bulk_sent',

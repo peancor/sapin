@@ -12,6 +12,7 @@ import {
 import { ROLE_LEVELS } from '$lib/server/roles';
 import type { FileStorage } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { InteractiveChatAuthUtils } from '$lib/server/db/InteractiveChatAuthUtils';
 
 export interface PermissionCheckResult {
 	allowed: boolean;
@@ -90,6 +91,9 @@ class FilePermissionMiddleware {
 
 				case 'chat':
 					return this.checkChatPermission(file, userId, action);
+
+				case 'lesson':
+					return this.checkLessonPermission(file, userId, action, adminLevel);
 
 				case 'rag_document':
 					return this.checkRagDocumentPermission(file, userId, action);
@@ -236,6 +240,55 @@ class FilePermissionMiddleware {
 		}
 
 		return { allowed: false, reason: 'User does not have access to this chat' };
+	}
+
+	/**
+	 * Check lesson resource permissions.
+	 * Rule: Learners with course access may read; teacher-level course roles may modify.
+	 */
+	private async checkLessonPermission(
+		file: FileStorage,
+		userId: string,
+		action: string,
+		userRoleLevel: number
+	): Promise<PermissionCheckResult> {
+		if (file.entityType !== 'interactive_learning') {
+			return { allowed: false, reason: 'Lesson files must be attached to an activity' };
+		}
+
+		const activity = await db
+			.select({ id: interactiveLearning.id, type: interactiveLearning.type })
+			.from(interactiveLearning)
+			.where(eq(interactiveLearning.id, file.entityId))
+			.limit(1);
+
+		if (activity.length === 0) {
+			return { allowed: false, reason: 'Associated activity not found' };
+		}
+
+		if (activity[0].type !== 'lesson') {
+			return { allowed: false, reason: 'Associated activity is not a lesson' };
+		}
+
+		const lessonAccess = await InteractiveChatAuthUtils.userCanAccessInteractiveActivity(
+			userId,
+			file.entityId,
+			userRoleLevel
+		);
+
+		if (!lessonAccess.allowed) {
+			return { allowed: false, reason: lessonAccess.reason || 'User does not have access to this lesson' };
+		}
+
+		if (action === 'read') {
+			return { allowed: true };
+		}
+
+		if (lessonAccess.courseRole && ['owner', 'admin', 'teacher'].includes(lessonAccess.courseRole)) {
+			return { allowed: true };
+		}
+
+		return { allowed: false, reason: 'Only teachers can modify lesson resources' };
 	}
 
 	/**

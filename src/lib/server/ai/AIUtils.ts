@@ -1,4 +1,4 @@
-import { generateText, streamText, type ModelMessage } from 'ai';
+import { generateText, Output, streamText, type ModelMessage } from 'ai';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -11,11 +11,17 @@ import { SystemPromptBuilder } from './services/SystemPromptBuilder';
 import { RagService, type RagContextOptions } from './services/RagService';
 import { resolveRagConfig } from '$lib/server/rag/config';
 import { AIRequestCaptureService } from './AIRequestCaptureService';
+import type { ZodType } from 'zod';
 
 export class AIUtils {
 	private static async logFailureUsage(params: {
 		modelName: string;
-		context?: { userId?: string; courseId?: string; interactiveLearningId?: string; chatId?: string };
+		context?: {
+			userId?: string;
+			courseId?: string;
+			interactiveLearningId?: string;
+			chatId?: string;
+		};
 		operation: 'chat' | 'completion' | 'image' | 'embedding';
 		startTime: number;
 		errorMessage: string;
@@ -98,359 +104,582 @@ export class AIUtils {
 		return UsageTracker.logUsage(params);
 	}
 
-    public static async streamTextFromPrompt(
-        prompt: string, 
-        modelName: string,
-        context?: { userId?: string; courseId?: string; interactiveLearningId?: string; chatId?: string }
-    ) {
-        return this.streamTextFromMessages([{role: 'user', content: prompt}], modelName, context);
-    }
+	public static async streamTextFromPrompt(
+		prompt: string,
+		modelName: string,
+		context?: {
+			userId?: string;
+			courseId?: string;
+			interactiveLearningId?: string;
+			chatId?: string;
+		}
+	) {
+		return this.streamTextFromMessages([{ role: 'user', content: prompt }], modelName, context);
+	}
 
-    public static async streamTextFromMessages(
-        messages: ModelMessage[], 
-        modelName: string,
-        context?: { userId?: string; courseId?: string; interactiveLearningId?: string; chatId?: string }
-    ) {
-        const startTime = Date.now();
-        // Verificar cuota antes de proceder
-        const quotaCheck = await this.checkQuota(
-            modelName, 
-            context?.userId, 
-            context?.courseId, 
-            context?.interactiveLearningId
-        );
-        
-        if (!quotaCheck.allowed) {
-            await this.logFailureUsage({
-                modelName,
-                context,
-                operation: 'chat',
-                startTime,
-                errorMessage: `Cuota excedida: ${quotaCheck.reason}`,
-                metadata: { phase: 'quota_check' }
-            });
-            throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
-        }
+	public static async streamTextFromMessages(
+		messages: ModelMessage[],
+		modelName: string,
+		context?: {
+			userId?: string;
+			courseId?: string;
+			interactiveLearningId?: string;
+			chatId?: string;
+		}
+	) {
+		const startTime = Date.now();
+		// Verificar cuota antes de proceder
+		const quotaCheck = await this.checkQuota(
+			modelName,
+			context?.userId,
+			context?.courseId,
+			context?.interactiveLearningId
+		);
 
-        let model;
-        try {
-            model = await this.buildChatModel(modelName);
-        } catch (error) {
-            await this.logFailureUsage({
-                modelName,
-                context,
-                operation: 'chat',
-                startTime,
-                errorMessage: error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
-                metadata: { phase: 'model_build' }
-            });
-            throw error;
-        }
+		if (!quotaCheck.allowed) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				operation: 'chat',
+				startTime,
+				errorMessage: `Cuota excedida: ${quotaCheck.reason}`,
+				metadata: { phase: 'quota_check' }
+			});
+			throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
+		}
 
-        const result = streamText({
-            model,
-            messages,
-            temperature: 0.7,
-            onFinish: async (finishResult) => {
-                const durationMs = Date.now() - startTime;
-                
-                // Registrar uso - AI SDK usa inputTokens/outputTokens
-                const usage = finishResult.usage;
-                const inputTokens = usage?.inputTokens ?? 0;
-                const outputTokens = usage?.outputTokens ?? 0;
-                
-                // Metadata con campos adicionales de uso
-                const metadata: Record<string, unknown> = {
-                    totalTokens: usage?.totalTokens,
-                    reasoningTokens: usage?.reasoningTokens,
-                    cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
-                    cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens
-                };
+		let model;
+		try {
+			model = await this.buildChatModel(modelName);
+		} catch (error) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				operation: 'chat',
+				startTime,
+				errorMessage:
+					error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
+				metadata: { phase: 'model_build' }
+			});
+			throw error;
+		}
 
-                await this.logUsage({
-                    modelName,
-                    userId: context?.userId,
-                    courseId: context?.courseId,
-                    interactiveLearningId: context?.interactiveLearningId,
-                    chatId: context?.chatId,
-                    operation: 'chat',
-                    inputTokens,
-                    outputTokens,
-                    durationMs,
-                    success: true,
-                    metadata
-                });
+		const result = streamText({
+			model,
+			messages,
+			temperature: 0.7,
+			onFinish: async (finishResult) => {
+				const durationMs = Date.now() - startTime;
 
-                console.log('AI Usage logged:', {
-                    model: modelName,
-                    tokens: finishResult.usage,
-                    duration: durationMs
-                });
-            }
-        });
-        return result;
-    }
+				// Registrar uso - AI SDK usa inputTokens/outputTokens
+				const usage = finishResult.usage;
+				const inputTokens = usage?.inputTokens ?? 0;
+				const outputTokens = usage?.outputTokens ?? 0;
 
-    public static async generateText(
-        prompt: string, 
-        modelName: string,
-        context?: { userId?: string; courseId?: string; interactiveLearningId?: string }
-    ) {
-        const startTime = Date.now();
-        // Verificar cuota
-        const quotaCheck = await this.checkQuota(
-            modelName, 
-            context?.userId, 
-            context?.courseId, 
-            context?.interactiveLearningId
-        );
-        
-        if (!quotaCheck.allowed) {
-            await this.logFailureUsage({
-                modelName,
-                context,
-                operation: 'completion',
-                startTime,
-                errorMessage: `Cuota excedida: ${quotaCheck.reason}`,
-                metadata: { phase: 'quota_check' }
-            });
-            throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
-        }
+				// Metadata con campos adicionales de uso
+				const metadata: Record<string, unknown> = {
+					totalTokens: usage?.totalTokens,
+					reasoningTokens: usage?.reasoningTokens,
+					cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+					cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens
+				};
 
-        let model;
-        try {
-            model = await this.buildChatModel(modelName);
-        } catch (error) {
-            await this.logFailureUsage({
-                modelName,
-                context,
-                operation: 'completion',
-                startTime,
-                errorMessage: error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
-                metadata: { phase: 'model_build' }
-            });
-            throw error;
-        }
+				await this.logUsage({
+					modelName,
+					userId: context?.userId,
+					courseId: context?.courseId,
+					interactiveLearningId: context?.interactiveLearningId,
+					chatId: context?.chatId,
+					operation: 'chat',
+					inputTokens,
+					outputTokens,
+					durationMs,
+					success: true,
+					metadata
+				});
 
-        try {
-            const result = await generateText({
-                model,
-                prompt,
-            });
+				console.log('AI Usage logged:', {
+					model: modelName,
+					tokens: finishResult.usage,
+					duration: durationMs
+				});
+			}
+		});
+		return result;
+	}
 
-            const durationMs = Date.now() - startTime;
+	public static async generateText(
+		prompt: string,
+		modelName: string,
+		context?: { userId?: string; courseId?: string; interactiveLearningId?: string }
+	) {
+		const startTime = Date.now();
+		// Verificar cuota
+		const quotaCheck = await this.checkQuota(
+			modelName,
+			context?.userId,
+			context?.courseId,
+			context?.interactiveLearningId
+		);
 
-            // Registrar uso - AI SDK usa inputTokens/outputTokens
-            const usage = result.usage;
-            const inputTokens = usage?.inputTokens ?? 0;
-            const outputTokens = usage?.outputTokens ?? 0;
-            
-            // Metadata con campos adicionales de uso
-            const metadata: Record<string, unknown> = {
-                totalTokens: usage?.totalTokens,
-                reasoningTokens: usage?.reasoningTokens,
-                cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
-                cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens
-            };
+		if (!quotaCheck.allowed) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				operation: 'completion',
+				startTime,
+				errorMessage: `Cuota excedida: ${quotaCheck.reason}`,
+				metadata: { phase: 'quota_check' }
+			});
+			throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
+		}
 
-            await this.logUsage({
-                modelName,
-                userId: context?.userId,
-                courseId: context?.courseId,
-                interactiveLearningId: context?.interactiveLearningId,
-                operation: 'completion',
-                inputTokens,
-                outputTokens,
-                durationMs,
-                success: true,
-                metadata
-            });
+		let model;
+		try {
+			model = await this.buildChatModel(modelName);
+		} catch (error) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				operation: 'completion',
+				startTime,
+				errorMessage:
+					error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
+				metadata: { phase: 'model_build' }
+			});
+			throw error;
+		}
 
-            return result.text;
-        } catch (error) {
-            const durationMs = Date.now() - startTime;
+		try {
+			const result = await generateText({
+				model,
+				prompt
+			});
 
-            // Registrar error
-            await this.logUsage({
-                modelName,
-                userId: context?.userId,
-                courseId: context?.courseId,
-                interactiveLearningId: context?.interactiveLearningId,
-                operation: 'completion',
-                inputTokens: 0,
-                outputTokens: 0,
-                durationMs,
-                success: false,
-                errorMessage: error instanceof Error ? error.message : 'Unknown error'
-            });
+			const durationMs = Date.now() - startTime;
 
-            throw error;
-        }
-    }
+			// Registrar uso - AI SDK usa inputTokens/outputTokens
+			const usage = result.usage;
+			const inputTokens = usage?.inputTokens ?? 0;
+			const outputTokens = usage?.outputTokens ?? 0;
 
-    // ==================== Chat Utilities ====================
+			// Metadata con campos adicionales de uso
+			const metadata: Record<string, unknown> = {
+				totalTokens: usage?.totalTokens,
+				reasoningTokens: usage?.reasoningTokens,
+				cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+				cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens
+			};
 
-    public static async saveMessage(
-        chatId: string,
-        content: string,
-        type: keyof typeof table.messageType,
-        metadata?: string
-    ) {
-        return await db.insert(table.message).values({
-            id: nanoid(),
-            chatId,
-            content,
-            type,
-            tokenCount: 0,
-            finishReason: 'stop',
-            metadata,
-            createdAt: new Date()
-        });
-    }
+			await this.logUsage({
+				modelName,
+				userId: context?.userId,
+				courseId: context?.courseId,
+				interactiveLearningId: context?.interactiveLearningId,
+				operation: 'completion',
+				inputTokens,
+				outputTokens,
+				durationMs,
+				success: true,
+				metadata
+			});
 
-    public static async getInteractiveLearningChat(iid: string) {
-        return await db
-            .select()
-            .from(table.interactiveLearningChat)
-            .where(eq(table.interactiveLearningChat.id, iid))
-            .get();
-    }
+			return result.text;
+		} catch (error) {
+			const durationMs = Date.now() - startTime;
 
-    /**
-     * Obtiene el courseId asociado a un interactiveLearning si existe
-     */
-    public static async getCourseIdByInteractiveLearningId(interactiveLearningId: string): Promise<string | undefined> {
-        const result = await db
-            .select({ courseId: table.courseInteractiveLearning.courseId })
-            .from(table.courseInteractiveLearning)
-            .where(eq(table.courseInteractiveLearning.interactiveLearningId, interactiveLearningId))
-            .get();
-        return result?.courseId;
-    }
+			// Registrar error
+			await this.logUsage({
+				modelName,
+				userId: context?.userId,
+				courseId: context?.courseId,
+				interactiveLearningId: context?.interactiveLearningId,
+				operation: 'completion',
+				inputTokens: 0,
+				outputTokens: 0,
+				durationMs,
+				success: false,
+				errorMessage: error instanceof Error ? error.message : 'Unknown error'
+			});
 
-    public static async getCourseNamesByInteractiveLearningId(interactiveLearningId: string): Promise<string[]> {
-        const rows = await db
-            .select({ name: table.course.name })
-            .from(table.courseInteractiveLearning)
-            .innerJoin(table.course, eq(table.course.id, table.courseInteractiveLearning.courseId))
-            .where(eq(table.courseInteractiveLearning.interactiveLearningId, interactiveLearningId))
-            .orderBy(table.courseInteractiveLearning.order)
-            .all();
+			throw error;
+		}
+	}
 
-        return [...new Set(rows.map((row) => row.name).filter(Boolean))];
-    }
+	public static async generateTextFromMessages(
+		messages: ModelMessage[],
+		modelName: string,
+		context?: {
+			userId?: string;
+			courseId?: string;
+			interactiveLearningId?: string;
+			chatId?: string;
+		},
+		options?: { temperature?: number }
+	) {
+		const startTime = Date.now();
+		const quotaCheck = await this.checkQuota(
+			modelName,
+			context?.userId,
+			context?.courseId,
+			context?.interactiveLearningId
+		);
 
-    public static async getPreviousMessages(ilcid: string, cid: string): Promise<ModelMessage[]> {
-        const chatMessages = await db
-            .select()
-            .from(table.message)
-            .where(eq(table.message.chatId, cid))
-            .orderBy(table.message.createdAt)
-            .all();
+		if (!quotaCheck.allowed) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				operation: 'completion',
+				startTime,
+				errorMessage: `Cuota excedida: ${quotaCheck.reason}`,
+				metadata: { phase: 'quota_check' }
+			});
+			throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
+		}
 
-        return chatMessages.map((msg) => {
-            switch (msg.type) {
-                case 'USER':
-                    return { role: 'user' as const, content: msg.content };
-                case 'ASSISTANT':
-                    return { role: 'assistant' as const, content: msg.content };
-                case 'SYSTEM':
-                    return { role: 'system' as const, content: msg.content };
-                default:
-                    return { role: 'user' as const, content: msg.content };
-            }
-        });
-    }
+		let model;
+		try {
+			model = await this.buildChatModel(modelName);
+		} catch (error) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				operation: 'completion',
+				startTime,
+				errorMessage:
+					error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
+				metadata: { phase: 'model_build' }
+			});
+			throw error;
+		}
 
-    public static async getModelFromInteractiveLearningChat(iid: string) {
-        const chatConfig = await this.getInteractiveLearningChat(iid);
-        if (!chatConfig) throw new Error(`No chat found with id ${iid}`);
+		try {
+			const result = await generateText({
+				model,
+				messages,
+				temperature: options?.temperature
+			});
 
-        // Usar el modelo configurado en la actividad, o el por defecto del sistema
-        const configuredModel = chatConfig.llmModel || '';
-        
-        // Verificar si el modelo configurado está disponible en el nuevo sistema
-        const availableModels = await this.getAvailableModels();
-        const isModelAvailable = availableModels.some(m => m.name === configuredModel);
-        
-        const chosenModel = isModelAvailable 
-            ? configuredModel 
-            : await this.getDefaultModel();
+			const durationMs = Date.now() - startTime;
+			const usage = result.usage;
+			const inputTokens = usage?.inputTokens ?? 0;
+			const outputTokens = usage?.outputTokens ?? 0;
+			const metadata: Record<string, unknown> = {
+				totalTokens: usage?.totalTokens,
+				reasoningTokens: usage?.reasoningTokens,
+				cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+				cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
+				messageCount: messages.length
+			};
 
-        return {
-            model: await this.buildChatModel(chosenModel),
-            temperature: chatConfig.temperature ?? 0.7,
-            chatConfig,
-            modelName: chosenModel
-        };
-    }
+			await this.logUsage({
+				modelName,
+				userId: context?.userId,
+				courseId: context?.courseId,
+				interactiveLearningId: context?.interactiveLearningId,
+				chatId: context?.chatId,
+				operation: 'completion',
+				inputTokens,
+				outputTokens,
+				durationMs,
+				success: true,
+				metadata
+			});
 
-    public static buildSystemPrompt(
-        role: string | null,
-        instructions: string | null,
-        context: string | null,
-        systemPrompt: string | null,
-        ragContext: string | null = null,
-        isRagEnabled: boolean = false
-    ): string {
-        return SystemPromptBuilder.buildSystemPrompt(
-            role,
-            instructions,
-            context,
-            systemPrompt,
-            ragContext,
-            isRagEnabled
-        );
-    }
+			return result.text;
+		} catch (error) {
+			const durationMs = Date.now() - startTime;
 
-    public static getDefaultSystemPromptTemplateText(isRagEnabled: boolean = false): string {
-        return SystemPromptBuilder.getDefaultSystemPromptTemplateText(isRagEnabled);
-    }
+			await this.logUsage({
+				modelName,
+				userId: context?.userId,
+				courseId: context?.courseId,
+				interactiveLearningId: context?.interactiveLearningId,
+				chatId: context?.chatId,
+				operation: 'completion',
+				inputTokens: 0,
+				outputTokens: 0,
+				durationMs,
+				success: false,
+				errorMessage: error instanceof Error ? error.message : 'Unknown error'
+			});
 
-    /**
-     * Obtiene contexto relevante de Qdrant para RAG
-     */
-    public static async getRagContext(
-        query: string,
-        collectionName: string,
-        topK: number = 5,
-        minScore: number = 0.7,
-        opts?: RagContextOptions
-    ): Promise<{ context: string; sources: Array<{ source: string; score: number }> } | null> {
-        return RagService.getRagContext(query, collectionName, topK, minScore, opts);
-    }
+			throw error;
+		}
+	}
 
-    public static async streamChatResponse(
-        ilcid: string,
-        cid: string,
-        userMessage: string,
-        userId?: string
-    ) {
-        const { model, temperature, chatConfig, modelName } = await this.getModelFromInteractiveLearningChat(ilcid);
+	public static async generateObjectFromMessages<T>(
+		messages: ModelMessage[],
+		modelName: string,
+		schema: ZodType<T>,
+		context?: {
+			userId?: string;
+			courseId?: string;
+			interactiveLearningId?: string;
+			chatId?: string;
+		},
+		options?: { temperature?: number }
+	): Promise<T> {
+		const startTime = Date.now();
+		const quotaCheck = await this.checkQuota(
+			modelName,
+			context?.userId,
+			context?.courseId,
+			context?.interactiveLearningId
+		);
+
+		if (!quotaCheck.allowed) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				operation: 'completion',
+				startTime,
+				errorMessage: `Cuota excedida: ${quotaCheck.reason}`,
+				metadata: { phase: 'quota_check', structuredOutput: true }
+			});
+			throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
+		}
+
+		let model;
+		try {
+			model = await this.buildChatModel(modelName);
+		} catch (error) {
+			await this.logFailureUsage({
+				modelName,
+				context,
+				operation: 'completion',
+				startTime,
+				errorMessage:
+					error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
+				metadata: { phase: 'model_build', structuredOutput: true }
+			});
+			throw error;
+		}
+
+		try {
+			const result = await generateText({
+				model,
+				messages,
+				temperature: options?.temperature,
+				output: Output.object({ schema })
+			});
+
+			const durationMs = Date.now() - startTime;
+			const usage = result.usage;
+			const metadata: Record<string, unknown> = {
+				totalTokens: usage?.totalTokens,
+				reasoningTokens: usage?.reasoningTokens,
+				cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+				cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
+				messageCount: messages.length,
+				structuredOutput: true
+			};
+
+			await this.logUsage({
+				modelName,
+				userId: context?.userId,
+				courseId: context?.courseId,
+				interactiveLearningId: context?.interactiveLearningId,
+				chatId: context?.chatId,
+				operation: 'completion',
+				inputTokens: usage?.inputTokens ?? 0,
+				outputTokens: usage?.outputTokens ?? 0,
+				durationMs,
+				success: true,
+				metadata
+			});
+
+			return result.output as T;
+		} catch (error) {
+			const durationMs = Date.now() - startTime;
+
+			await this.logUsage({
+				modelName,
+				userId: context?.userId,
+				courseId: context?.courseId,
+				interactiveLearningId: context?.interactiveLearningId,
+				chatId: context?.chatId,
+				operation: 'completion',
+				inputTokens: 0,
+				outputTokens: 0,
+				durationMs,
+				success: false,
+				errorMessage: error instanceof Error ? error.message : 'Unknown error',
+				metadata: { structuredOutput: true }
+			});
+
+			throw error;
+		}
+	}
+
+	// ==================== Chat Utilities ====================
+
+	public static async saveMessage(
+		chatId: string,
+		content: string,
+		type: keyof typeof table.messageType,
+		metadata?: string
+	) {
+		return await db.insert(table.message).values({
+			id: nanoid(),
+			chatId,
+			content,
+			type,
+			tokenCount: 0,
+			finishReason: 'stop',
+			metadata,
+			createdAt: new Date()
+		});
+	}
+
+	public static async getInteractiveLearningChat(iid: string) {
+		return await db
+			.select()
+			.from(table.interactiveLearningChat)
+			.where(eq(table.interactiveLearningChat.id, iid))
+			.get();
+	}
+
+	/**
+	 * Obtiene el courseId asociado a un interactiveLearning si existe
+	 */
+	public static async getCourseIdByInteractiveLearningId(
+		interactiveLearningId: string
+	): Promise<string | undefined> {
+		const result = await db
+			.select({ courseId: table.courseInteractiveLearning.courseId })
+			.from(table.courseInteractiveLearning)
+			.where(eq(table.courseInteractiveLearning.interactiveLearningId, interactiveLearningId))
+			.get();
+		return result?.courseId;
+	}
+
+	public static async getCourseNamesByInteractiveLearningId(
+		interactiveLearningId: string
+	): Promise<string[]> {
+		const rows = await db
+			.select({ name: table.course.name })
+			.from(table.courseInteractiveLearning)
+			.innerJoin(table.course, eq(table.course.id, table.courseInteractiveLearning.courseId))
+			.where(eq(table.courseInteractiveLearning.interactiveLearningId, interactiveLearningId))
+			.orderBy(table.courseInteractiveLearning.order)
+			.all();
+
+		return [...new Set(rows.map((row) => row.name).filter(Boolean))];
+	}
+
+	public static async getPreviousMessages(ilcid: string, cid: string): Promise<ModelMessage[]> {
+		const chatMessages = await db
+			.select()
+			.from(table.message)
+			.where(eq(table.message.chatId, cid))
+			.orderBy(table.message.createdAt)
+			.all();
+
+		return chatMessages.map((msg) => {
+			switch (msg.type) {
+				case 'USER':
+					return { role: 'user' as const, content: msg.content };
+				case 'ASSISTANT':
+					return { role: 'assistant' as const, content: msg.content };
+				case 'SYSTEM':
+					return { role: 'system' as const, content: msg.content };
+				default:
+					return { role: 'user' as const, content: msg.content };
+			}
+		});
+	}
+
+	public static async getModelFromInteractiveLearningChat(iid: string) {
+		const chatConfig = await this.getInteractiveLearningChat(iid);
+		if (!chatConfig) throw new Error(`No chat found with id ${iid}`);
+
+		// Usar el modelo configurado en la actividad, o el por defecto del sistema
+		const configuredModel = chatConfig.llmModel || '';
+
+		// Verificar si el modelo configurado está disponible en el nuevo sistema
+		const availableModels = await this.getAvailableModels();
+		const isModelAvailable = availableModels.some((m) => m.name === configuredModel);
+
+		const chosenModel = isModelAvailable ? configuredModel : await this.getDefaultModel();
+
+		return {
+			model: await this.buildChatModel(chosenModel),
+			temperature: chatConfig.temperature ?? 0.7,
+			chatConfig,
+			modelName: chosenModel
+		};
+	}
+
+	public static buildSystemPrompt(
+		role: string | null,
+		instructions: string | null,
+		context: string | null,
+		systemPrompt: string | null,
+		ragContext: string | null = null,
+		isRagEnabled: boolean = false
+	): string {
+		return SystemPromptBuilder.buildSystemPrompt(
+			role,
+			instructions,
+			context,
+			systemPrompt,
+			ragContext,
+			isRagEnabled
+		);
+	}
+
+	public static getDefaultSystemPromptTemplateText(isRagEnabled: boolean = false): string {
+		return SystemPromptBuilder.getDefaultSystemPromptTemplateText(isRagEnabled);
+	}
+
+	/**
+	 * Obtiene contexto relevante de Qdrant para RAG
+	 */
+	public static async getRagContext(
+		query: string,
+		collectionName: string,
+		topK: number = 5,
+		minScore: number = 0.7,
+		opts?: RagContextOptions
+	): Promise<{ context: string; sources: Array<{ source: string; score: number }> } | null> {
+		return RagService.getRagContext(query, collectionName, topK, minScore, opts);
+	}
+
+	public static async streamChatResponse(
+		ilcid: string,
+		cid: string,
+		userMessage: string,
+		userId?: string
+	) {
+		const { model, temperature, chatConfig, modelName } =
+			await this.getModelFromInteractiveLearningChat(ilcid);
 		const ragConfig = resolveRagConfig(chatConfig.ragConfig);
 
-        // Obtener el courseId asociado al interactiveLearning (el id del chat ES el interactiveLearningId)
-        const courseId = await this.getCourseIdByInteractiveLearningId(chatConfig.id);
+		// Obtener el courseId asociado al interactiveLearning (el id del chat ES el interactiveLearningId)
+		const courseId = await this.getCourseIdByInteractiveLearningId(chatConfig.id);
 
 		// Obtener contexto RAG si está habilitado
 		let ragContext: string | null = null;
 		let ragSources: Array<{ source: string; score: number }> = [];
 		if (chatConfig.ragEnabled && chatConfig.ragCollectionName) {
-            console.log(`[RAG] Fetching context for chat ${ilcid} from collection ${chatConfig.ragCollectionName}`);
-            
-            const ragResult = await this.getRagContext(
-                userMessage,
-                chatConfig.ragCollectionName,
-                ragConfig.topK,
-                ragConfig.minScore,
-                {
-                    maxChars: ragConfig.contextMaxChars,
-                    mergeAdjacentChunks: ragConfig.mergeAdjacentChunks,
-                    adjacencyWindow: ragConfig.adjacencyWindow,
-                    perSourceMaxBlocks: ragConfig.perSourceMaxBlocks,
-                    fallbackMinScore: ragConfig.fallbackMinScore
-                }
-            );
+			console.log(
+				`[RAG] Fetching context for chat ${ilcid} from collection ${chatConfig.ragCollectionName}`
+			);
+
+			const ragResult = await this.getRagContext(
+				userMessage,
+				chatConfig.ragCollectionName,
+				ragConfig.topK,
+				ragConfig.minScore,
+				{
+					maxChars: ragConfig.contextMaxChars,
+					mergeAdjacentChunks: ragConfig.mergeAdjacentChunks,
+					adjacencyWindow: ragConfig.adjacencyWindow,
+					perSourceMaxBlocks: ragConfig.perSourceMaxBlocks,
+					fallbackMinScore: ragConfig.fallbackMinScore
+				}
+			);
 
 			if (ragResult) {
 				ragContext = ragResult.context;
@@ -459,43 +688,38 @@ export class AIUtils {
 			} else {
 				console.log(`[RAG] No relevant context found`);
 			}
-        }
+		}
 
-        const systemPrompt = this.buildSystemPrompt(
-            chatConfig.llmRole,
-            chatConfig.llmInstructions,
-            chatConfig.llmContext,
-            chatConfig.systemPrompt,
-            ragContext,
-            !!chatConfig.ragEnabled
-        );
-        console.log('[RAG] System prompt size', {
-            interactiveLearningId: chatConfig.id,
-            characters: systemPrompt.length,
-            approxTokens: Math.ceil(systemPrompt.length / 4),
-            ragCharacters: ragContext?.length ?? 0,
-            ragApproxTokens: ragContext ? Math.ceil(ragContext.length / 4) : 0
-        });
+		const systemPrompt = this.buildSystemPrompt(
+			chatConfig.llmRole,
+			chatConfig.llmInstructions,
+			chatConfig.llmContext,
+			chatConfig.systemPrompt,
+			ragContext,
+			!!chatConfig.ragEnabled
+		);
+		console.log('[RAG] System prompt size', {
+			interactiveLearningId: chatConfig.id,
+			characters: systemPrompt.length,
+			approxTokens: Math.ceil(systemPrompt.length / 4),
+			ragCharacters: ragContext?.length ?? 0,
+			ragApproxTokens: ragContext ? Math.ceil(ragContext.length / 4) : 0
+		});
 
-        const previousMessages = await this.getPreviousMessages(ilcid, cid);
+		const previousMessages = await this.getPreviousMessages(ilcid, cid);
 
-        const messages: ModelMessage[] = [
-            { role: 'system', content: systemPrompt },
-            ...previousMessages,
-            { role: 'user', content: userMessage }
-        ];
+		const messages: ModelMessage[] = [
+			{ role: 'system', content: systemPrompt },
+			...previousMessages,
+			{ role: 'user', content: userMessage }
+		];
 
-        // Verificar cuota usando el modelName del resultado (el id del chat ES el interactiveLearningId)
-        const quotaCheck = await this.checkQuota(
-            modelName,
-            userId,
-            courseId,
-            chatConfig.id
-        );
+		// Verificar cuota usando el modelName del resultado (el id del chat ES el interactiveLearningId)
+		const quotaCheck = await this.checkQuota(modelName, userId, courseId, chatConfig.id);
 
-        if (!quotaCheck.allowed) {
-            throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
-        }
+		if (!quotaCheck.allowed) {
+			throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
+		}
 
 		const startTime = Date.now();
 		let requestRoundId: string | null = null;
@@ -541,13 +765,13 @@ export class AIUtils {
 					const usage = finishResult.usage;
 					const inputTokens = usage?.inputTokens ?? 0;
 					const outputTokens = usage?.outputTokens ?? 0;
-					
+
 					// Metadata con campos adicionales de uso
 					const metadata: Record<string, unknown> = {
 						totalTokens: usage?.totalTokens,
 						reasoningTokens: usage?.reasoningTokens,
-                        cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
-                        cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
+						cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+						cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
 						ragEnabled: chatConfig.ragEnabled,
 						ragContextUsed: ragContext !== null
 					};
@@ -602,8 +826,8 @@ export class AIUtils {
 									},
 									inputTokens,
 									outputTokens,
-                                    cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
-                                    cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
+									cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
+									cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
 									reasoningTokens: usage?.reasoningTokens,
 									durationMs,
 									finishedAt: new Date()
@@ -635,78 +859,77 @@ export class AIUtils {
 		}
 	}
 
-    public static async notifyEndOfChat(chatId: string, ilcid: string, userId: string) {
-        const [chat] = await db.select().from(table.chat).where(eq(table.chat.id, chatId));
-        if (!chat) return;
+	public static async notifyEndOfChat(chatId: string, ilcid: string, userId: string) {
+		const [chat] = await db.select().from(table.chat).where(eq(table.chat.id, chatId));
+		if (!chat) return;
 
-        const [user] = await db.select().from(table.user).where(eq(table.user.id, userId));
-        if (!user) return;
+		const [user] = await db.select().from(table.user).where(eq(table.user.id, userId));
+		if (!user) return;
 
-        const [interactiveLearningChat] = await db
-            .select()
-            .from(table.interactiveLearningChat)
-            .where(eq(table.interactiveLearningChat.id, ilcid));
-        if (!interactiveLearningChat) return;
+		const [interactiveLearningChat] = await db
+			.select()
+			.from(table.interactiveLearningChat)
+			.where(eq(table.interactiveLearningChat.id, ilcid));
+		if (!interactiveLearningChat) return;
 
-        const [interactiveLearning] = await db
-            .select()
-            .from(table.interactiveLearning)
-            .where(eq(table.interactiveLearning.id, interactiveLearningChat.id)); // El id del chat ES el interactiveLearningId
-        if (!interactiveLearning) return;
+		const [interactiveLearning] = await db
+			.select()
+			.from(table.interactiveLearning)
+			.where(eq(table.interactiveLearning.id, interactiveLearningChat.id)); // El id del chat ES el interactiveLearningId
+		if (!interactiveLearning) return;
 
-        const courseNames = await this.getCourseNamesByInteractiveLearningId(interactiveLearning.id);
+		const courseNames = await this.getCourseNamesByInteractiveLearningId(interactiveLearning.id);
 
-        const userName = user.username || user.email;
-        const chatViewLink = `${getPublicAppUrl()}/interactive-chat/${interactiveLearning.id}/view/${chat.id}`;
-        const courseLine =
-            courseNames.length > 0 ? `\n📚 Curso: ${courseNames[0]}` : '\n📚 Curso: Sin curso asociado';
+		const userName = user.username || user.email;
+		const chatViewLink = `${getPublicAppUrl()}/interactive-chat/${interactiveLearning.id}/view/${chat.id}`;
+		const courseLine =
+			courseNames.length > 0 ? `\n📚 Curso: ${courseNames[0]}` : '\n📚 Curso: Sin curso asociado';
 
-        notifier.notify(
-            `📝 Nuevo chat finalizado\n🧩 Actividad: ${interactiveLearning.name}${courseLine}\n👤 Usuario: ${userName}\n\n🔗 Ver chat: ${chatViewLink}`
-        );
-    }
+		notifier.notify(
+			`📝 Nuevo chat finalizado\n🧩 Actividad: ${interactiveLearning.name}${courseLine}\n👤 Usuario: ${userName}\n\n🔗 Ver chat: ${chatViewLink}`
+		);
+	}
 
-    public static async notifyEndOfAgentChat(chatId: string, activityId: string, userId: string) {
-        const [chat] = await db.select().from(table.chat).where(eq(table.chat.id, chatId));
-        if (!chat) return;
+	public static async notifyEndOfAgentChat(chatId: string, activityId: string, userId: string) {
+		const [chat] = await db.select().from(table.chat).where(eq(table.chat.id, chatId));
+		if (!chat) return;
 
-        const [user] = await db.select().from(table.user).where(eq(table.user.id, userId));
-        if (!user) return;
+		const [user] = await db.select().from(table.user).where(eq(table.user.id, userId));
+		if (!user) return;
 
-        const [interactiveLearning] = await db
-            .select()
-            .from(table.interactiveLearning)
-            .where(eq(table.interactiveLearning.id, activityId));
-        if (!interactiveLearning) return;
+		const [interactiveLearning] = await db
+			.select()
+			.from(table.interactiveLearning)
+			.where(eq(table.interactiveLearning.id, activityId));
+		if (!interactiveLearning) return;
 
-        const courseNames = await this.getCourseNamesByInteractiveLearningId(interactiveLearning.id);
+		const courseNames = await this.getCourseNamesByInteractiveLearningId(interactiveLearning.id);
 
-        const userName = user.username || user.email;
-        const chatViewLink = `${getPublicAppUrl()}/agent-chat/${interactiveLearning.id}/view/${chat.id}`;
-        const courseLine =
-            courseNames.length > 0 ? `\n📚 Curso: ${courseNames[0]}` : '\n📚 Curso: Sin curso asociado';
+		const userName = user.username || user.email;
+		const chatViewLink = `${getPublicAppUrl()}/agent-chat/${interactiveLearning.id}/view/${chat.id}`;
+		const courseLine =
+			courseNames.length > 0 ? `\n📚 Curso: ${courseNames[0]}` : '\n📚 Curso: Sin curso asociado';
 
-        notifier.notify(
-            `🤖 Nuevo chat de agente finalizado\n🧩 Actividad: ${interactiveLearning.name}${courseLine}\n👤 Usuario: ${userName}\n\n🔗 Ver chat: ${chatViewLink}`
-        );
-    }
+		notifier.notify(
+			`🤖 Nuevo chat de agente finalizado\n🧩 Actividad: ${interactiveLearning.name}${courseLine}\n👤 Usuario: ${userName}\n\n🔗 Ver chat: ${chatViewLink}`
+		);
+	}
 
-    /**
-        * Check if a response contains [[DONE]] marker and if there is no previous DONE
-        * in persisted assistant messages for the same chat.
-     */
-    public static async isFirstDoneMessage(cid: string, currentResponse: string): Promise<boolean> {
-        if (!currentResponse.includes('[[DONE]]')) return false;
+	/**
+	 * Check if a response contains [[DONE]] marker and if there is no previous DONE
+	 * in persisted assistant messages for the same chat.
+	 */
+	public static async isFirstDoneMessage(cid: string, currentResponse: string): Promise<boolean> {
+		if (!currentResponse.includes('[[DONE]]')) return false;
 
-        const previousMessages = await db
-            .select()
-            .from(table.message)
-            .where(eq(table.message.chatId, cid))
-            .all();
+		const previousMessages = await db
+			.select()
+			.from(table.message)
+			.where(eq(table.message.chatId, cid))
+			.all();
 
-        return !previousMessages.some(
-            (msg) => msg.type === 'ASSISTANT' && msg.content.includes('[[DONE]]')
-        );
-    }
+		return !previousMessages.some(
+			(msg) => msg.type === 'ASSISTANT' && msg.content.includes('[[DONE]]')
+		);
+	}
 }
-

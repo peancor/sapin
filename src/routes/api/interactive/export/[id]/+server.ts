@@ -1,11 +1,30 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { interactiveLearning, interactiveLearningChat, courseInteractiveLearning } from '$lib/server/db/schema';
+import {
+	interactiveLearning,
+	interactiveLearningChat,
+	interactiveLearningLesson,
+	courseInteractiveLearning
+} from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { CourseRoleUtils } from '$lib/server/db/CourseRoleUtils';
+import { LessonPackageService } from '$lib/server/lesson/LessonPackageService';
+import { auditAction, auditService } from '$lib/server/logging';
 
-export const GET: RequestHandler = async ({ params, locals }) => {
+function getClientIP(request: Request): string | null {
+	return (
+		request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+		request.headers.get('x-real-ip') ||
+		null
+	);
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+	return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
+export const GET: RequestHandler = async ({ params, locals, request }) => {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
 	}
@@ -43,6 +62,36 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		throw error(403, 'No tienes permisos para exportar actividades de este curso');
 	}
 
+	if (activity.type === 'lesson') {
+		const lessonPackage = await LessonPackageService.exportLessonPackage(id);
+		await auditService.log({
+			action: auditAction.ACTIVITY_EXPORTED,
+			userId: locals.user.id,
+			targetType: 'activity',
+			targetId: id,
+			details: {
+				courseId: courseRelation.courseId,
+				type: 'lesson',
+				formatVersion: lessonPackage.manifest.formatVersion,
+				resourceCount: lessonPackage.manifest.resources.length,
+				revisionCount: 2
+			},
+			ipAddress: getClientIP(request),
+			userAgent: request.headers.get('user-agent'),
+			severity: 'info'
+		});
+
+		return new Response(
+			new Blob([toArrayBuffer(lessonPackage.bytes)], { type: 'application/zip' }),
+			{
+				headers: {
+					'Content-Type': 'application/zip',
+					'Content-Disposition': `attachment; filename="${lessonPackage.filename}"`
+				}
+			}
+		);
+	}
+
 	// Si es tipo chat, obtener también la configuración del chat (el id del chat ES el interactiveLearningId)
 	let chatConfig = null;
 	if (activity.type === 'chat') {
@@ -53,8 +102,38 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		if (chat) {
 			// Excluir campos que no deben exportarse
-			const { id: chatId, createdAt, ...chatData } = chat;
-			chatConfig = chatData;
+			chatConfig = {
+				llmRole: chat.llmRole,
+				llmInstructions: chat.llmInstructions,
+				llmContext: chat.llmContext,
+				systemPrompt: chat.systemPrompt,
+				llmModel: chat.llmModel,
+				temperature: chat.temperature,
+				maxTokens: chat.maxTokens,
+				topP: chat.topP,
+				metadata: chat.metadata,
+				ragEnabled: chat.ragEnabled,
+				ragCollectionName: chat.ragCollectionName,
+				ragConfig: chat.ragConfig
+			};
+		}
+	}
+
+	let lessonConfig = null;
+	if (activity.type === 'lesson') {
+		const [lesson] = await db
+			.select()
+			.from(interactiveLearningLesson)
+			.where(eq(interactiveLearningLesson.id, id));
+
+		if (lesson) {
+			lessonConfig = {
+				sessionPolicy: lesson.sessionPolicy,
+				allowRestart: lesson.allowRestart,
+				draftRevisionId: lesson.draftRevisionId,
+				publishedRevisionId: lesson.publishedRevisionId,
+				metadata: lesson.metadata
+			};
 		}
 	}
 
@@ -74,8 +153,25 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			publishedAt: activity.publishedAt?.toISOString() || null,
 			archivedAt: activity.archivedAt?.toISOString() || null
 		},
-		chatConfig
+		chatConfig,
+		lessonConfig
 	};
+
+	await auditService.log({
+		action: auditAction.ACTIVITY_EXPORTED,
+		userId: locals.user.id,
+		targetType: 'activity',
+		targetId: id,
+		details: {
+			courseId: courseRelation.courseId,
+			type: activity.type,
+			formatVersion: exportData.version,
+			resourceCount: 0
+		},
+		ipAddress: getClientIP(request),
+		userAgent: request.headers.get('user-agent'),
+		severity: 'info'
+	});
 
 	// Devolver como archivo JSON descargable
 	const filename = `activity-${activity.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-${Date.now()}.json`;

@@ -1,14 +1,37 @@
 <script lang="ts">
-	import { marked } from 'marked';
+	import { marked, type RendererThis, type Tokens } from 'marked';
 	import katex from 'katex';
 	import markedKatex from 'marked-katex-extension';
 	import 'katex/dist/katex.min.css';
 	import type { PageData } from './$types';
 	import { preprocessMathExpressions } from '$lib/utils';
 	import { onMount } from 'svelte';
+	import type { Action } from 'svelte/action';
 	import { BarChart, PieChart } from 'lucide-svelte';
 
 	marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
+	marked.use({
+		renderer: {
+			link(this: RendererThis, { href, title, tokens }: Tokens.Link) {
+				const text = this.parser.parseInline(tokens) as string;
+
+				if (!isSafeUrl(href)) {
+					return text;
+				}
+
+				const safeTitle = title ? ` title="${escapeAttribute(title)}"` : '';
+				return `<a href="${escapeAttribute(href)}"${safeTitle}>${text}</a>`;
+			},
+			image({ href, title, text }: Tokens.Image) {
+				if (!isSafeUrl(href)) {
+					return escapeHtml(text);
+				}
+
+				const safeTitle = title ? ` title="${escapeAttribute(title)}"` : '';
+				return `<img src="${escapeAttribute(href)}" alt="${escapeAttribute(text)}"${safeTitle}>`;
+			}
+		}
+	});
 
 	let { data }: { data: PageData } = $props();
 	let showStatsSummary = $state(false);
@@ -60,8 +83,44 @@
 		desktopUsage: 0
 	});
 
+	function escapeHtml(content: string) {
+		return content.replace(
+			/[&<>"']/g,
+			(character) =>
+				({
+					'&': '&amp;',
+					'<': '&lt;',
+					'>': '&gt;',
+					'"': '&quot;',
+					"'": '&#39;'
+				})[character] ?? character
+		);
+	}
+
+	function escapeAttribute(content: string) {
+		return escapeHtml(content).replace(/`/g, '&#96;');
+	}
+
+	function isSafeUrl(href: string) {
+		const trimmedHref = href.trim();
+
+		if (trimmedHref.startsWith('/') || trimmedHref.startsWith('#')) {
+			return true;
+		}
+
+		try {
+			const url = new URL(trimmedHref, 'https://sapin.local');
+			return ['http:', 'https:', 'mailto:'].includes(url.protocol);
+		} catch {
+			return false;
+		}
+	}
+
 	function processThinkTags(content: string) {
-		return content.replace(/<think>(.*?)<\/think>/gs, '<div class="think-block">$1</div>');
+		return content.replace(
+			/&lt;think&gt;([\s\S]*?)&lt;\/think&gt;/g,
+			'<div class="think-block">$1</div>'
+		);
 	}
 
 	function processContent(content: string) {
@@ -74,11 +133,23 @@
 			filteredContent = filteredContent.replace(word, '');
 		}
 
-		// First preprocess math expressions
-		const mathProcessed = preprocessMathExpressions(filteredContent); // Use filteredContent instead of content
-		// Then process think tags
-		return processThinkTags(mathProcessed);
+		const mathProcessed = preprocessMathExpressions(filteredContent);
+		return processThinkTags(escapeHtml(mathProcessed));
 	}
+
+	function renderMarkdownContent(content: string) {
+		return marked.parse(processContent(content)) as string;
+	}
+
+	const renderMarkdownContentAction: Action<HTMLElement, string> = (node, content) => {
+		function update(nextContent: string) {
+			node.innerHTML = renderMarkdownContent(nextContent);
+		}
+
+		update(content);
+
+		return { update };
+	};
 
 	// Format date for display
 	function formatDate(timestamp: number | Date): string {
@@ -307,7 +378,7 @@
 	<!-- Chat messages -->
 	<div class="chat-container mb-3 min-h-0 flex-1 overflow-y-auto">
 		<div class="flex flex-col gap-2 p-2">
-			{#each data.messages as message}
+			{#each data.messages as message (message.id)}
 				{#if !(message.content.trim().startsWith('[[') && message.content.trim().endsWith(']]'))}
 					<div class="flex flex-col {message.type === 'USER' ? 'items-end' : 'items-start'}">
 						<div
@@ -316,9 +387,10 @@
 								? 'bg-blue-200 text-white dark:bg-blue-700'
 								: 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-gray-100'}"
 						>
-							<div class="prose max-w-none dark:prose-invert">
-								{@html marked(processContent(message.content))}
-							</div>
+							<div
+								class="prose dark:prose-invert max-w-none"
+								use:renderMarkdownContentAction={message.content}
+							></div>
 
 							{#if message.type === 'USER' && message.metadata}
 								<div class="mt-2 flex justify-end">

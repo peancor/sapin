@@ -1,0 +1,63 @@
+import type { Edge, Node } from '@xyflow/svelte';
+import type { LessonBlockKind, LessonConditionOperator, LessonDefinition } from './lesson';
+
+export type LessonFlowEdgeType = 'next' | 'branch' | 'choice-option';
+export type LessonFlowIncomingHandleKind = 'single' | 'occupied' | 'add';
+export type LessonFlowEdgeRouteMode = 'auto' | 'manual';
+
+export interface LessonFlowRoutePoint {
+	x: number;
+	y: number;
+}
+
+export interface LessonFlowHandleDescriptor {
+	id: string;
+	label: string;
+	edgeType: LessonFlowEdgeType | 'incoming';
+	incomingKind?: LessonFlowIncomingHandleKind;
+	edgeId?: string;
+}
+
+export interface LessonFlowNodeData extends Record<string, unknown> {
+	blockId: string;
+	title: string;
+	kind: LessonBlockKind;
+	kindLabel: string;
+	isEntry: boolean;
+	incomingCount: number;
+	outgoingCount: number;
+	summary: string;
+	incomingHandles: LessonFlowHandleDescriptor[];
+	outgoingHandles: LessonFlowHandleDescriptor[];
+}
+
+export type LessonFlowNode = Node<LessonFlowNodeData, 'lesson-block'>;
+
+export interface LessonFlowEdgeData extends Record<string, unknown> {
+	edgeType: LessonFlowEdgeType;
+	sourceBlockId: string;
+	targetBlockId: string;
+	label: string;
+	routeMode: LessonFlowEdgeRouteMode;
+	routePoints: LessonFlowRoutePoint[];
+	isAutoRouted: boolean;
+	branchIndex?: number;
+	optionId?: string;
+	optionValue?: string;
+	conditionSource?: string;
+	conditionOperator?: LessonConditionOperator;
+	conditionValue?: string | number | boolean | null;
+	onRoutePointChange?: (edgeId: string, pointIndex: number, point: LessonFlowRoutePoint) => void;
+	onRoutePointNudge?: (edgeId: string, pointIndex: number, delta: LessonFlowRoutePoint) => void;
+}
+
+export type LessonFlowEdge = Edge<LessonFlowEdgeData, 'lesson-route'>;
+
+export interface LessonFlowGraph {
+	nodes: LessonFlowNode[];
+	edges: LessonFlowEdge[];
+}
+
+export interface LessonFlowSavePayload {
+	definition: LessonDefinition;
+}
