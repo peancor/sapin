@@ -33,6 +33,7 @@ export interface LogUsageInput {
 	courseId?: string;
 	interactiveLearningId?: string;
 	chatId?: string;
+	requestRoundId?: string;
 	operation: 'chat' | 'completion' | 'image' | 'embedding';
 	inputTokens: number;
 	outputTokens: number;
@@ -298,6 +299,7 @@ export class AIModelService {
 			courseId: input.courseId,
 			interactiveLearningId: input.interactiveLearningId,
 			chatId: input.chatId,
+			requestRoundId: input.requestRoundId,
 			operation: input.operation,
 			inputTokens: input.inputTokens,
 			outputTokens: input.outputTokens,

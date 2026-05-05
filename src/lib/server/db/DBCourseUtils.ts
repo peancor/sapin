@@ -61,9 +61,6 @@ export default class DBCourseUtils {
                                 tx.delete(table.userInteractiveLearningChat)
                                     .where(eq(table.userInteractiveLearningChat.interactiveLearningChatId, chatId)).run();
                                 
-                                // 9. Delete interactive learning chat files
-                                tx.delete(table.interactiveLearningChatFile)
-                                    .where(eq(table.interactiveLearningChatFile.interactiveLearningChatId, chatId)).run();
                             }
 
                             // 10. Delete interactive learning chats (ahora el id del chat ES el ilId)

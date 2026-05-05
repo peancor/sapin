@@ -3,7 +3,7 @@ import { db, InteractiveChatAuthUtils } from '$lib/server/db';
 import { eq } from 'drizzle-orm';
 import {
     interactiveLearningChat,
-    interactiveLearningChatFile,
+    interactiveLearningFile,
     interactiveLearning
 } from '$lib/server/db/schema';
 import type { LayoutServerLoad } from './$types';
@@ -48,8 +48,8 @@ export const load = (async ({ params, locals }) => {
 
     const files = await db
         .select()
-        .from(interactiveLearningChatFile)
-        .where(eq(interactiveLearningChatFile.interactiveLearningChatId, chat.id))
+        .from(interactiveLearningFile)
+        .where(eq(interactiveLearningFile.interactiveLearningId, ilid))
         .all();
 
     // Determinar si el usuario puede ver todos los chats:

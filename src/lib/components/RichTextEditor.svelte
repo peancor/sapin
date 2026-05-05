@@ -52,6 +52,10 @@
 	let editor: Editor | null = $state(null);
 	let hiddenInput: HTMLInputElement | undefined = $state(undefined);
 
+	// Flag to suppress onchange during programmatic setContent (e.g. when the
+	// parent hydrates state after mount). We must not mark the form dirty then.
+	let _suppressOnChange = false;
+
 	// Calculate min-height based on rows (approximately 1.5rem per row)
 	const getMinHeight = () => `${rows * 1.5}rem`;
 
@@ -106,7 +110,9 @@
 				if (hiddenInput) {
 					hiddenInput.value = markdown;
 				}
-				onchange?.(markdown);
+				if (!_suppressOnChange) {
+					onchange?.(markdown);
+				}
 			}
 		});
 	});
@@ -118,7 +124,9 @@
 	// Update editor content when value prop changes externally
 	$effect(() => {
 		if (editor && value !== editor.getMarkdown()) {
+			_suppressOnChange = true;
 			editor.commands.setContent(value, { contentType: 'markdown' });
+			_suppressOnChange = false;
 		}
 	});
 

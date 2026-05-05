@@ -10,3 +10,6 @@ export * from './notifications';
 export * from './progress';
 export * from './audit';
 export * from './system';
+export * from './agent';
+export * from './insightsAgent';
+export * from './memory';

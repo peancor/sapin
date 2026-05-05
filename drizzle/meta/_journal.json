@@ -36,6 +36,83 @@
       "when": 1771697805326,
       "tag": "0004_giant_the_spike",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1771954635553,
+      "tag": "0005_illegal_vindicator",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1771964021291,
+      "tag": "0006_supreme_stone_men",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1772103346807,
+      "tag": "0007_white_dazzler",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1772129227482,
+      "tag": "0008_plain_ser_duncan",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1772203200000,
+      "tag": "0009_tan_smoke",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1772730501692,
+      "tag": "0010_broad_silvermane",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1772779256959,
+      "tag": "0011_normal_roxanne_simpson",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1772790483479,
+      "tag": "0012_unusual_stellaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1773505462023,
+      "tag": "0013_outstanding_miracleman",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1773515709677,
+      "tag": "0014_youthful_moonstone",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1774941152107,
+      "tag": "0015_swift_callisto",
+      "breakpoints": true
     }
   ]
 }

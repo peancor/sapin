@@ -41,6 +41,15 @@ const FALLBACK_MODELS: AvailableModel[] = [
 ];
 
 export class ModelResolver {
+	public static async getModelDefinitionByName(modelName: string): Promise<AvailableModel | null> {
+		const models = await this.getAvailableModels();
+		return models.find((item) => item.name === modelName) ?? null;
+	}
+
+	public static async getProviderTypeByModelName(modelName: string): Promise<string | null> {
+		return (await this.getModelDefinitionByName(modelName))?.providerType ?? null;
+	}
+
 	public static async getAvailableModels(): Promise<AvailableModel[]> {
 		try {
 			const dbModels = await AIModelService.getActiveModels();
@@ -87,8 +96,7 @@ export class ModelResolver {
 	}
 
 	public static async buildChatModel(modelName: string) {
-		const availableModels = await this.getAvailableModels();
-		const modelDef = availableModels.find((item) => item.name === modelName);
+		const modelDef = await this.getModelDefinitionByName(modelName);
 		if (!modelDef) {
 			throw new Error(`Unsupported model: ${modelName}`);
 		}

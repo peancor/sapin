@@ -25,7 +25,10 @@
 		FolderOpen,
 		ScrollText,
 		TicketPlus,
-		Wrench
+		Wrench,
+		Puzzle,
+		LayoutGrid,
+		Bug
 	} from 'lucide-svelte';
 	import { min } from 'drizzle-orm';
 
@@ -112,6 +115,34 @@
 			label: 'Audit Logs',
 			href: '/admin/logs',
 			icon: ScrollText,
+			minLevel: ROLE_LEVELS.ADMIN
+		},
+		{
+			id: 'agent-tools',
+			label: 'Herramientas Agent',
+			href: '/admin/agent-tools',
+			icon: Puzzle,
+			minLevel: ROLE_LEVELS.ADMIN
+		},
+		{
+			id: 'agent-ui-components',
+			label: 'Componentes UI Agent',
+			href: '/admin/agent-ui-components',
+			icon: LayoutGrid,
+			minLevel: ROLE_LEVELS.ADMIN
+		},
+		{
+			id: 'agent-analytics',
+			label: 'Analítica Agent',
+			href: '/admin/agent-analytics',
+			icon: BarChart3,
+			minLevel: ROLE_LEVELS.ADMIN
+		},
+		{
+			id: 'activity-debugger',
+			label: 'Depurador IA',
+			href: '/admin/activity-debugger',
+			icon: Bug,
 			minLevel: ROLE_LEVELS.ADMIN
 		},
 		{

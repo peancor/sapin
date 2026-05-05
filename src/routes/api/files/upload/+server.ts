@@ -9,7 +9,7 @@ import { fileStorageService } from '$lib/server/files/FileStorageService';
  * Expected form data:
  * - file: File to upload
  * - category: 'avatar' | 'course' | 'chat' | 'rag_document'
- * - entityType: 'user' | 'course' | 'interactive_learning_chat'
+ * - entityType: 'user' | 'course' | 'interactive_learning' | 'interactive_learning_chat'
  * - entityId: ID of the related entity
  * - displayName (optional): Custom display name
  * - visibility (optional): 'public' | 'private' | 'restricted'
@@ -47,7 +47,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'Entity type is required');
 		}
 
-		if (!['user', 'course', 'interactive_learning_chat', 'system'].includes(entityType)) {
+		if (!['user', 'course', 'interactive_learning', 'interactive_learning_chat', 'system'].includes(entityType)) {
 			throw error(400, 'Invalid entity type');
 		}
 
@@ -59,7 +59,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const result = await fileStorageService.upload({
 			file,
 			category: category as 'avatar' | 'course' | 'chat' | 'rag_document' | 'public',
-			entityType: entityType as 'user' | 'course' | 'interactive_learning_chat' | 'system',
+			entityType: entityType as 'user' | 'course' | 'interactive_learning' | 'interactive_learning_chat' | 'system',
 			entityId,
 			uploadedBy: locals.user.id,
 			displayName: displayName || undefined,

@@ -3,8 +3,8 @@ import { db, CourseInteractiveAuthUtils } from '$lib/server/db';
 import {
     interactiveLearning,
     interactiveLearningChat,
-    interactiveLearningChatFile,
-    interactiveLearningChatRagDocument,
+    interactiveLearningFile,
+    interactiveLearningRagDocument,
     course,
     courseInteractiveLearning,
     fileType
@@ -170,7 +170,7 @@ type RagSyncSummary = {
 async function syncRagWithQdrant(
     chatId: string,
     collectionName: string,
-    ragDocuments: Array<typeof interactiveLearningChatRagDocument.$inferSelect>
+    ragDocuments: Array<typeof interactiveLearningRagDocument.$inferSelect>
 ): Promise<RagSyncSummary> {
     const knownDocumentIds = new Set(ragDocuments.map((doc) => doc.id));
     const vectorsByDocumentId = new Map<string, string[]>();
@@ -220,7 +220,7 @@ async function syncRagWithQdrant(
         const storedPointIds = parseQdrantPointIds(doc.qdrantPointIds);
 
         if (currentPointIds.length > 0 && (doc.status !== 'indexed' || doc.chunkCount !== currentPointIds.length || storedPointIds.length !== currentPointIds.length)) {
-            await db.update(interactiveLearningChatRagDocument)
+            await db.update(interactiveLearningRagDocument)
                 .set({
                     status: 'indexed',
                     chunkCount: currentPointIds.length,
@@ -228,12 +228,12 @@ async function syncRagWithQdrant(
                     errorMessage: null,
                     updatedAt: new Date()
                 })
-                .where(eq(interactiveLearningChatRagDocument.id, doc.id));
+                .where(eq(interactiveLearningRagDocument.id, doc.id));
             continue;
         }
 
         if (doc.status === 'indexed' && currentPointIds.length === 0) {
-            await db.update(interactiveLearningChatRagDocument)
+            await db.update(interactiveLearningRagDocument)
                 .set({
                     status: 'error',
                     errorMessage: 'No se encontraron embeddings para este documento en Qdrant.',
@@ -241,13 +241,13 @@ async function syncRagWithQdrant(
                     qdrantPointIds: null,
                     updatedAt: new Date()
                 })
-                .where(eq(interactiveLearningChatRagDocument.id, doc.id));
+                .where(eq(interactiveLearningRagDocument.id, doc.id));
         }
     }
 
     const refreshedDocuments = await db.select()
-        .from(interactiveLearningChatRagDocument)
-        .where(eq(interactiveLearningChatRagDocument.interactiveLearningChatId, chatId))
+        .from(interactiveLearningRagDocument)
+        .where(eq(interactiveLearningRagDocument.interactiveLearningId, chatId))
         .all();
 
     return {
@@ -328,14 +328,14 @@ export const load = (async ({ params, locals }) => {
         .get() : null;
 
     const files = await db.select()
-        .from(interactiveLearningChatFile)
-        .where(eq(interactiveLearningChatFile.interactiveLearningChatId, chat.id))
+        .from(interactiveLearningFile)
+        .where(eq(interactiveLearningFile.interactiveLearningId, chat.id))
         .all();
 
     // Cargar documentos RAG
     let ragDocuments = await db.select()
-        .from(interactiveLearningChatRagDocument)
-        .where(eq(interactiveLearningChatRagDocument.interactiveLearningChatId, chat.id))
+        .from(interactiveLearningRagDocument)
+        .where(eq(interactiveLearningRagDocument.interactiveLearningId, chat.id))
         .all();
 
     // Cargar modelos activos desde el nuevo sistema
@@ -369,8 +369,8 @@ export const load = (async ({ params, locals }) => {
 
             ragSyncSummary = await syncRagWithQdrant(chat.id, chat.ragCollectionName, ragDocuments);
             ragDocuments = await db.select()
-                .from(interactiveLearningChatRagDocument)
-                .where(eq(interactiveLearningChatRagDocument.interactiveLearningChatId, chat.id))
+                .from(interactiveLearningRagDocument)
+                .where(eq(interactiveLearningRagDocument.interactiveLearningId, chat.id))
                 .all();
         } else {
             // La colección no existe pero está registrada en la BD - limpiar
@@ -380,8 +380,8 @@ export const load = (async ({ params, locals }) => {
                 .where(eq(interactiveLearningChat.id, chat.id));
 
             // Limpiar documentos huérfanos
-            await db.delete(interactiveLearningChatRagDocument)
-                .where(eq(interactiveLearningChatRagDocument.interactiveLearningChatId, chat.id));
+            await db.delete(interactiveLearningRagDocument)
+                .where(eq(interactiveLearningRagDocument.interactiveLearningId, chat.id));
 
             // Recargar chat para tener datos actualizados
             const updatedChat = await db.select()
@@ -617,11 +617,12 @@ export const actions = {
         if (!chat) throw error(404, 'Chat not found');
         const previousRagConfig = resolveRagConfig(chat.ragConfig);
         const ragDocuments = await db.select({
-            id: interactiveLearningChatRagDocument.id,
-            originalPath: interactiveLearningChatRagDocument.originalPath
+            id: interactiveLearningRagDocument.id,
+            originalPath: interactiveLearningRagDocument.originalPath,
+            fileStorageId: interactiveLearningRagDocument.fileStorageId
         })
-            .from(interactiveLearningChatRagDocument)
-            .where(eq(interactiveLearningChatRagDocument.interactiveLearningChatId, chat.id))
+            .from(interactiveLearningRagDocument)
+            .where(eq(interactiveLearningRagDocument.interactiveLearningId, chat.id))
             .all();
         const ragEnabled = ragDocuments.length > 0;
 
@@ -638,8 +639,8 @@ export const actions = {
         if (ragEnabled && chunkingChanged) {
             reindexSummary = {
                 totalDocuments: ragDocuments.length,
-                fileDocuments: ragDocuments.filter((doc) => !!doc.originalPath).length,
-                textDocuments: ragDocuments.filter((doc) => !doc.originalPath).length
+                fileDocuments: ragDocuments.filter((doc) => !!doc.fileStorageId || !!doc.originalPath).length,
+                textDocuments: ragDocuments.filter((doc) => !doc.fileStorageId && !doc.originalPath).length
             };
         }
 
@@ -677,8 +678,8 @@ export const actions = {
             ragCollectionName = null;
 
             // Eliminar documentos de la base de datos
-            await db.delete(interactiveLearningChatRagDocument)
-                .where(eq(interactiveLearningChatRagDocument.interactiveLearningChatId, chat.id));
+            await db.delete(interactiveLearningRagDocument)
+                .where(eq(interactiveLearningRagDocument.interactiveLearningId, chat.id));
         }
 
         const ragConfig: RagConfig = {
@@ -730,7 +731,7 @@ export const actions = {
         const uploadResult = await fileStorageService.upload({
             file,
             category: 'rag_document',
-            entityType: 'interactive_learning_chat',
+            entityType: 'interactive_learning',
             entityId: chat.id,
             uploadedBy: locals.user?.id || 'system',
             displayName: file.name,
@@ -747,9 +748,10 @@ export const actions = {
         const ragConfig = resolveRagConfig(chat.ragConfig);
 
         // Crear registro del documento
-        await db.insert(interactiveLearningChatRagDocument).values({
+        await db.insert(interactiveLearningRagDocument).values({
             id: docId,
-            interactiveLearningChatId: chat.id,
+            interactiveLearningId: chat.id,
+            fileStorageId: uploadResult.fileId || null,
             name: file.name,
             originalPath: `/api/files/${uploadResult.fileId}`,
             fileType: file.name.split('.').pop() || 'unknown',
@@ -811,7 +813,7 @@ export const actions = {
             }
 
             // Actualizar registro del documento
-            await db.update(interactiveLearningChatRagDocument)
+            await db.update(interactiveLearningRagDocument)
                 .set({
                     status: 'indexed',
                     chunkCount: doc.chunks.length,
@@ -819,7 +821,7 @@ export const actions = {
                     qdrantPointIds: JSON.stringify(pointIds),
                     updatedAt: new Date()
                 })
-                .where(eq(interactiveLearningChatRagDocument.id, docId));
+                .where(eq(interactiveLearningRagDocument.id, docId));
 
             return { success: true, documentId: docId };
         } catch (e) {
@@ -829,13 +831,13 @@ export const actions = {
                 : rawMessage;
 
             // Marcar documento como error
-            await db.update(interactiveLearningChatRagDocument)
+            await db.update(interactiveLearningRagDocument)
                 .set({
                     status: 'error',
                     errorMessage: friendlyMessage,
                     updatedAt: new Date()
                 })
-                .where(eq(interactiveLearningChatRagDocument.id, docId));
+                .where(eq(interactiveLearningRagDocument.id, docId));
 
             throw error(500, friendlyMessage);
         }
@@ -861,9 +863,9 @@ export const actions = {
         const ragConfig = resolveRagConfig(chat.ragConfig);
 
         // Crear registro del documento
-        await db.insert(interactiveLearningChatRagDocument).values({
+        await db.insert(interactiveLearningRagDocument).values({
             id: docId,
-            interactiveLearningChatId: chat.id,
+            interactiveLearningId: chat.id,
             name: name,
             fileType: 'txt',
             fileSize: text.length,
@@ -914,7 +916,7 @@ export const actions = {
             }
 
             // Actualizar registro del documento
-            await db.update(interactiveLearningChatRagDocument)
+            await db.update(interactiveLearningRagDocument)
                 .set({
                     status: 'indexed',
                     chunkCount: doc.chunks.length,
@@ -922,7 +924,7 @@ export const actions = {
                     qdrantPointIds: JSON.stringify(pointIds),
                     updatedAt: new Date()
                 })
-                .where(eq(interactiveLearningChatRagDocument.id, docId));
+                .where(eq(interactiveLearningRagDocument.id, docId));
 
             return { success: true, documentId: docId };
         } catch (e) {
@@ -932,13 +934,13 @@ export const actions = {
                 : rawMessage;
 
             // Marcar documento como error
-            await db.update(interactiveLearningChatRagDocument)
+            await db.update(interactiveLearningRagDocument)
                 .set({
                     status: 'error',
                     errorMessage: friendlyMessage,
                     updatedAt: new Date()
                 })
-                .where(eq(interactiveLearningChatRagDocument.id, docId));
+                .where(eq(interactiveLearningRagDocument.id, docId));
 
             throw error(500, friendlyMessage);
         }
@@ -958,8 +960,8 @@ export const actions = {
         if (!chat) throw error(404, 'Chat not found');
 
         const document = await db.select()
-            .from(interactiveLearningChatRagDocument)
-            .where(eq(interactiveLearningChatRagDocument.id, documentId))
+            .from(interactiveLearningRagDocument)
+            .where(eq(interactiveLearningRagDocument.id, documentId))
             .get();
 
         if (!document) throw error(404, 'Document not found');
@@ -980,7 +982,7 @@ export const actions = {
             }
         }
 
-        const fileId = extractFileId(document.originalPath);
+        const fileId = document.fileStorageId ?? extractFileId(document.originalPath);
         if (fileId) {
             const deleteFileResult = await fileStorageService.delete(fileId, locals.user?.id || 'system');
             if (!deleteFileResult.success) {
@@ -989,14 +991,14 @@ export const actions = {
         }
 
         // Eliminar registro de la base de datos
-        await db.delete(interactiveLearningChatRagDocument)
-            .where(eq(interactiveLearningChatRagDocument.id, documentId));
+        await db.delete(interactiveLearningRagDocument)
+            .where(eq(interactiveLearningRagDocument.id, documentId));
 
         const remainingDocuments = await db.select({
-            id: interactiveLearningChatRagDocument.id
+            id: interactiveLearningRagDocument.id
         })
-            .from(interactiveLearningChatRagDocument)
-            .where(eq(interactiveLearningChatRagDocument.interactiveLearningChatId, chat.id))
+            .from(interactiveLearningRagDocument)
+            .where(eq(interactiveLearningRagDocument.interactiveLearningId, chat.id))
             .all();
 
         // Si ya no quedan documentos, apagar RAG y eliminar colección para evitar residuos en Qdrant.
@@ -1031,8 +1033,8 @@ export const actions = {
         const ragConfig = resolveRagConfig(readyChat.ragConfig);
 
         const documents = await db.select()
-            .from(interactiveLearningChatRagDocument)
-            .where(eq(interactiveLearningChatRagDocument.interactiveLearningChatId, chat.id))
+            .from(interactiveLearningRagDocument)
+            .where(eq(interactiveLearningRagDocument.interactiveLearningId, chat.id))
             .all();
 
         let reindexed = 0;
@@ -1040,7 +1042,7 @@ export const actions = {
         let failed = 0;
 
         for (const document of documents) {
-            const fileId = extractFileId(document.originalPath);
+            const fileId = document.fileStorageId ?? extractFileId(document.originalPath);
             if (!fileId) {
                 skippedNoSource += 1;
                 continue;
@@ -1107,7 +1109,7 @@ export const actions = {
                     throw new Error(`Error al insertar embeddings: ${upsertResult.error}`);
                 }
 
-                await db.update(interactiveLearningChatRagDocument)
+                await db.update(interactiveLearningRagDocument)
                     .set({
                         status: 'indexed',
                         chunkCount: processed.chunks.length,
@@ -1116,18 +1118,18 @@ export const actions = {
                         errorMessage: null,
                         updatedAt: new Date()
                     })
-                    .where(eq(interactiveLearningChatRagDocument.id, document.id));
+                    .where(eq(interactiveLearningRagDocument.id, document.id));
 
                 reindexed += 1;
             } catch (e) {
                 failed += 1;
-                await db.update(interactiveLearningChatRagDocument)
+                await db.update(interactiveLearningRagDocument)
                     .set({
                         status: 'error',
                         errorMessage: e instanceof Error ? e.message : 'Error reindexando documento',
                         updatedAt: new Date()
                     })
-                    .where(eq(interactiveLearningChatRagDocument.id, document.id));
+                    .where(eq(interactiveLearningRagDocument.id, document.id));
             }
         }
 
@@ -1178,7 +1180,7 @@ export const actions = {
         const result = await fileStorageService.upload({
             file,
             category: 'chat',
-            entityType: 'interactive_learning_chat',
+            entityType: 'interactive_learning',
             entityId: chat.id,
             uploadedBy: locals.user?.id || 'system',
             displayName: file.name,
@@ -1189,10 +1191,11 @@ export const actions = {
             throw error(500, result.error || 'Error al subir el archivo');
         }
 
-        // Save file metadata to database (keeping interactiveLearningChatFile table for now)
-        await db.insert(interactiveLearningChatFile).values({
+        // Save file metadata to shared interactive learning files table
+        await db.insert(interactiveLearningFile).values({
             id: nanoid(),
-            interactiveLearningChatId: chat.id,
+            interactiveLearningId: chat.id,
+            fileStorageId: result.fileId || null,
             name: file.name,
             path: `/api/files/${result.fileId}`,
             type,
@@ -1211,13 +1214,13 @@ export const actions = {
         if (!fileId) throw error(400, 'No file ID provided');
 
         const fileRecord = await db.select()
-            .from(interactiveLearningChatFile)
-            .where(eq(interactiveLearningChatFile.id, fileId))
+            .from(interactiveLearningFile)
+            .where(eq(interactiveLearningFile.id, fileId))
             .get();
 
         if (!fileRecord) throw error(404, 'File not found');
 
-        const storageFileId = extractFileId(fileRecord.path);
+        const storageFileId = fileRecord.fileStorageId ?? extractFileId(fileRecord.path);
         if (!storageFileId) {
             throw error(400, 'Invalid file path');
         }
@@ -1231,8 +1234,8 @@ export const actions = {
             throw error(500, deleteStorageResult.error || 'Error deleting file from storage');
         }
 
-        await db.delete(interactiveLearningChatFile)
-            .where(eq(interactiveLearningChatFile.id, fileId));
+        await db.delete(interactiveLearningFile)
+            .where(eq(interactiveLearningFile.id, fileId));
 
         return { success: true };
     }

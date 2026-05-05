@@ -106,7 +106,7 @@
 
 	<!-- Activity status selector -->
 	<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-		<label class="mb-3 block font-medium dark:text-white">Estado de la actividad</label>
+		<p class="mb-3 block font-medium dark:text-white">Estado de la actividad</p>
 		<!-- Hidden input to ensure status is always submitted -->
 		<input type="hidden" name="status" value={status} />
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -283,6 +283,12 @@
 			Prompt del sistema (avanzado)
 		</button>
 		{#if showSystemPrompt}
+			<p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
+				Opcional. Si lo defines, sustituye la plantilla base completa. Puedes usar
+				&#123;role&#125;, &#123;instructions&#125;, &#123;context&#125;,
+				&#123;tools_section&#125; y &#123;finalization_instruction&#125;. La memoria y el
+				contexto RAG se anaden automaticamente en bloques separados.
+			</p>
 			<textarea
 				id="systemPrompt"
 				name="systemPrompt"
@@ -290,7 +296,7 @@
 				oninput={markDirty}
 				rows="5"
 				class="w-full rounded border p-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-				placeholder="Ingresa el prompt del sistema (esto anulará el rol y las instrucciones)..."
+				placeholder="Ingresa una plantilla base personalizada del prompt del sistema..."
 				style="min-height: 500px;"
 			></textarea>
 		{:else}

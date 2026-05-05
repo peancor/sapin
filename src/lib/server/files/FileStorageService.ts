@@ -13,7 +13,7 @@ import { imageProcessor } from './ImageProcessor';
 export interface UploadFileOptions {
 	file: File;
 	category: 'avatar' | 'course' | 'chat' | 'rag_document' | 'public';
-	entityType: 'user' | 'course' | 'interactive_learning_chat' | 'system';
+	entityType: 'user' | 'course' | 'interactive_learning' | 'interactive_learning_chat' | 'system';
 	entityId: string;
 	uploadedBy: string;
 	displayName?: string;
@@ -411,7 +411,7 @@ class FileStorageService {
 	 * Get files by entity
 	 */
 	async getFilesByEntity(
-		entityType: 'user' | 'course' | 'interactive_learning_chat' | 'system',
+		entityType: 'user' | 'course' | 'interactive_learning' | 'interactive_learning_chat' | 'system',
 		entityId: string
 	): Promise<FileStorage[]> {
 		try {

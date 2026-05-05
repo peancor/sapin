@@ -41,9 +41,21 @@
 		deleteModal = true;
 	}
 
-	async function copyActivityLink(id: string) {
+	function getStudentRunUrl(interactive: { id: string; type: string }): string {
+		return interactive.type === 'agent'
+			? `/student/run-agent/${interactive.id}`
+			: `/student/run-chat/${interactive.id}`;
+	}
+
+	function getPreviewUrl(interactive: { id: string; type: string }): string {
+		return interactive.type === 'agent'
+			? `/agent-chat/${interactive.id}`
+			: `/interactive-chat/${interactive.id}`;
+	}
+
+	async function copyActivityLink(interactive: { id: string; type: string }) {
 		try {
-			const link = `${window.location.origin}/student/run-chat/${id}`;
+			const link = `${window.location.origin}${getStudentRunUrl(interactive)}`;
 			await navigator.clipboard.writeText(link);
 			showToastMessage(
 				'Enlace copiado al portapapeles. Recuerda añadir el parámetro ?externalid=ID_ALUMNO',
@@ -58,6 +70,8 @@
 		switch (type) {
 			case 'chat':
 				return 'blue';
+			case 'agent':
+				return 'green';
 			case 'quiz':
 				return 'purple';
 			case 'simulation':
@@ -451,7 +465,7 @@
 								<Button
 									color="light"
 									class="!p-1.5"
-									onclick={() => copyActivityLink(interactive.id)}
+									onclick={() => copyActivityLink(interactive)}
 								>
 									<Link class="h-4 w-4" />
 								</Button>
@@ -459,13 +473,13 @@
 									<MoreVertical class="h-4 w-4" />
 								</Button>
 								<Dropdown>
-									<DropdownItem href="/interactive-chat/{interactive.id}">
+									<DropdownItem href={getPreviewUrl(interactive)}>
 										<Eye class="mr-2 h-4 w-4" />
 										Previsualizar
 									</DropdownItem>
 									<DropdownItem
 										onclick={() => {
-											copyActivityLink(interactive.id);
+											copyActivityLink(interactive);
 											document.body.click();
 										}}
 									>

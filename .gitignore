@@ -28,3 +28,6 @@ vite.config.ts.timestamp-*
 
 # Claude settings
 /.claude/settings.local.json
+
+# tikzjax
+.generated
