@@ -119,6 +119,34 @@ test('rewriteLessonDefinitionResourceIds remaps content asset references only', 
 	);
 });
 
+test('rewriteLessonDefinitionResourceIds remaps markdown file urls to imported storage ids', () => {
+	const definition = makeDefinition('old_interactive_file');
+	const contentBlock = definition.blocks[0];
+	if (contentBlock.kind !== 'content') {
+		assert.fail('Expected content block');
+	}
+	contentBlock.body =
+		'Imagen ![captura](/api/files/old_storage_file "captura") y enlace /api/files/unknown_file';
+
+	const rewritten = rewriteLessonDefinitionResourceIds(
+		definition,
+		new Map([['old_interactive_file', 'new_interactive_file']]),
+		new Map([['old_storage_file', 'new_storage_file']])
+	);
+	const rewrittenContentBlock = rewritten.blocks[0];
+
+	assert.equal(rewrittenContentBlock.kind, 'content');
+	assert.equal(
+		rewrittenContentBlock.kind === 'content' ? rewrittenContentBlock.body : '',
+		'Imagen ![captura](/api/files/new_storage_file "captura") y enlace /api/files/unknown_file'
+	);
+	assert.equal(
+		rewrittenContentBlock.kind === 'content' ? rewrittenContentBlock.assetRefs?.[0]?.fileId : '',
+		'new_interactive_file'
+	);
+	assert.equal(contentBlock.body.includes('/api/files/old_storage_file'), true);
+});
+
 test('assertAllLessonAssetRefsResolvable rejects missing packaged resources', () => {
 	assert.doesNotThrow(() =>
 		assertAllLessonAssetRefsResolvable([makeDefinition()], new Set(['old_file']))

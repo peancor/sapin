@@ -12,6 +12,7 @@ import {
 import { ROLE_LEVELS } from '$lib/server/roles';
 import type { FileStorage } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { InteractiveChatAuthUtils } from '$lib/server/db/InteractiveChatAuthUtils';
 
 export interface PermissionCheckResult {
 	allowed: boolean;
@@ -89,7 +90,7 @@ class FilePermissionMiddleware {
 					return this.checkCoursePermission(file, userId, action);
 
 				case 'chat':
-					return this.checkChatPermission(file, userId, action);
+					return this.checkChatPermission(file, userId, action, adminLevel);
 
 				case 'rag_document':
 					return this.checkRagDocumentPermission(file, userId, action);
@@ -171,7 +172,8 @@ class FilePermissionMiddleware {
 	private async checkChatPermission(
 		file: FileStorage,
 		userId: string,
-		action: string
+		action: string,
+		userRoleLevel: number
 	): Promise<PermissionCheckResult> {
 		const interactiveLearningId = file.entityId;
 
@@ -200,6 +202,24 @@ class FilePermissionMiddleware {
 
 		if (interactiveData.length === 0) {
 			return { allowed: false, reason: 'Associated activity not found' };
+		}
+
+		if (
+			action === 'read' &&
+			file.entityType === 'interactive_learning' &&
+			interactiveData[0].type === 'lesson'
+		) {
+			const lessonAccess = await InteractiveChatAuthUtils.userCanAccessInteractiveActivity(
+				userId,
+				interactiveLearningId,
+				userRoleLevel
+			);
+
+			if (lessonAccess.allowed) {
+				return { allowed: true };
+			}
+
+			return { allowed: false, reason: lessonAccess.reason || 'User does not have access to this lesson' };
 		}
 
 		// Check if user is a teacher of a course that contains this activity

@@ -214,23 +214,50 @@ function parseMetadataForImport(input: {
 	});
 }
 
+function rewriteMarkdownFileUrls(body: string, fileUrlIdMap: Map<string, string>): string {
+	if (fileUrlIdMap.size === 0) return body;
+
+	return body.replace(/(\/api\/files\/)([A-Za-z0-9_-]+)/g, (match, prefix: string, fileId: string) => {
+		const mappedFileId = fileUrlIdMap.get(fileId);
+		return mappedFileId ? `${prefix}${mappedFileId}` : match;
+	});
+}
+
 export function rewriteLessonDefinitionResourceIds(
 	definition: LessonDefinition,
-	resourceIdMap: Map<string, string>
+	resourceIdMap: Map<string, string>,
+	fileUrlIdMap: Map<string, string> = new Map()
 ): LessonDefinition {
 	return {
 		...definition,
 		blocks: definition.blocks.map((block) => {
-			if (block.kind !== 'content' || !block.assetRefs?.length) {
+			const rewrittenBody =
+				'body' in block && typeof block.body === 'string'
+					? rewriteMarkdownFileUrls(block.body, fileUrlIdMap)
+					: undefined;
+			const hasRewrittenBody = rewrittenBody !== undefined && rewrittenBody !== block.body;
+
+			if (block.kind !== 'content') {
+				return hasRewrittenBody ? { ...block, body: rewrittenBody } : block;
+			}
+
+			const assetRefs = block.assetRefs ?? [];
+			const hasAssetRefs = assetRefs.length > 0;
+			if (!hasAssetRefs && !hasRewrittenBody) {
 				return block;
 			}
 
 			return {
 				...block,
-				assetRefs: block.assetRefs.map((asset) => ({
-					...asset,
-					fileId: resourceIdMap.get(asset.fileId) ?? asset.fileId
-				}))
+				...(hasRewrittenBody ? { body: rewrittenBody } : {}),
+				...(hasAssetRefs
+					? {
+							assetRefs: assetRefs.map((asset) => ({
+								...asset,
+								fileId: resourceIdMap.get(asset.fileId) ?? asset.fileId
+							}))
+						}
+					: {})
 			};
 		})
 	};
@@ -564,6 +591,7 @@ export class LessonPackageService {
 		}
 
 		const resourceIdMap = new Map<string, string>();
+		const fileUrlIdMap = new Map<string, string>();
 		const importedResources: Array<{
 			exportedId: string;
 			record: Omit<InteractiveLearningFile, 'createdAt'> & { createdAt: Date };
@@ -597,6 +625,10 @@ export class LessonPackageService {
 
 				const newInteractiveFileId = nanoid();
 				resourceIdMap.set(resource.exportedId, newInteractiveFileId);
+				fileUrlIdMap.set(resource.exportedId, upload.fileId);
+				if (resource.fileStorageId) {
+					fileUrlIdMap.set(resource.fileStorageId, upload.fileId);
+				}
 				importedResources.push({
 					exportedId: resource.exportedId,
 					record: {
@@ -615,11 +647,16 @@ export class LessonPackageService {
 
 			const packagedDefinitions = getPackagedLessonDefinitions(manifest, entries);
 			const rewrittenPublished = packagedDefinitions.publishedDefinition
-				? rewriteLessonDefinitionResourceIds(packagedDefinitions.publishedDefinition, resourceIdMap)
+				? rewriteLessonDefinitionResourceIds(
+						packagedDefinitions.publishedDefinition,
+						resourceIdMap,
+						fileUrlIdMap
+					)
 				: null;
 			const rewrittenDraft = rewriteLessonDefinitionResourceIds(
 				packagedDefinitions.draftDefinition,
-				resourceIdMap
+				resourceIdMap,
+				fileUrlIdMap
 			);
 			const publishedRevisionId = rewrittenPublished ? nanoid() : null;
 			const draftRevisionId = nanoid();
