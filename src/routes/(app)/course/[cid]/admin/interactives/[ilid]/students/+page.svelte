@@ -50,24 +50,15 @@
 </svelte:head>
 
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-	<StudentsPageHeader
-		{courseId}
-		{interactiveId}
-		title={heading}
-		subtitle={subtitle}
-	/>
+	<StudentsPageHeader {courseId} {interactiveId} title={heading} {subtitle} />
 
 	<div class="container mx-auto max-w-screen-xl px-4 py-6">
 		{#if data.view === 'lesson'}
-			<LessonStudentsView
-				data={data}
-				{courseId}
-				{interactiveId}
-			/>
+			<LessonStudentsView {data} {courseId} {interactiveId} />
 		{:else if data.view === 'agent'}
-			<AgentStudentsView data={data} />
+			<AgentStudentsView {data} />
 		{:else}
-			<ChatStudentsView data={data} />
+			<ChatStudentsView {data} />
 		{/if}
 	</div>
 </div>

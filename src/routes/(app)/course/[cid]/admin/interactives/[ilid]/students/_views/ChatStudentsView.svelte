@@ -1,8 +1,17 @@
 <script lang="ts">
-	import { Avatar, Badge, Table, TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell } from 'flowbite-svelte';
+	import {
+		Avatar,
+		Badge,
+		Table,
+		TableBody,
+		TableBodyCell,
+		TableBodyRow,
+		TableHead,
+		TableHeadCell
+	} from 'flowbite-svelte';
 	import { Calendar, MessageSquare, Users } from 'lucide-svelte';
 	import type { PageData } from '../$types';
-	import { collectInteractionMetrics, downloadCSV, formatDate } from '../viewUtils';
+	import { downloadCSV, formatDate } from '../viewUtils';
 
 	type ChatStudentsData = Extract<PageData, { view: 'chat' }>;
 
@@ -22,7 +31,6 @@
 		const rows = [headers.join(';')];
 
 		data.students.forEach((student) => {
-			const metrics = collectInteractionMetrics(student.chats);
 			rows.push(
 				[
 					student.username || student.alias || 'Sin nombre',
@@ -30,9 +38,9 @@
 					formatDate(student.lastActivity),
 					student.totalMessages,
 					student.chats.length,
-					metrics.totalKeypresses,
-					metrics.totalPastes,
-					metrics.totalTime
+					student.totalKeypresses,
+					student.totalPastes,
+					student.totalTimeSpentSeconds
 				].join(';')
 			);
 		});
@@ -57,7 +65,7 @@
 
 	<div class="mb-4 rounded-lg bg-blue-50 p-3 dark:bg-blue-900">
 		<p class="font-medium text-blue-800 dark:text-blue-200">Criterios de estado del chat</p>
-		<ul class="ml-5 mt-2 list-disc text-sm text-blue-700 dark:text-blue-300">
+		<ul class="mt-2 ml-5 list-disc text-sm text-blue-700 dark:text-blue-300">
 			<li>Se considera acceso cuando existe al menos un chat en la actividad.</li>
 			<li>
 				Se considera completado cuando el estudiante llega a {data.requiresMinMessages}
@@ -129,7 +137,7 @@
 			<TableBody class="divide-y">
 				{#each data.students as student (student.id)}
 					<TableBodyRow>
-						<TableBodyCell class="p-4! flex h-14 w-14 items-center justify-center">
+						<TableBodyCell class="flex h-14 w-14 items-center justify-center p-4!">
 							<Avatar
 								src={student.image || '/images/default_avatar.png'}
 								class="h-8 w-8"

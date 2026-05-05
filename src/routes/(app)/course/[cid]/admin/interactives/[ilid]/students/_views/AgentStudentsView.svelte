@@ -1,5 +1,14 @@
 <script lang="ts">
-	import { Avatar, Badge, Table, TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell } from 'flowbite-svelte';
+	import {
+		Avatar,
+		Badge,
+		Table,
+		TableBody,
+		TableBodyCell,
+		TableBodyRow,
+		TableHead,
+		TableHeadCell
+	} from 'flowbite-svelte';
 	import { Activity, Bot, Users } from 'lucide-svelte';
 	import type { PageData } from '../$types';
 	import { downloadCSV, formatDate } from '../viewUtils';
@@ -15,6 +24,9 @@
 			'Última Actividad',
 			'Mensajes',
 			'Sesiones',
+			'Total Pulsaciones',
+			'Total Pegados',
+			'Tiempo Total (segundos)',
 			'Progreso'
 		];
 		const rows = [headers.join(';')];
@@ -27,6 +39,9 @@
 					formatDate(student.lastActivity),
 					student.totalMessages,
 					student.chats.length,
+					student.totalKeypresses,
+					student.totalPastes,
+					student.totalTimeSpentSeconds,
 					student.isCompleted ? 'Completado' : student.inProgress ? 'En curso' : 'Sin iniciar'
 				].join(';')
 			);
@@ -52,7 +67,7 @@
 
 	<div class="mb-4 rounded-lg bg-green-50 p-3 dark:bg-green-900/40">
 		<p class="font-medium text-green-800 dark:text-green-200">Criterios de estado del agente</p>
-		<ul class="ml-5 mt-2 list-disc text-sm text-green-700 dark:text-green-300">
+		<ul class="mt-2 ml-5 list-disc text-sm text-green-700 dark:text-green-300">
 			<li>Se considera acceso cuando el alumnado abre al menos una sesión del agente.</li>
 			<li>Se considera completado cuando el flujo del agente registra progreso completado.</li>
 			<li>Si hay sesión pero no existe cierre pedagógico, se muestra como en progreso.</li>
@@ -122,7 +137,7 @@
 			<TableBody class="divide-y">
 				{#each data.students as student (student.id)}
 					<TableBodyRow>
-						<TableBodyCell class="p-4! flex h-14 w-14 items-center justify-center">
+						<TableBodyCell class="flex h-14 w-14 items-center justify-center p-4!">
 							<Avatar
 								src={student.image || '/images/default_avatar.png'}
 								class="h-8 w-8"

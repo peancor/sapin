@@ -10,26 +10,29 @@ import {
 } from './pageData.server';
 
 export const load = (async ({ params, locals }) => {
-    // Verificación de seguridad (defensa en profundidad)
-    if (!locals.user) {
-        throw redirect(303, '/login');
-    }
+	// Verificación de seguridad (defensa en profundidad)
+	if (!locals.user) {
+		throw redirect(303, '/login');
+	}
 
-    const { cid, ilid } = params;
-    const access = await CourseInteractiveAuthUtils.userCanAdminCourseInteractive(
-        locals.user.id, cid, ilid, locals.user.highestRoleLevel
-    );
+	const { cid, ilid } = params;
+	const access = await CourseInteractiveAuthUtils.userCanAdminCourseInteractive(
+		locals.user.id,
+		cid,
+		ilid,
+		locals.user.highestRoleLevel
+	);
 
-    if (!access.allowed) {
-        throw error(403, access.reason || 'No tienes permisos para ver esta información');
-    }
+	if (!access.allowed) {
+		throw error(403, access.reason || 'No tienes permisos para ver esta información');
+	}
 
-    // Verificar que el interactive learning existe y obtener su tipo
-    const interactive = await db
-        .select()
-        .from(interactiveLearning)
-        .where(eq(interactiveLearning.id, ilid))
-        .get();
+	// Verificar que el interactive learning existe y obtener su tipo
+	const interactive = await db
+		.select()
+		.from(interactiveLearning)
+		.where(eq(interactiveLearning.id, ilid))
+		.get();
 
 	if (!interactive) {
 		throw error(404, 'Actividad no encontrada');

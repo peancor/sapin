@@ -22,6 +22,37 @@ type EnrolledStudent = {
 	alias: string | null;
 };
 
+type StudentDraftMetrics = {
+	totalKeypresses: number;
+	totalPastes: number;
+	totalTimeSpentSeconds: number;
+};
+
+function emptyStudentDraftMetrics(): StudentDraftMetrics {
+	return {
+		totalKeypresses: 0,
+		totalPastes: 0,
+		totalTimeSpentSeconds: 0
+	};
+}
+
+function parseDraftMetrics(metadata: string | null | undefined): StudentDraftMetrics {
+	if (!metadata) return emptyStudentDraftMetrics();
+
+	try {
+		const parsed = JSON.parse(metadata) as Record<string, unknown>;
+
+		return {
+			totalKeypresses: typeof parsed.keystrokeCount === 'number' ? parsed.keystrokeCount : 0,
+			totalPastes: typeof parsed.pasteCount === 'number' ? parsed.pasteCount : 0,
+			totalTimeSpentSeconds:
+				typeof parsed.timeSpentSeconds === 'number' ? parsed.timeSpentSeconds : 0
+		};
+	} catch {
+		return emptyStudentDraftMetrics();
+	}
+}
+
 async function getEnrolledStudents(courseId: string): Promise<EnrolledStudent[]> {
 	const courseUsers = await CourseRoleUtils.getCourseUsers(courseId);
 
@@ -67,6 +98,7 @@ export async function loadAgentStudentsPageData(
 	const studentIds = enrolledStudents.map((student) => student.id);
 	const chatIds = sessions.map((session) => session.chatId);
 	const messageCounts: Record<string, number> = {};
+	const draftMetricsByChatId = new Map<string, StudentDraftMetrics>();
 	const progressStatusByUser = new Map<string, string>();
 
 	if (chatIds.length > 0) {
@@ -79,6 +111,25 @@ export async function loadAgentStudentsPageData(
 		counts.forEach((entry) => {
 			messageCounts[entry.chatId] = entry.messageCount;
 		});
+
+		const userMessageMetrics = await db
+			.select({
+				chatId: agentMessage.chatId,
+				metadata: agentMessage.metadata
+			})
+			.from(agentMessage)
+			.where(and(inArray(agentMessage.chatId, chatIds), eq(agentMessage.role, 'user')));
+
+		for (const message of userMessageMetrics) {
+			const currentTotals = draftMetricsByChatId.get(message.chatId) ?? emptyStudentDraftMetrics();
+			const messageMetrics = parseDraftMetrics(message.metadata);
+
+			currentTotals.totalKeypresses += messageMetrics.totalKeypresses;
+			currentTotals.totalPastes += messageMetrics.totalPastes;
+			currentTotals.totalTimeSpentSeconds += messageMetrics.totalTimeSpentSeconds;
+
+			draftMetricsByChatId.set(message.chatId, currentTotals);
+		}
 	}
 
 	if (studentIds.length > 0) {
@@ -107,6 +158,16 @@ export async function loadAgentStudentsPageData(
 			(sum, session) => sum + (messageCounts[session.chatId] || 0),
 			0
 		);
+		const draftMetrics = studentSessions.reduce((totals, session) => {
+			const sessionMetrics = draftMetricsByChatId.get(session.chatId);
+			if (!sessionMetrics) return totals;
+
+			totals.totalKeypresses += sessionMetrics.totalKeypresses;
+			totals.totalPastes += sessionMetrics.totalPastes;
+			totals.totalTimeSpentSeconds += sessionMetrics.totalTimeSpentSeconds;
+
+			return totals;
+		}, emptyStudentDraftMetrics());
 		const hasActivity = studentSessions.length > 0;
 		const progressStatus = progressStatusByUser.get(student.id);
 		const isCompleted = progressStatus === 'completed';
@@ -131,6 +192,9 @@ export async function loadAgentStudentsPageData(
 			inProgress: hasActivity && !isCompleted,
 			lastActivity,
 			totalMessages,
+			totalKeypresses: draftMetrics.totalKeypresses,
+			totalPastes: draftMetrics.totalPastes,
+			totalTimeSpentSeconds: draftMetrics.totalTimeSpentSeconds,
 			hasCompletionMarker: isCompleted
 		};
 	});
@@ -165,10 +229,19 @@ export async function loadChatStudentsPageData(
 
 	const students = enrolledStudents.map((student) => {
 		const studentChats = chatResults.chats.filter((chat) => chat.chat.userId === student.id);
-		const totalMessages = studentChats.reduce(
-			(sum, chat) => sum + (chat.messages?.length || 0),
-			0
-		);
+		const totalMessages = studentChats.reduce((sum, chat) => sum + (chat.messages?.length || 0), 0);
+		const draftMetrics = studentChats.reduce((totals, chat) => {
+			if (!chat.messages) return totals;
+
+			for (const message of chat.messages) {
+				const messageMetrics = parseDraftMetrics(message.metadata);
+				totals.totalKeypresses += messageMetrics.totalKeypresses;
+				totals.totalPastes += messageMetrics.totalPastes;
+				totals.totalTimeSpentSeconds += messageMetrics.totalTimeSpentSeconds;
+			}
+
+			return totals;
+		}, emptyStudentDraftMetrics());
 
 		let hasCompletionMarker = false;
 		studentChats.forEach((chat) => {
@@ -183,15 +256,10 @@ export async function loadChatStudentsPageData(
 		});
 
 		const hasActivity = studentChats.length > 0;
-		const isCompleted =
-			totalMessages >= ACTIVITY_COMPLETION_MIN_MESSAGES && hasCompletionMarker;
+		const isCompleted = totalMessages >= ACTIVITY_COMPLETION_MIN_MESSAGES && hasCompletionMarker;
 		const lastActivity =
 			studentChats.length > 0
-				? new Date(
-						Math.max(
-							...studentChats.map((chat) => new Date(chat.chat.createdAt).getTime())
-						)
-					)
+				? new Date(Math.max(...studentChats.map((chat) => new Date(chat.chat.createdAt).getTime())))
 				: null;
 
 		return {
@@ -202,6 +270,9 @@ export async function loadChatStudentsPageData(
 			inProgress: hasActivity && !isCompleted,
 			lastActivity,
 			totalMessages,
+			totalKeypresses: draftMetrics.totalKeypresses,
+			totalPastes: draftMetrics.totalPastes,
+			totalTimeSpentSeconds: draftMetrics.totalTimeSpentSeconds,
 			hasCompletionMarker
 		};
 	});
