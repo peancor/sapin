@@ -14,10 +14,17 @@
 		data: any;
 		backHref: string;
 		backLabel?: string;
+		showOverview?: boolean;
 		onSessionReplaced?: ((sessionId: string) => void | Promise<void>) | undefined;
 	}
 
-	let { data, backHref, backLabel = 'Volver', onSessionReplaced }: Props = $props();
+	let {
+		data,
+		backHref,
+		backLabel = 'Volver',
+		showOverview = true,
+		onSessionReplaced
+	}: Props = $props();
 
 	interface AgentRuntimeState {
 		userTurnCount: number;
@@ -579,72 +586,74 @@
 {/snippet}
 
 <div class="space-y-6">
-	<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-900/40">
-		<div class="flex flex-wrap items-center justify-between gap-3">
-			<button
-				class="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm"
-				onclick={goBack}
-			>
-				<ArrowLeft class="h-4 w-4" />
-				{backLabel}
-			</button>
-			{#if data.canRestart}
+	{#if showOverview}
+		<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-900/40">
+			<div class="flex flex-wrap items-center justify-between gap-3">
 				<button
 					class="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm"
-					onclick={restart}
-					disabled={pending}
+					onclick={goBack}
 				>
-					<RotateCcw class="h-4 w-4" />
-					Reiniciar intento
+					<ArrowLeft class="h-4 w-4" />
+					{backLabel}
 				</button>
-			{/if}
-		</div>
-
-		<div class="mt-4">
-			<p class="text-sm tracking-wide text-amber-600 uppercase dark:text-amber-400">
-				{data.sessionRevisionInfo.isPreview
-					? `${data.sessionRevisionInfo.scopeLabel} · intento ${data.session.attemptNumber}`
-					: `Lección viva · intento ${data.session.attemptNumber}`}
-			</p>
-			<h1 class="text-2xl font-semibold text-gray-900 dark:text-white">{data.activity.name}</h1>
-			{#if data.activity.description}
-				<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{data.activity.description}</p>
-			{/if}
-			<div class="mt-3 flex flex-wrap gap-2">
-				{#if data.sessionRevisionInfo.revisionNumber !== null}
-					<span
-						class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+				{#if data.canRestart}
+					<button
+						class="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm"
+						onclick={restart}
+						disabled={pending}
 					>
-						Revisión #{data.sessionRevisionInfo.revisionNumber}
-					</span>
-				{/if}
-				{#if data.sessionRevisionInfo.isHistoricalApproximation}
-					<span
-						class="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
-					>
-						Histórico aproximado
-					</span>
+						<RotateCcw class="h-4 w-4" />
+						Reiniciar intento
+					</button>
 				{/if}
 			</div>
-		</div>
 
-		<div class="mt-4 flex flex-wrap gap-2">
-			{#each data.definition.blocks as block (block.id)}
-				{@const state = data.blockStates.find(
-					(item: { blockId: string }) => item.blockId === block.id
-				)}
-				<span
-					class="rounded-full px-3 py-1 text-xs font-medium {data.currentBlock.id === block.id
-						? 'bg-primary-600 text-white'
-						: state?.status === 'completed'
-							? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300'
-							: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}"
-				>
-					{block.title}
-				</span>
-			{/each}
+			<div class="mt-4">
+				<p class="text-sm tracking-wide text-amber-600 uppercase dark:text-amber-400">
+					{data.sessionRevisionInfo.isPreview
+						? `${data.sessionRevisionInfo.scopeLabel} · intento ${data.session.attemptNumber}`
+						: `Lección viva · intento ${data.session.attemptNumber}`}
+				</p>
+				<h1 class="text-2xl font-semibold text-gray-900 dark:text-white">{data.activity.name}</h1>
+				{#if data.activity.description}
+					<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{data.activity.description}</p>
+				{/if}
+				<div class="mt-3 flex flex-wrap gap-2">
+					{#if data.sessionRevisionInfo.revisionNumber !== null}
+						<span
+							class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+						>
+							Revisión #{data.sessionRevisionInfo.revisionNumber}
+						</span>
+					{/if}
+					{#if data.sessionRevisionInfo.isHistoricalApproximation}
+						<span
+							class="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+						>
+							Histórico aproximado
+						</span>
+					{/if}
+				</div>
+			</div>
+
+			<div class="mt-4 flex flex-wrap gap-2">
+				{#each data.definition.blocks as block (block.id)}
+					{@const state = data.blockStates.find(
+						(item: { blockId: string }) => item.blockId === block.id
+					)}
+					<span
+						class="rounded-full px-3 py-1 text-xs font-medium {data.currentBlock.id === block.id
+							? 'bg-primary-600 text-white'
+							: state?.status === 'completed'
+								? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+								: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}"
+					>
+						{block.title}
+					</span>
+				{/each}
+			</div>
 		</div>
-	</div>
+	{/if}
 
 	<div class="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-900/40">
 		<div class="mb-4">

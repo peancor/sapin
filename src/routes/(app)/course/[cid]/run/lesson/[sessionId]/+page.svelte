@@ -11,4 +11,5 @@
 	{data}
 	backHref={resolve(`/course/${data.session.courseId}/run`)}
 	backLabel="Volver al curso"
+	showOverview={false}
 />
