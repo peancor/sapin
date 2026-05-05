@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { Card, Button } from 'flowbite-svelte';
-	import { goto, invalidate, invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { resolve } from '$app/paths';
 	import type {
@@ -26,11 +26,6 @@
 			course: { id: string };
 		};
 	}>();
-
-	interface ActivityContent {
-		text: string;
-		systemPrompt: string;
-	}
 
 	async function startChat(activity: FullActivityChat) {
 		if (!browser || !activity.chatConfig) return;
@@ -80,11 +75,13 @@
 
 	function goToLesson(activity: FullActivityChat, sessionId?: string) {
 		if (!browser) return;
-		goto(
-			sessionId
-				? resolve(`/course/${data.course.id}/run/lesson/${sessionId}`)
-				: resolve(`/course/${data.course.id}/run/new-lesson/${activity.id}`)
-		);
+
+		if (sessionId) {
+			goto(resolve(`/course/${data.course.id}/run/lesson/${sessionId}`));
+			return;
+		}
+
+		goto(resolve(`/course/${data.course.id}/run/new-lesson/${activity.id}`));
 	}
 </script>
 
@@ -168,16 +165,24 @@
 						{#if activity.progress?.status === 'completed'}
 							<div class="rounded-md bg-green-100 px-4 py-2 text-green-700">✨ Completado</div>
 						{:else if activity.status === 'closed'}
-							<!-- Actividad cerrada: solo consulta de historial -->
-							{@const latestChat = getLatestChat(activity)}
+							<!-- Actividad cerrada: solo consulta de historial/intento existente -->
 							<div class="flex items-center gap-2 text-orange-600">
 								<span class="text-lg">🔒</span>
 								<span class="text-sm">Cerrada para nuevas interacciones</span>
 							</div>
-							{#if latestChat}
-								<Button color="light" onclick={() => continueChat(activity, latestChat.id)}>
-									Ver Historial
-								</Button>
+							{#if activity.type === 'lesson'}
+								{#if activity.latestLessonSession}
+									<Button color="light" onclick={() => goToLesson(activity, activity.latestLessonSession?.id)}>
+										Ver intento
+									</Button>
+								{/if}
+							{:else}
+								{@const latestChat = getLatestChat(activity)}
+								{#if latestChat}
+									<Button color="light" onclick={() => continueChat(activity, latestChat.id)}>
+										Ver Historial
+									</Button>
+								{/if}
 							{/if}
 						{:else if activity.type === 'chat'}
 							{@const latestChat = getLatestChat(activity)}
