@@ -8,7 +8,7 @@ import { fileStorageService } from '$lib/server/files/FileStorageService';
  *
  * Expected form data:
  * - file: File to upload
- * - category: 'avatar' | 'course' | 'chat' | 'rag_document'
+ * - category: 'avatar' | 'course' | 'chat' | 'lesson' | 'rag_document'
  * - entityType: 'user' | 'course' | 'interactive_learning' | 'interactive_learning_chat'
  * - entityId: ID of the related entity
  * - displayName (optional): Custom display name
@@ -39,7 +39,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'Category is required');
 		}
 
-		if (!['avatar', 'course', 'chat', 'rag_document', 'public'].includes(category)) {
+		if (!['avatar', 'course', 'chat', 'lesson', 'rag_document', 'public'].includes(category)) {
 			throw error(400, 'Invalid category');
 		}
 
@@ -58,7 +58,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Upload file
 		const result = await fileStorageService.upload({
 			file,
-			category: category as 'avatar' | 'course' | 'chat' | 'rag_document' | 'public',
+			category: category as 'avatar' | 'course' | 'chat' | 'lesson' | 'rag_document' | 'public',
 			entityType: entityType as 'user' | 'course' | 'interactive_learning' | 'interactive_learning_chat' | 'system',
 			entityId,
 			uploadedBy: locals.user.id,

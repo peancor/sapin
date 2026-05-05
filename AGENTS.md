@@ -519,6 +519,7 @@ Categorías observadas:
 - `avatar`
 - `course`
 - `chat`
+- `lesson`
 - `rag_document`
 - `public`
 

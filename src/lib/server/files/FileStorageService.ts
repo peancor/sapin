@@ -12,7 +12,7 @@ import { imageProcessor } from './ImageProcessor';
 
 export interface UploadFileOptions {
 	file: File;
-	category: 'avatar' | 'course' | 'chat' | 'rag_document' | 'public';
+	category: 'avatar' | 'course' | 'chat' | 'lesson' | 'rag_document' | 'public';
 	entityType: 'user' | 'course' | 'interactive_learning' | 'interactive_learning_chat' | 'system';
 	entityId: string;
 	uploadedBy: string;
@@ -264,6 +264,8 @@ class FileStorageService {
 			case 'course':
 				return 'restricted';
 			case 'chat':
+				return 'restricted';
+			case 'lesson':
 				return 'restricted';
 			case 'rag_document':
 				return 'private';

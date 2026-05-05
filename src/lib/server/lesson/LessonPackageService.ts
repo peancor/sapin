@@ -608,7 +608,7 @@ export class LessonPackageService {
 				});
 				const upload = await fileStorageService.upload({
 					file: importedFile,
-					category: 'chat',
+					category: 'lesson',
 					entityType: 'interactive_learning',
 					entityId: activityId,
 					uploadedBy: input.userId,

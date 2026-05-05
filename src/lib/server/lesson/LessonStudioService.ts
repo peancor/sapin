@@ -148,7 +148,7 @@ export async function uploadLessonStudioFile(input: {
 
 	const upload = await fileStorageService.upload({
 		file,
-		category: 'chat',
+		category: 'lesson',
 		entityType: 'interactive_learning',
 		entityId: ilid,
 		uploadedBy: userId,
