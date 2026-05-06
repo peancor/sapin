@@ -32,7 +32,7 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 
         if (!baseUrl || !token || !moodleCourseId) {
             return json(
-                { error: 'baseUrl, token y moodleCourseId son requeridos' },
+                { error: 'URL del endpoint REST, token y moodleCourseId son requeridos' },
                 { status: 400 }
             );
         }

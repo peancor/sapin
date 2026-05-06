@@ -209,7 +209,7 @@
 
     async function loadMoodlePreview() {
         if (!moodleBaseUrl || !moodleToken || !moodleCourseId) {
-            moodleError = 'Debes indicar URL base, token y ID de curso de Moodle';
+            moodleError = 'Debes indicar URL del endpoint REST, token e ID de curso de Moodle';
             return;
         }
 
@@ -638,27 +638,40 @@
         {#if moodleStep === 1}
             <div class="space-y-4">
                 <p class="text-sm text-gray-600 dark:text-gray-400">
-                    Introduce las credenciales de Moodle para obtener la lista de estudiantes.
+                    Introduce los datos del servicio web de Moodle para obtener la lista de estudiantes.
                 </p>
 
                 <div>
-                    <label for="moodleBaseUrl" class="block text-sm font-medium mb-1 dark:text-white">URL base Moodle</label>
+                    <label for="moodleRestEndpointInput" class="block text-sm font-medium mb-1 dark:text-white">URL del endpoint REST de Moodle</label>
                     <input
-                        id="moodleBaseUrl"
+                        id="moodleRestEndpointInput"
                         type="url"
                         bind:value={moodleBaseUrl}
-                        placeholder="https://campus.ejemplo.edu"
+                        placeholder="https://moodle.unican.es/webservice/rest/server.php"
+                        autocomplete="off"
+                        autocapitalize="off"
+                        spellcheck="false"
+                        data-1p-ignore="true"
+                        data-lpignore="true"
+                        data-bwignore="true"
                         class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 dark:text-gray-300 focus:outline-none dark:bg-gray-700 dark:border-gray-600"
                     />
                 </div>
 
                 <div>
-                    <label for="moodleToken" class="block text-sm font-medium mb-1 dark:text-white">Token Moodle</label>
+                    <label for="externalServiceSecretInput" class="block text-sm font-medium mb-1 dark:text-white">Token del servicio web de Moodle</label>
                     <input
-                        id="moodleToken"
+                        id="externalServiceSecretInput"
                         type="password"
                         bind:value={moodleToken}
                         placeholder="Token del servicio web"
+                        autocomplete="new-password"
+                        autocapitalize="off"
+                        spellcheck="false"
+                        data-form-type="other"
+                        data-1p-ignore="true"
+                        data-lpignore="true"
+                        data-bwignore="true"
                         class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 dark:text-gray-300 focus:outline-none dark:bg-gray-700 dark:border-gray-600"
                     />
                     <p class="mt-2 text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-2">
@@ -674,6 +687,12 @@
                         type="text"
                         bind:value={moodleCourseId}
                         placeholder="Ej: 42"
+                        autocomplete="off"
+                        autocapitalize="off"
+                        spellcheck="false"
+                        data-1p-ignore="true"
+                        data-lpignore="true"
+                        data-bwignore="true"
                         class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 dark:text-gray-300 focus:outline-none dark:bg-gray-700 dark:border-gray-600"
                     />
                 </div>
@@ -737,14 +756,21 @@
                 </div>
 
                 <div>
-                    <label for="moodleTokenConfirm" class="block text-sm font-medium mb-1 dark:text-white">
-                        Token Moodle para confirmar la importación
+                    <label for="externalServiceSecretConfirmInput" class="block text-sm font-medium mb-1 dark:text-white">
+                        Token del servicio web de Moodle para confirmar la importación
                     </label>
                     <input
-                        id="moodleTokenConfirm"
+                        id="externalServiceSecretConfirmInput"
                         type="password"
                         bind:value={moodleToken}
                         placeholder="Vuelve a introducir el token"
+                        autocomplete="new-password"
+                        autocapitalize="off"
+                        spellcheck="false"
+                        data-form-type="other"
+                        data-1p-ignore="true"
+                        data-lpignore="true"
+                        data-bwignore="true"
                         class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 dark:text-gray-300 focus:outline-none dark:bg-gray-700 dark:border-gray-600"
                     />
                     <p class="mt-2 text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-2">

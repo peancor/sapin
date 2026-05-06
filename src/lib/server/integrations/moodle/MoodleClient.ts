@@ -1,4 +1,5 @@
 const DEFAULT_TIMEOUT_MS = 15000;
+const MOODLE_REST_ENDPOINT_PATH = '/webservice/rest/server.php';
 
 export interface MoodleStudent {
     moodleUserId: string;
@@ -19,8 +20,17 @@ interface MoodleEnrolledUser {
     }>;
 }
 
-function sanitizeBaseUrl(baseUrl: string): string {
-    return baseUrl.trim().replace(/\/+$/, '');
+export function normalizeMoodleRestEndpoint(moodleUrl: string): string {
+    const url = new URL(moodleUrl.trim());
+    url.search = '';
+    url.hash = '';
+
+    const path = url.pathname.replace(/\/+$/, '');
+    url.pathname = path.endsWith(MOODLE_REST_ENDPOINT_PATH) || path.endsWith('.php')
+        ? path
+        : `${path}${MOODLE_REST_ENDPOINT_PATH}`;
+
+    return url.toString();
 }
 
 function safeString(value: unknown): string {
@@ -41,19 +51,19 @@ function isStudentUser(user: MoodleEnrolledUser): boolean {
 }
 
 export class MoodleClient {
-    private readonly baseUrl: string;
+    private readonly restEndpointUrl: string;
     private readonly token: string;
     private readonly timeoutMs: number;
 
-    constructor(baseUrl: string, token: string, timeoutMs = DEFAULT_TIMEOUT_MS) {
-        this.baseUrl = sanitizeBaseUrl(baseUrl);
+    constructor(moodleUrl: string, token: string, timeoutMs = DEFAULT_TIMEOUT_MS) {
+        this.restEndpointUrl = normalizeMoodleRestEndpoint(moodleUrl);
         this.token = token.trim();
         this.timeoutMs = timeoutMs;
     }
 
     async getCourseStudents(courseId: string): Promise<MoodleStudent[]> {
-        if (!this.baseUrl) {
-            throw new Error('Se requiere la URL base de Moodle');
+        if (!this.restEndpointUrl) {
+            throw new Error('Se requiere la URL del endpoint REST de Moodle');
         }
         if (!this.token) {
             throw new Error('Se requiere el token de Moodle');
@@ -78,7 +88,7 @@ export class MoodleClient {
     }
 
     private async callMoodle<T>(wsfunction: string, params: Record<string, string>): Promise<T> {
-        const url = new URL(`${this.baseUrl}/webservice/rest/server.php`);
+        const url = new URL(this.restEndpointUrl);
         url.searchParams.set('wstoken', this.token);
         url.searchParams.set('moodlewsrestformat', 'json');
         url.searchParams.set('wsfunction', wsfunction);
