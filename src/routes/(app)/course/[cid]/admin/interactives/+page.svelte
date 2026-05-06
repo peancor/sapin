@@ -90,12 +90,9 @@
 
 	async function copyActivityLink(interactive: { id: string; type: string }) {
 		try {
-			const link = `${window.location.origin}${getStudentRunUrl(interactive)}`;
+			const link = `${window.location.origin}${getStudentRunUrl(interactive)}?externalId={userid}`;
 			await navigator.clipboard.writeText(link);
-			showNotification(
-				'Enlace copiado. Añade ?externalid=ID_ALUMNO para identificar estudiantes',
-				'success'
-			);
+			showNotification('Enlace para Moodle copiado al portapapeles', 'success');
 		} catch {
 			showNotification('Error al copiar el enlace', 'error');
 		}
@@ -408,7 +405,7 @@
 									<Users class="mr-2 inline h-4 w-4" /> Ver estudiantes
 								</DropdownItem>
 								<DropdownItem onclick={() => copyActivityLink(interactive)}>
-									<Link class="mr-2 inline h-4 w-4" /> Copiar enlace
+									<Link class="mr-2 inline h-4 w-4" /> Copiar enlace Moodle
 								</DropdownItem>
 								<DropdownItem onclick={() => exportActivity(interactive.id, interactive.name)}>
 									<Download class="mr-2 inline h-4 w-4" /> Exportar
@@ -528,7 +525,7 @@
 										type="button"
 										onclick={() => copyActivityLink(interactive)}
 										class="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-600"
-										title="Copiar enlace"
+										title="Copiar enlace para Moodle"
 									>
 										<Link class="h-4 w-4" />
 									</button>

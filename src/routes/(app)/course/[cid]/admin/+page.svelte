@@ -57,12 +57,9 @@
 
 	async function copyActivityLink(interactive: { id: string; type: string }) {
 		try {
-			const link = `${window.location.origin}${getStudentRunUrl(interactive)}`;
+			const link = `${window.location.origin}${getStudentRunUrl(interactive)}?externalId={userid}`;
 			await navigator.clipboard.writeText(link);
-			showToastMessage(
-				'Enlace copiado al portapapeles. Recuerda añadir el parámetro ?externalid=ID_ALUMNO',
-				'success'
-			);
+			showToastMessage('Enlace para Moodle copiado al portapapeles', 'success');
 		} catch (error) {
 			showToastMessage('Error al copiar el enlace', 'error');
 		}
@@ -477,6 +474,7 @@
 									color="light"
 									class="!p-1.5"
 									onclick={() => copyActivityLink(interactive)}
+									title="Copiar enlace para Moodle"
 								>
 									<Link class="h-4 w-4" />
 								</Button>
@@ -495,7 +493,7 @@
 										}}
 									>
 										<Link class="mr-2 h-4 w-4" />
-										Copiar enlace
+										Copiar enlace Moodle
 									</DropdownItem>
 									<DropdownItem
 										class="text-red-600 hover:!bg-red-50 dark:text-red-400 dark:hover:!bg-red-900/20"
