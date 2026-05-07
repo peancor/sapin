@@ -470,6 +470,13 @@ Servicios relacionados:
 - actividad agéntica
 - lección
 
+### Exportación e importación
+
+- las lecciones se exportan como paquetes `.sapinlesson.zip` mediante `LessonPackageService`
+- las actividades `chat` y `agent` se exportan como paquetes `.sapinactivity.zip` mediante `ActivityPackageService`
+- los paquetes de `chat`/`agent` incluyen recursos compartidos y documentos RAG fuente; al importarlos se crean nuevos registros `file_storage` ligados a la nueva actividad
+- los documentos RAG importados quedan en estado `pending`, con `ragEnabled = false` y sin reutilizar `ragCollectionName`, hasta que el profesorado los reindexe
+
 El subsistema de lecciones soporta:
 
 - revisiones versionadas de definición (`draft` / `published`)

@@ -5,7 +5,8 @@ import {
 	interactiveLearning,
 	interactiveLearningChat,
 	interactiveLearningLesson,
-	courseInteractiveLearning
+	courseInteractiveLearning,
+	interactiveLearningAgent
 } from '$lib/server/db/schema';
 import type { InteractiveLearningStatusType } from '$lib/server/db/schema';
 import { eq, max } from 'drizzle-orm';
@@ -15,7 +16,9 @@ import { generateSlug } from '$lib/utils/slug';
 import { LessonService, LessonServiceError } from '$lib/server/lesson/LessonService';
 import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
 import { LessonPackageService } from '$lib/server/lesson/LessonPackageService';
+import { ActivityPackageService } from '$lib/server/activity/ActivityPackageService';
 import { auditAction, auditService } from '$lib/server/logging';
+import type { RagConfig } from '$lib/server/rag/config';
 
 interface ImportData {
 	version: string;
@@ -41,6 +44,31 @@ interface ImportData {
 		temperature?: number | null;
 		maxTokens?: number | null;
 		topP?: number | null;
+		metadata?: string | null;
+		ragEnabled?: boolean | null;
+		ragCollectionName?: string | null;
+		ragConfig?: RagConfig | null;
+	} | null;
+	agentConfig?: {
+		llmRole?: string | null;
+		llmInstructions?: string | null;
+		llmContext?: string | null;
+		systemPrompt?: string | null;
+		llmModel?: string | null;
+		temperature?: number | null;
+		maxTokens?: number | null;
+		topP?: number | null;
+		maxToolRoundtrips?: number | null;
+		parallelToolCalls?: boolean | null;
+		toolChoice?: string | null;
+		finalizationEnabled?: boolean | null;
+		finalizationToolName?: string | null;
+		finalizationHandler?: string | null;
+		finalizationConfig?: string | null;
+		requireFinalizationToolCall?: boolean | null;
+		ragEnabled?: boolean | null;
+		ragCollectionName?: string | null;
+		ragConfig?: string | null;
 		metadata?: string | null;
 	} | null;
 	lessonConfig?: {
@@ -68,6 +96,10 @@ function isLessonPackageFile(file: File): boolean {
 	);
 }
 
+function isActivityPackageFile(file: File): boolean {
+	return file.name.toLowerCase().endsWith('.sapinactivity.zip');
+}
+
 async function importLegacyActivity(input: {
 	courseId: string;
 	importData: ImportData;
@@ -86,6 +118,7 @@ async function importLegacyActivity(input: {
 	}
 
 	const { activity, chatConfig, lessonConfig } = importData;
+	const agentConfig = importData.agentConfig ?? null;
 
 	// Validar campos requeridos
 	if (!activity.name || !activity.type || !activity.content) {
@@ -159,6 +192,36 @@ async function importLegacyActivity(input: {
 			maxTokens: chatConfig.maxTokens || null,
 			topP: chatConfig.topP || null,
 			metadata: chatConfig.metadata || null,
+			ragEnabled: chatConfig.ragEnabled ?? false,
+			ragCollectionName: chatConfig.ragCollectionName || null,
+			ragConfig: chatConfig.ragConfig ?? null,
+			createdAt: now
+		});
+	}
+
+	if (activity.type === 'agent' && agentConfig) {
+		await db.insert(interactiveLearningAgent).values({
+			id: activityId,
+			llmRole: agentConfig.llmRole || null,
+			llmInstructions: agentConfig.llmInstructions || null,
+			llmContext: agentConfig.llmContext || null,
+			systemPrompt: agentConfig.systemPrompt || null,
+			llmModel: agentConfig.llmModel || null,
+			temperature: agentConfig.temperature || null,
+			maxTokens: agentConfig.maxTokens || null,
+			topP: agentConfig.topP || null,
+			maxToolRoundtrips: agentConfig.maxToolRoundtrips ?? 5,
+			parallelToolCalls: agentConfig.parallelToolCalls ?? false,
+			toolChoice: agentConfig.toolChoice || 'auto',
+			finalizationEnabled: agentConfig.finalizationEnabled ?? true,
+			finalizationToolName: agentConfig.finalizationToolName || 'finalize_activity',
+			finalizationHandler: agentConfig.finalizationHandler || 'mark_complete_and_notify',
+			finalizationConfig: agentConfig.finalizationConfig || null,
+			requireFinalizationToolCall: agentConfig.requireFinalizationToolCall ?? true,
+			ragEnabled: agentConfig.ragEnabled ?? false,
+			ragCollectionName: agentConfig.ragCollectionName || null,
+			ragConfig: agentConfig.ragConfig || null,
+			metadata: agentConfig.metadata || null,
 			createdAt: now
 		});
 	}
@@ -216,6 +279,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		let courseId = '';
 		let importData: ImportData | null = null;
 		let packageFile: File | null = null;
+		let activityPackageFile: File | null = null;
 
 		if (contentType.includes('multipart/form-data')) {
 			const formData = await request.formData();
@@ -225,7 +289,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				throw error(400, 'Archivo de importación requerido');
 			}
 
-			if (isLessonPackageFile(file)) {
+			if (isActivityPackageFile(file)) {
+				activityPackageFile = file;
+			} else if (isLessonPackageFile(file)) {
 				packageFile = file;
 			} else {
 				importData = JSON.parse(await file.text()) as ImportData;
@@ -251,24 +317,33 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(403, 'No tienes permisos para importar actividades en este curso');
 		}
 
-		const result = packageFile
+		const result = activityPackageFile
 			? {
-					...(await LessonPackageService.importLessonPackage({
+					...(await ActivityPackageService.importActivityPackage({
 						courseId,
 						userId: locals.user.id,
-						file: packageFile
+						file: activityPackageFile
 					})),
-					type: 'lesson',
 					message: null as string | null
 				}
-			: {
-					...(await importLegacyActivity({
-						courseId,
-						importData: importData as ImportData,
-						userId: locals.user.id
-					})),
-					formatVersion: importData?.version
-				};
+			: packageFile
+				? {
+						...(await LessonPackageService.importLessonPackage({
+							courseId,
+							userId: locals.user.id,
+							file: packageFile
+						})),
+						type: 'lesson',
+						message: null as string | null
+					}
+				: {
+						...(await importLegacyActivity({
+							courseId,
+							importData: importData as ImportData,
+							userId: locals.user.id
+						})),
+						formatVersion: importData?.version
+					};
 
 		await auditService.log({
 			action: auditAction.ACTIVITY_IMPORTED,
@@ -280,6 +355,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				type: result.type,
 				formatVersion: result.formatVersion,
 				resourceCount: result.resourceCount,
+				ragDocumentCount: 'ragDocumentCount' in result ? result.ragDocumentCount : 0,
+				skippedToolCount: 'skippedToolCount' in result ? result.skippedToolCount : 0,
 				revisionCount: result.revisionCount
 			},
 			ipAddress: getClientIP(request),
@@ -290,10 +367,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({
 			success: true,
 			activityId: result.activityId,
-			message: packageFile
-				? `Lesson importada correctamente: ${result.resourceCount} recursos y ${result.revisionCount} revisiones`
-				: (result.message ?? 'Actividad importada correctamente'),
+			message: activityPackageFile
+				? `Actividad importada correctamente: ${result.resourceCount} recursos y ${
+						'ragDocumentCount' in result ? result.ragDocumentCount : 0
+					} documentos RAG pendientes`
+				: packageFile
+					? `Lesson importada correctamente: ${result.resourceCount} recursos y ${result.revisionCount} revisiones`
+					: (result.message ?? 'Actividad importada correctamente'),
 			resourceCount: result.resourceCount,
+			ragDocumentCount: 'ragDocumentCount' in result ? result.ragDocumentCount : 0,
 			revisionCount: result.revisionCount,
 			activityType: result.type
 		});

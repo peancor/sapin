@@ -10,6 +10,7 @@ import {
 import { eq } from 'drizzle-orm';
 import { CourseRoleUtils } from '$lib/server/db/CourseRoleUtils';
 import { LessonPackageService } from '$lib/server/lesson/LessonPackageService';
+import { ActivityPackageService } from '$lib/server/activity/ActivityPackageService';
 import { auditAction, auditService } from '$lib/server/logging';
 
 function getClientIP(request: Request): string | null {
@@ -87,6 +88,36 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 				headers: {
 					'Content-Type': 'application/zip',
 					'Content-Disposition': `attachment; filename="${lessonPackage.filename}"`
+				}
+			}
+		);
+	}
+
+	if (activity.type === 'chat' || activity.type === 'agent') {
+		const activityPackage = await ActivityPackageService.exportActivityPackage(id);
+		await auditService.log({
+			action: auditAction.ACTIVITY_EXPORTED,
+			userId: locals.user.id,
+			targetType: 'activity',
+			targetId: id,
+			details: {
+				courseId: courseRelation.courseId,
+				type: activity.type,
+				formatVersion: activityPackage.manifest.formatVersion,
+				resourceCount: activityPackage.manifest.resources.length,
+				ragDocumentCount: activityPackage.manifest.ragDocuments.length
+			},
+			ipAddress: getClientIP(request),
+			userAgent: request.headers.get('user-agent'),
+			severity: 'info'
+		});
+
+		return new Response(
+			new Blob([toArrayBuffer(activityPackage.bytes)], { type: 'application/zip' }),
+			{
+				headers: {
+					'Content-Type': 'application/zip',
+					'Content-Disposition': `attachment; filename="${activityPackage.filename}"`
 				}
 			}
 		);

@@ -66,11 +66,9 @@ class FilePermissionMiddleware {
 				return { allowed: false, reason: 'User not found' };
 			}
 
-			const currentUser = users[0];
-
 			// Check if user has admin level in the new role system
 			const adminLevel = await this.getUserHighestRoleLevel(userId);
-			
+
 			// Admins have full access to all files (level >= 90)
 			if (adminLevel >= ROLE_LEVELS.ADMIN) {
 				return { allowed: true };
@@ -96,7 +94,7 @@ class FilePermissionMiddleware {
 					return this.checkLessonPermission(file, userId, action, adminLevel);
 
 				case 'rag_document':
-					return this.checkRagDocumentPermission(file, userId, action);
+					return this.checkRagDocumentPermission(file, userId);
 
 				case 'public':
 					return this.checkPublicPermission(file, userId, action);
@@ -179,20 +177,22 @@ class FilePermissionMiddleware {
 	): Promise<PermissionCheckResult> {
 		const interactiveLearningId = file.entityId;
 
-		// Check if user has access to this interactive learning activity
-		const userChat = await db
-			.select()
-			.from(userInteractiveLearningChat)
-			.where(
-				and(
-					eq(userInteractiveLearningChat.userId, userId),
-					eq(userInteractiveLearningChat.interactiveLearningChatId, interactiveLearningId)
+		if (action === 'read') {
+			// A learner may already have an activity resource before their personal chat row exists.
+			const userChat = await db
+				.select()
+				.from(userInteractiveLearningChat)
+				.where(
+					and(
+						eq(userInteractiveLearningChat.userId, userId),
+						eq(userInteractiveLearningChat.interactiveLearningChatId, interactiveLearningId)
+					)
 				)
-			)
-			.limit(1);
+				.limit(1);
 
-		if (userChat.length > 0) {
-			return { allowed: true };
+			if (userChat.length > 0) {
+				return { allowed: true };
+			}
 		}
 
 		// Ensure associated interactive learning exists
@@ -219,7 +219,7 @@ class FilePermissionMiddleware {
 
 		const courseId = courseInteractive[0].courseId;
 
-		// Check if user has a teacher-level course role
+		// Check if user has an active course role
 		const userCourseRole = await db
 			.select()
 			.from(courseRole)
@@ -234,7 +234,10 @@ class FilePermissionMiddleware {
 
 		if (userCourseRole.length > 0) {
 			const userRole = userCourseRole[0].role;
-			if (['owner', 'admin', 'teacher'].includes(userRole)) {
+			if (action === 'read') {
+				return { allowed: true };
+			}
+			if (['owner', 'admin', 'teacher', 'assistant'].includes(userRole)) {
 				return { allowed: true };
 			}
 		}
@@ -277,14 +280,20 @@ class FilePermissionMiddleware {
 		);
 
 		if (!lessonAccess.allowed) {
-			return { allowed: false, reason: lessonAccess.reason || 'User does not have access to this lesson' };
+			return {
+				allowed: false,
+				reason: lessonAccess.reason || 'User does not have access to this lesson'
+			};
 		}
 
 		if (action === 'read') {
 			return { allowed: true };
 		}
 
-		if (lessonAccess.courseRole && ['owner', 'admin', 'teacher'].includes(lessonAccess.courseRole)) {
+		if (
+			lessonAccess.courseRole &&
+			['owner', 'admin', 'teacher'].includes(lessonAccess.courseRole)
+		) {
 			return { allowed: true };
 		}
 
@@ -297,8 +306,7 @@ class FilePermissionMiddleware {
 	 */
 	private async checkRagDocumentPermission(
 		file: FileStorage,
-		userId: string,
-		action: string
+		userId: string
 	): Promise<PermissionCheckResult> {
 		// RAG documents are private by default
 		// Already checked: uploader and admin have access
@@ -410,7 +418,7 @@ class FilePermissionMiddleware {
 			);
 
 		if (userRoles.length === 0) return 0;
-		return Math.max(...userRoles.map(r => r.level));
+		return Math.max(...userRoles.map((r) => r.level));
 	}
 }
 
