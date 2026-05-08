@@ -5,6 +5,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Button, Modal, Toast, Input, Badge, Dropdown, DropdownItem } from 'flowbite-svelte';
+	import MoodleActivityLinkMenu from '$lib/components/MoodleActivityLinkMenu.svelte';
 	import {
 		getStoredCourseAdminInteractiveViewMode,
 		setStoredCourseAdminInteractiveViewMode,
@@ -17,7 +18,6 @@
 		Search,
 		MoreVertical,
 		Eye,
-		Link,
 		Trash2,
 		Users,
 		MessageSquare,
@@ -80,22 +80,6 @@
 	function confirmDelete(interactive: (typeof data.interactives)[number]) {
 		interactiveToDelete = interactive;
 		deleteModal = true;
-	}
-
-	function getStudentRunUrl(interactive: { id: string; type: string }): string {
-		if (interactive.type === 'agent') return `/student/run-agent/${interactive.id}`;
-		if (interactive.type === 'lesson') return `/student/run-lesson/${interactive.id}`;
-		return `/student/run-chat/${interactive.id}`;
-	}
-
-	async function copyActivityLink(interactive: { id: string; type: string }) {
-		try {
-			const link = `${window.location.origin}${getStudentRunUrl(interactive)}?externalId={userid}`;
-			await navigator.clipboard.writeText(link);
-			showNotification('Enlace para Moodle copiado al portapapeles', 'success');
-		} catch {
-			showNotification('Error al copiar el enlace', 'error');
-		}
 	}
 
 	function getTypeColor(type: string): 'blue' | 'purple' | 'green' | 'gray' {
@@ -344,84 +328,50 @@
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			{#each filteredInteractives as interactive (interactive.id)}
 				<div
-					class="group relative overflow-hidden rounded-xl bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800"
+					class="relative rounded-xl bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800"
 				>
 					<!-- Card Header -->
 					<div class="border-b border-gray-100 p-4 dark:border-gray-700">
-						<div class="flex items-start justify-between">
-							<div class="flex items-center gap-3">
-								<div
-									class="flex h-10 w-10 items-center justify-center rounded-lg {interactive.type ===
-									'agent'
-										? 'bg-green-100 dark:bg-green-900/50'
-										: interactive.type === 'lesson'
-											? 'bg-amber-100 dark:bg-amber-900/30'
-											: 'bg-blue-100 dark:bg-blue-900/50'}"
+						<div class="flex items-start gap-3">
+							<div
+								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {interactive.type ===
+								'agent'
+									? 'bg-green-100 dark:bg-green-900/50'
+									: interactive.type === 'lesson'
+										? 'bg-amber-100 dark:bg-amber-900/30'
+										: 'bg-blue-100 dark:bg-blue-900/50'}"
+							>
+								{#if interactive.type === 'agent'}
+									<Bot class="h-5 w-5 text-green-600 dark:text-green-400" />
+								{:else if interactive.type === 'lesson'}
+									<Route class="h-5 w-5 text-amber-600 dark:text-amber-400" />
+								{:else}
+									<MessageSquare class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+								{/if}
+							</div>
+							<div class="min-w-0">
+								<a
+									href={resolve(`/course/${data.courseId}/admin/interactives/${interactive.id}`)}
+									class="hover:text-primary-600 dark:hover:text-primary-400 line-clamp-1 font-semibold text-gray-900 underline-offset-2 hover:underline dark:text-white"
 								>
-									{#if interactive.type === 'agent'}
-										<Bot class="h-5 w-5 text-green-600 dark:text-green-400" />
-									{:else if interactive.type === 'lesson'}
-										<Route class="h-5 w-5 text-amber-600 dark:text-amber-400" />
-									{:else}
-										<MessageSquare class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-									{/if}
-								</div>
-								<div>
-									<h3 class="line-clamp-1 font-semibold text-gray-900 dark:text-white">
-										{interactive.name}
-									</h3>
-									<div class="mt-1 flex gap-1">
-										<Badge color={getTypeColor(interactive.type)}>{interactive.type}</Badge>
-										<Badge color={getStatusColor(interactive.status)}
-											>{getStatusLabel(interactive.status)}</Badge
-										>
-									</div>
+									{interactive.name}
+								</a>
+								<div class="mt-1 flex flex-wrap gap-1">
+									<Badge color={getTypeColor(interactive.type)}>{interactive.type}</Badge>
+									<Badge color={getStatusColor(interactive.status)}
+										>{getStatusLabel(interactive.status)}</Badge
+									>
 								</div>
 							</div>
-							<Button
-								color="light"
-								class="p-2! opacity-0 transition-opacity group-hover:opacity-100"
-								id="dropdown-btn-{interactive.id}"
-							>
-								<MoreVertical class="h-4 w-4" />
-							</Button>
-							<Dropdown triggeredBy="#dropdown-btn-{interactive.id}" simple>
-								<DropdownItem
-									href={resolve(
-										interactive.type === 'agent'
-											? `/agent-chat/${interactive.id}`
-											: interactive.type === 'lesson'
-												? `/lesson/${interactive.id}`
-												: `/interactive-chat/${interactive.id}`
-									)}
-								>
-									<Eye class="mr-2 inline h-4 w-4" /> Previsualizar
-								</DropdownItem>
-								<DropdownItem
-									href={resolve(
-										`/course/${data.courseId}/admin/interactives/${interactive.id}/students`
-									)}
-								>
-									<Users class="mr-2 inline h-4 w-4" /> Ver estudiantes
-								</DropdownItem>
-								<DropdownItem onclick={() => copyActivityLink(interactive)}>
-									<Link class="mr-2 inline h-4 w-4" /> Copiar enlace Moodle
-								</DropdownItem>
-								<DropdownItem onclick={() => exportActivity(interactive.id, interactive.name)}>
-									<Download class="mr-2 inline h-4 w-4" /> Exportar
-								</DropdownItem>
-								<DropdownItem
-									class="text-red-600 dark:text-red-400"
-									onclick={() => confirmDelete(interactive)}
-								>
-									<Trash2 class="mr-2 inline h-4 w-4" /> Eliminar
-								</DropdownItem>
-							</Dropdown>
 						</div>
 					</div>
 
 					<!-- Card Body -->
-					<div class="p-4">
+					<a
+						href={resolve(`/course/${data.courseId}/admin/interactives/${interactive.id}`)}
+						class="block p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30"
+						aria-label={`Ver detalles de ${interactive.name}`}
+					>
 						<p class="mb-4 line-clamp-2 text-sm text-gray-600 dark:text-gray-400">
 							{interactive.description || 'Sin descripción'}
 						</p>
@@ -431,21 +381,57 @@
 								<span>{interactive.participations ?? 0} participaciones</span>
 							</div>
 						</div>
-					</div>
+					</a>
 
 					<!-- Card Footer -->
 					<div
-						class="flex items-center justify-between border-t border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50"
+						class="flex flex-wrap items-center gap-2 border-t border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50"
 					>
-						<span class="text-xs text-gray-500 dark:text-gray-400"
-							>Orden: {interactive.order ?? '-'}</span
+						<MoodleActivityLinkMenu
+							{interactive}
+							notify={showNotification}
+							label="Enlace Moodle"
+							triggerIdPrefix="interactives-card-moodle-link"
+							buttonClass="inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-primary-200 bg-primary-50 px-3 text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-950/40 dark:text-primary-300 dark:hover:bg-primary-900/50"
+						/>
+						<Button
+							color="light"
+							class="h-9 w-9 p-0!"
+							id="dropdown-btn-{interactive.id}"
+							aria-label="Más acciones"
+							title="Más acciones"
 						>
-						<a
-							href={resolve(`/course/${data.courseId}/admin/interactives/${interactive.id}`)}
-							class="text-primary-600 hover:text-primary-700 dark:text-primary-400 text-sm font-medium"
-						>
-							Ver detalles →
-						</a>
+							<MoreVertical class="h-4 w-4" />
+						</Button>
+						<Dropdown triggeredBy="#dropdown-btn-{interactive.id}" simple>
+							<DropdownItem
+								href={resolve(
+									interactive.type === 'agent'
+										? `/agent-chat/${interactive.id}`
+										: interactive.type === 'lesson'
+											? `/lesson/${interactive.id}`
+											: `/interactive-chat/${interactive.id}`
+								)}
+							>
+								<Eye class="mr-2 inline h-4 w-4" /> Previsualizar
+							</DropdownItem>
+							<DropdownItem
+								href={resolve(
+									`/course/${data.courseId}/admin/interactives/${interactive.id}/students`
+								)}
+							>
+								<Users class="mr-2 inline h-4 w-4" /> Ver estudiantes
+							</DropdownItem>
+							<DropdownItem onclick={() => exportActivity(interactive.id, interactive.name)}>
+								<Download class="mr-2 inline h-4 w-4" /> Exportar
+							</DropdownItem>
+							<DropdownItem
+								class="text-red-600 dark:text-red-400"
+								onclick={() => confirmDelete(interactive)}
+							>
+								<Trash2 class="mr-2 inline h-4 w-4" /> Eliminar
+							</DropdownItem>
+						</Dropdown>
 					</div>
 				</div>
 			{/each}
@@ -521,14 +507,11 @@
 									>
 										<Eye class="h-4 w-4" />
 									</a>
-									<button
-										type="button"
-										onclick={() => copyActivityLink(interactive)}
-										class="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-600"
-										title="Copiar enlace para Moodle"
-									>
-										<Link class="h-4 w-4" />
-									</button>
+									<MoodleActivityLinkMenu
+										{interactive}
+										notify={showNotification}
+										triggerIdPrefix="interactives-table-moodle-link"
+									/>
 									<button
 										type="button"
 										onclick={() => exportActivity(interactive.id, interactive.name)}
