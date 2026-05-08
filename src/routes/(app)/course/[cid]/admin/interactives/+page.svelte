@@ -392,7 +392,7 @@
 							notify={showNotification}
 							label="Enlace Moodle"
 							triggerIdPrefix="interactives-card-moodle-link"
-							buttonClass="inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-primary-200 bg-primary-50 px-3 text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-950/40 dark:text-primary-300 dark:hover:bg-primary-900/50"
+							buttonClass="inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-primary-200 bg-primary-50 px-3 text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-100 dark:border-primary-500/60 dark:bg-primary-600 dark:text-white dark:hover:bg-primary-500"
 						/>
 						<Button
 							color="light"
