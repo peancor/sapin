@@ -104,7 +104,7 @@
 			<div>
 				<div class="font-medium text-gray-900 dark:text-white">Ver guía rápida</div>
 				<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-					Pasos para configurar el enlace sin conocimientos técnicos.
+					Pasos para configurar el enlace.
 				</p>
 			</div>
 		</div>
