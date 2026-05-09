@@ -5,6 +5,7 @@ import * as schema from '$lib/server/db/schema';
 import type {
 	LearningEvidenceAccessContext,
 	LearningEvidenceActivityContext,
+	LearningEvidenceInputMetrics,
 	LearningEvidenceMessagePart,
 	LearningEvidenceMessageRole,
 	LearningEvidenceOverview,
@@ -22,6 +23,16 @@ import type {
 import { ROLE_LEVELS } from '$lib/server/roles';
 
 type ActivityRecord = typeof schema.interactiveLearning.$inferSelect;
+
+const INPUT_METRIC_NUMBER_KEYS = [
+	'keystrokeCount',
+	'pasteCount',
+	'charCount',
+	'wordCount',
+	'timeSpentSeconds',
+	'editCount',
+	'deleteCount'
+] as const;
 
 type EvidenceProvider = {
 	getActivityContext(activity: ActivityRecord, courseId: string | null): Promise<LearningEvidenceActivityContext>;
@@ -68,6 +79,46 @@ function safeJsonParse(value: string | null | undefined): Record<string, unknown
 	} catch {
 		return {};
 	}
+}
+
+function parseFiniteNumber(value: unknown): number | null {
+	return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function readInputMetricNumber(
+	metadata: Record<string, unknown>,
+	key: (typeof INPUT_METRIC_NUMBER_KEYS)[number]
+): number {
+	return parseFiniteNumber(metadata[key]) ?? 0;
+}
+
+function parseInputMetrics(value: string | null | undefined): LearningEvidenceInputMetrics | undefined {
+	const metadata = safeJsonParse(value);
+	const hasMetricNumbers = INPUT_METRIC_NUMBER_KEYS.some(
+		(key) => parseFiniteNumber(metadata[key]) !== null
+	);
+
+	if (!hasMetricNumbers) return undefined;
+
+	const deviceInfo =
+		metadata.deviceInfo && typeof metadata.deviceInfo === 'object' && !Array.isArray(metadata.deviceInfo)
+			? (metadata.deviceInfo as Record<string, unknown>)
+			: {};
+
+	return {
+		keystrokeCount: readInputMetricNumber(metadata, 'keystrokeCount'),
+		pasteCount: readInputMetricNumber(metadata, 'pasteCount'),
+		charCount: readInputMetricNumber(metadata, 'charCount'),
+		wordCount: readInputMetricNumber(metadata, 'wordCount'),
+		timeSpentSeconds: readInputMetricNumber(metadata, 'timeSpentSeconds'),
+		editCount: readInputMetricNumber(metadata, 'editCount'),
+		deleteCount: readInputMetricNumber(metadata, 'deleteCount'),
+		deviceInfo: {
+			isMobile: deviceInfo.isMobile === true,
+			userAgent: typeof deviceInfo.userAgent === 'string' ? deviceInfo.userAgent : '',
+			screenSize: typeof deviceInfo.screenSize === 'string' ? deviceInfo.screenSize : ''
+		}
+	};
 }
 
 function safeUnknownJsonParse(value: string | null | undefined): unknown {
@@ -226,6 +277,7 @@ class ChatEvidenceProvider implements EvidenceProvider {
 
 				const messages: LearningEvidenceTranscriptMessage[] = sortedMessages.map((message) => {
 					const role = normalizeChatRole(message.type);
+					const inputMetrics = role === 'user' ? parseInputMetrics(message.metadata) : undefined;
 					const parts: LearningEvidenceMessagePart[] = [
 						{
 							kind: 'text',
@@ -239,6 +291,7 @@ class ChatEvidenceProvider implements EvidenceProvider {
 						createdAt: new Date(message.createdAt).toISOString(),
 						displayText: message.content,
 						parts,
+						...(inputMetrics ? { inputMetrics } : {}),
 						source: 'chat_message'
 					};
 				});
@@ -482,12 +535,14 @@ class AgentEvidenceProvider implements EvidenceProvider {
 				parts.push(resultPart);
 			}
 
+			const inputMetrics = role === 'user' ? parseInputMetrics(message.metadata) : undefined;
 			const transcriptMessage: LearningEvidenceTranscriptMessage = {
 				id: message.id,
 				role,
 				createdAt: new Date(message.createdAt).toISOString(),
 				displayText: buildDisplayText(parts, rawText),
 				parts,
+				...(inputMetrics ? { inputMetrics } : {}),
 				source:
 					role === 'tool'
 						? 'agent_tool_call'

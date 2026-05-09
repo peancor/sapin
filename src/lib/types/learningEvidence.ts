@@ -1,5 +1,22 @@
 export type LearningEvidenceMessageRole = 'user' | 'assistant' | 'system' | 'tool';
 
+export interface LearningEvidenceInputDeviceInfo {
+	isMobile: boolean;
+	userAgent: string;
+	screenSize: string;
+}
+
+export interface LearningEvidenceInputMetrics {
+	keystrokeCount: number;
+	pasteCount: number;
+	charCount: number;
+	wordCount: number;
+	timeSpentSeconds: number;
+	editCount: number;
+	deleteCount: number;
+	deviceInfo: LearningEvidenceInputDeviceInfo;
+}
+
 export interface LearningEvidenceStudentRef {
 	userId: string;
 	username: string;
@@ -88,6 +105,7 @@ export interface LearningEvidenceTranscriptMessage {
 	createdAt: string;
 	displayText: string;
 	parts: LearningEvidenceMessagePart[];
+	inputMetrics?: LearningEvidenceInputMetrics;
 	source: 'chat_message' | 'agent_message' | 'agent_tool_call' | 'agent_ui_instance';
 }
 
