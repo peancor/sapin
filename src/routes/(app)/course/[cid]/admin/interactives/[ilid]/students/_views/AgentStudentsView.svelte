@@ -11,7 +11,12 @@
 	} from 'flowbite-svelte';
 	import { Activity, Bot, Users } from 'lucide-svelte';
 	import type { PageData } from '../$types';
-	import { downloadCSV, formatDate, sortCsvRowsByStudent } from '../viewUtils';
+	import {
+		buildActivityStudentsCsvFilename,
+		downloadCSV,
+		formatDate,
+		sortCsvRowsByStudent
+	} from '../viewUtils';
 
 	type AgentStudentsData = Extract<PageData, { view: 'agent' }>;
 
@@ -49,7 +54,7 @@
 			])
 		];
 
-		await downloadCSV(rows, 'estudiantes_agent.csv');
+		await downloadCSV(rows, buildActivityStudentsCsvFilename('agent', data.interactive.name));
 	}
 </script>
 

@@ -3,6 +3,7 @@ import { saveBlobAs, type SaveBlobResult } from '$lib/utils/browserFileSave';
 
 export type StudentsBadgeColor = 'gray' | 'green' | 'red' | 'yellow';
 export type CsvCell = string | number | boolean | null | undefined;
+export type ActivityStudentsCsvKind = 'chat' | 'agent' | 'lesson';
 
 export const CSV_BOM = '\uFEFF';
 
@@ -12,6 +13,11 @@ const csvStudentCollator = new Intl.Collator('es', {
 	sensitivity: 'base',
 	numeric: true
 });
+const csvKindFilenameLabels: Record<ActivityStudentsCsvKind, string> = {
+	chat: 'chat',
+	agent: 'agente',
+	lesson: 'lesson'
+};
 
 type MessageMetrics = {
 	keystrokeCount?: number;
@@ -57,6 +63,37 @@ export function buildCsvContent(rows: CsvCell[][]): string {
 	return `${CSV_BOM}${rows
 		.map((row) => row.map((cell) => escapeCsvCell(cell)).join(CSV_SEPARATOR))
 		.join(CSV_LINE_ENDING)}`;
+}
+
+function formatFilenameDate(date: Date): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+
+	return `${year}-${month}-${day}`;
+}
+
+function slugifyFilenamePart(value: string, fallback: string): string {
+	const slug = value
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '')
+		.slice(0, 80)
+		.replace(/-+$/g, '');
+
+	return slug || fallback;
+}
+
+export function buildActivityStudentsCsvFilename(
+	kind: ActivityStudentsCsvKind,
+	activityName: string | null | undefined,
+	date = new Date()
+): string {
+	const activitySlug = slugifyFilenamePart(activityName ?? '', 'actividad');
+
+	return `estudiantes-${csvKindFilenameLabels[kind]}-${activitySlug}-${formatFilenameDate(date)}.csv`;
 }
 
 export async function downloadCSV(rows: CsvCell[][], filename: string): Promise<SaveBlobResult> {

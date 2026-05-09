@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildCsvContent, CSV_BOM, escapeCsvCell, sortCsvRowsByStudent } from './viewUtils.ts';
+import {
+	buildActivityStudentsCsvFilename,
+	buildCsvContent,
+	CSV_BOM,
+	escapeCsvCell,
+	sortCsvRowsByStudent
+} from './viewUtils.ts';
 
 test('buildCsvContent prepends UTF-8 BOM and uses semicolon with CRLF rows', () => {
 	const content = buildCsvContent([
@@ -49,4 +55,23 @@ test('sortCsvRowsByStudent sorts alphabetically and falls back to email and id',
 		sorted.map((student) => student.id),
 		['3', '2', '1', '4']
 	);
+});
+
+test('buildActivityStudentsCsvFilename includes type, activity slug, and local date', () => {
+	const filename = buildActivityStudentsCsvFilename(
+		'agent',
+		'Práctica: Límites y Continuidad / Grupo A',
+		new Date(2026, 4, 9)
+	);
+
+	assert.equal(
+		filename,
+		'estudiantes-agente-practica-limites-y-continuidad-grupo-a-2026-05-09.csv'
+	);
+});
+
+test('buildActivityStudentsCsvFilename falls back when activity name has no filename-safe text', () => {
+	const filename = buildActivityStudentsCsvFilename('chat', ' ¿? ', new Date(2026, 0, 3));
+
+	assert.equal(filename, 'estudiantes-chat-actividad-2026-01-03.csv');
 });

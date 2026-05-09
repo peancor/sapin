@@ -21,6 +21,7 @@
 	} from 'lucide-svelte';
 	import type { PageData } from '../$types';
 	import {
+		buildActivityStudentsCsvFilename,
 		downloadCSV,
 		formatDate,
 		lessonStatusColor,
@@ -71,7 +72,7 @@
 			])
 		];
 
-		await downloadCSV(rows, 'estudiantes_lesson.csv');
+		await downloadCSV(rows, buildActivityStudentsCsvFilename('lesson', data.interactive.name));
 	}
 </script>
 

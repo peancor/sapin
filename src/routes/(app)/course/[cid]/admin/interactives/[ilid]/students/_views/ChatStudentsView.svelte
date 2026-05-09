@@ -11,7 +11,12 @@
 	} from 'flowbite-svelte';
 	import { Calendar, MessageSquare, Users } from 'lucide-svelte';
 	import type { PageData } from '../$types';
-	import { downloadCSV, formatDate, sortCsvRowsByStudent } from '../viewUtils';
+	import {
+		buildActivityStudentsCsvFilename,
+		downloadCSV,
+		formatDate,
+		sortCsvRowsByStudent
+	} from '../viewUtils';
 
 	type ChatStudentsData = Extract<PageData, { view: 'chat' }>;
 
@@ -47,7 +52,7 @@
 			])
 		];
 
-		await downloadCSV(rows, 'estudiantes_chat.csv');
+		await downloadCSV(rows, buildActivityStudentsCsvFilename('chat', data.interactive.name));
 	}
 </script>
 
