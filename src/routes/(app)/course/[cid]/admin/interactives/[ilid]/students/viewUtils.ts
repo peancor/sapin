@@ -1,6 +1,17 @@
 import type { LessonReviewAttemptSummary } from '$lib/types/lessonReview';
+import { saveBlobAs, type SaveBlobResult } from '$lib/utils/browserFileSave';
 
 export type StudentsBadgeColor = 'gray' | 'green' | 'red' | 'yellow';
+export type CsvCell = string | number | boolean | null | undefined;
+
+export const CSV_BOM = '\uFEFF';
+
+const CSV_SEPARATOR = ';';
+const CSV_LINE_ENDING = '\r\n';
+const csvStudentCollator = new Intl.Collator('es', {
+	sensitivity: 'base',
+	numeric: true
+});
 
 type MessageMetrics = {
 	keystrokeCount?: number;
@@ -28,17 +39,51 @@ export function formatDate(
 	});
 }
 
-export function downloadCSV(content: string, filename: string): void {
-	const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-	const url = URL.createObjectURL(blob);
-	const link = document.createElement('a');
+function normalizeCsvCell(cell: CsvCell): string {
+	return cell == null ? '' : String(cell).replace(/\r\n|\r|\n/g, '\n');
+}
 
-	link.setAttribute('href', url);
-	link.setAttribute('download', filename);
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
-	URL.revokeObjectURL(url);
+export function escapeCsvCell(cell: CsvCell): string {
+	const value = normalizeCsvCell(cell);
+
+	if (!/[";\n]/.test(value)) {
+		return value;
+	}
+
+	return `"${value.replace(/"/g, '""')}"`;
+}
+
+export function buildCsvContent(rows: CsvCell[][]): string {
+	return `${CSV_BOM}${rows
+		.map((row) => row.map((cell) => escapeCsvCell(cell)).join(CSV_SEPARATOR))
+		.join(CSV_LINE_ENDING)}`;
+}
+
+export async function downloadCSV(rows: CsvCell[][], filename: string): Promise<SaveBlobResult> {
+	const blob = new Blob([buildCsvContent(rows)], { type: 'text/csv;charset=utf-8' });
+
+	return saveBlobAs(blob, filename, {
+		description: 'CSV UTF-8',
+		accept: { 'text/csv': ['.csv'] },
+		excludeAcceptAllOption: false
+	});
+}
+
+export function sortCsvRowsByStudent<T>(
+	rows: T[],
+	getDisplayName: (row: T) => string | null | undefined,
+	getFallback: (row: T) => string | null | undefined = () => ''
+): T[] {
+	return [...rows].sort((a, b) => {
+		const nameCompare = csvStudentCollator.compare(
+			getDisplayName(a)?.trim() ?? '',
+			getDisplayName(b)?.trim() ?? ''
+		);
+
+		if (nameCompare !== 0) return nameCompare;
+
+		return csvStudentCollator.compare(getFallback(a)?.trim() ?? '', getFallback(b)?.trim() ?? '');
+	});
 }
 
 export function collectInteractionMetrics(chats: StudentChatLike[]) {
@@ -73,9 +118,7 @@ export function lessonStatusLabel(attempt: LessonReviewAttemptSummary | null): s
 	return 'Activo';
 }
 
-export function lessonStatusColor(
-	attempt: LessonReviewAttemptSummary | null
-): StudentsBadgeColor {
+export function lessonStatusColor(attempt: LessonReviewAttemptSummary | null): StudentsBadgeColor {
 	if (!attempt) return 'gray';
 	if (attempt.reviewStatus === 'completed') return 'green';
 	if (attempt.reviewStatus === 'attention') return 'red';

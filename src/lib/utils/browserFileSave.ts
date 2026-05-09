@@ -22,6 +22,12 @@ type WindowWithSavePicker = Window & {
 
 export type SaveBlobResult = 'saved' | 'downloaded' | 'cancelled';
 
+export type SaveBlobOptions = {
+	description?: string;
+	accept?: Record<string, string[]>;
+	excludeAcceptAllOption?: boolean;
+};
+
 export function getFilenameFromContentDisposition(disposition: string | null, fallback: string) {
 	if (!disposition) return fallback;
 
@@ -67,7 +73,11 @@ function downloadBlob(blob: Blob, filename: string) {
 	URL.revokeObjectURL(url);
 }
 
-export async function saveBlobAs(blob: Blob, filename: string): Promise<SaveBlobResult> {
+export async function saveBlobAs(
+	blob: Blob,
+	filename: string,
+	options: SaveBlobOptions = {}
+): Promise<SaveBlobResult> {
 	const savePicker = (window as WindowWithSavePicker).showSaveFilePicker;
 	const safeFilename = sanitizeSuggestedFilename(filename);
 
@@ -75,17 +85,18 @@ export async function saveBlobAs(blob: Blob, filename: string): Promise<SaveBlob
 		try {
 			const extension = getDownloadExtension(safeFilename);
 			const mimeType = blob.type || getFallbackMime(safeFilename);
+			const accept = options.accept ?? (extension ? { [mimeType]: [extension] } : undefined);
 			const handle = await savePicker({
 				suggestedName: safeFilename,
-				types: extension
+				types: accept
 					? [
 							{
-								description: 'Paquete de actividad Sapin',
-								accept: { [mimeType]: [extension] }
+								description: options.description ?? 'Paquete de actividad Sapin',
+								accept
 							}
 						]
 					: undefined,
-				excludeAcceptAllOption: false
+				excludeAcceptAllOption: options.excludeAcceptAllOption ?? false
 			});
 			const writable = await handle.createWritable();
 			await writable.write(blob);

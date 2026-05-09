@@ -11,13 +11,13 @@
 	} from 'flowbite-svelte';
 	import { Calendar, MessageSquare, Users } from 'lucide-svelte';
 	import type { PageData } from '../$types';
-	import { downloadCSV, formatDate } from '../viewUtils';
+	import { downloadCSV, formatDate, sortCsvRowsByStudent } from '../viewUtils';
 
 	type ChatStudentsData = Extract<PageData, { view: 'chat' }>;
 
 	let { data }: { data: ChatStudentsData } = $props();
 
-	function exportToCSV(): void {
+	async function exportToCSV(): Promise<void> {
 		const headers = [
 			'Estudiante',
 			'Estado',
@@ -28,24 +28,26 @@
 			'Total Pegados',
 			'Tiempo Total (segundos)'
 		];
-		const rows = [headers.join(';')];
+		const sortedStudents = sortCsvRowsByStudent(
+			data.students,
+			(student) => student.username || student.alias || 'Sin nombre',
+			(student) => `${student.email ?? ''}\u0000${student.id}`
+		);
+		const rows = [
+			headers,
+			...sortedStudents.map((student) => [
+				student.username || student.alias || 'Sin nombre',
+				student.isCompleted ? 'Completado' : student.inProgress ? 'En Progreso' : 'Pendiente',
+				formatDate(student.lastActivity),
+				student.totalMessages,
+				student.chats.length,
+				student.totalKeypresses,
+				student.totalPastes,
+				student.totalTimeSpentSeconds
+			])
+		];
 
-		data.students.forEach((student) => {
-			rows.push(
-				[
-					student.username || student.alias || 'Sin nombre',
-					student.isCompleted ? 'Completado' : student.inProgress ? 'En Progreso' : 'Pendiente',
-					formatDate(student.lastActivity),
-					student.totalMessages,
-					student.chats.length,
-					student.totalKeypresses,
-					student.totalPastes,
-					student.totalTimeSpentSeconds
-				].join(';')
-			);
-		});
-
-		downloadCSV(rows.join('\n'), 'estudiantes_chat.csv');
+		await downloadCSV(rows, 'estudiantes_chat.csv');
 	}
 </script>
 
