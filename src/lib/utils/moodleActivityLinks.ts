@@ -20,5 +20,5 @@ export function buildMoodleActivityFilterCodesUrl(
 	interactive: MoodleActivityLinkTarget,
 	origin: string
 ): string {
-	return `${buildMoodleActivityBaseUrl(interactive, origin)}?externalId={userid}`;
+	return `${buildMoodleActivityBaseUrl(interactive, origin)}?id={userid}`;
 }

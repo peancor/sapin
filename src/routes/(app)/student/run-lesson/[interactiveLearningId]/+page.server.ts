@@ -2,10 +2,10 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { DBUserUtils, LoginUtils } from '$lib/server/db';
 import { LessonService } from '$lib/server/lesson/LessonService';
+import { resolveExternalIdSearchParam } from '$lib/server/students/externalIdSearchParam';
 
 export const load = (async (event) => {
-	let externalId = event.url.searchParams.get('externalId');
-	if (!externalId) externalId = event.url.searchParams.get('externalid');
+	const externalId = resolveExternalIdSearchParam(event.url.searchParams);
 	if (!externalId) error(401, 'Unauthorized');
 
 	const userId = await DBUserUtils.existsUserWithExternalId(externalId);

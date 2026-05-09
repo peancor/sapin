@@ -15,7 +15,7 @@ Usa esta opción cuando vayas a crear en Moodle un recurso de tipo **URL**.
 
 | Campo en Moodle      | Valor          |
 | -------------------- | -------------- |
-| Nombre del parámetro | `externalId`   |
+| Nombre del parámetro | `id`           |
 | Variable Moodle      | `Usuario > id` |
 
 7. Guarda el recurso y pruébalo con una cuenta de estudiante.
@@ -27,7 +27,7 @@ Con esta configuración, Moodle añade automáticamente el identificador del est
 En un recurso **URL** de Moodle, no pegues enlaces como este:
 
 ```text
-https://sapin.example.edu/student/run-chat/actividad?externalId={userid}
+https://sapin.example.edu/student/run-chat/actividad?id={userid}
 ```
 
 En ese campo, Moodle puede no procesar `{userid}`. Si no se procesa, Sapin recibe el texto literal y no puede identificar al estudiante.
@@ -35,7 +35,7 @@ En ese campo, Moodle puede no procesar `{userid}`. Si no se procesa, Sapin recib
 Para recursos **URL**, usa siempre **Variables de URL** con:
 
 ```text
-externalId = Usuario > id
+id = Usuario > id
 ```
 
 ## Opción compatible: contenido Moodle con FilterCodes
@@ -43,7 +43,7 @@ externalId = Usuario > id
 La opción **Contenido Moodle con FilterCodes** copia un enlace con este formato:
 
 ```text
-https://sapin.example.edu/student/run-chat/actividad?externalId={userid}
+https://sapin.example.edu/student/run-chat/actividad?id={userid}
 ```
 
 Úsala solo cuando pegues el enlace dentro de contenidos donde Moodle sí procese FilterCodes, por ejemplo:
@@ -55,8 +55,10 @@ https://sapin.example.edu/student/run-chat/actividad?externalId={userid}
 
 Si tienes dudas, usa la opción recomendada: **Recurso URL de Moodle**.
 
-## Por qué Sapin usa `externalId`
+## Por qué Sapin recomienda `id`
 
-Cuando se importa alumnado desde Moodle, Sapin guarda el ID interno de Moodle como identificador externo del estudiante. Por eso la variable debe llamarse `externalId` y debe apuntar a **Usuario > id**.
+Cuando se importa alumnado desde Moodle, Sapin guarda el ID interno de Moodle como identificador externo del estudiante. Por eso la variable debe apuntar a **Usuario > id**.
+
+Sapin recomienda llamar `id` al parámetro porque es más sencillo de configurar en Moodle. Los enlaces antiguos con `externalId` o `externalid` siguen siendo compatibles.
 
 No uses correo, nombre de usuario ni otros campos salvo que el equipo técnico haya cambiado también el proceso de importación.

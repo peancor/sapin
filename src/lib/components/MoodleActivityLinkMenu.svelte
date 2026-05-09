@@ -137,7 +137,7 @@
 			</p>
 			<p class="mt-1 text-sm text-blue-800 dark:text-blue-200">
 				Copia <strong>Recurso URL de Moodle</strong>, pega esa URL en Moodle y añade la variable
-				<code class="rounded bg-white px-1 py-0.5 text-xs dark:bg-gray-900">externalId</code>.
+				<code class="rounded bg-white px-1 py-0.5 text-xs dark:bg-gray-900">id</code>.
 			</p>
 		</div>
 
@@ -158,7 +158,7 @@
 				<span class="font-semibold text-gray-900 dark:text-white">4.</span>
 				<span>
 					Abre <strong>Variables de URL</strong> y configura
-					<code class="rounded bg-gray-100 px-1 py-0.5 text-xs dark:bg-gray-800">externalId</code>
+					<code class="rounded bg-gray-100 px-1 py-0.5 text-xs dark:bg-gray-800">id</code>
 					como <strong>Usuario &gt; id</strong>.
 				</span>
 			</li>
@@ -180,5 +180,9 @@
 				texto enriquecido.
 			</p>
 		</div>
+
+		<p class="text-xs text-gray-500 dark:text-gray-400">
+			Los enlaces antiguos con <code>externalId</code> o <code>externalid</code> siguen funcionando.
+		</p>
 	</div>
 </Modal>

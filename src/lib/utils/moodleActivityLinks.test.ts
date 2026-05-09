@@ -40,6 +40,6 @@ test('buildMoodleActivityBaseUrl builds the recommended Moodle URL without exter
 test('buildMoodleActivityFilterCodesUrl builds the compatibility URL with FilterCodes', () => {
 	assert.equal(
 		buildMoodleActivityFilterCodesUrl({ id: 'activity-1', type: 'chat' }, origin),
-		`${origin}/student/run-chat/activity-1?externalId={userid}`
+		`${origin}/student/run-chat/activity-1?id={userid}`
 	);
 });
