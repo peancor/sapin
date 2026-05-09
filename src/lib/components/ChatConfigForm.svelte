@@ -254,6 +254,7 @@
 			name="llmContext"
 			id="llmContext"
 			rows={5}
+			pasteMode="plain-text"
 			placeholder="Ingresa el contexto adicional que quieras incluir para la actividad..."
 			onchange={(content) => {
 				llmContext = content;

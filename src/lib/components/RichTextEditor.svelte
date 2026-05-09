@@ -38,6 +38,7 @@
 		onchange?: (content: string) => void;
 		name?: string;
 		id?: string;
+		pasteMode?: 'rich' | 'plain-text';
 		enableImagePaste?: boolean;
 		uploadImage?: (file: File) => Promise<{
 			id: string;
@@ -54,6 +55,7 @@
 		onchange,
 		name,
 		id,
+		pasteMode = 'rich',
 		enableImagePaste = false,
 		uploadImage
 	}: Props = $props();
@@ -107,6 +109,24 @@
 		return null;
 	}
 
+	function insertPlainText(text: string) {
+		const normalizedText = text.replace(/\r\n?/g, '\n');
+		const content = normalizedText.split('\n').flatMap((line, index) => {
+			const nodes = [];
+			if (index > 0) {
+				nodes.push({ type: 'hardBreak' });
+			}
+			if (line.length > 0) {
+				nodes.push({ type: 'text', text: line });
+			}
+			return nodes;
+		});
+
+		if (content.length > 0) {
+			editor?.chain().focus().insertContent(content).run();
+		}
+	}
+
 	onMount(() => {
 		const minHeight = getMinHeight();
 		editor = new Editor({
@@ -156,14 +176,24 @@
 					style: `min-height: ${minHeight}`
 				},
 				handlePaste: (_view, event) => {
-					if (!enableImagePaste || !uploadImage) return false;
+					const file =
+						enableImagePaste && uploadImage ? extractImageFile(event.clipboardData?.items) : null;
+					if (file) {
+						event.preventDefault();
+						void insertUploadedImage(file);
+						return true;
+					}
 
-					const file = extractImageFile(event.clipboardData?.items);
-					if (!file) return false;
+					if (pasteMode === 'plain-text') {
+						const text = event.clipboardData?.getData('text/plain');
+						if (text) {
+							event.preventDefault();
+							insertPlainText(text);
+							return true;
+						}
+					}
 
-					event.preventDefault();
-					void insertUploadedImage(file);
-					return true;
+					return false;
 				},
 				handleDrop: (_view, event) => {
 					if (!enableImagePaste || !uploadImage) return false;
