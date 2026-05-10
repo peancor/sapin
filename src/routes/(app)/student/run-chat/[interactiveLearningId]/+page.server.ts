@@ -2,9 +2,20 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { LoginUtils, DBUserUtils, DBChatUtils, CourseRoleUtils } from '$lib/server/db';
 import { resolveExternalIdSearchParam } from '$lib/server/students/externalIdSearchParam';
+import { resolveMoodleLinkVerification } from '$lib/server/students/moodleLinkVerification';
 
 export const load = (async (event) => {
 	const { interactiveLearningId } = event.params;
+	const moodleLinkVerification = await resolveMoodleLinkVerification({
+		activityId: interactiveLearningId,
+		expectedActivityType: 'chat',
+		searchParams: event.url.searchParams,
+		user: event.locals.user
+	});
+	if (moodleLinkVerification) {
+		return { moodleLinkVerification, chatId: null, courseId: null };
+	}
+
 	const externalId = resolveExternalIdSearchParam(event.url.searchParams);
 	if (!externalId) {
 		error(401, 'Unauthorized');
@@ -75,5 +86,5 @@ export const load = (async (event) => {
 	console.log('New chat ChatId:', chatId);
 
 	// Return the chat information
-	return { chatId, courseId: course?.id };
+	return { moodleLinkVerification: null, chatId, courseId: course?.id };
 }) satisfies PageServerLoad;
