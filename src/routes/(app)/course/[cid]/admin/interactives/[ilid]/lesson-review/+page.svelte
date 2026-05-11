@@ -28,6 +28,14 @@
 
 	let { data, form }: PageProps = $props();
 
+	type LessonDeleteTarget = {
+		sessionId: string;
+		studentName: string;
+		attemptNumber: number;
+		startedAt: Date;
+		revision: string;
+	};
+
 	const alertOptions: { value: LessonReviewAlertKind; label: string }[] = [
 		{ value: 'checkpoint_blocked', label: 'Checkpoint bloqueado' },
 		{ value: 'repeated_retry', label: 'Reintentos repetidos' },
@@ -41,6 +49,7 @@
 	let alertFilter = $state(page.url.searchParams.get('alert') ?? 'all');
 	let showStaffAttempts = $state(page.url.searchParams.get('staff') === '1');
 	let expandedStudents = $state<Record<string, boolean>>({});
+	let deleteTarget = $state<LessonDeleteTarget | null>(null);
 
 	const staffRows = $derived(data.students.filter((row) => row.student.audience === 'staff'));
 
@@ -172,8 +181,18 @@
 		return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300';
 	}
 
-	function deleteLabel(attempt: LessonReviewAttemptSummary, studentName: string): string {
-		return `${studentName} · intento #${attempt.attemptNumber} · ${formatDate(attempt.startedAt)}`;
+	function openDeleteTarget(attempt: LessonReviewAttemptSummary, studentName: string) {
+		deleteTarget = {
+			sessionId: attempt.sessionId,
+			studentName,
+			attemptNumber: attempt.attemptNumber,
+			startedAt: attempt.startedAt,
+			revision: revisionLabel(attempt)
+		};
+	}
+
+	function closeDeleteTarget() {
+		deleteTarget = null;
 	}
 </script>
 
@@ -551,53 +570,25 @@
 
 							<div class="flex flex-col gap-3 xl:items-end">
 								{#if row.latestAttempt}
-									<a
-										href={resolve(
-											`/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lesson-review/${row.latestAttempt.sessionId}`
-										)}
-										class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
-									>
-										Ver intento
-									</a>
-									<details class="group w-full xl:w-72">
-										<summary
-											class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300 dark:hover:bg-rose-950/35"
+									<div class="flex flex-wrap items-center gap-2 xl:justify-end">
+										<a
+											href={resolve(
+												`/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lesson-review/${row.latestAttempt.sessionId}`
+											)}
+											class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+										>
+											Ver intento
+										</a>
+										<button
+											type="button"
+											class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-rose-300 hover:text-rose-700 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-rose-800 dark:hover:text-rose-300 dark:focus-visible:ring-offset-slate-900"
+											aria-label={`Borrar intento #${row.latestAttempt.attemptNumber} de ${row.student.username}`}
+											title={`Borrar intento #${row.latestAttempt.attemptNumber}`}
+											onclick={() => openDeleteTarget(row.latestAttempt!, row.student.username)}
 										>
 											<Trash2 class="h-4 w-4" />
-											Borrar intento
-										</summary>
-										<form
-											method="POST"
-											action="?/deleteAttempt"
-											class="mt-3 rounded-[22px] border border-rose-200 bg-white p-4 text-left shadow-sm dark:border-rose-900/60 dark:bg-slate-950"
-										>
-											<input type="hidden" name="sessionId" value={row.latestAttempt.sessionId} />
-											<p class="text-xs font-medium text-rose-800 dark:text-rose-200">
-												{deleteLabel(row.latestAttempt, row.student.username)}
-											</p>
-											<p class="mt-2 text-xs text-slate-600 dark:text-slate-300">
-												Se borrará el transcript, métricas del intento y se recalculará el progreso.
-											</p>
-											<input
-												name="confirm"
-												placeholder="BORRAR"
-												autocomplete="off"
-												class="mt-3 h-10 w-full rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm text-slate-900 outline-none focus:border-rose-500 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-slate-100"
-											/>
-											<input
-												name="reason"
-												placeholder="Motivo opcional"
-												class="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-											/>
-											<button
-												type="submit"
-												class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700"
-											>
-												<Trash2 class="h-4 w-4" />
-												Confirmar borrado
-											</button>
-										</form>
-									</details>
+										</button>
+									</div>
 								{/if}
 
 								{#if row.previousAttempts.length > 0}
@@ -642,50 +633,25 @@
 											</span>
 										</div>
 
-										<a
-											href={resolve(
-												`/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lesson-review/${attempt.sessionId}`
-											)}
-											class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-amber-300 hover:text-amber-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-amber-700 dark:hover:text-amber-200"
-										>
-											Abrir detalle
-										</a>
-										<details class="group sm:w-64">
-											<summary
-												class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 dark:border-rose-900/60 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-950/25"
+										<div class="flex flex-wrap items-center gap-2 sm:justify-end">
+											<a
+												href={resolve(
+													`/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lesson-review/${attempt.sessionId}`
+												)}
+												class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-amber-300 hover:text-amber-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-amber-700 dark:hover:text-amber-200"
+											>
+												Abrir detalle
+											</a>
+											<button
+												type="button"
+												class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-rose-300 hover:text-rose-700 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-rose-800 dark:hover:text-rose-300 dark:focus-visible:ring-offset-slate-900"
+												aria-label={`Borrar intento #${attempt.attemptNumber} de ${row.student.username}`}
+												title={`Borrar intento #${attempt.attemptNumber}`}
+												onclick={() => openDeleteTarget(attempt, row.student.username)}
 											>
 												<Trash2 class="h-4 w-4" />
-												Borrar
-											</summary>
-											<form
-												method="POST"
-												action="?/deleteAttempt"
-												class="mt-3 rounded-[20px] border border-rose-200 bg-white p-3 dark:border-rose-900/60 dark:bg-slate-950"
-											>
-												<input type="hidden" name="sessionId" value={attempt.sessionId} />
-												<p class="text-xs font-medium text-rose-800 dark:text-rose-200">
-													{deleteLabel(attempt, row.student.username)}
-												</p>
-												<input
-													name="confirm"
-													placeholder="BORRAR"
-													autocomplete="off"
-													class="mt-2 h-9 w-full rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm text-slate-900 outline-none focus:border-rose-500 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-slate-100"
-												/>
-												<input
-													name="reason"
-													placeholder="Motivo opcional"
-													class="mt-2 h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-												/>
-												<button
-													type="submit"
-													class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700"
-												>
-													<Trash2 class="h-4 w-4" />
-													Confirmar
-												</button>
-											</form>
-										</details>
+											</button>
+										</div>
 									</div>
 								{/each}
 							</div>
@@ -696,3 +662,92 @@
 		</section>
 	</div>
 </div>
+
+{#if deleteTarget}
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm"
+		role="presentation"
+		onclick={closeDeleteTarget}
+	>
+		<div
+			class="w-full max-w-lg rounded-[28px] border border-rose-200 bg-white p-5 shadow-2xl dark:border-rose-900/60 dark:bg-slate-950"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="delete-lesson-attempt-title"
+			tabindex="-1"
+			onclick={(event) => event.stopPropagation()}
+			onkeydown={(event) => event.key === 'Escape' && closeDeleteTarget()}
+		>
+			<div class="flex items-start gap-4">
+				<div
+					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
+				>
+					<Trash2 class="h-5 w-5" />
+				</div>
+				<div class="min-w-0 flex-1">
+					<h2
+						id="delete-lesson-attempt-title"
+						class="text-lg font-semibold text-slate-900 dark:text-white"
+					>
+						Borrar intento #{deleteTarget.attemptNumber}
+					</h2>
+					<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+						{deleteTarget.studentName} · {deleteTarget.revision} · {formatDate(
+							deleteTarget.startedAt
+						)}
+					</p>
+				</div>
+			</div>
+
+			<p
+				class="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-200"
+			>
+				Se borrará el transcript, las métricas de este intento y se recalculará el progreso agregado
+				del alumno. Esta acción no se puede deshacer.
+			</p>
+
+			<form method="POST" action="?/deleteAttempt" class="mt-5 space-y-3">
+				<input type="hidden" name="sessionId" value={deleteTarget.sessionId} />
+				<label class="block">
+					<span class="text-sm font-medium text-slate-700 dark:text-slate-200">
+						Escribe BORRAR para confirmar
+					</span>
+					<input
+						name="confirm"
+						placeholder="BORRAR"
+						autocomplete="off"
+						class="mt-2 h-11 w-full rounded-2xl border border-rose-200 bg-rose-50 px-3 text-sm text-slate-900 outline-none focus:border-rose-500 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-slate-100"
+					/>
+				</label>
+				<label class="block">
+					<span class="text-sm font-medium text-slate-700 dark:text-slate-200">
+						Motivo opcional
+					</span>
+					<input
+						name="reason"
+						class="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+					/>
+				</label>
+				{#if form?.deleteError}
+					<p class="text-sm text-rose-700 dark:text-rose-300">{form.deleteError}</p>
+				{/if}
+				<div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+					<button
+						type="button"
+						class="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+						onclick={closeDeleteTarget}
+					>
+						Cancelar
+					</button>
+					<button
+						type="submit"
+						class="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-rose-600 px-4 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+					>
+						<Trash2 class="h-4 w-4" />
+						Borrar intento
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}

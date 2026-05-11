@@ -19,6 +19,8 @@
 	import { formatDate } from '$lib/helpers/dateUtils';
 	import type { PageProps } from './$types';
 
+	type ReviewChat = PageProps['data']['chats'][number];
+
 	let { form }: PageProps = $props();
 
 	// Reactive variables for filters and sorting
@@ -29,6 +31,7 @@
 	let sortDirection = $state(page.data.sorting?.direction || 'desc');
 	let isLoading = $state(false);
 	let showFilters = $state(false);
+	let deleteTarget = $state<ReviewChat | null>(null);
 
 	// Create pagination pages array with proper format for Flowbite Svelte Pagination
 	let paginationPages = $derived(generatePaginationPages());
@@ -152,6 +155,10 @@
 	function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
 		updateFilters();
+	}
+
+	function closeDeleteModal() {
+		deleteTarget = null;
 	}
 
 	// Update isLoading when page changes
@@ -321,50 +328,20 @@
 			{#if page.data.chats.length > 0}
 				<div class="space-y-4">
 					{#each page.data.chats as chat (chat.chat.id)}
-						<ChatCard chatInstance={chat} interactiveChat={page.data.interactiveChat} />
-						<details
-							class="rounded-lg border border-rose-200 bg-rose-50 p-4 shadow-sm dark:border-rose-900/60 dark:bg-rose-950/20"
-						>
-							<summary
-								class="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-rose-700 dark:text-rose-300"
-							>
-								<Trash2 class="h-4 w-4" />
-								Borrar intento
-							</summary>
-							<form
-								method="POST"
-								action="?/deleteAttempt"
-								class="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_160px_180px_auto] md:items-end"
-							>
-								<input type="hidden" name="chatId" value={chat.chat.id} />
-								<div>
-									<p class="text-xs font-medium text-rose-800 dark:text-rose-200">
-										{chat.user.username} · {formatDate(chat.chat.createdAt)}
-									</p>
-									<p class="mt-1 text-xs text-slate-600 dark:text-slate-300">
-										Se borrará el transcript, métricas del intento y se recalculará el progreso.
-									</p>
-								</div>
-								<input
-									name="confirm"
-									placeholder="BORRAR"
-									autocomplete="off"
-									class="h-10 rounded-xl border border-rose-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-500 dark:border-rose-900/60 dark:bg-slate-950 dark:text-slate-100"
-								/>
-								<input
-									name="reason"
-									placeholder="Motivo opcional"
-									class="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-								/>
+						<div class="space-y-2">
+							<ChatCard chatInstance={chat} interactiveChat={page.data.interactiveChat} />
+							<div class="flex justify-end px-1">
 								<button
-									type="submit"
-									class="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+									type="button"
+									class="inline-flex items-center gap-2 rounded-xl border border-transparent px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:text-gray-400 dark:hover:border-rose-900/60 dark:hover:bg-rose-950/25 dark:hover:text-rose-300 dark:focus-visible:ring-offset-gray-900"
+									aria-label={`Borrar intento de ${chat.user.username} creado el ${formatDate(chat.chat.createdAt)}`}
+									onclick={() => (deleteTarget = chat)}
 								>
-									<Trash2 class="h-4 w-4" />
-									Confirmar
+									<Trash2 class="h-3.5 w-3.5" />
+									Borrar este intento
 								</button>
-							</form>
-						</details>
+							</div>
+						</div>
 					{/each}
 				</div>
 			{:else}
@@ -410,6 +387,94 @@
 		{/if}
 	</div>
 </div>
+
+{#if deleteTarget}
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/50 px-4 py-6 backdrop-blur-sm"
+		role="presentation"
+		onclick={closeDeleteModal}
+	>
+		<div
+			class="w-full max-w-lg rounded-2xl border border-rose-200 bg-white p-5 shadow-2xl dark:border-rose-900/60 dark:bg-gray-900"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="delete-chat-attempt-title"
+			tabindex="-1"
+			onclick={(event) => event.stopPropagation()}
+			onkeydown={(event) => event.key === 'Escape' && closeDeleteModal()}
+		>
+			<div class="flex items-start gap-4">
+				<div
+					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
+				>
+					<Trash2 class="h-5 w-5" />
+				</div>
+				<div class="min-w-0 flex-1">
+					<h2
+						id="delete-chat-attempt-title"
+						class="text-lg font-semibold text-gray-900 dark:text-white"
+					>
+						Borrar intento de chat
+					</h2>
+					<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+						{deleteTarget.user.username} · {page.data.interactiveChat?.interactive_learning?.name ||
+							'Actividad'} · {formatDate(deleteTarget.chat.createdAt)}
+					</p>
+				</div>
+			</div>
+
+			<p
+				class="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-200"
+			>
+				Se borrará el transcript, las métricas de este intento y se recalculará el progreso agregado
+				del alumno. Esta acción no se puede deshacer.
+			</p>
+
+			<form method="POST" action="?/deleteAttempt" class="mt-5 space-y-3">
+				<input type="hidden" name="chatId" value={deleteTarget.chat.id} />
+				<label class="block">
+					<span class="text-sm font-medium text-gray-700 dark:text-gray-200">
+						Escribe BORRAR para confirmar
+					</span>
+					<input
+						name="confirm"
+						placeholder="BORRAR"
+						autocomplete="off"
+						class="mt-2 h-11 w-full rounded-2xl border border-rose-200 bg-rose-50 px-3 text-sm text-gray-900 outline-none focus:border-rose-500 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-gray-100"
+					/>
+				</label>
+				<label class="block">
+					<span class="text-sm font-medium text-gray-700 dark:text-gray-200">
+						Motivo opcional
+					</span>
+					<input
+						name="reason"
+						class="mt-2 h-11 w-full rounded-2xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none focus:border-rose-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+					/>
+				</label>
+				{#if form?.deleteError}
+					<p class="text-sm text-rose-700 dark:text-rose-300">{form.deleteError}</p>
+				{/if}
+				<div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+					<button
+						type="button"
+						class="inline-flex h-11 items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800"
+						onclick={closeDeleteModal}
+					>
+						Cancelar
+					</button>
+					<button
+						type="submit"
+						class="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-rose-600 px-4 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+					>
+						<Trash2 class="h-4 w-4" />
+						Borrar intento
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
 
 <style>
 	/* Add any custom styles here */

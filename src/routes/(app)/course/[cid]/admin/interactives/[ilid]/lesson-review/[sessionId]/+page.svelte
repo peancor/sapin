@@ -21,6 +21,7 @@
 	} from '$lib/types/lessonReview';
 
 	let { data, form }: PageProps = $props();
+	let showDeleteModal = $state(false);
 
 	function statusLabel(attempt: LessonReviewAttemptSummary): string {
 		if (attempt.reviewStatus === 'completed') return 'Completado';
@@ -87,6 +88,10 @@
 		return data.detail.student.audience === 'student'
 			? 'Alumno'
 			: `Staff · ${data.detail.student.courseRole}`;
+	}
+
+	function closeDeleteModal() {
+		showDeleteModal = false;
 	}
 </script>
 
@@ -193,50 +198,16 @@
 							</p>
 						{/if}
 					</div>
-					<details class="group xl:w-80">
-						<summary
-							class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300 dark:hover:bg-rose-950/35"
+					<div class="xl:w-80 xl:text-right">
+						<button
+							type="button"
+							class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:border-rose-300 hover:text-rose-700 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-rose-800 dark:hover:text-rose-300 dark:focus-visible:ring-offset-slate-900"
+							onclick={() => (showDeleteModal = true)}
 						>
 							<Trash2 class="h-4 w-4" />
 							Borrar intento
-						</summary>
-						<form
-							method="POST"
-							action="?/deleteAttempt"
-							class="mt-3 rounded-[22px] border border-rose-200 bg-white p-4 text-left shadow-sm dark:border-rose-900/60 dark:bg-slate-950"
-						>
-							<p class="text-xs font-medium text-rose-800 dark:text-rose-200">
-								{data.detail.student.username} · intento #{data.detail.attempt.attemptNumber} · {formatDate(
-									data.detail.attempt.startedAt
-								)}
-							</p>
-							<p class="mt-2 text-xs text-slate-600 dark:text-slate-300">
-								Se borrará el transcript, métricas del intento y se recalculará el progreso del
-								alumno.
-							</p>
-							<input
-								name="confirm"
-								placeholder="BORRAR"
-								autocomplete="off"
-								class="mt-3 h-10 w-full rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm text-slate-900 outline-none focus:border-rose-500 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-slate-100"
-							/>
-							<input
-								name="reason"
-								placeholder="Motivo opcional"
-								class="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-							/>
-							<button
-								type="submit"
-								class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700"
-							>
-								<Trash2 class="h-4 w-4" />
-								Confirmar borrado
-							</button>
-							{#if form?.deleteError}
-								<p class="mt-3 text-sm text-rose-700 dark:text-rose-300">{form.deleteError}</p>
-							{/if}
-						</form>
-					</details>
+						</button>
+					</div>
 				</div>
 
 				<div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -681,3 +652,91 @@
 		</section>
 	</div>
 </div>
+
+{#if showDeleteModal}
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm"
+		role="presentation"
+		onclick={closeDeleteModal}
+	>
+		<div
+			class="w-full max-w-lg rounded-[28px] border border-rose-200 bg-white p-5 shadow-2xl dark:border-rose-900/60 dark:bg-slate-950"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="delete-lesson-detail-title"
+			tabindex="-1"
+			onclick={(event) => event.stopPropagation()}
+			onkeydown={(event) => event.key === 'Escape' && closeDeleteModal()}
+		>
+			<div class="flex items-start gap-4">
+				<div
+					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
+				>
+					<Trash2 class="h-5 w-5" />
+				</div>
+				<div class="min-w-0 flex-1">
+					<h2
+						id="delete-lesson-detail-title"
+						class="text-lg font-semibold text-slate-900 dark:text-white"
+					>
+						Borrar intento #{data.detail.attempt.attemptNumber}
+					</h2>
+					<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+						{data.detail.student.username} · {data.activity.name} · {formatDate(
+							data.detail.attempt.startedAt
+						)}
+					</p>
+				</div>
+			</div>
+
+			<p
+				class="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-200"
+			>
+				Se borrará el transcript, las métricas de este intento y se recalculará el progreso agregado
+				del alumno. Después volverás al listado de revisión.
+			</p>
+
+			<form method="POST" action="?/deleteAttempt" class="mt-5 space-y-3">
+				<label class="block">
+					<span class="text-sm font-medium text-slate-700 dark:text-slate-200">
+						Escribe BORRAR para confirmar
+					</span>
+					<input
+						name="confirm"
+						placeholder="BORRAR"
+						autocomplete="off"
+						class="mt-2 h-11 w-full rounded-2xl border border-rose-200 bg-rose-50 px-3 text-sm text-slate-900 outline-none focus:border-rose-500 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-slate-100"
+					/>
+				</label>
+				<label class="block">
+					<span class="text-sm font-medium text-slate-700 dark:text-slate-200">
+						Motivo opcional
+					</span>
+					<input
+						name="reason"
+						class="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+					/>
+				</label>
+				{#if form?.deleteError}
+					<p class="text-sm text-rose-700 dark:text-rose-300">{form.deleteError}</p>
+				{/if}
+				<div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+					<button
+						type="button"
+						class="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+						onclick={closeDeleteModal}
+					>
+						Cancelar
+					</button>
+					<button
+						type="submit"
+						class="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-rose-600 px-4 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+					>
+						<Trash2 class="h-4 w-4" />
+						Borrar intento
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}

@@ -46,6 +46,7 @@
 	let hasAppliedStoredViewPreference = $state(false);
 	let showFilters = $state(false);
 	let isLoading = $state(false);
+	let deleteTarget = $state<ReviewSession | null>(null);
 
 	$effect(() => {
 		searchTerm = page.data.filters?.search || '';
@@ -241,7 +242,29 @@
 			'Sin contenido textual util registrado.'
 		);
 	}
+
+	function closeDeleteModal() {
+		deleteTarget = null;
+	}
 </script>
+
+{#snippet sessionActionButtons(session: ReviewSession)}
+	<a
+		href={resolve(`/agent-chat/${page.params.ilid}/view/${session.chatId}`)}
+		class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 dark:focus-visible:ring-offset-slate-900"
+	>
+		Ver actividad
+	</a>
+	<button
+		type="button"
+		class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-rose-300 hover:text-rose-700 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-rose-800 dark:hover:text-rose-300 dark:focus-visible:ring-offset-slate-900"
+		aria-label={`Borrar intento de ${session.username ?? 'Usuario'} creado el ${formatDate(session.chatCreatedAt)}`}
+		title="Borrar intento"
+		onclick={() => (deleteTarget = session)}
+	>
+		<Trash2 class="h-4 w-4" />
+	</button>
+{/snippet}
 
 <div
 	class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.08),_transparent_24%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.1),_transparent_22%),linear-gradient(180deg,_#f8fafc_0%,_#eef2f7_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.09),_transparent_24%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_22%),linear-gradient(180deg,_#020617_0%,_#111827_100%)]"
@@ -572,12 +595,7 @@
 										</p>
 									</div>
 
-									<a
-										href={resolve(`/agent-chat/${page.params.ilid}/view/${session.chatId}`)}
-										class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 dark:focus-visible:ring-offset-slate-900"
-									>
-										Ver actividad
-									</a>
+									{@render sessionActionButtons(session)}
 								</div>
 							</div>
 						{:else if viewMode === 'compact'}
@@ -726,12 +744,9 @@
 								</div>
 
 								<div class="flex flex-col gap-2 xl:items-end">
-									<a
-										href={resolve(`/agent-chat/${page.params.ilid}/view/${session.chatId}`)}
-										class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 dark:focus-visible:ring-offset-slate-900"
-									>
-										Ver actividad
-									</a>
+									<div class="flex flex-wrap items-center gap-2 xl:justify-end">
+										{@render sessionActionButtons(session)}
+									</div>
 
 									{#if session.globalStats.totalPasteCount > 0}
 										<span
@@ -785,12 +800,9 @@
 									</div>
 								</div>
 
-								<a
-									href={resolve(`/agent-chat/${page.params.ilid}/view/${session.chatId}`)}
-									class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 dark:focus-visible:ring-offset-slate-900"
-								>
-									Ver actividad
-								</a>
+								<div class="flex flex-wrap items-center gap-2 xl:justify-end">
+									{@render sessionActionButtons(session)}
+								</div>
 							</div>
 
 							<div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -992,51 +1004,6 @@
 								</div>
 							</div>
 						{/if}
-
-						<details
-							class="mt-5 rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 dark:border-rose-900/60 dark:bg-rose-950/20"
-						>
-							<summary
-								class="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-rose-700 dark:text-rose-300"
-							>
-								<Trash2 class="h-4 w-4" />
-								Borrar intento
-							</summary>
-							<form
-								method="POST"
-								action="?/deleteAttempt"
-								class="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_160px_200px_auto] xl:items-end"
-							>
-								<input type="hidden" name="chatId" value={session.chatId} />
-								<div>
-									<p class="text-xs font-medium text-rose-800 dark:text-rose-200">
-										{session.username ?? 'Usuario'} · {formatDate(session.chatCreatedAt)}
-									</p>
-									<p class="mt-1 text-xs text-slate-600 dark:text-slate-300">
-										Se borrará el transcript, herramientas, componentes UI y se recalculará el
-										progreso.
-									</p>
-								</div>
-								<input
-									name="confirm"
-									placeholder="BORRAR"
-									autocomplete="off"
-									class="h-10 rounded-xl border border-rose-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-500 dark:border-rose-900/60 dark:bg-slate-950 dark:text-slate-100"
-								/>
-								<input
-									name="reason"
-									placeholder="Motivo opcional"
-									class="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-								/>
-								<button
-									type="submit"
-									class="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 text-sm font-medium text-white transition-colors hover:bg-rose-700"
-								>
-									<Trash2 class="h-4 w-4" />
-									Confirmar
-								</button>
-							</form>
-						</details>
 					</article>
 				{/each}
 			</div>
@@ -1053,3 +1020,93 @@
 		{/if}
 	</div>
 </div>
+
+{#if deleteTarget}
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm"
+		role="presentation"
+		onclick={closeDeleteModal}
+	>
+		<div
+			class="w-full max-w-lg rounded-[28px] border border-rose-200 bg-white p-5 shadow-2xl dark:border-rose-900/60 dark:bg-slate-950"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="delete-agent-attempt-title"
+			tabindex="-1"
+			onclick={(event) => event.stopPropagation()}
+			onkeydown={(event) => event.key === 'Escape' && closeDeleteModal()}
+		>
+			<div class="flex items-start gap-4">
+				<div
+					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
+				>
+					<Trash2 class="h-5 w-5" />
+				</div>
+				<div class="min-w-0 flex-1">
+					<h2
+						id="delete-agent-attempt-title"
+						class="text-lg font-semibold text-slate-900 dark:text-white"
+					>
+						Borrar intento agéntico
+					</h2>
+					<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+						{deleteTarget.username ?? 'Usuario'} · {data.interactive.name} · {formatDate(
+							deleteTarget.chatCreatedAt
+						)}
+					</p>
+				</div>
+			</div>
+
+			<p
+				class="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-200"
+			>
+				Se borrará el transcript, herramientas, componentes UI y métricas de este intento. Si el
+				intento modificó memoria persistente y hay revisiones posteriores, el servidor bloqueará el
+				borrado para revisión manual.
+			</p>
+
+			<form method="POST" action="?/deleteAttempt" class="mt-5 space-y-3">
+				<input type="hidden" name="chatId" value={deleteTarget.chatId} />
+				<label class="block">
+					<span class="text-sm font-medium text-slate-700 dark:text-slate-200">
+						Escribe BORRAR para confirmar
+					</span>
+					<input
+						name="confirm"
+						placeholder="BORRAR"
+						autocomplete="off"
+						class="mt-2 h-11 w-full rounded-2xl border border-rose-200 bg-rose-50 px-3 text-sm text-slate-900 outline-none focus:border-rose-500 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-slate-100"
+					/>
+				</label>
+				<label class="block">
+					<span class="text-sm font-medium text-slate-700 dark:text-slate-200">
+						Motivo opcional
+					</span>
+					<input
+						name="reason"
+						class="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+					/>
+				</label>
+				{#if form?.deleteError}
+					<p class="text-sm text-rose-700 dark:text-rose-300">{form.deleteError}</p>
+				{/if}
+				<div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+					<button
+						type="button"
+						class="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+						onclick={closeDeleteModal}
+					>
+						Cancelar
+					</button>
+					<button
+						type="submit"
+						class="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-rose-600 px-4 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+					>
+						<Trash2 class="h-4 w-4" />
+						Borrar intento
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
