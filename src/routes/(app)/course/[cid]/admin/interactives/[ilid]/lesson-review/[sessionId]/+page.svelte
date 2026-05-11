@@ -8,7 +8,8 @@
 		CheckCircle2,
 		GitBranch,
 		ListChecks,
-		Route
+		Route,
+		Trash2
 	} from 'lucide-svelte';
 	import { formatDate } from '$lib/helpers/dateUtils';
 	import { renderMarkdownMath } from '$lib/utils';
@@ -19,7 +20,7 @@
 		LessonReviewVisitDetail
 	} from '$lib/types/lessonReview';
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
 
 	function statusLabel(attempt: LessonReviewAttemptSummary): string {
 		if (attempt.reviewStatus === 'completed') return 'Completado';
@@ -192,6 +193,50 @@
 							</p>
 						{/if}
 					</div>
+					<details class="group xl:w-80">
+						<summary
+							class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300 dark:hover:bg-rose-950/35"
+						>
+							<Trash2 class="h-4 w-4" />
+							Borrar intento
+						</summary>
+						<form
+							method="POST"
+							action="?/deleteAttempt"
+							class="mt-3 rounded-[22px] border border-rose-200 bg-white p-4 text-left shadow-sm dark:border-rose-900/60 dark:bg-slate-950"
+						>
+							<p class="text-xs font-medium text-rose-800 dark:text-rose-200">
+								{data.detail.student.username} · intento #{data.detail.attempt.attemptNumber} · {formatDate(
+									data.detail.attempt.startedAt
+								)}
+							</p>
+							<p class="mt-2 text-xs text-slate-600 dark:text-slate-300">
+								Se borrará el transcript, métricas del intento y se recalculará el progreso del
+								alumno.
+							</p>
+							<input
+								name="confirm"
+								placeholder="BORRAR"
+								autocomplete="off"
+								class="mt-3 h-10 w-full rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm text-slate-900 outline-none focus:border-rose-500 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-slate-100"
+							/>
+							<input
+								name="reason"
+								placeholder="Motivo opcional"
+								class="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+							/>
+							<button
+								type="submit"
+								class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+							>
+								<Trash2 class="h-4 w-4" />
+								Confirmar borrado
+							</button>
+							{#if form?.deleteError}
+								<p class="mt-3 text-sm text-rose-700 dark:text-rose-300">{form.deleteError}</p>
+							{/if}
+						</form>
+					</details>
 				</div>
 
 				<div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

@@ -1,9 +1,10 @@
 import type { PageServerLoad } from './$types';
-import { error, redirect } from '@sveltejs/kit';
+import { error, fail, redirect, type Actions } from '@sveltejs/kit';
 import { and, asc, desc, eq, inArray, like, sql } from 'drizzle-orm';
 import { db, CourseInteractiveAuthUtils } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
 import { AgentSessionAnalyticsService } from '$lib/server/agent';
+import { ActivityAttemptDeletionService } from '$lib/server/attempts/ActivityAttemptDeletionService';
 
 export const load = (async ({ params, url, locals }) => {
 	if (!locals.user) throw redirect(303, '/login');
@@ -141,11 +142,11 @@ export const load = (async ({ params, url, locals }) => {
 	});
 
 	const computedSessions = allSessions.flatMap((session) => {
-			const summary = summaries.get(session.chatId);
-			if (!summary) return [];
+		const summary = summaries.get(session.chatId);
+		if (!summary) return [];
 
-			return [
-				{
+		return [
+			{
 				...session,
 				previewText: summary.previewText,
 				latestText: summary.latestText,
@@ -155,16 +156,15 @@ export const load = (async ({ params, url, locals }) => {
 				finalization: summary.finalization,
 				stats: summary.stats,
 				globalStats: summary.globalStats
-				}
-			];
-		});
+			}
+		];
+	});
 
-	const filteredSessions = computedSessions
-		.filter((session) => {
-			if (studentMessagesFilter === 'with') return session.hasStudentMessages;
-			if (studentMessagesFilter === 'without') return !session.hasStudentMessages;
-			return true;
-		});
+	const filteredSessions = computedSessions.filter((session) => {
+		if (studentMessagesFilter === 'with') return session.hasStudentMessages;
+		if (studentMessagesFilter === 'without') return !session.hasStudentMessages;
+		return true;
+	});
 
 	const totalCount = filteredSessions.length;
 	const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -185,3 +185,33 @@ export const load = (async ({ params, url, locals }) => {
 		sorting: { direction: sortDirection }
 	};
 }) satisfies PageServerLoad;
+
+export const actions = {
+	deleteAttempt: async ({ request, params, locals }) => {
+		if (!locals.user) throw redirect(303, '/login');
+
+		const formData = await request.formData();
+		const chatId = String(formData.get('chatId') ?? '');
+		if (!chatId) return fail(400, { deleteError: 'Sesión no indicada.' });
+
+		try {
+			ActivityAttemptDeletionService.requireDeleteConfirmation(formData);
+			await ActivityAttemptDeletionService.deleteAgentAttempt({
+				courseId: params.cid!,
+				activityId: params.ilid!,
+				chatId,
+				deletedByUserId: locals.user.id,
+				deletedBySystemRoleLevel: locals.user.highestRoleLevel,
+				reason: ActivityAttemptDeletionService.normalizeReason(formData.get('reason'))
+			});
+		} catch (errorValue) {
+			if (errorValue instanceof Response) throw errorValue;
+			return fail(400, {
+				deleteError:
+					errorValue instanceof Error ? errorValue.message : 'No se pudo borrar el intento.'
+			});
+		}
+
+		return { deletedAttemptId: chatId };
+	}
+} satisfies Actions;

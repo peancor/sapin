@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import {
 		AlertTriangle,
 		ArrowLeft,
@@ -14,6 +15,7 @@
 		ListFilter,
 		Search,
 		Shield,
+		Trash2,
 		Users
 	} from 'lucide-svelte';
 	import type { PageProps } from './$types';
@@ -24,7 +26,7 @@
 	} from '$lib/types/lessonReview';
 	import { formatDate } from '$lib/helpers/dateUtils';
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
 
 	const alertOptions: { value: LessonReviewAlertKind; label: string }[] = [
 		{ value: 'checkpoint_blocked', label: 'Checkpoint bloqueado' },
@@ -56,8 +58,7 @@
 				row.student.email?.toLowerCase().includes(query);
 
 			const matchesStatus =
-				statusFilter === 'all' ||
-				row.latestAttempt?.reviewStatus === statusFilter;
+				statusFilter === 'all' || row.latestAttempt?.reviewStatus === statusFilter;
 
 			const matchesAlert =
 				alertFilter === 'all' ||
@@ -80,7 +81,7 @@
 	}
 
 	function syncFilters() {
-		const params = new URLSearchParams(page.url.search);
+		const params = new SvelteURLSearchParams(page.url.search);
 
 		if (searchTerm.trim()) {
 			params.set('search', searchTerm.trim());
@@ -107,7 +108,9 @@
 		}
 
 		const query = params.toString();
-		goto(query ? `${page.url.pathname}?${query}` : page.url.pathname, {
+		const nextHref = query ? `${page.url.pathname}?${query}` : page.url.pathname;
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		goto(new URL(nextHref, page.url.origin), {
 			replaceState: true,
 			noScroll: true,
 			keepFocus: true
@@ -168,10 +171,18 @@
 
 		return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300';
 	}
+
+	function deleteLabel(attempt: LessonReviewAttemptSummary, studentName: string): string {
+		return `${studentName} · intento #${attempt.attemptNumber} · ${formatDate(attempt.startedAt)}`;
+	}
 </script>
 
-<div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.09),_transparent_24%),radial-gradient(circle_at_top_right,_rgba(56,189,248,0.08),_transparent_22%),linear-gradient(180deg,_#fffaf0_0%,_#f8fafc_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.08),_transparent_24%),radial-gradient(circle_at_top_right,_rgba(56,189,248,0.06),_transparent_22%),linear-gradient(180deg,_#020617_0%,_#111827_100%)]">
-	<div class="sticky top-0 z-20 border-b border-white/70 bg-white/85 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/85">
+<div
+	class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.09),_transparent_24%),radial-gradient(circle_at_top_right,_rgba(56,189,248,0.08),_transparent_22%),linear-gradient(180deg,_#fffaf0_0%,_#f8fafc_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.08),_transparent_24%),radial-gradient(circle_at_top_right,_rgba(56,189,248,0.06),_transparent_22%),linear-gradient(180deg,_#020617_0%,_#111827_100%)]"
+>
+	<div
+		class="sticky top-0 z-20 border-b border-white/70 bg-white/85 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/85"
+	>
 		<div class="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6">
 			<a
 				href={resolve(`/course/${page.params.cid}/admin/interactives/${page.params.ilid}`)}
@@ -182,10 +193,12 @@
 			</a>
 
 			<div class="min-w-0 flex-1">
-				<p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-700 dark:text-amber-300">
+				<p
+					class="text-[11px] font-semibold tracking-[0.24em] text-amber-700 uppercase dark:text-amber-300"
+				>
 					Revisión pedagógica
 				</p>
-				<h1 class="truncate text-lg font-semibold text-slate-900 dark:text-white sm:text-xl">
+				<h1 class="truncate text-lg font-semibold text-slate-900 sm:text-xl dark:text-white">
 					{data.activity.name}
 				</h1>
 			</div>
@@ -194,12 +207,18 @@
 
 	<div class="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
 		<section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-			<div class="rounded-[28px] border border-slate-200/80 bg-white/92 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/88">
-				<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+			<div
+				class="rounded-[28px] border border-slate-200/80 bg-white/92 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/88"
+			>
+				<p
+					class="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+				>
 					Estudiantes
 				</p>
 				<div class="mt-3 flex items-center gap-3">
-					<div class="rounded-2xl bg-amber-100 p-3 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+					<div
+						class="rounded-2xl bg-amber-100 p-3 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+					>
 						<Users class="h-5 w-5" />
 					</div>
 					<div>
@@ -211,8 +230,12 @@
 				</div>
 			</div>
 
-			<div class="rounded-[28px] border border-slate-200/80 bg-white/92 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/88">
-				<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+			<div
+				class="rounded-[28px] border border-slate-200/80 bg-white/92 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/88"
+			>
+				<p
+					class="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+				>
 					Con intentos
 				</p>
 				<div class="mt-3 flex items-center gap-3">
@@ -228,12 +251,18 @@
 				</div>
 			</div>
 
-			<div class="rounded-[28px] border border-slate-200/80 bg-white/92 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/88">
-				<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+			<div
+				class="rounded-[28px] border border-slate-200/80 bg-white/92 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/88"
+			>
+				<p
+					class="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+				>
 					Completados
 				</p>
 				<div class="mt-3 flex items-center gap-3">
-					<div class="rounded-2xl bg-emerald-100 p-3 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+					<div
+						class="rounded-2xl bg-emerald-100 p-3 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+					>
 						<CheckCircle2 class="h-5 w-5" />
 					</div>
 					<div>
@@ -245,12 +274,18 @@
 				</div>
 			</div>
 
-			<div class="rounded-[28px] border border-slate-200/80 bg-white/92 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/88">
-				<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+			<div
+				class="rounded-[28px] border border-slate-200/80 bg-white/92 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/88"
+			>
+				<p
+					class="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+				>
 					Con alertas
 				</p>
 				<div class="mt-3 flex items-center gap-3">
-					<div class="rounded-2xl bg-rose-100 p-3 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+					<div
+						class="rounded-2xl bg-rose-100 p-3 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
+					>
 						<AlertTriangle class="h-5 w-5" />
 					</div>
 					<div>
@@ -263,23 +298,33 @@
 			</div>
 		</section>
 
-		<section class="rounded-[30px] border border-slate-200/80 bg-white/92 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/88">
+		<section
+			class="rounded-[30px] border border-slate-200/80 bg-white/92 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/88"
+		>
 			<div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
 				<label class="relative block flex-1">
 					<input
 						bind:value={searchTerm}
 						type="search"
 						placeholder="Buscar por estudiante, alias o email..."
-						class="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-amber-700"
+						class="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pr-4 pl-12 text-sm text-slate-900 transition outline-none focus:border-amber-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-amber-700"
 						onchange={syncFilters}
 					/>
-					<Search class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+					<Search
+						class="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-slate-400"
+					/>
 				</label>
 
 				<div class="flex flex-wrap gap-2">
-					<label class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+					<label
+						class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+					>
 						<ListFilter class="h-4 w-4" />
-						<select bind:value={statusFilter} class="bg-transparent outline-none" onchange={syncFilters}>
+						<select
+							bind:value={statusFilter}
+							class="bg-transparent outline-none"
+							onchange={syncFilters}
+						>
 							<option value="all">Todos los estados</option>
 							<option value="completed">Completados</option>
 							<option value="active">Activos</option>
@@ -287,9 +332,15 @@
 						</select>
 					</label>
 
-					<label class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+					<label
+						class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+					>
 						<AlertTriangle class="h-4 w-4" />
-						<select bind:value={alertFilter} class="bg-transparent outline-none" onchange={syncFilters}>
+						<select
+							bind:value={alertFilter}
+							class="bg-transparent outline-none"
+							onchange={syncFilters}
+						>
 							<option value="all">Todas las alertas</option>
 							{#each alertOptions as option (option.value)}
 								<option value={option.value}>{option.label}</option>
@@ -297,7 +348,9 @@
 						</select>
 					</label>
 
-					<label class="inline-flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-200">
+					<label
+						class="inline-flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-200"
+					>
 						<input
 							bind:checked={showStaffAttempts}
 							type="checkbox"
@@ -322,17 +375,31 @@
 
 			{#if showStaffAttempts}
 				<p class="mt-4 text-sm text-sky-700 dark:text-sky-300">
-					Los intentos del staff se muestran solo para depuración y no alteran las métricas pedagógicas superiores.
+					Los intentos del staff se muestran solo para depuración y no alteran las métricas
+					pedagógicas superiores.
 					{#if staffRows.length > 0}
-						<span class="font-medium"> Staff con actividad detectado: {staffRows.filter((row) => row.hasAnyActivity).length}.</span>
+						<span class="font-medium">
+							Staff con actividad detectado: {staffRows.filter((row) => row.hasAnyActivity)
+								.length}.</span
+						>
 					{/if}
 				</p>
 			{/if}
 		</section>
 
 		<section class="space-y-4">
+			{#if form?.deleteError}
+				<div
+					class="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-800 shadow-sm dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-200"
+				>
+					{form.deleteError}
+				</div>
+			{/if}
+
 			{#if filteredStudents.length === 0}
-				<div class="rounded-[30px] border border-slate-200/80 bg-white/92 px-6 py-16 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/88">
+				<div
+					class="rounded-[30px] border border-slate-200/80 bg-white/92 px-6 py-16 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/88"
+				>
 					<h2 class="text-lg font-semibold text-slate-900 dark:text-white">
 						No hay participantes que coincidan con los filtros
 					</h2>
@@ -342,7 +409,9 @@
 				</div>
 			{:else}
 				{#each filteredStudents as row (row.student.id)}
-					<article class="rounded-[32px] border border-slate-200/80 bg-white/95 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
+					<article
+						class="rounded-[32px] border border-slate-200/80 bg-white/95 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90"
+					>
 						<div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
 							<div class="min-w-0 flex-1">
 								<div class="flex flex-wrap items-center gap-2">
@@ -350,14 +419,18 @@
 										{row.student.username}
 									</h2>
 									{#if row.student.alias}
-										<span class="text-sm italic text-slate-500 dark:text-slate-400">
+										<span class="text-sm text-slate-500 italic dark:text-slate-400">
 											({row.student.alias})
 										</span>
 									{/if}
-									<span class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusClasses(row.latestAttempt)}`}>
+									<span
+										class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase ${statusClasses(row.latestAttempt)}`}
+									>
 										{statusLabel(row.latestAttempt)}
 									</span>
-									<span class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${roleBadgeClasses(row)}`}>
+									<span
+										class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase ${roleBadgeClasses(row)}`}
+									>
 										{audienceLabel(row)}
 									</span>
 								</div>
@@ -368,61 +441,93 @@
 
 								{#if row.latestAttempt}
 									<div class="mt-3 flex flex-wrap gap-2">
-										<span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200">
+										<span
+											class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200"
+										>
 											{revisionLabel(row.latestAttempt)}
 										</span>
 										{#if row.latestAttempt.isHistoricalApproximation}
-											<span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+											<span
+												class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200"
+											>
 												Histórico aproximado
 											</span>
 										{/if}
 									</div>
 									<div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
 										<div class="rounded-2xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-											<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Intento</p>
+											<p
+												class="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+											>
+												Intento
+											</p>
 											<p class="mt-1 text-base font-semibold text-slate-900 dark:text-white">
 												#{row.latestAttempt.attemptNumber}
 											</p>
 										</div>
 										<div class="rounded-2xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-											<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Última actividad</p>
+											<p
+												class="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+											>
+												Última actividad
+											</p>
 											<p class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
 												{formatDate(row.latestAttempt.lastActiveAt)}
 											</p>
 										</div>
 										<div class="rounded-2xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-											<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Recorrido</p>
+											<p
+												class="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+											>
+												Recorrido
+											</p>
 											<p class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
 												{row.latestAttempt.visitedBlocksCount}/{row.latestAttempt.totalBlocks} bloques
 											</p>
 										</div>
 										<div class="rounded-2xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-											<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Checks</p>
+											<p
+												class="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+											>
+												Checks
+											</p>
 											<p class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
-												{row.latestAttempt.checksPassed} superados · {row.latestAttempt.checksPending} pendientes
+												{row.latestAttempt.checksPassed} superados · {row.latestAttempt
+													.checksPending} pendientes
 											</p>
 										</div>
 										<div class="rounded-2xl bg-slate-100/90 px-4 py-3 dark:bg-slate-800/80">
-											<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Fricción</p>
+											<p
+												class="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+											>
+												Fricción
+											</p>
 											<p class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
-												{row.latestAttempt.checkRetryBlocks} reintentos · {row.latestAttempt.revisitedBlocks} revisitas
+												{row.latestAttempt.checkRetryBlocks} reintentos · {row.latestAttempt
+													.revisitedBlocks} revisitas
 											</p>
 										</div>
 									</div>
 
 									<div class="mt-4 flex flex-wrap gap-2">
-										<span class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300">
+										<span
+											class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300"
+										>
 											<GitBranch class="h-3.5 w-3.5" />
 											{row.latestAttempt.branchCount} ramas tomadas
 										</span>
 										{#if row.latestAttempt.hasAgentBlocks}
-											<span class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300">
+											<span
+												class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300"
+											>
 												<Bot class="h-3.5 w-3.5" />
 												Con bloques IA
 											</span>
 										{/if}
 										{#each row.latestAttempt.alerts as alert (alert.kind)}
-											<span class={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium ${alertClasses(alert.kind)}`}>
+											<span
+												class={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium ${alertClasses(alert.kind)}`}
+											>
 												<AlertTriangle class="h-3.5 w-3.5" />
 												{alert.label}
 											</span>
@@ -430,8 +535,12 @@
 									</div>
 
 									<p class="mt-4 text-sm text-slate-600 dark:text-slate-300">
-										Bloque actual: <span class="font-medium text-slate-900 dark:text-white">{row.latestAttempt.currentBlockTitle}</span>
-										<span class="text-slate-500 dark:text-slate-400"> · {row.latestAttempt.currentBlockKind}</span>
+										Bloque actual: <span class="font-medium text-slate-900 dark:text-white"
+											>{row.latestAttempt.currentBlockTitle}</span
+										>
+										<span class="text-slate-500 dark:text-slate-400">
+											· {row.latestAttempt.currentBlockKind}</span
+										>
 									</p>
 								{:else}
 									<p class="mt-4 text-sm text-slate-600 dark:text-slate-300">
@@ -443,11 +552,52 @@
 							<div class="flex flex-col gap-3 xl:items-end">
 								{#if row.latestAttempt}
 									<a
-										href={resolve(`/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lesson-review/${row.latestAttempt.sessionId}`)}
+										href={resolve(
+											`/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lesson-review/${row.latestAttempt.sessionId}`
+										)}
 										class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
 									>
 										Ver intento
 									</a>
+									<details class="group w-full xl:w-72">
+										<summary
+											class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300 dark:hover:bg-rose-950/35"
+										>
+											<Trash2 class="h-4 w-4" />
+											Borrar intento
+										</summary>
+										<form
+											method="POST"
+											action="?/deleteAttempt"
+											class="mt-3 rounded-[22px] border border-rose-200 bg-white p-4 text-left shadow-sm dark:border-rose-900/60 dark:bg-slate-950"
+										>
+											<input type="hidden" name="sessionId" value={row.latestAttempt.sessionId} />
+											<p class="text-xs font-medium text-rose-800 dark:text-rose-200">
+												{deleteLabel(row.latestAttempt, row.student.username)}
+											</p>
+											<p class="mt-2 text-xs text-slate-600 dark:text-slate-300">
+												Se borrará el transcript, métricas del intento y se recalculará el progreso.
+											</p>
+											<input
+												name="confirm"
+												placeholder="BORRAR"
+												autocomplete="off"
+												class="mt-3 h-10 w-full rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm text-slate-900 outline-none focus:border-rose-500 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-slate-100"
+											/>
+											<input
+												name="reason"
+												placeholder="Motivo opcional"
+												class="mt-2 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+											/>
+											<button
+												type="submit"
+												class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+											>
+												<Trash2 class="h-4 w-4" />
+												Confirmar borrado
+											</button>
+										</form>
+									</details>
 								{/if}
 
 								{#if row.previousAttempts.length > 0}
@@ -469,13 +619,19 @@
 
 						{#if expandedStudents[row.student.id] && row.previousAttempts.length > 0}
 							<div class="mt-5 space-y-3 border-t border-slate-200/80 pt-5 dark:border-slate-800">
-								<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+								<p
+									class="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+								>
 									Intentos anteriores
 								</p>
 								{#each row.previousAttempts as attempt (attempt.sessionId)}
-									<div class="flex flex-col gap-3 rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/50 sm:flex-row sm:items-center sm:justify-between">
+									<div
+										class="flex flex-col gap-3 rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-950/50"
+									>
 										<div class="flex flex-wrap items-center gap-2">
-											<span class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusClasses(attempt)}`}>
+											<span
+												class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase ${statusClasses(attempt)}`}
+											>
 												{statusLabel(attempt)}
 											</span>
 											<span class="text-sm font-medium text-slate-900 dark:text-white">
@@ -487,11 +643,49 @@
 										</div>
 
 										<a
-											href={resolve(`/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lesson-review/${attempt.sessionId}`)}
+											href={resolve(
+												`/course/${page.params.cid}/admin/interactives/${page.params.ilid}/lesson-review/${attempt.sessionId}`
+											)}
 											class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-amber-300 hover:text-amber-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-amber-700 dark:hover:text-amber-200"
 										>
 											Abrir detalle
 										</a>
+										<details class="group sm:w-64">
+											<summary
+												class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 dark:border-rose-900/60 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-950/25"
+											>
+												<Trash2 class="h-4 w-4" />
+												Borrar
+											</summary>
+											<form
+												method="POST"
+												action="?/deleteAttempt"
+												class="mt-3 rounded-[20px] border border-rose-200 bg-white p-3 dark:border-rose-900/60 dark:bg-slate-950"
+											>
+												<input type="hidden" name="sessionId" value={attempt.sessionId} />
+												<p class="text-xs font-medium text-rose-800 dark:text-rose-200">
+													{deleteLabel(attempt, row.student.username)}
+												</p>
+												<input
+													name="confirm"
+													placeholder="BORRAR"
+													autocomplete="off"
+													class="mt-2 h-9 w-full rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm text-slate-900 outline-none focus:border-rose-500 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-slate-100"
+												/>
+												<input
+													name="reason"
+													placeholder="Motivo opcional"
+													class="mt-2 h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+												/>
+												<button
+													type="submit"
+													class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+												>
+													<Trash2 class="h-4 w-4" />
+													Confirmar
+												</button>
+											</form>
+										</details>
 									</div>
 								{/each}
 							</div>
