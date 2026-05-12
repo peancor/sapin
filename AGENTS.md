@@ -54,6 +54,7 @@ Perfiles principales:
 - `SQLite` + `better-sqlite3`
 - `Drizzle ORM` + `drizzle-kit` + `drizzle-zod`
 - Vercel AI SDK v6 (`ai`)
+- `jose` para LTI 1.3/OIDC, JWKS y OAuth private-key JWT
 - proveedores soportados: `openai`, `openrouter`, `anthropic`, `google`, `lmstudio`, `custom`
 - Qdrant para embeddings y RAG
 
@@ -85,6 +86,11 @@ Variables importantes detectadas en `.env.example` y el código:
 - `FILES_TEMP_PATH`
 - `FILES_DELETED_PATH`
 - `OPENAI_MODERATION_API_KEY`
+- `LTI_ENABLED`
+- `LTI_TRUSTED_ORIGINS`
+- `LTI_TOOL_NAME`
+- `LTI_COOKIE_SAMESITE_NONE`
+- `LTI_COOKIE_SECURE`
 
 Notas operativas:
 
@@ -92,6 +98,8 @@ Notas operativas:
 - En local se espera `DATABASE_URL=local.db`.
 - `ORIGIN` se usa para URLs absolutas y cabeceras referer.
 - Las rutas de ficheros se resuelven relativas a `process.cwd()` si no son absolutas.
+- `LTI_TRUSTED_ORIGINS` alimenta `kit.csrf.trustedOrigins`; no se desactiva CSRF globalmente.
+- Los despliegues LTI embebidos por iframe deben usar HTTPS y normalmente `LTI_COOKIE_SAMESITE_NONE=true` con `LTI_COOKIE_SECURE=true`.
 
 ## Scripts relevantes
 
@@ -184,6 +192,7 @@ Notas operativas:
 - `src/lib/server/notifications/`
 - `src/lib/server/notifier/`
 - `src/lib/server/integrations/moodle/`
+- `src/lib/server/lti/`
 - `src/lib/server/logging/`
 
 ## Rutas principales
@@ -227,6 +236,19 @@ Hay bootstrap en `/admin/bootstrap` y demos específicas como `demo-tikzjax`.
 - `tutor`
 
 Además hay endpoints específicos para mantenimiento, Qdrant, playgrounds, importación Moodle, `staff-agent` e `insights-agent`.
+
+### LTI Advantage
+
+`src/routes/lti` expone endpoints públicos para Sapin como LTI Tool:
+
+- `GET /lti/jwks.json`
+- `GET /lti/login`
+- `POST /lti/launch`
+- `GET /lti/deep-link/select`
+- `POST /lti/deep-link/respond`
+
+La administración del registro manual de plataformas vive en `/admin/integrations/lti`.
+El estado de enlaces LTI y sincronización AGS por curso vive en `/course/[cid]/admin/lti`.
 
 ## Auth, sesión y bootstrap
 
@@ -343,6 +365,7 @@ El esquema Drizzle vive en `src/lib/server/db/schema/` y se reexporta desde `ind
 | `insightsAgent.ts`  | `interactive_learning_insights_agent`, `insights_agent_activity_tool`, `insights_agent_run`                                                                                                         |
 | `agentWorkspace.ts` | `agent_workspace`, `agent_workspace_tool`, `agent_thread`                                                                                                                                           |
 | `memory.ts`         | `agent_memory_canvas`, revisiones y eventos de sincronización                                                                                                                                       |
+| `lti.ts`            | plataformas LTI, deployments, claves JWKS, login state, identidades, resource links, deep link sessions, launches y logs AGS                                                                        |
 
 ### Helpers DB importantes
 
@@ -600,6 +623,20 @@ La configuración de notificaciones se guarda en `app_setting`.
 - filtra alumnos por rol
 - se usa en flujos de importación/preview/confirm
 
+### LTI Advantage
+
+`src/lib/server/lti/` implementa Sapin como LTI Advantage Tool para Moodle:
+
+- registro manual de plataformas y deployments
+- JWKS público de Sapin con claves privadas guardadas en BD
+- OIDC login y validación de Resource Launch / Deep Linking Request
+- provisioning automático de learners por `(platform, deployment, sub)`
+- vinculación de docentes contra cuenta Sapin existente
+- respuesta Deep Linking con `ltiResourceLink`
+- sincronización AGS score desde progreso y `save_grade`
+
+En esta fase no hay Dynamic Registration, NRPS completo ni certificación 1EdTech.
+
 ### MCP local
 
 `mcp.json` declara:
@@ -668,6 +705,7 @@ No editar a mano salvo que el flujo lo requiera explícitamente:
 - ficheros y RAG: `src/lib/server/files/`, `src/lib/server/qdrant/`, `src/lib/server/ai/services/RagService.ts`
 - notificaciones: `src/lib/server/notifications/`, `src/lib/server/notifier/`
 - analítica pedagógica: `src/lib/server/learning-evidence/`
+- LTI Advantage: `src/lib/server/lti/`, `src/routes/lti/`, `src/lib/server/db/schema/lti.ts`
 
 ## Nota final
 

@@ -4,6 +4,7 @@ import { sha256 } from '@oslojs/crypto/sha2';
 import { encodeBase64url, encodeHexLowerCase } from '@oslojs/encoding';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
+import { shouldUseSameSiteNoneCookies, shouldUseSecureLtiCookies } from '$lib/server/lti/config';
 
 const DAY_IN_MS = 1000 * 60 * 60 * 24;
 
@@ -31,7 +32,13 @@ export async function validateSessionToken(token: string) {
 	const [result] = await db
 		.select({
 			// Adjust user table here to tweak returned data
-			user: { id: table.user.id, username: table.user.username, image: table.user.image, email: table.user.email, alias: table.user.alias },
+			user: {
+				id: table.user.id,
+				username: table.user.username,
+				image: table.user.image,
+				email: table.user.email,
+				alias: table.user.alias
+			},
 			session: table.session
 		})
 		.from(table.session)
@@ -69,20 +76,16 @@ export async function validateSessionToken(token: string) {
 				eq(table.userRoleAssignment.userId, user.id),
 				eq(table.userRoleAssignment.isActive, true),
 				eq(table.role.isActive, true),
-				or(
-					isNull(table.userRoleAssignment.expiresAt),
-					gt(table.userRoleAssignment.expiresAt, now)
-				)
+				or(isNull(table.userRoleAssignment.expiresAt), gt(table.userRoleAssignment.expiresAt, now))
 			)
 		);
 
-	const roles = userRoles.map(r => r.role);
-	const highestRole = roles.length > 0 
-		? roles.reduce((max, r) => r.level > max.level ? r : max)
-		: null;
+	const roles = userRoles.map((r) => r.role);
+	const highestRole =
+		roles.length > 0 ? roles.reduce((max, r) => (r.level > max.level ? r : max)) : null;
 
-	return { 
-		session, 
+	return {
+		session,
 		user: {
 			...user,
 			roles,
@@ -99,14 +102,20 @@ export async function invalidateSession(sessionId: string) {
 }
 
 export function setSessionTokenCookie(event: RequestEvent, token: string, expiresAt: Date) {
+	const sameSiteNone = shouldUseSameSiteNoneCookies();
 	event.cookies.set(sessionCookieName, token, {
 		expires: expiresAt,
-		path: '/'
+		path: '/',
+		sameSite: sameSiteNone ? 'none' : 'lax',
+		secure: sameSiteNone ? shouldUseSecureLtiCookies() : undefined
 	});
 }
 
 export function deleteSessionTokenCookie(event: RequestEvent) {
+	const sameSiteNone = shouldUseSameSiteNoneCookies();
 	event.cookies.delete(sessionCookieName, {
-		path: '/'
+		path: '/',
+		sameSite: sameSiteNone ? 'none' : 'lax',
+		secure: sameSiteNone ? shouldUseSecureLtiCookies() : undefined
 	});
 }

@@ -15,3 +15,4 @@ export * from './insightsAgent';
 export * from './memory';
 export * from './agentWorkspace';
 export * from './lesson';
+export * from './lti';
