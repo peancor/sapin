@@ -1,8 +1,8 @@
-import { marked } from 'marked';
+import { Marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
 import { preprocessMathExpressions } from './mathPreprocessor';
 
-let mathMarkdownConfigured = false;
+let mathMarkdownRenderer: Marked | null = null;
 
 function stripAgentInternalMarkers(content: string): string {
 	return content
@@ -10,11 +10,11 @@ function stripAgentInternalMarkers(content: string): string {
 		.replace(/\[\[CONTEXTO_RAG\]\][\s\S]*?\[\[FIN_CONTEXTO_RAG\]\]/g, '');
 }
 
-export function ensureMathMarkdownConfigured(): void {
-	if (mathMarkdownConfigured) return;
+export function ensureMathMarkdownConfigured(): Marked {
+	if (mathMarkdownRenderer) return mathMarkdownRenderer;
 
-	marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
-	mathMarkdownConfigured = true;
+	mathMarkdownRenderer = new Marked(markedKatex({ throwOnError: false, nonStandard: true }));
+	return mathMarkdownRenderer;
 }
 
 interface RenderMarkdownMathOptions {
@@ -28,7 +28,7 @@ export function renderMarkdownMath(
 ): string {
 	const { inline = false, stripAgentMarkers = false } = options;
 
-	ensureMathMarkdownConfigured();
+	const renderer = ensureMathMarkdownConfigured();
 
 	let processed = content ?? '';
 	if (stripAgentMarkers) {
@@ -37,5 +37,7 @@ export function renderMarkdownMath(
 
 	processed = preprocessMathExpressions(processed.trim());
 
-	return inline ? (marked.parseInline(processed) as string) : (marked.parse(processed) as string);
+	return inline
+		? (renderer.parseInline(processed) as string)
+		: (renderer.parse(processed) as string);
 }

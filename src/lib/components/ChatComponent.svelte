@@ -1,7 +1,4 @@
 <script lang="ts">
-	import { marked } from 'marked';
-	import katex from 'katex';
-	import markedKatex from 'marked-katex-extension';
 	import 'katex/dist/katex.min.css';
 	import {
 		Paperclip,
@@ -15,9 +12,7 @@
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { Spinner, TextPlaceholder } from 'flowbite-svelte';
-	import { preprocessMathExpressions } from '$lib/utils';
-
-	marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
+	import { renderMarkdownMath } from '$lib/utils';
 
 	interface Message {
 		content: string;
@@ -76,7 +71,7 @@
 			screenSize: ''
 		}
 	});
-	
+
 	let metricsInterval: number | null = null;
 
 	let responseText = $state('');
@@ -168,7 +163,9 @@
 			clearInterval(metricsInterval);
 		}
 		metricsInterval = window.setInterval(() => {
-			messageMetrics.timeSpentSeconds = Math.floor((Date.now() - messageMetrics.startTimestamp) / 1000);
+			messageMetrics.timeSpentSeconds = Math.floor(
+				(Date.now() - messageMetrics.startTimestamp) / 1000
+			);
 		}, 1000);
 	}
 
@@ -182,7 +179,7 @@
 		if (messageInput.trim()) {
 			// Actualizar conteo final
 			updateTextMetrics();
-			
+
 			// Detener el contador de tiempo
 			if (metricsInterval) {
 				clearInterval(metricsInterval);
@@ -218,12 +215,12 @@
 		} else {
 			// Incrementar contador de pulsaciones
 			messageMetrics.keystrokeCount++;
-			
+
 			// Contar borrados
 			if (event.key === 'Backspace' || event.key === 'Delete') {
 				messageMetrics.deleteCount++;
 			}
-			
+
 			// Actualizar métricas de texto
 			updateTextMetrics();
 		}
@@ -291,7 +288,7 @@
 		function setupEventSource() {
 			const searchParams = new URLSearchParams();
 			searchParams.append('question', message);
-			
+
 			// Añadir métricas como parámetro si están disponibles
 			if (metrics) {
 				searchParams.append('metadata', metrics);
@@ -362,29 +359,26 @@
 	}
 
 	function processContent(content: string) {
-			// Lista de palabras a filtrar
-			const wordsToFilter = ['[[DONE]]'];
-			
-			// Filtrar las palabras no deseadas
-			let filteredContent = content;
-			for (const word of wordsToFilter) {
-				filteredContent = filteredContent.replace(word, '');
-			}
-		
-			// First preprocess math expressions
-			const mathProcessed = preprocessMathExpressions(filteredContent);
-			// Then process think tags
-			return processThinkTags(mathProcessed);
+		// Lista de palabras a filtrar
+		const wordsToFilter = ['[[DONE]]'];
+
+		// Filtrar las palabras no deseadas
+		let filteredContent = content;
+		for (const word of wordsToFilter) {
+			filteredContent = filteredContent.replace(word, '');
 		}
+
+		return renderMarkdownMath(processThinkTags(filteredContent));
+	}
 
 	function getConnectedUserLabel(user?: ChatUser) {
 		return user?.alias?.trim() || user?.username?.trim() || 'usuario';
 	}
 
 	onMount(() => {
-		// Inicializar métricas 
+		// Inicializar métricas
 		resetMetrics();
-		
+
 		if (messages.length === 0 && props.user) {
 			sendMessage(`[[Usuario conectado: ${getConnectedUserLabel(props.user)}]]`);
 		}
@@ -440,7 +434,7 @@
 	{/if}
 	<div class="chat-container mb-3 min-h-0 flex-1 overflow-y-auto" bind:this={container}>
 		<div class="flex flex-col gap-2 p-2">
-			{#each messages as message}
+			{#each messages as message (message)}
 				{#if !(message.content.trim().startsWith('[[') && message.content.trim().endsWith(']]'))}
 					<div class="flex {message.type === 'user' ? 'justify-end' : 'justify-start'}">
 						<div
@@ -458,11 +452,11 @@
 									{/if}
 								</div>
 							{:else}
-								<div class="prose max-w-none dark:prose-invert">
+								<div class="prose dark:prose-invert max-w-none">
 									{#if message.type === 'user'}
-										{@html marked(processContent(message.content.replace(/\n/g, '<br>')))}
+										{@html processContent(message.content.replace(/\n/g, '<br>'))}
 									{:else}
-										{@html marked(processContent(message.content))}
+										{@html processContent(message.content)}
 									{/if}
 								</div>
 							{/if}
@@ -499,7 +493,7 @@
 			<div class="ml-2 self-end {messageInput.trim() ? 'visible' : 'invisible'}">
 				<button
 					type="submit"
-					class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 p-2 text-white transition-all duration-200 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-offset-gray-800"
+					class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 p-2 text-white transition-all duration-200 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-offset-gray-800"
 					aria-label="Enviar mensaje"
 					disabled={!messageInput.trim()}
 				>
