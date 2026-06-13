@@ -14,6 +14,10 @@ function requireAdmin(locals: App.Locals) {
 	}
 }
 
+function getSubmittedModelCapabilities(data: FormData): string[] {
+	return data.get('supportsVision') === 'on' ? ['text', 'vision'] : ['text'];
+}
+
 export const load = (async () => {
 	// Seed defaults si es necesario
 	await AIModelService.seedDefaultProviders();
@@ -127,7 +131,9 @@ export const actions = {
 			await AIModelService.deleteProvider(id);
 			return { success: true, message: 'Proveedor eliminado' };
 		} catch {
-			return fail(500, { error: 'Error al eliminar el proveedor. Asegúrate de que no tiene modelos asociados.' });
+			return fail(500, {
+				error: 'Error al eliminar el proveedor. Asegúrate de que no tiene modelos asociados.'
+			});
 		}
 	},
 
@@ -143,22 +149,21 @@ export const actions = {
 			return fail(400, { error: 'Proveedor, nombre y nombre a mostrar son requeridos' });
 		}
 
-		const capabilitiesStr = data.get('capabilities')?.toString();
-		const capabilities = capabilitiesStr ? capabilitiesStr.split(',').map((c) => c.trim()) : [];
-
 		try {
 			await AIModelService.createModel({
 				providerId,
 				name,
 				displayName,
 				description: data.get('description')?.toString(),
-				capabilities,
+				capabilities: getSubmittedModelCapabilities(data),
 				contextWindow: parseInt(data.get('contextWindow')?.toString() || '0') || undefined,
 				maxOutputTokens: parseInt(data.get('maxOutputTokens')?.toString() || '0') || undefined,
-				inputPricePerMillion: parseFloat(data.get('inputPricePerMillion')?.toString() || '0') || undefined,
-				outputPricePerMillion: parseFloat(data.get('outputPricePerMillion')?.toString() || '0') || undefined,
+				inputPricePerMillion:
+					parseFloat(data.get('inputPricePerMillion')?.toString() || '0') || undefined,
+				outputPricePerMillion:
+					parseFloat(data.get('outputPricePerMillion')?.toString() || '0') || undefined,
 				isDefault: data.get('isDefault') === 'on',
-				isActive: data.get('isActive') !== 'off',
+				isActive: data.get('isActive') === 'on',
 				sortOrder: parseInt(data.get('sortOrder')?.toString() || '0')
 			});
 			return { success: true, message: 'Modelo creado correctamente' };
@@ -174,20 +179,19 @@ export const actions = {
 
 		if (!id) return fail(400, { error: 'ID requerido' });
 
-		const capabilitiesStr = data.get('capabilities')?.toString();
-		const capabilities = capabilitiesStr ? capabilitiesStr.split(',').map((c) => c.trim()) : undefined;
-
 		try {
 			await AIModelService.updateModel(id, {
 				providerId: data.get('providerId')?.toString(),
 				name: data.get('name')?.toString(),
 				displayName: data.get('displayName')?.toString(),
 				description: data.get('description')?.toString(),
-				capabilities,
+				capabilities: getSubmittedModelCapabilities(data),
 				contextWindow: parseInt(data.get('contextWindow')?.toString() || '0') || undefined,
 				maxOutputTokens: parseInt(data.get('maxOutputTokens')?.toString() || '0') || undefined,
-				inputPricePerMillion: parseFloat(data.get('inputPricePerMillion')?.toString() || '0') || undefined,
-				outputPricePerMillion: parseFloat(data.get('outputPricePerMillion')?.toString() || '0') || undefined,
+				inputPricePerMillion:
+					parseFloat(data.get('inputPricePerMillion')?.toString() || '0') || undefined,
+				outputPricePerMillion:
+					parseFloat(data.get('outputPricePerMillion')?.toString() || '0') || undefined,
 				isDefault: data.get('isDefault') === 'on',
 				isActive: data.get('isActive') === 'on',
 				sortOrder: parseInt(data.get('sortOrder')?.toString() || '0')

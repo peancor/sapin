@@ -12,5 +12,5 @@ export function parseModelCapabilities(capabilities: string | null): string[] {
 
 export function modelCapabilitiesSupportVision(capabilities: string | null): boolean {
 	const parsed = parseModelCapabilities(capabilities);
-	return parsed.includes('vision') || parsed.includes('image');
+	return parsed.includes('vision');
 }

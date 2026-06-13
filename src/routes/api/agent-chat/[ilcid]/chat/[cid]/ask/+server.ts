@@ -88,8 +88,16 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
 
 		const modelName = agentActivity.llmModel || (await ModelResolver.getDefaultModel()) || '';
 		if (attachmentIds.length > 0) {
-			if (!(await AIModelService.modelSupportsVision(modelName))) {
-				return sseError('El modelo configurado para esta actividad no admite entrada de imágenes.');
+			const modelRecord = await AIModelService.getModelByName(modelName);
+			const modelCapabilities = modelRecord?.model?.capabilities ?? null;
+			if (!AIModelService.capabilitiesSupportVision(modelCapabilities)) {
+				console.warn('[agent-chat] image attachments rejected: model without vision capability', {
+					activityId: ilcid,
+					chatId: cid,
+					modelName,
+					capabilities: modelCapabilities
+				});
+				return sseError('El modelo configurado no tiene activada la capacidad de visión en Sapin.');
 			}
 
 			try {

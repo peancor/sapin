@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 
 import { modelCapabilitiesSupportVision, parseModelCapabilities } from './modelCapabilities.ts';
 
-test('modelCapabilitiesSupportVision detects vision and image capabilities', () => {
+test('modelCapabilitiesSupportVision detects only the canonical vision capability', () => {
 	assert.equal(modelCapabilitiesSupportVision(JSON.stringify(['text', 'vision'])), true);
-	assert.equal(modelCapabilitiesSupportVision(JSON.stringify(['text', 'image'])), true);
+	assert.equal(modelCapabilitiesSupportVision(JSON.stringify(['text', 'image'])), false);
 	assert.equal(modelCapabilitiesSupportVision(JSON.stringify(['text'])), false);
 	assert.equal(modelCapabilitiesSupportVision(null), false);
 });

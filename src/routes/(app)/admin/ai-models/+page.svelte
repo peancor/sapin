@@ -42,13 +42,29 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
+	interface ModelDraft {
+		providerId: string;
+		name: string;
+		displayName: string;
+		description: string;
+		contextWindow: string;
+		maxOutputTokens: string;
+		inputPricePerMillion: string;
+		outputPricePerMillion: string;
+		sortOrder: string;
+		isDefault: boolean;
+		isActive: boolean;
+		supportsVision: boolean;
+	}
+
 	// Modals state
 	let showProviderModal = $state(false);
 	let showModelModal = $state(false);
 	let showQuotaModal = $state(false);
-	let editingProvider = $state<typeof data.providers[0] | null>(null);
-	let editingModel = $state<typeof data.models[0] | null>(null);
-	let editingQuota = $state<typeof data.quotas[0] | null>(null);
+	let editingProvider = $state<(typeof data.providers)[0] | null>(null);
+	let editingModel = $state<(typeof data.models)[0] | null>(null);
+	let editingQuota = $state<(typeof data.quotas)[0] | null>(null);
+	let modelDraft = $state<ModelDraft>(createModelDraft());
 
 	// Messages
 	let successMessage = $state('');
@@ -110,19 +126,52 @@
 		}
 	}
 
+	function parseCapabilities(capabilities: string | null): string[] {
+		if (!capabilities) return [];
+		try {
+			const parsed = JSON.parse(capabilities) as unknown;
+			return Array.isArray(parsed)
+				? parsed.filter((capability): capability is string => typeof capability === 'string')
+				: [];
+		} catch {
+			return [];
+		}
+	}
+
+	function createModelDraft(model?: (typeof data.models)[0] | null): ModelDraft {
+		const record = model?.model;
+		const capabilities = parseCapabilities(record?.capabilities ?? null);
+
+		return {
+			providerId: record?.providerId ?? data.providers[0]?.id ?? '',
+			name: record?.name ?? '',
+			displayName: record?.displayName ?? '',
+			description: record?.description ?? '',
+			contextWindow: record?.contextWindow?.toString() ?? '',
+			maxOutputTokens: record?.maxOutputTokens?.toString() ?? '',
+			inputPricePerMillion: record?.inputPricePerMillion?.toString() ?? '',
+			outputPricePerMillion: record?.outputPricePerMillion?.toString() ?? '',
+			sortOrder: record?.sortOrder?.toString() ?? '0',
+			isDefault: record?.isDefault ?? false,
+			isActive: record?.isActive ?? true,
+			supportsVision: capabilities.includes('vision')
+		};
+	}
+
 	let failedRecentLogs = $derived(data.recentLogs.filter(({ log }) => !log.success));
 
-	function openProviderModal(provider?: typeof data.providers[0]) {
+	function openProviderModal(provider?: (typeof data.providers)[0]) {
 		editingProvider = provider || null;
 		showProviderModal = true;
 	}
 
-	function openModelModal(model?: typeof data.models[0]) {
+	function openModelModal(model?: (typeof data.models)[0]) {
 		editingModel = model || null;
+		modelDraft = createModelDraft(model);
 		showModelModal = true;
 	}
 
-	function openQuotaModal(quota?: typeof data.quotas[0]) {
+	function openQuotaModal(quota?: (typeof data.quotas)[0]) {
 		editingQuota = quota || null;
 		showQuotaModal = true;
 	}
@@ -134,12 +183,17 @@
 		editingProvider = null;
 		editingModel = null;
 		editingQuota = null;
+		modelDraft = createModelDraft();
+	}
+
+	function closeModelModal() {
+		showModelModal = false;
+		editingModel = null;
+		modelDraft = createModelDraft();
 	}
 
 	// Provider options for select
-	let providerOptions = $derived(
-		data.providers.map((p) => ({ value: p.id, name: p.displayName }))
-	);
+	let providerOptions = $derived(data.providers.map((p) => ({ value: p.id, name: p.displayName })));
 
 	let modelOptions = $derived([
 		{ value: '', name: 'Todos los modelos' },
@@ -512,13 +566,17 @@
 						</h3>
 						<div class="space-y-2">
 							{#each failedRecentLogs.slice(0, 5) as { log, model, user } (log.id)}
-								<Card class="border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/30">
+								<Card
+									class="border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/30"
+								>
 									<div class="flex flex-col gap-1 text-sm">
 										<div class="flex flex-wrap items-center gap-2">
 											<Badge color="red">Error</Badge>
 											<Badge color="blue">{model?.displayName || 'Modelo desconocido'}</Badge>
 											<span class="text-xs text-gray-500">{formatDate(log.createdAt)}</span>
-											<span class="text-xs text-gray-500">{user?.username || user?.email || '-'}</span>
+											<span class="text-xs text-gray-500"
+												>{user?.username || user?.email || '-'}</span
+											>
 										</div>
 										<p class="font-medium text-red-800 dark:text-red-300">
 											{log.errorMessage || 'Sin mensaje de error'}
@@ -539,11 +597,11 @@
 						Top Usuarios (este mes)
 					</h3>
 					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-						{#each data.topUsers as userStat, i}
+						{#each data.topUsers as userStat, i (userStat.user?.id ?? userStat.userId ?? i)}
 							<Card class="p-3">
 								<div class="flex items-center gap-3">
 									<div
-										class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-400"
+										class="bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-400 flex h-8 w-8 items-center justify-center rounded-full"
 									>
 										{i + 1}
 									</div>
@@ -563,9 +621,7 @@
 
 				<!-- Recent Logs -->
 				<div>
-					<h3 class="mb-3 text-lg font-medium text-gray-900 dark:text-white">
-						Logs Recientes
-					</h3>
+					<h3 class="mb-3 text-lg font-medium text-gray-900 dark:text-white">Logs Recientes</h3>
 					<Table striped>
 						<TableHead>
 							<TableHeadCell>Fecha</TableHeadCell>
@@ -626,7 +682,11 @@
 </div>
 
 <!-- Provider Modal -->
-<Modal title={editingProvider ? 'Editar Proveedor' : 'Nuevo Proveedor'} bind:open={showProviderModal} size="md">
+<Modal
+	title={editingProvider ? 'Editar Proveedor' : 'Nuevo Proveedor'}
+	bind:open={showProviderModal}
+	size="md"
+>
 	<form
 		method="POST"
 		action={editingProvider ? '?/updateProvider' : '?/createProvider'}
@@ -718,14 +778,19 @@
 </Modal>
 
 <!-- Model Modal -->
-<Modal title={editingModel ? 'Editar Modelo' : 'Nuevo Modelo'} bind:open={showModelModal} size="lg">
+<Modal
+	title={editingModel ? 'Editar Modelo' : 'Nuevo Modelo'}
+	bind:open={showModelModal}
+	size="lg"
+	permanent
+>
 	<form
 		method="POST"
 		action={editingModel ? '?/updateModel' : '?/createModel'}
 		use:enhance={() => {
 			return async ({ result }) => {
 				if (result.type === 'success') {
-					closeModals();
+					closeModelModal();
 					await invalidateAll();
 				}
 			};
@@ -742,7 +807,7 @@
 					id="modelProvider"
 					name="providerId"
 					items={providerOptions}
-					value={editingModel?.model.providerId || ''}
+					bind:value={modelDraft.providerId}
 					required
 				/>
 			</div>
@@ -753,7 +818,7 @@
 					id="modelName"
 					name="name"
 					placeholder="gpt-4"
-					value={editingModel?.model.name || ''}
+					bind:value={modelDraft.name}
 					required
 				/>
 			</div>
@@ -764,21 +829,25 @@
 					id="modelDisplayName"
 					name="displayName"
 					placeholder="GPT-4"
-					value={editingModel?.model.displayName || ''}
+					bind:value={modelDraft.displayName}
 					required
 				/>
 			</div>
 
-			<div>
-				<Label for="modelCapabilities">Capacidades (separadas por coma)</Label>
-				<Input
-					id="modelCapabilities"
-					name="capabilities"
-					placeholder="text, vision, image"
-					value={editingModel?.model.capabilities
-						? JSON.parse(editingModel.model.capabilities).join(', ')
-						: ''}
-				/>
+			<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+				<div class="flex items-start gap-3">
+					<Toggle
+						id="modelSupportsVision"
+						name="supportsVision"
+						bind:checked={modelDraft.supportsVision}
+					/>
+					<div>
+						<Label for="modelSupportsVision">Entrada de imágenes</Label>
+						<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+							Permite adjuntar imágenes en actividades agénticas con este modelo.
+						</p>
+					</div>
+				</div>
 			</div>
 
 			<div>
@@ -788,7 +857,7 @@
 					name="contextWindow"
 					type="number"
 					placeholder="128000"
-					value={editingModel?.model.contextWindow || ''}
+					bind:value={modelDraft.contextWindow}
 				/>
 			</div>
 
@@ -799,7 +868,7 @@
 					name="maxOutputTokens"
 					type="number"
 					placeholder="4096"
-					value={editingModel?.model.maxOutputTokens || ''}
+					bind:value={modelDraft.maxOutputTokens}
 				/>
 			</div>
 
@@ -811,7 +880,7 @@
 					type="number"
 					step="0.001"
 					placeholder="0.50"
-					value={editingModel?.model.inputPricePerMillion || ''}
+					bind:value={modelDraft.inputPricePerMillion}
 				/>
 			</div>
 
@@ -823,7 +892,7 @@
 					type="number"
 					step="0.001"
 					placeholder="1.50"
-					value={editingModel?.model.outputPricePerMillion || ''}
+					bind:value={modelDraft.outputPricePerMillion}
 				/>
 			</div>
 
@@ -834,7 +903,7 @@
 					name="sortOrder"
 					type="number"
 					placeholder="0"
-					value={editingModel?.model.sortOrder || '0'}
+					bind:value={modelDraft.sortOrder}
 				/>
 			</div>
 
@@ -844,24 +913,24 @@
 					id="modelDescription"
 					name="description"
 					placeholder="Modelo de lenguaje avanzado..."
-					value={editingModel?.model.description || ''}
+					bind:value={modelDraft.description}
 				/>
 			</div>
 
 			<div class="flex items-center gap-4">
 				<div class="flex items-center gap-2">
-					<Toggle name="isDefault" checked={editingModel?.model.isDefault ?? false} />
+					<Toggle name="isDefault" bind:checked={modelDraft.isDefault} />
 					<Label>Predeterminado</Label>
 				</div>
 				<div class="flex items-center gap-2">
-					<Toggle name="isActive" checked={editingModel?.model.isActive ?? true} />
+					<Toggle name="isActive" bind:checked={modelDraft.isActive} />
 					<Label>Activo</Label>
 				</div>
 			</div>
 		</div>
 
 		<div class="mt-6 flex justify-end gap-3">
-			<Button color="alternative" onclick={closeModals}>Cancelar</Button>
+			<Button type="button" color="alternative" onclick={closeModelModal}>Cancelar</Button>
 			<Button type="submit" color="primary">
 				{editingModel ? 'Guardar' : 'Crear'}
 			</Button>
