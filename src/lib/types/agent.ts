@@ -257,6 +257,18 @@ export interface AgentSessionSummary {
 export type AgentDisplayPart =
 	| { kind: 'text'; content: string }
 	| {
+			kind: 'image';
+			attachmentId: string;
+			fileId: string;
+			url: string;
+			thumbnailUrl: string;
+			displayName: string | null;
+			width: number | null;
+			height: number | null;
+			size: number;
+			mimeType: string;
+	  }
+	| {
 			kind: 'tool-call';
 			toolCallId: string;
 			toolName: string;

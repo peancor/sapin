@@ -113,6 +113,12 @@ Notas operativas:
 - `npm run db:generate`
 - `npm run db:studio`
 
+Regla para migraciones:
+
+- no escribir migraciones Drizzle a mano salvo instrucción explícita;
+- tras modificar el esquema Drizzle, generar la migración oficial con `npm run db:generate`;
+- conservar tanto el SQL generado en `drizzle/` como el snapshot correspondiente en `drizzle/meta/`.
+
 ### Docker y utilidades
 
 - `npm run docker:build`
@@ -339,7 +345,7 @@ El esquema Drizzle vive en `src/lib/server/db/schema/` y se reexporta desde `ind
 | `system.ts`         | `app_setting`                                                                                                                                                                                       |
 | `analytics.ts`      | `analytics_session`, `analytics_event`, `analytics_daily_stats`                                                                                                                                     |
 | `ai.ts`             | `ai_provider`, `ai_model`, `ai_request_capture_focus`, `ai_request_round`, `ai_usage_log`, `ai_quota`, `ai_usage_daily_stats`                                                                       |
-| `agent.ts`          | catálogo de tools/UI, `interactive_learning_agent`, `agent_activity_tool`, `agent_message`, `agent_tool_call`, `agent_ui_instance`                                                                  |
+| `agent.ts`          | catálogo de tools/UI, `interactive_learning_agent`, `agent_activity_tool`, `agent_message`, `agent_message_attachment`, `agent_tool_call`, `agent_ui_instance`                                      |
 | `insightsAgent.ts`  | `interactive_learning_insights_agent`, `insights_agent_activity_tool`, `insights_agent_run`                                                                                                         |
 | `agentWorkspace.ts` | `agent_workspace`, `agent_workspace_tool`, `agent_thread`                                                                                                                                           |
 | `memory.ts`         | `agent_memory_canvas`, revisiones y eventos de sincronización                                                                                                                                       |
@@ -441,6 +447,16 @@ El flujo ya contempla:
 - espera de respuesta UI
 - persistencia de `agent_tool_call`
 - persistencia de `agent_ui_instance`
+
+### Adjuntos de imagen en actividades agénticas
+
+El chat de actividades agénticas estándar soporta adjuntos de imagen de fase 1:
+
+- se limita a `/agent-chat/[ilid]/c/[cid]`
+- los adjuntos se suben antes del envío SSE y se enlazan después a `agent_message`
+- solo se conservan imágenes WebP sanitizadas, sin metadatos originales, en `file_storage` con `category=chat`
+- `agent_message_attachment` registra estado, tamaño, dimensiones, MIME, propietario y vínculo con mensaje
+- el agente solo recibe imágenes cuando el modelo declara capacidad `vision` o `image` en `ai_model.capabilities`
 
 ### Variantes actuales
 

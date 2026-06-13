@@ -1,18 +1,20 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { resolve } from '$app/paths';
 	import 'katex/dist/katex.min.css';
 	import type { AgentStreamPart, AgentDisplayMessage, AgentDisplayPart } from '$lib/types/agent';
 	import { renderMarkdownMath } from '$lib/utils';
 	import HumanInTheLoopModal from './HumanInTheLoopModal.svelte';
 	import ImmersiveToolOverlay from './ImmersiveToolOverlay.svelte';
 	import UIComponentRenderer from './UIComponentRenderer.svelte';
+	import { ImagePlus, X } from 'lucide-svelte';
 
-    interface Props {
-        initialMessages?: AgentDisplayMessage[];
-        apiEndpoint: string;
-        user?: { username?: string; alias?: string };
-        onComplete?: () => void;
-    }
+	interface Props {
+		initialMessages?: AgentDisplayMessage[];
+		apiEndpoint: string;
+		user?: { username?: string; alias?: string };
+		onComplete?: () => void;
+	}
 
 	interface MessageMetrics {
 		keystrokeCount: number;
@@ -36,17 +38,38 @@
 		hadSelection: boolean;
 	}
 
+	interface PendingImageAttachment {
+		id: string;
+		fileId: string;
+		url: string;
+		thumbnailUrl: string;
+		displayName: string | null;
+		width: number | null;
+		height: number | null;
+		size: number;
+		mimeType: string;
+	}
+
 	const REVISION_BURST_WINDOW_MS = 2500;
 
-    let { initialMessages = [], apiEndpoint, user, onComplete }: Props = $props();
+	let { initialMessages = [], apiEndpoint, user, onComplete }: Props = $props();
 
-    // ─── Estado ───
-    let messages = $state<AgentDisplayMessage[]>(initialMessages);
-    let messageInput = $state('');
-    let isLoading = $state(false);
-    let isAtBottom = $state(true);
-    let userHasScrolled = $state(false);
+	function createInitialMessageState(messagesSeed: AgentDisplayMessage[]): AgentDisplayMessage[] {
+		return messagesSeed.map((message) => ({
+			...message,
+			parts: [...message.parts]
+		}));
+	}
+
+	// ─── Estado ───
+	// svelte-ignore state_referenced_locally
+	let messages = $state<AgentDisplayMessage[]>(createInitialMessageState(initialMessages));
+	let messageInput = $state('');
+	let isLoading = $state(false);
+	let isUploadingImage = $state(false);
+	let isAtBottom = $state(true);
 	let errorMessage = $state('');
+	let pendingImageAttachments = $state<PendingImageAttachment[]>([]);
 	let uiResponseOverrides = $state<Record<string, Record<string, unknown>>>({});
 
 	type UIComponentDisplayPart = Extract<AgentDisplayPart, { kind: 'ui-component' }>;
@@ -57,24 +80,25 @@
 		'Si sales ahora se perdera el progreso no enviado. ¿Quieres cerrar?'
 	);
 
-    let chatContainer: HTMLDivElement | undefined = $state();
-    let textarea: HTMLTextAreaElement | undefined = $state();
+	let chatContainer: HTMLDivElement | undefined = $state();
+	let textarea: HTMLTextAreaElement | undefined = $state();
+	let imageInput: HTMLInputElement | undefined = $state();
 	let eventSource: EventSource | null = null;
 	let messageMetrics = $state<MessageMetrics>(createMessageMetrics());
 	let pendingRevisionContext: PendingRevisionContext | null = null;
 	let previousDraftValue = '';
 	let lastRevisionAt = 0;
 
-    // ─── HITL state ───
-    let hitlOpen = $state(false);
-    let hitlToolCallId = $state('');
-    let hitlToolName = $state('');
-    let hitlToolDisplayName = $state('');
-    let hitlArgs = $state<Record<string, unknown>>({});
-    let hitlRiskLevel = $state<'low' | 'medium' | 'high'>('low');
-    let hitlConfirmationMessage = $state('');
+	// ─── HITL state ───
+	let hitlOpen = $state(false);
+	let hitlToolCallId = $state('');
+	let hitlToolName = $state('');
+	let hitlToolDisplayName = $state('');
+	let hitlArgs = $state<Record<string, unknown>>({});
+	let hitlRiskLevel = $state<'low' | 'medium' | 'high'>('low');
+	let hitlConfirmationMessage = $state('');
 
-    // Base URL for the confirm-tool endpoint (strip trailing /ask)
+	// Base URL for the confirm-tool endpoint (strip trailing /ask)
 	const apiBaseForHitl = $derived(apiEndpoint.replace(/\/ask$/, ''));
 
 	function detectMobileDevice(): boolean {
@@ -99,9 +123,7 @@
 				isMobile: typeof window !== 'undefined' ? detectMobileDevice() : false,
 				userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
 				screenSize:
-					typeof window !== 'undefined'
-						? `${window.innerWidth}x${window.innerHeight}`
-						: ''
+					typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : ''
 			}
 		};
 	}
@@ -145,7 +167,8 @@
 			return;
 		}
 
-		const insertedAtEnd = nextValue.length > previousValue.length && nextValue.startsWith(previousValue);
+		const insertedAtEnd =
+			nextValue.length > previousValue.length && nextValue.startsWith(previousValue);
 		const removedFromEnd =
 			nextValue.length < previousValue.length && previousValue.startsWith(nextValue);
 		const isPaste = inputType === 'insertFromPaste';
@@ -181,7 +204,9 @@
 		return JSON.stringify(messageMetrics);
 	}
 
-	function getEffectiveUserResponse(part: UIComponentDisplayPart): Record<string, unknown> | undefined {
+	function getEffectiveUserResponse(
+		part: UIComponentDisplayPart
+	): Record<string, unknown> | undefined {
 		return uiResponseOverrides[part.instanceId] ?? part.userResponse;
 	}
 
@@ -203,65 +228,61 @@
 		};
 	}
 
-	function handleImmersiveStateChange(state: {
-		canCloseSafely: boolean;
-		closePrompt?: string;
-	}) {
+	function handleImmersiveStateChange(state: { canCloseSafely: boolean; closePrompt?: string }) {
 		immersiveCanCloseSafely = state.canCloseSafely;
 		immersiveClosePrompt =
 			state.closePrompt ?? 'Si sales ahora se perdera el progreso no enviado. ¿Quieres cerrar?';
 	}
 
-    function renderMarkdown(content: string): string {
-        try {
-            return renderMarkdownMath(content, { stripAgentMarkers: true });
-        } catch {
-            return content
-                .replace(/\[\[DONE\]\]/g, '')
-                .replace(/\[\[CONTEXTO_RAG\]\][\s\S]*?\[\[FIN_CONTEXTO_RAG\]\]/g, '')
-                .trim();
-        }
-    }
+	function renderMarkdown(content: string): string {
+		try {
+			return renderMarkdownMath(content, { stripAgentMarkers: true });
+		} catch {
+			return content
+				.replace(/\[\[DONE\]\]/g, '')
+				.replace(/\[\[CONTEXTO_RAG\]\][\s\S]*?\[\[FIN_CONTEXTO_RAG\]\]/g, '')
+				.trim();
+		}
+	}
 
-    function getConnectedUserLabel() {
-        return user?.alias?.trim() || user?.username?.trim() || 'usuario';
-    }
+	function getConnectedUserLabel() {
+		return user?.alias?.trim() || user?.username?.trim() || 'usuario';
+	}
 
-    function scrollToBottom(force = false) {
-        if (!chatContainer) return;
-        if (force || isAtBottom) {
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-    }
+	function scrollToBottom(force = false) {
+		if (!chatContainer) return;
+		if (force || isAtBottom) {
+			chatContainer.scrollTop = chatContainer.scrollHeight;
+		}
+	}
 
-    function handleScroll() {
-        if (!chatContainer) return;
-        const threshold = 120;
-        const distanceFromBottom =
-            chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
-        isAtBottom = distanceFromBottom <= threshold;
-        if (!isAtBottom) userHasScrolled = true;
-    }
+	function handleScroll() {
+		if (!chatContainer) return;
+		const threshold = 120;
+		const distanceFromBottom =
+			chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
+		isAtBottom = distanceFromBottom <= threshold;
+	}
 
-    function autoResize() {
-        if (!textarea) return;
-        textarea.style.height = '0';
-        textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-    }
+	function autoResize() {
+		if (!textarea) return;
+		textarea.style.height = '0';
+		textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+	}
 
-    // ─── Envío de mensajes ───
-    function handleKeydown(e: KeyboardEvent) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
+	// ─── Envío de mensajes ───
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			sendMessage();
 			return;
-        }
+		}
 
 		messageMetrics.keystrokeCount += 1;
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			messageMetrics.deleteCount += 1;
 		}
-    }
+	}
 
 	function handleInput() {
 		maybeCountDraftRevision(messageInput);
@@ -277,507 +298,727 @@
 		// The resulting input event will decide whether this was a real draft revision.
 	}
 
-    function startUserMessage(text: string, metadata?: string) {
-        if (!text || isLoading) return;
+	function openImagePicker() {
+		if (isLoading || isUploadingImage || pendingImageAttachments.length >= 3) return;
+		imageInput?.click();
+	}
 
-        errorMessage = '';
-        messageInput = '';
-        if (textarea) textarea.style.height = 'auto';
+	async function handleImageSelection(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const selectedFiles = Array.from(input.files ?? []);
+		input.value = '';
 
-        // Añadir mensaje del usuario inmediatamente
-        const userMsg: AgentDisplayMessage = {
-            id: crypto.randomUUID(),
-            role: 'user',
-            parts: [{ kind: 'text', content: text }],
-            createdAt: new Date()
-        };
-        messages = [...messages, userMsg];
+		if (selectedFiles.length === 0) return;
 
-        // Añadir mensaje del assistant vacío (se irá llenando)
-        const assistantMsg: AgentDisplayMessage = {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            parts: [],
-            createdAt: new Date()
-        };
-        messages = [...messages, assistantMsg];
-        const assistantMsgId = assistantMsg.id;
+		const remainingSlots = 3 - pendingImageAttachments.length;
+		if (remainingSlots <= 0) {
+			errorMessage = 'Puedes adjuntar como máximo 3 imágenes por mensaje.';
+			return;
+		}
 
-        isLoading = true;
-        userHasScrolled = false;
-        isAtBottom = true;
+		const files = selectedFiles.slice(0, remainingSlots);
+		const formData = new FormData();
+		for (const file of files) {
+			formData.append('files', file);
+		}
 
-        setTimeout(() => scrollToBottom(true), 50);
+		isUploadingImage = true;
+		errorMessage = '';
 
-        // Abrir SSE
-        const url = new URL(apiEndpoint, window.location.origin);
-        url.searchParams.set('message', text);
+		try {
+			const uploadEndpoint = `${apiBaseForHitl}/attachments`;
+			const response = await fetch(uploadEndpoint, {
+				method: 'POST',
+				body: formData
+			});
+			const payload = (await response.json().catch(() => ({}))) as {
+				attachments?: PendingImageAttachment[];
+				error?: string;
+			};
+
+			if (!response.ok || !payload.attachments) {
+				errorMessage = payload.error ?? 'No se pudo adjuntar la imagen.';
+				return;
+			}
+
+			pendingImageAttachments = [...pendingImageAttachments, ...payload.attachments];
+		} catch {
+			errorMessage = 'No se pudo adjuntar la imagen.';
+		} finally {
+			isUploadingImage = false;
+		}
+	}
+
+	function removePendingImage(attachmentId: string) {
+		pendingImageAttachments = pendingImageAttachments.filter(
+			(attachment) => attachment.id !== attachmentId
+		);
+	}
+
+	function startUserMessage(
+		text: string,
+		metadata?: string,
+		attachments: PendingImageAttachment[] = []
+	) {
+		if ((!text && attachments.length === 0) || isLoading) return;
+
+		errorMessage = '';
+		messageInput = '';
+		pendingImageAttachments = [];
+		if (textarea) textarea.style.height = 'auto';
+
+		// Añadir mensaje del usuario inmediatamente
+		const userMsg: AgentDisplayMessage = {
+			id: crypto.randomUUID(),
+			role: 'user',
+			parts: [
+				...(text ? [{ kind: 'text' as const, content: text }] : []),
+				...attachments.map((attachment) => ({
+					kind: 'image' as const,
+					attachmentId: attachment.id,
+					fileId: attachment.fileId,
+					url: attachment.url,
+					thumbnailUrl: attachment.thumbnailUrl,
+					displayName: attachment.displayName,
+					width: attachment.width,
+					height: attachment.height,
+					size: attachment.size,
+					mimeType: attachment.mimeType
+				}))
+			],
+			createdAt: new Date()
+		};
+		messages = [...messages, userMsg];
+
+		// Añadir mensaje del assistant vacío (se irá llenando)
+		const assistantMsg: AgentDisplayMessage = {
+			id: crypto.randomUUID(),
+			role: 'assistant',
+			parts: [],
+			createdAt: new Date()
+		};
+		messages = [...messages, assistantMsg];
+		const assistantMsgId = assistantMsg.id;
+
+		isLoading = true;
+		isAtBottom = true;
+
+		setTimeout(() => scrollToBottom(true), 50);
+
+		// Abrir SSE
+		const url = new URL(apiEndpoint, window.location.origin);
+		url.searchParams.set('message', text);
 		if (metadata) {
 			url.searchParams.set('metadata', metadata);
 		}
+		if (attachments.length > 0) {
+			url.searchParams.set(
+				'attachmentIds',
+				attachments.map((attachment) => attachment.id).join(',')
+			);
+		}
 
-        startStream(url.toString(), assistantMsgId);
-    }
+		startStream(url.toString(), assistantMsgId);
+	}
 
-     function sendMessage() {
+	function sendMessage() {
 		const text = messageInput.trim();
-		if (!text) return;
+		const attachments = pendingImageAttachments;
+		if (!text && attachments.length === 0) return;
+		if (isUploadingImage) return;
 
 		const metadata = buildSerializedMessageMetrics();
 		resetMessageMetrics();
-        startUserMessage(text, metadata);
-    }
+		startUserMessage(text, metadata, attachments);
+	}
 
-    export function fillComposer(text: string) {
-        messageInput = text;
-        setTimeout(() => {
-            autoResize();
-            textarea?.focus();
-        }, 0);
-    }
+	export function fillComposer(text: string) {
+		messageInput = text;
+		setTimeout(() => {
+			autoResize();
+			textarea?.focus();
+		}, 0);
+	}
 
-    export function sendDraftMessage(text: string) {
-        startUserMessage(text.trim());
-    }
+	export function sendDraftMessage(text: string) {
+		startUserMessage(text.trim());
+	}
 
-    // ─── SSE stream (reusable for initial send + HITL resume) ───
-    let currentAssistantMsgId = '';
+	// ─── SSE stream (reusable for initial send + HITL resume) ───
+	let currentAssistantMsgId = '';
 
-    function startStream(url: string, assistantMsgId?: string) {
-        // Use the stored assistantMsgId on resume if not provided
-        const targetMsgId = assistantMsgId ?? currentAssistantMsgId;
-        currentAssistantMsgId = targetMsgId;
+	function startStream(url: string, assistantMsgId?: string) {
+		// Use the stored assistantMsgId on resume if not provided
+		const targetMsgId = assistantMsgId ?? currentAssistantMsgId;
+		currentAssistantMsgId = targetMsgId;
 
-        // Acumulador de texto actual del assistant
-        let currentTextPartIndex = -1;
+		// Acumulador de texto actual del assistant
+		let currentTextPartIndex = -1;
 
-        eventSource?.close();
-        eventSource = new EventSource(url);
+		eventSource?.close();
+		eventSource = new EventSource(url);
 
-        eventSource.addEventListener('message', (event) => {
-            if (event.data === '[DONE]') {
-                eventSource?.close();
-                eventSource = null;
-                isLoading = false;
-                setTimeout(() => textarea?.focus(), 0);
-                return;
-            }
+		eventSource.addEventListener('message', (event) => {
+			if (event.data === '[DONE]') {
+				eventSource?.close();
+				eventSource = null;
+				isLoading = false;
+				setTimeout(() => textarea?.focus(), 0);
+				return;
+			}
 
-            let part: AgentStreamPart;
-            try {
-                part = JSON.parse(event.data) as AgentStreamPart;
-            } catch {
-                return;
-            }
+			let part: AgentStreamPart;
+			try {
+				part = JSON.parse(event.data) as AgentStreamPart;
+			} catch {
+				return;
+			}
 
-            // ─── HITL: pause stream when confirmation is required ───
-            if ((part as { type: string }).type === 'tool-confirm-required') {
-                const p = part as unknown as {
-                    type: 'tool-confirm-required';
-                    toolCallId: string;
-                    toolName: string;
-                    toolDisplayName: string;
-                    args: Record<string, unknown>;
-                    riskLevel: 'low' | 'medium' | 'high';
-                    confirmationMessage: string;
-                };
-                hitlToolCallId = p.toolCallId;
-                hitlToolName = p.toolName;
-                hitlToolDisplayName = p.toolDisplayName;
-                hitlArgs = p.args;
-                hitlRiskLevel = p.riskLevel;
-                hitlConfirmationMessage = p.confirmationMessage;
-                hitlOpen = true;
-                // Stream closes on its own after this event; no further SSE events expected
-                return;
-            }
+			// ─── HITL: pause stream when confirmation is required ───
+			if ((part as { type: string }).type === 'tool-confirm-required') {
+				const p = part as unknown as {
+					type: 'tool-confirm-required';
+					toolCallId: string;
+					toolName: string;
+					toolDisplayName: string;
+					args: Record<string, unknown>;
+					riskLevel: 'low' | 'medium' | 'high';
+					confirmationMessage: string;
+				};
+				hitlToolCallId = p.toolCallId;
+				hitlToolName = p.toolName;
+				hitlToolDisplayName = p.toolDisplayName;
+				hitlArgs = p.args;
+				hitlRiskLevel = p.riskLevel;
+				hitlConfirmationMessage = p.confirmationMessage;
+				hitlOpen = true;
+				// Stream closes on its own after this event; no further SSE events expected
+				return;
+			}
 
-            // Actualizar el mensaje del assistant según el tipo de parte
-            messages = messages.map((msg) => {
-                if (msg.id !== targetMsgId) return msg;
+			// Actualizar el mensaje del assistant según el tipo de parte
+			messages = messages.map((msg) => {
+				if (msg.id !== targetMsgId) return msg;
 
-                const parts = [...msg.parts];
+				const parts = [...msg.parts];
 
-                switch (part.type) {
-                    case 'text-delta': {
-                        // Añadir al último text part o crear uno nuevo
-                        if (currentTextPartIndex >= 0 && parts[currentTextPartIndex]?.kind === 'text') {
-                            const prev = parts[currentTextPartIndex] as { kind: 'text'; content: string };
-                            parts[currentTextPartIndex] = { kind: 'text', content: prev.content + part.text };
-                        } else {
-                            parts.push({ kind: 'text', content: part.text });
-                            currentTextPartIndex = parts.length - 1;
-                        }
-                        break;
-                    }
+				switch (part.type) {
+					case 'text-delta': {
+						// Añadir al último text part o crear uno nuevo
+						if (currentTextPartIndex >= 0 && parts[currentTextPartIndex]?.kind === 'text') {
+							const prev = parts[currentTextPartIndex] as { kind: 'text'; content: string };
+							parts[currentTextPartIndex] = { kind: 'text', content: prev.content + part.text };
+						} else {
+							parts.push({ kind: 'text', content: part.text });
+							currentTextPartIndex = parts.length - 1;
+						}
+						break;
+					}
 
-                    case 'tool-call-start': {
-                        currentTextPartIndex = -1; // próximo text es nuevo bloque
-                        parts.push({
-                            kind: 'tool-call',
-                            toolCallId: part.toolCallId,
-                            toolName: part.toolName,
-                            toolDisplayName: part.toolDisplayName,
-                            args: part.args,
-                            status: 'executing'
-                        });
-                        break;
-                    }
+					case 'tool-call-start': {
+						currentTextPartIndex = -1; // próximo text es nuevo bloque
+						parts.push({
+							kind: 'tool-call',
+							toolCallId: part.toolCallId,
+							toolName: part.toolName,
+							toolDisplayName: part.toolDisplayName,
+							args: part.args,
+							status: 'executing'
+						});
+						break;
+					}
 
-                    case 'tool-call-delta': {
-                        const idx = parts.findIndex(
-                            (p) => p.kind === 'tool-call' && p.toolCallId === part.toolCallId
-                        );
-                        if (idx >= 0) {
-                            const prev = parts[idx];
-                            if (prev.kind === 'tool-call') {
-                                parts[idx] = { ...prev, status: 'executing' };
-                            }
-                        }
-                        break;
-                    }
+					case 'tool-call-delta': {
+						const idx = parts.findIndex(
+							(p) => p.kind === 'tool-call' && p.toolCallId === part.toolCallId
+						);
+						if (idx >= 0) {
+							const prev = parts[idx];
+							if (prev.kind === 'tool-call') {
+								parts[idx] = { ...prev, status: 'executing' };
+							}
+						}
+						break;
+					}
 
-                    case 'ui-component': {
-                        currentTextPartIndex = -1;
-                        parts.push({
-                            kind: 'ui-component',
-                            instanceId: part.instanceId,
-                            componentKey: part.componentKey,
-                            props: part.props,
-                            interactive: part.interactive
-                        });
-                        break;
-                    }
+					case 'ui-component': {
+						currentTextPartIndex = -1;
+						parts.push({
+							kind: 'ui-component',
+							instanceId: part.instanceId,
+							componentKey: part.componentKey,
+							props: part.props,
+							interactive: part.interactive
+						});
+						break;
+					}
 
-                    case 'tool-result': {
-                        const idx = parts.findIndex(
-                            (p) => p.kind === 'tool-call' && p.toolCallId === part.toolCallId
-                        );
-                        if (idx >= 0) {
-                            const prev = parts[idx];
-                            if (prev.kind === 'tool-call') {
-                                parts[idx] = {
-                                    kind: 'tool-call',
-                                    toolCallId: prev.toolCallId,
-                                    toolName: prev.toolName,
-                                    toolDisplayName: prev.toolDisplayName,
-                                    args: prev.args,
-                                    status: part.status,
-                                    result: part.result,
-                                    displayResult: part.displayResult,
-                                    durationMs: part.durationMs
-                                };
-                            }
-                        }
-                        break;
-                    }
+					case 'tool-result': {
+						const idx = parts.findIndex(
+							(p) => p.kind === 'tool-call' && p.toolCallId === part.toolCallId
+						);
+						if (idx >= 0) {
+							const prev = parts[idx];
+							if (prev.kind === 'tool-call') {
+								parts[idx] = {
+									kind: 'tool-call',
+									toolCallId: prev.toolCallId,
+									toolName: prev.toolName,
+									toolDisplayName: prev.toolDisplayName,
+									args: prev.args,
+									status: part.status,
+									result: part.result,
+									displayResult: part.displayResult,
+									durationMs: part.durationMs
+								};
+							}
+						}
+						break;
+					}
 
-                    case 'done': {
-                        isLoading = false;
-                        onComplete?.();
-                        setTimeout(() => textarea?.focus(), 0);
-                        break;
-                    }
+					case 'done': {
+						isLoading = false;
+						onComplete?.();
+						setTimeout(() => textarea?.focus(), 0);
+						break;
+					}
 
-                    case 'error': {
-                        errorMessage = part.message;
-                        isLoading = false;
-                        break;
-                    }
-                }
+					case 'error': {
+						errorMessage = part.message;
+						isLoading = false;
+						break;
+					}
+				}
 
-                return { ...msg, parts };
-            });
+				return { ...msg, parts };
+			});
 
-            scrollToBottom();
-        });
+			scrollToBottom();
+		});
 
-        eventSource.addEventListener('error', () => {
-            eventSource?.close();
-            eventSource = null;
-            isLoading = false;
-            errorMessage = 'Se perdió la conexión con el servidor. Inténtalo de nuevo.';
-        });
-    }
+		eventSource.addEventListener('error', () => {
+			eventSource?.close();
+			eventSource = null;
+			isLoading = false;
+			errorMessage = 'Se perdió la conexión con el servidor. Inténtalo de nuevo.';
+		});
+	}
 
-    // ─── HITL handlers ───
-    function handleHitlConfirm(toolCallId: string) {
-        hitlOpen = false;
-        // Re-open the SSE stream in resume mode to get the agent's follow-up
-        const resumeUrl = new URL(apiEndpoint, window.location.origin);
-        resumeUrl.searchParams.set('resume', 'true');
-        resumeUrl.searchParams.set('toolCallId', toolCallId);
-        startStream(resumeUrl.toString());
-    }
+	// ─── HITL handlers ───
+	function handleHitlConfirm(toolCallId: string) {
+		hitlOpen = false;
+		// Re-open the SSE stream in resume mode to get the agent's follow-up
+		const resumeUrl = new URL(apiEndpoint, window.location.origin);
+		resumeUrl.searchParams.set('resume', 'true');
+		resumeUrl.searchParams.set('toolCallId', toolCallId);
+		startStream(resumeUrl.toString());
+	}
 
-    function handleHitlReject(toolCallId: string) {
-        hitlOpen = false;
-        isLoading = false;
-        // Update the tool-call part in the current message to show rejected
-        messages = messages.map((msg) => {
-            if (msg.id !== currentAssistantMsgId) return msg;
-            const parts = [...msg.parts];
-            const idx = parts.findIndex(
-                (p) => p.kind === 'tool-call' && (p as { toolCallId: string }).toolCallId === toolCallId
-            );
-            if (idx >= 0) {
-                const prev = parts[idx];
-                if (prev.kind === 'tool-call') {
-                    parts[idx] = { ...prev, status: 'rejected' as typeof prev.status, result: { rejected: true } };
-                }
-            }
-            return { ...msg, parts };
-        });
-    }
+	function handleHitlReject(toolCallId: string) {
+		hitlOpen = false;
+		isLoading = false;
+		// Update the tool-call part in the current message to show rejected
+		messages = messages.map((msg) => {
+			if (msg.id !== currentAssistantMsgId) return msg;
+			const parts = [...msg.parts];
+			const idx = parts.findIndex(
+				(p) => p.kind === 'tool-call' && (p as { toolCallId: string }).toolCallId === toolCallId
+			);
+			if (idx >= 0) {
+				const prev = parts[idx];
+				if (prev.kind === 'tool-call') {
+					parts[idx] = {
+						...prev,
+						status: 'rejected' as typeof prev.status,
+						result: { rejected: true }
+					};
+				}
+			}
+			return { ...msg, parts };
+		});
+	}
 
-    function handleUIComponentRespond(assistantMsgId: string) {
-        if (!assistantMsgId || isLoading) return;
+	function handleUIComponentRespond(assistantMsgId: string) {
+		if (!assistantMsgId || isLoading) return;
 
-        errorMessage = '';
-        isLoading = true;
-        userHasScrolled = false;
-        isAtBottom = true;
+		errorMessage = '';
+		isLoading = true;
+		isAtBottom = true;
 
-        const resumeUrl = new URL(apiEndpoint, window.location.origin);
-        resumeUrl.searchParams.set('resume', 'true');
-        startStream(resumeUrl.toString(), assistantMsgId);
-    }
+		const resumeUrl = new URL(apiEndpoint, window.location.origin);
+		resumeUrl.searchParams.set('resume', 'true');
+		startStream(resumeUrl.toString(), assistantMsgId);
+	}
 
-    // ─── Auto-start: trigger agent greeting when chat is brand new ───
-    function sendAutoStart() {
-        const assistantMsg: AgentDisplayMessage = {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            parts: [],
-            createdAt: new Date()
-        };
-        messages = [assistantMsg];
-        const assistantMsgId = assistantMsg.id;
+	// ─── Auto-start: trigger agent greeting when chat is brand new ───
+	function sendAutoStart() {
+		const assistantMsg: AgentDisplayMessage = {
+			id: crypto.randomUUID(),
+			role: 'assistant',
+			parts: [],
+			createdAt: new Date()
+		};
+		messages = [assistantMsg];
+		const assistantMsgId = assistantMsg.id;
 
-        isLoading = true;
-        userHasScrolled = false;
-        isAtBottom = true;
+		isLoading = true;
+		isAtBottom = true;
 
-        setTimeout(() => scrollToBottom(true), 50);
+		setTimeout(() => scrollToBottom(true), 50);
 
-        const url = new URL(apiEndpoint, window.location.origin);
-        url.searchParams.set('message', `[[Usuario conectado: ${getConnectedUserLabel()}]]`);
-        startStream(url.toString(), assistantMsgId);
-    }
+		const url = new URL(apiEndpoint, window.location.origin);
+		url.searchParams.set('message', `[[Usuario conectado: ${getConnectedUserLabel()}]]`);
+		startStream(url.toString(), assistantMsgId);
+	}
 
-    // ─── Lifecycle ───
-    onMount(() => {
+	// ─── Lifecycle ───
+	onMount(() => {
 		resetMessageMetrics();
-        scrollToBottom(true);
-        chatContainer?.addEventListener('scroll', handleScroll);
+		scrollToBottom(true);
+		chatContainer?.addEventListener('scroll', handleScroll);
 
-        if (messages.length === 0 && (user?.alias?.trim() || user?.username?.trim())) {
-            sendAutoStart();
-        }
-    });
+		if (messages.length === 0 && (user?.alias?.trim() || user?.username?.trim())) {
+			sendAutoStart();
+		}
+	});
 
-    onDestroy(() => {
-        eventSource?.close();
-        chatContainer?.removeEventListener('scroll', handleScroll);
-    });
+	onDestroy(() => {
+		eventSource?.close();
+		chatContainer?.removeEventListener('scroll', handleScroll);
+	});
 </script>
 
 <div class="flex h-full flex-col">
-    <!-- Mensajes -->
-    <div
-        bind:this={chatContainer}
-        class="flex-1 overflow-y-auto space-y-4 p-4"
-    >
-        {#if messages.length === 0}
-            <div class="flex items-center justify-center h-full text-gray-400 text-sm">
-                Escribe un mensaje para comenzar la conversación con el agente.
-            </div>
-        {/if}
+	<!-- Mensajes -->
+	<div bind:this={chatContainer} class="flex-1 space-y-4 overflow-y-auto p-4">
+		{#if messages.length === 0}
+			<div class="flex h-full items-center justify-center text-sm text-gray-400">
+				Escribe un mensaje para comenzar la conversación con el agente.
+			</div>
+		{/if}
 
-        {#each messages as msg (msg.id)}
-            <div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
-                <div
-                    class="max-w-[85%] rounded-2xl px-4 py-3 text-sm
+		{#each messages as msg (msg.id)}
+			<div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
+				<div
+					class="max-w-[85%] rounded-2xl px-4 py-3 text-sm
                         {msg.role === 'user'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 shadow-sm'}"
-                >
-                    {#each msg.parts as part, index (`${msg.id}-${index}`)}
-                        {#if part.kind === 'text' && part.content}
-                            <div
-                                class="prose prose-sm max-w-none
+						? 'bg-blue-600 text-white'
+						: 'border border-gray-200 bg-white text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100'}"
+				>
+					{#each msg.parts as part, index (`${msg.id}-${index}`)}
+						{#if part.kind === 'text' && part.content}
+							<div
+								class="prose prose-sm max-w-none
                                     {msg.role === 'user' ? 'prose-invert' : 'dark:prose-invert'}"
-                            >
-                                {@html renderMarkdown(part.content)}
-                            </div>
-
-                        {:else if part.kind === 'tool-call'}
-                            <!-- Bloque de Tool Call -->
-                            <div class="mt-2 rounded-lg border
+							>
+								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+								{@html renderMarkdown(part.content)}
+							</div>
+						{:else if part.kind === 'image'}
+							<a
+								class="mt-2 block overflow-hidden rounded-lg border {msg.role === 'user'
+									? 'border-white/30'
+									: 'border-gray-200 dark:border-gray-700'}"
+								href={resolve('/api/files/[fileId]', { fileId: part.fileId })}
+								target="_blank"
+								rel="noreferrer"
+								aria-label={part.displayName ?? 'Imagen adjunta'}
+							>
+								<img
+									src={resolve('/api/files/[fileId]/thumbnail', { fileId: part.fileId })}
+									alt={part.displayName ?? 'Imagen adjunta'}
+									class="max-h-56 w-full object-cover"
+								/>
+							</a>
+						{:else if part.kind === 'tool-call'}
+							<!-- Bloque de Tool Call -->
+							<div
+								class="mt-2 rounded-lg border
                                 {part.status === 'completed'
-                                    ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'
-                                    : part.status === 'failed'
-                                        ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950'
-                                        : 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950'}
-                                overflow-hidden text-xs">
-
-                                <!-- Header de la herramienta -->
-                                <div class="flex items-center gap-2 px-3 py-2 font-medium
+									? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'
+									: part.status === 'failed'
+										? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950'
+										: 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950'}
+                                overflow-hidden text-xs"
+							>
+								<!-- Header de la herramienta -->
+								<div
+									class="flex items-center gap-2 px-3 py-2 font-medium
                                     {part.status === 'completed'
-                                        ? 'text-green-700 dark:text-green-300'
-                                        : part.status === 'failed'
-                                            ? 'text-red-700 dark:text-red-300'
-                                            : 'text-blue-700 dark:text-blue-300'}">
-                                    {#if part.status === 'executing'}
-                                        <svg class="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                                        </svg>
-                                    {:else if part.status === 'completed'}
-                                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                        </svg>
-                                    {:else if part.status === 'failed'}
-                                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                        </svg>
-                                    {/if}
-                                    <span>{part.toolDisplayName}</span>
-                                    {#if part.durationMs}
-                                        <span class="ml-auto font-normal opacity-60">{part.durationMs}ms</span>
-                                    {/if}
-                                </div>
+										? 'text-green-700 dark:text-green-300'
+										: part.status === 'failed'
+											? 'text-red-700 dark:text-red-300'
+											: 'text-blue-700 dark:text-blue-300'}"
+								>
+									{#if part.status === 'executing'}
+										<svg class="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+											<circle
+												class="opacity-25"
+												cx="12"
+												cy="12"
+												r="10"
+												stroke="currentColor"
+												stroke-width="4"
+											/>
+											<path
+												class="opacity-75"
+												fill="currentColor"
+												d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+											/>
+										</svg>
+									{:else if part.status === 'completed'}
+										<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M5 13l4 4L19 7"
+											/>
+										</svg>
+									{:else if part.status === 'failed'}
+										<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M6 18L18 6M6 6l12 12"
+											/>
+										</svg>
+									{/if}
+									<span>{part.toolDisplayName}</span>
+									{#if part.durationMs}
+										<span class="ml-auto font-normal opacity-60">{part.durationMs}ms</span>
+									{/if}
+								</div>
 
-                                <!-- Resultado (si hay) -->
-                                {#if part.displayResult}
-                                    <div class="border-t border-current/10 px-3 py-2 opacity-80">
-                                        {part.displayResult}
-                                    </div>
-                                {/if}
-                            </div>
+								<!-- Resultado (si hay) -->
+								{#if part.displayResult}
+									<div class="border-t border-current/10 px-3 py-2 opacity-80">
+										{part.displayResult}
+									</div>
+								{/if}
+							</div>
+						{:else if part.kind === 'ui-component'}
+							{@const effectiveUserResponse = getEffectiveUserResponse(part)}
+							<UIComponentRenderer
+								instanceId={part.instanceId}
+								componentKey={part.componentKey}
+								props={part.props}
+								interactive={!effectiveUserResponse && part.interactive}
+								initialUserResponse={effectiveUserResponse}
+								apiBase={apiBaseForHitl}
+								onRespond={() => handleUIComponentRespond(msg.id)}
+								onResponsePersisted={(payload) =>
+									handleUIResponsePersisted(part.instanceId, payload)}
+								onOpenImmersive={() => openImmersiveUI(part, msg.id)}
+							/>
+						{/if}
+					{/each}
 
-                        {:else if part.kind === 'ui-component'}
-                            {@const effectiveUserResponse = getEffectiveUserResponse(part)}
-                            <UIComponentRenderer
-                                instanceId={part.instanceId}
-                                componentKey={part.componentKey}
-                                props={part.props}
-                                interactive={!effectiveUserResponse && part.interactive}
-                                initialUserResponse={effectiveUserResponse}
-                                apiBase={apiBaseForHitl}
-                                onRespond={() => handleUIComponentRespond(msg.id)}
-                                onResponsePersisted={(payload) => handleUIResponsePersisted(part.instanceId, payload)}
-                                onOpenImmersive={() => openImmersiveUI(part, msg.id)}
-                            />
-                        {/if}
-                    {/each}
+					<!-- Loading indicator para el último mensaje del assistant -->
+					{#if msg.role === 'assistant' && isLoading && msg === messages[messages.length - 1] && msg.parts.length === 0}
+						<div class="flex items-center gap-1 py-1">
+							<div
+								class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400"
+								style="animation-delay: 0ms"
+							></div>
+							<div
+								class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400"
+								style="animation-delay: 150ms"
+							></div>
+							<div
+								class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400"
+								style="animation-delay: 300ms"
+							></div>
+						</div>
+					{/if}
+				</div>
+			</div>
+		{/each}
+	</div>
 
-                    <!-- Loading indicator para el último mensaje del assistant -->
-                    {#if msg.role === 'assistant' && isLoading && msg === messages[messages.length - 1] && msg.parts.length === 0}
-                        <div class="flex items-center gap-1 py-1">
-                            <div class="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style="animation-delay: 0ms"></div>
-                            <div class="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style="animation-delay: 150ms"></div>
-                            <div class="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style="animation-delay: 300ms"></div>
-                        </div>
-                    {/if}
-                </div>
-            </div>
-        {/each}
-    </div>
+	<!-- Error -->
+	{#if errorMessage}
+		<div
+			class="mx-4 mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+		>
+			{errorMessage}
+		</div>
+	{/if}
 
-    <!-- Error -->
-    {#if errorMessage}
-        <div class="mx-4 mb-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700 dark:bg-red-950 dark:border-red-800 dark:text-red-300">
-            {errorMessage}
-        </div>
-    {/if}
+	<!-- Human-in-the-Loop confirmation modal -->
+	<HumanInTheLoopModal
+		bind:isOpen={hitlOpen}
+		toolCallId={hitlToolCallId}
+		toolName={hitlToolName}
+		toolDisplayName={hitlToolDisplayName}
+		args={hitlArgs}
+		riskLevel={hitlRiskLevel}
+		confirmationMessage={hitlConfirmationMessage}
+		apiBase={apiBaseForHitl}
+		onConfirm={handleHitlConfirm}
+		onReject={handleHitlReject}
+		onError={(msg) => console.error('HITL error:', msg)}
+	/>
 
-    <!-- Human-in-the-Loop confirmation modal -->
-    <HumanInTheLoopModal
-        bind:isOpen={hitlOpen}
-        toolCallId={hitlToolCallId}
-        toolName={hitlToolName}
-        toolDisplayName={hitlToolDisplayName}
-        args={hitlArgs}
-        riskLevel={hitlRiskLevel}
-        confirmationMessage={hitlConfirmationMessage}
-        apiBase={apiBaseForHitl}
-        onConfirm={handleHitlConfirm}
-        onReject={handleHitlReject}
-        onError={(msg) => console.error('HITL error:', msg)}
-    />
+	{#if activeImmersiveUI}
+		<ImmersiveToolOverlay
+			open={true}
+			title={typeof activeImmersiveUI.props.title === 'string'
+				? activeImmersiveUI.props.title
+				: activeImmersiveUI.componentKey}
+			subtitle="La actividad se ejecuta en una vista inmersiva. El chat queda intacto debajo."
+			canCloseSafely={immersiveCanCloseSafely}
+			closePrompt={immersiveClosePrompt}
+			onclose={closeImmersiveUI}
+		>
+			<UIComponentRenderer
+				instanceId={activeImmersiveUI.instanceId}
+				componentKey={activeImmersiveUI.componentKey}
+				props={activeImmersiveUI.props}
+				interactive={!getEffectiveUserResponse(activeImmersiveUI) && activeImmersiveUI.interactive}
+				initialUserResponse={getEffectiveUserResponse(activeImmersiveUI)}
+				apiBase={apiBaseForHitl}
+				renderMode="immersive"
+				onRespond={() => handleUIComponentRespond(activeImmersiveUI!.assistantMessageId)}
+				onResponsePersisted={(payload) =>
+					handleUIResponsePersisted(activeImmersiveUI!.instanceId, payload)}
+				onImmersiveStateChange={handleImmersiveStateChange}
+			/>
+		</ImmersiveToolOverlay>
+	{/if}
 
-    {#if activeImmersiveUI}
-        <ImmersiveToolOverlay
-            open={true}
-            title={typeof activeImmersiveUI.props.title === 'string' ? activeImmersiveUI.props.title : activeImmersiveUI.componentKey}
-            subtitle="La actividad se ejecuta en una vista inmersiva. El chat queda intacto debajo."
-            canCloseSafely={immersiveCanCloseSafely}
-            closePrompt={immersiveClosePrompt}
-            onclose={closeImmersiveUI}
-        >
-            <UIComponentRenderer
-                instanceId={activeImmersiveUI.instanceId}
-                componentKey={activeImmersiveUI.componentKey}
-                props={activeImmersiveUI.props}
-                interactive={!getEffectiveUserResponse(activeImmersiveUI) && activeImmersiveUI.interactive}
-                initialUserResponse={getEffectiveUserResponse(activeImmersiveUI)}
-                apiBase={apiBaseForHitl}
-                renderMode="immersive"
-                onRespond={() => handleUIComponentRespond(activeImmersiveUI!.assistantMessageId)}
-                onResponsePersisted={(payload) => handleUIResponsePersisted(activeImmersiveUI!.instanceId, payload)}
-                onImmersiveStateChange={handleImmersiveStateChange}
-            />
-        </ImmersiveToolOverlay>
-    {/if}
+	<!-- Input -->
+	<div class="border-t border-gray-200 p-4 dark:border-gray-700">
+		{#if pendingImageAttachments.length > 0}
+			<div class="mb-3 flex flex-wrap gap-2">
+				{#each pendingImageAttachments as attachment (attachment.id)}
+					<div
+						class="group relative h-20 w-20 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800"
+					>
+						<img
+							src={resolve('/api/files/[fileId]', { fileId: attachment.fileId })}
+							alt={attachment.displayName ?? 'Imagen adjunta'}
+							class="h-full w-full object-cover"
+						/>
+						<button
+							type="button"
+							class="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white opacity-90 transition-opacity hover:opacity-100"
+							aria-label="Quitar imagen"
+							onclick={() => removePendingImage(attachment.id)}
+						>
+							<X class="h-3.5 w-3.5" />
+						</button>
+					</div>
+				{/each}
+			</div>
+		{/if}
 
-    <!-- Input -->
-    <div class="border-t border-gray-200 dark:border-gray-700 p-4">
-        <div class="flex items-end gap-2">
-            <textarea
-                bind:this={textarea}
-                bind:value={messageInput}
-                onbeforeinput={queueRevisionContext}
-                onkeydown={handleKeydown}
-                oninput={handleInput}
+		<div class="flex items-end gap-2">
+			<input
+				bind:this={imageInput}
+				type="file"
+				accept="image/jpeg,image/png,image/webp"
+				multiple
+				class="hidden"
+				onchange={handleImageSelection}
+			/>
+
+			<button
+				type="button"
+				onclick={openImagePicker}
+				disabled={isLoading || isUploadingImage || pendingImageAttachments.length >= 3}
+				class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl
+					border border-gray-300 bg-white text-gray-600 transition-colors
+					hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600
+					dark:bg-gray-800 dark:text-gray-200
+					dark:hover:bg-gray-700"
+				aria-label="Adjuntar imagen"
+				title="Adjuntar imagen"
+			>
+				{#if isUploadingImage}
+					<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+						<circle
+							class="opacity-25"
+							cx="12"
+							cy="12"
+							r="10"
+							stroke="currentColor"
+							stroke-width="4"
+						/>
+						<path
+							class="opacity-75"
+							fill="currentColor"
+							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+						/>
+					</svg>
+				{:else}
+					<ImagePlus class="h-4 w-4" />
+				{/if}
+			</button>
+
+			<textarea
+				bind:this={textarea}
+				bind:value={messageInput}
+				onbeforeinput={queueRevisionContext}
+				onkeydown={handleKeydown}
+				oninput={handleInput}
 				onpaste={handlePaste}
 				oncut={handleCut}
-                disabled={isLoading}
-                placeholder="Escribe un mensaje..."
-                rows={1}
-                class="flex-1 resize-none rounded-xl border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800
-                    px-3 py-2 text-sm text-gray-900 dark:text-gray-100
-                    placeholder-gray-400 dark:placeholder-gray-500
-                    focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                    transition-all overflow-hidden"
-                style="min-height: 40px; max-height: 120px;"
-            ></textarea>
+				disabled={isLoading}
+				placeholder="Escribe un mensaje..."
+				rows={1}
+				class="flex-1 resize-none overflow-hidden rounded-xl border border-gray-300 bg-white px-3
+                    py-2 text-sm text-gray-900 placeholder-gray-400 transition-all
+                    focus:border-blue-500 focus:ring-1
+                    focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50
+                    dark:border-gray-600 dark:bg-gray-800
+                    dark:text-gray-100 dark:placeholder-gray-500"
+				style="min-height: 40px; max-height: 120px;"
+			></textarea>
 
-            <button
-                onclick={sendMessage}
-                disabled={isLoading || !messageInput.trim()}
-                class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl
-                    bg-blue-600 text-white hover:bg-blue-700
-                    disabled:opacity-40 disabled:cursor-not-allowed
-                    transition-colors"
-                aria-label="Enviar mensaje"
-            >
-                {#if isLoading}
-                    <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                    </svg>
-                {:else}
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                    </svg>
-                {/if}
-            </button>
-        </div>
+			<button
+				onclick={sendMessage}
+				disabled={isLoading ||
+					isUploadingImage ||
+					(!messageInput.trim() && pendingImageAttachments.length === 0)}
+				class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl
+                    bg-blue-600 text-white transition-colors
+                    hover:bg-blue-700 disabled:cursor-not-allowed
+                    disabled:opacity-40"
+				aria-label="Enviar mensaje"
+			>
+				{#if isLoading}
+					<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+						<circle
+							class="opacity-25"
+							cx="12"
+							cy="12"
+							r="10"
+							stroke="currentColor"
+							stroke-width="4"
+						/>
+						<path
+							class="opacity-75"
+							fill="currentColor"
+							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+						/>
+					</svg>
+				{:else}
+					<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+						/>
+					</svg>
+				{/if}
+			</button>
+		</div>
 
-        <p class="mt-1 text-center text-xs text-gray-400">
-            Enter para enviar · Shift+Enter para nueva línea
-        </p>
-    </div>
+		<p class="mt-1 text-center text-xs text-gray-400">
+			Enter para enviar · Shift+Enter para nueva línea
+		</p>
+	</div>
 </div>

@@ -2,6 +2,7 @@ import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
 import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { modelCapabilitiesSupportVision, parseModelCapabilities } from './modelCapabilities';
 
 export interface CreateProviderInput {
 	name: string;
@@ -76,6 +77,14 @@ export interface UsageStats {
 }
 
 export class AIModelService {
+	static parseCapabilities(capabilities: string | null): string[] {
+		return parseModelCapabilities(capabilities);
+	}
+
+	static capabilitiesSupportVision(capabilities: string | null): boolean {
+		return modelCapabilitiesSupportVision(capabilities);
+	}
+
 	// ==================== PROVIDERS ====================
 
 	static async getAllProviders() {
@@ -91,10 +100,7 @@ export class AIModelService {
 	}
 
 	static async getProviderById(id: string) {
-		const [provider] = await db
-			.select()
-			.from(table.aiProvider)
-			.where(eq(table.aiProvider.id, id));
+		const [provider] = await db.select().from(table.aiProvider).where(eq(table.aiProvider.id, id));
 		return provider;
 	}
 
@@ -159,9 +165,7 @@ export class AIModelService {
 			})
 			.from(table.aiModel)
 			.leftJoin(table.aiProvider, eq(table.aiModel.providerId, table.aiProvider.id))
-			.where(
-				and(eq(table.aiModel.isActive, true), eq(table.aiProvider.isActive, true))
-			)
+			.where(and(eq(table.aiModel.isActive, true), eq(table.aiProvider.isActive, true)))
 			.orderBy(table.aiModel.sortOrder, table.aiModel.displayName);
 	}
 
@@ -189,6 +193,13 @@ export class AIModelService {
 		return result;
 	}
 
+	static async modelSupportsVision(modelName: string): Promise<boolean> {
+		const result = await this.getModelByName(modelName);
+		if (!result?.model) return false;
+
+		return this.capabilitiesSupportVision(result.model.capabilities);
+	}
+
 	static async getDefaultModel() {
 		const [result] = await db
 			.select({
@@ -197,12 +208,7 @@ export class AIModelService {
 			})
 			.from(table.aiModel)
 			.leftJoin(table.aiProvider, eq(table.aiModel.providerId, table.aiProvider.id))
-			.where(
-				and(
-					eq(table.aiModel.isDefault, true),
-					eq(table.aiModel.isActive, true)
-				)
-			);
+			.where(and(eq(table.aiModel.isDefault, true), eq(table.aiModel.isActive, true)));
 		return result;
 	}
 
@@ -343,7 +349,9 @@ export class AIModelService {
 				.where(
 					and(
 						eq(table.aiQuota.type, table.aiQuotaType[type]),
-						targetId ? eq(table.aiQuota.targetId, targetId) : sql`${table.aiQuota.targetId} IS NULL`,
+						targetId
+							? eq(table.aiQuota.targetId, targetId)
+							: sql`${table.aiQuota.targetId} IS NULL`,
 						eq(table.aiQuota.isActive, true)
 					)
 				);
@@ -377,17 +385,14 @@ export class AIModelService {
 			.select()
 			.from(table.aiUsageDailyStats)
 			.where(
-				and(
-					eq(table.aiUsageDailyStats.date, today),
-					eq(table.aiUsageDailyStats.modelId, modelId)
-				)
+				and(eq(table.aiUsageDailyStats.date, today), eq(table.aiUsageDailyStats.modelId, modelId))
 			);
 
 		if (existing) {
 			const newTotalRequests = existing.totalRequests + 1;
 			const newAvgDuration = Math.round(
 				(existing.avgDurationMs * existing.totalRequests + (input.durationMs ?? 0)) /
-				newTotalRequests
+					newTotalRequests
 			);
 
 			await db
@@ -442,9 +447,7 @@ export class AIModelService {
 			.where(
 				and(
 					eq(table.aiQuota.type, table.aiQuotaType[type]),
-					targetId
-						? eq(table.aiQuota.targetId, targetId)
-						: sql`${table.aiQuota.targetId} IS NULL`
+					targetId ? eq(table.aiQuota.targetId, targetId) : sql`${table.aiQuota.targetId} IS NULL`
 				)
 			);
 	}
@@ -577,10 +580,7 @@ export class AIModelService {
 		return { allowed: true };
 	}
 
-	private static isPeriodExpired(
-		periodStart: Date,
-		period: string
-	): boolean {
+	private static isPeriodExpired(periodStart: Date, period: string): boolean {
 		const now = new Date();
 		const start = new Date(periodStart);
 
@@ -590,9 +590,7 @@ export class AIModelService {
 			case 'weekly':
 				return now.getTime() - start.getTime() > 7 * 24 * 60 * 60 * 1000;
 			case 'monthly':
-				return (
-					now.getMonth() !== start.getMonth() || now.getFullYear() !== start.getFullYear()
-				);
+				return now.getMonth() !== start.getMonth() || now.getFullYear() !== start.getFullYear();
 			default:
 				return false;
 		}
@@ -766,16 +764,13 @@ export class AIModelService {
 	/**
 	 * Obtiene la API key de un proveedor por su tipo
 	 */
-	static async getApiKeyByProviderType(providerType: (typeof table.aiProviderType)[keyof typeof table.aiProviderType]): Promise<string | null> {
+	static async getApiKeyByProviderType(
+		providerType: (typeof table.aiProviderType)[keyof typeof table.aiProviderType]
+	): Promise<string | null> {
 		const [provider] = await db
 			.select()
 			.from(table.aiProvider)
-			.where(
-				and(
-					eq(table.aiProvider.type, providerType),
-					eq(table.aiProvider.isActive, true)
-				)
-			);
+			.where(and(eq(table.aiProvider.type, providerType), eq(table.aiProvider.isActive, true)));
 		return provider?.apiKey || null;
 	}
 

@@ -1,11 +1,9 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { Bot, Clock3, Copy, Keyboard, PencilLine, User, Wrench } from 'lucide-svelte';
 	import UIComponentRenderer from './UIComponentRenderer.svelte';
 	import ImmersiveToolOverlay from './ImmersiveToolOverlay.svelte';
-	import {
-		getUIComponentRegistryEntry,
-		isImmersiveUIComponentEntry
-	} from './ui/registry';
+	import { getUIComponentRegistryEntry, isImmersiveUIComponentEntry } from './ui/registry';
 	import { formatDate } from '$lib/helpers/dateUtils';
 	import type {
 		AgentDisplayMessage,
@@ -78,15 +76,13 @@
 				return {
 					badge:
 						'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/40 dark:text-rose-300',
-					panel:
-						'border-rose-200/80 bg-rose-50/70 dark:border-rose-900/70 dark:bg-rose-950/20'
+					panel: 'border-rose-200/80 bg-rose-50/70 dark:border-rose-900/70 dark:bg-rose-950/20'
 				};
 			default:
 				return {
 					badge:
 						'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300',
-					panel:
-						'border-amber-200/80 bg-amber-50/70 dark:border-amber-900/70 dark:bg-amber-950/20'
+					panel: 'border-amber-200/80 bg-amber-50/70 dark:border-amber-900/70 dark:bg-amber-950/20'
 				};
 		}
 	}
@@ -164,7 +160,7 @@
 			>
 				{#if message.role === 'assistant'}
 					<div
-						class="mt-1 hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 shadow-sm dark:bg-emerald-950/60 dark:text-emerald-300 sm:flex"
+						class="mt-1 hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 shadow-sm sm:flex dark:bg-emerald-950/60 dark:text-emerald-300"
 					>
 						<Bot class="h-5 w-5" />
 					</div>
@@ -179,7 +175,7 @@
 						}`}
 					>
 						<div
-							class={`flex items-center justify-between border-b px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] ${
+							class={`flex items-center justify-between border-b px-4 py-3 text-xs font-semibold tracking-[0.18em] uppercase ${
 								message.role === 'user'
 									? 'border-sky-200/80 text-sky-700 dark:border-sky-900/60 dark:text-sky-300'
 									: 'border-slate-200/80 text-slate-500 dark:border-slate-700 dark:text-slate-400'
@@ -194,7 +190,7 @@
 									Agente
 								{/if}
 							</span>
-							<span class="normal-case tracking-normal">{formatDate(message.createdAt)}</span>
+							<span class="tracking-normal normal-case">{formatDate(message.createdAt)}</span>
 						</div>
 
 						<div class="space-y-4 px-4 py-4 sm:px-5">
@@ -202,13 +198,26 @@
 								{#if part.kind === 'text' && part.content}
 									<div
 										class={`prose prose-sm max-w-none break-words ${
-											message.role === 'user'
-												? 'prose-sky dark:prose-invert'
-												: 'dark:prose-invert'
+											message.role === 'user' ? 'prose-sky dark:prose-invert' : 'dark:prose-invert'
 										}`}
 									>
+										<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 										{@html renderMarkdown(part.content)}
 									</div>
+								{:else if part.kind === 'image'}
+									<a
+										class="block max-w-xs overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950"
+										href={resolve('/api/files/[fileId]', { fileId: part.fileId })}
+										target="_blank"
+										rel="noreferrer"
+										aria-label={part.displayName ?? 'Imagen adjunta'}
+									>
+										<img
+											src={resolve('/api/files/[fileId]/thumbnail', { fileId: part.fileId })}
+											alt={part.displayName ?? 'Imagen adjunta'}
+											class="max-h-64 w-full object-cover"
+										/>
+									</a>
 								{:else if part.kind === 'tool-call'}
 									{@const tone = toolStatusClasses(part.status)}
 									<div class={`rounded-2xl border ${tone.panel}`}>
@@ -220,7 +229,9 @@
 													<Wrench class="h-4 w-4" />
 												</div>
 												<div class="min-w-0">
-													<p class="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+													<p
+														class="truncate text-sm font-semibold text-slate-900 dark:text-slate-100"
+													>
 														{part.toolDisplayName}
 													</p>
 													<p class="text-xs text-slate-500 dark:text-slate-400">
@@ -230,7 +241,7 @@
 											</div>
 
 											<span
-												class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${tone.badge}`}
+												class={`rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase ${tone.badge}`}
 											>
 												{toolStatusLabel(part.status)}
 											</span>
@@ -255,30 +266,38 @@
 											<div class="mt-3 space-y-3">
 												{#if Object.keys(part.args).length > 0}
 													<div>
-														<p class="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+														<p
+															class="mb-1 text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400"
+														>
 															Argumentos
 														</p>
 														<pre
-															class="overflow-x-auto rounded-2xl bg-slate-950 px-3 py-3 text-xs text-slate-100"
-														>{formatJson(part.args)}</pre>
+															class="overflow-x-auto rounded-2xl bg-slate-950 px-3 py-3 text-xs text-slate-100">{formatJson(
+																part.args
+															)}</pre>
 													</div>
 												{/if}
 
 												{#if part.result !== undefined}
 													<div>
-														<p class="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+														<p
+															class="mb-1 text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400"
+														>
 															Resultado
 														</p>
 														<pre
-															class="overflow-x-auto rounded-2xl bg-slate-950 px-3 py-3 text-xs text-slate-100"
-														>{formatJson(part.result)}</pre>
+															class="overflow-x-auto rounded-2xl bg-slate-950 px-3 py-3 text-xs text-slate-100">{formatJson(
+																part.result
+															)}</pre>
 													</div>
 												{/if}
 											</div>
 										</details>
 									</div>
 								{:else if part.kind === 'ui-component'}
-									<div class="rounded-3xl border border-slate-200/80 bg-white/80 p-2 dark:border-slate-700 dark:bg-slate-900/70">
+									<div
+										class="rounded-3xl border border-slate-200/80 bg-white/80 p-2 dark:border-slate-700 dark:bg-slate-900/70"
+									>
 										<UIComponentRenderer
 											instanceId={part.instanceId}
 											componentKey={part.componentKey}
@@ -286,7 +305,9 @@
 											interactive={false}
 											initialUserResponse={part.userResponse}
 											apiBase=""
-											onOpenImmersive={canOpenImmersive(part) ? () => openImmersive(part) : undefined}
+											onOpenImmersive={canOpenImmersive(part)
+												? () => openImmersive(part)
+												: undefined}
 										/>
 									</div>
 								{/if}
@@ -304,13 +325,17 @@
 
 									{#if expandedMetrics[message.id]}
 										{@const metrics = messageMetricsById[message.id]}
-										<div class="mt-3 rounded-3xl bg-sky-100/80 p-4 text-sm text-slate-700 dark:bg-sky-950/35 dark:text-slate-200">
+										<div
+											class="mt-3 rounded-3xl bg-sky-100/80 p-4 text-sm text-slate-700 dark:bg-sky-950/35 dark:text-slate-200"
+										>
 											<h4 class="text-sm font-semibold text-slate-900 dark:text-slate-100">
 												Métricas de escritura
 											</h4>
 											<div class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 												<div class="rounded-2xl bg-white/70 px-3 py-3 dark:bg-slate-900/60">
-													<p class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+													<p
+														class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400"
+													>
 														<Keyboard class="h-3.5 w-3.5" />
 														Pulsaciones
 													</p>
@@ -319,7 +344,9 @@
 													</p>
 												</div>
 												<div class="rounded-2xl bg-white/70 px-3 py-3 dark:bg-slate-900/60">
-													<p class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+													<p
+														class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400"
+													>
 														<Copy class="h-3.5 w-3.5" />
 														Pegados
 													</p>
@@ -328,7 +355,9 @@
 													</p>
 												</div>
 												<div class="rounded-2xl bg-white/70 px-3 py-3 dark:bg-slate-900/60">
-													<p class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+													<p
+														class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400"
+													>
 														<Clock3 class="h-3.5 w-3.5" />
 														Tiempo
 													</p>
@@ -337,7 +366,9 @@
 													</p>
 												</div>
 												<div class="rounded-2xl bg-white/70 px-3 py-3 dark:bg-slate-900/60">
-													<p class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+													<p
+														class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400"
+													>
 														<PencilLine class="h-3.5 w-3.5" />
 														Revisiones
 													</p>
@@ -358,7 +389,9 @@
 
 											{#if metrics.deviceInfo.userAgent || metrics.deviceInfo.screenSize}
 												<details class="mt-3">
-													<summary class="cursor-pointer text-xs font-medium text-slate-600 dark:text-slate-300">
+													<summary
+														class="cursor-pointer text-xs font-medium text-slate-600 dark:text-slate-300"
+													>
 														Detalles del dispositivo
 													</summary>
 													<div class="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
@@ -379,7 +412,7 @@
 
 				{#if message.role === 'user'}
 					<div
-						class="mt-1 hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 shadow-sm dark:bg-sky-950/60 dark:text-sky-300 sm:flex"
+						class="mt-1 hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 shadow-sm sm:flex dark:bg-sky-950/60 dark:text-sky-300"
 					>
 						<User class="h-5 w-5" />
 					</div>

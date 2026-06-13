@@ -21,6 +21,9 @@ import * as schema from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { isPromptSafe } from '$lib/server/utils/moderation';
 import { MODERATE_PROMPTS } from '$env/static/private';
+import { AIModelService } from '$lib/server/ai/AIModelService';
+import { ModelResolver } from '$lib/server/ai/services/ModelResolver';
+import { AgentMessageAttachmentService } from '$lib/server/agent/AgentMessageAttachmentService';
 import {
 	deriveEnabledUIComponentKeysFromTools,
 	resolveUIRendererBindings
@@ -53,11 +56,14 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
 	const userMessage = url.searchParams.get('message');
 	const userMessageMetadata = url.searchParams.get('metadata') || undefined;
 	const isResume = url.searchParams.get('resume') === 'true';
+	const attachmentIds = isResume
+		? []
+		: AgentMessageAttachmentService.parseAttachmentIds(url.searchParams.get('attachmentIds'));
 	const { ilcid, cid } = params;
 	const usageDomain = BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT;
 
 	// En modo resume no requiere mensaje; en modo normal sí
-	if (!isResume && (!userMessage || !ilcid || !cid)) {
+	if (!isResume && ((!userMessage && attachmentIds.length === 0) || !ilcid || !cid)) {
 		return sseError('Missing required parameters');
 	}
 	if (!ilcid || !cid) {
@@ -66,7 +72,7 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
 
 	// Moderación (solo para mensajes nuevos)
 	let finalUserMessage = userMessage ?? '';
-	if (!isResume && MODERATE_PROMPTS === 'true') {
+	if (!isResume && MODERATE_PROMPTS === 'true' && finalUserMessage.trim()) {
 		const isSafe = await isPromptSafe(finalUserMessage);
 		if (!isSafe) {
 			finalUserMessage = '[[El contenido enviado fue moderado por contener lenguaje inapropiado]]';
@@ -78,6 +84,23 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
 		const agentActivity = await DBAgentActivityUtils.getAgentActivity(ilcid);
 		if (!agentActivity) {
 			return sseError('Actividad agéntica no encontrada');
+		}
+
+		const modelName = agentActivity.llmModel || (await ModelResolver.getDefaultModel()) || '';
+		if (attachmentIds.length > 0) {
+			if (!(await AIModelService.modelSupportsVision(modelName))) {
+				return sseError('El modelo configurado para esta actividad no admite entrada de imágenes.');
+			}
+
+			try {
+				await AgentMessageAttachmentService.validatePendingAttachments({
+					attachmentIds,
+					chatId: cid,
+					userId: user.id
+				});
+			} catch (error) {
+				return sseError(error instanceof Error ? error.message : 'Adjuntos inválidos.');
+			}
 		}
 
 		// Obtener CourseId para tracking de progreso
@@ -166,7 +189,12 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
 					// Elegir entre loop normal o resume post-HITL
 					const generator = isResume
 						? AgentEngine.resumeFromToolCall(context)
-						: AgentEngine.executeLoop(context, finalUserMessage, userMessageMetadata);
+						: AgentEngine.executeLoop(
+								context,
+								finalUserMessage,
+								userMessageMetadata,
+								attachmentIds
+							);
 
 					for await (const part of generator) {
 						const data = JSON.stringify(part);

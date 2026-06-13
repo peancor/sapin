@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
 import type { AgentDisplayMessage, AgentDisplayPart } from '$lib/types/agent';
 import { uiComponentRequiresResponse } from '$lib/utils/agentUI';
+import { AgentMessageAttachmentService } from './AgentMessageAttachmentService';
 
 type ToolCallRow = {
 	id: string;
@@ -57,9 +58,14 @@ export class AgentTranscriptService {
 		const assistantMessageIds = rawMessages
 			.filter((message) => message.role === 'assistant')
 			.map((message) => message.id);
+		const userMessageIds = rawMessages
+			.filter((message) => message.role === 'user')
+			.map((message) => message.id);
 
 		const toolCallsByMessageId = new Map<string, ToolCallRow[]>();
 		const uiInstancesByMessageId = new Map<string, UIInstanceRow[]>();
+		const attachmentsByMessageId =
+			await AgentMessageAttachmentService.getDisplayAttachmentsByMessageIds(userMessageIds);
 
 		if (assistantMessageIds.length > 0) {
 			const toolCalls = await db
@@ -118,6 +124,23 @@ export class AgentTranscriptService {
 
 			if (message.textContent) {
 				parts.push({ kind: 'text', content: message.textContent });
+			}
+
+			if (message.role === 'user') {
+				for (const attachment of attachmentsByMessageId.get(message.id) ?? []) {
+					parts.push({
+						kind: 'image',
+						attachmentId: attachment.id,
+						fileId: attachment.fileId,
+						url: attachment.url,
+						thumbnailUrl: attachment.thumbnailUrl,
+						displayName: attachment.displayName,
+						width: attachment.width,
+						height: attachment.height,
+						size: attachment.size,
+						mimeType: attachment.mimeType
+					});
+				}
 			}
 
 			if (message.role === 'assistant') {

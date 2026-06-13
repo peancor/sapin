@@ -10,6 +10,7 @@ import { AgentPromptBuilder, type AgentPromptSegments } from './AgentPromptBuild
 import { AgentFinalizationService } from './AgentFinalizationService';
 import { AgentUIRendererService } from './AgentUIRendererService';
 import { AgentMemoryService } from './memory';
+import { AgentMessageAttachmentService } from './AgentMessageAttachmentService';
 import { AIRequestCaptureService } from '$lib/server/ai/AIRequestCaptureService';
 import {
 	AgentStreamProcessor,
@@ -135,13 +136,12 @@ export class AgentEngine {
 			id: '__finalization_virtual_tool__',
 			name: finalizationToolName,
 			displayName: 'Finalizar actividad',
-			description:
-				[
-					'Usa esta herramienta cuando el objetivo de la actividad se haya completado para cerrar la sesion.',
-					AgentMemoryService.getFinalizationInstruction(context)
-				]
-					.filter(Boolean)
-					.join(' '),
+			description: [
+				'Usa esta herramienta cuando el objetivo de la actividad se haya completado para cerrar la sesion.',
+				AgentMemoryService.getFinalizationInstruction(context)
+			]
+				.filter(Boolean)
+				.join(' '),
 			category: 'evaluation',
 			parametersSchema: {
 				type: 'object',
@@ -210,8 +210,7 @@ export class AgentEngine {
 				if (blocker) {
 					return {
 						finalizationBlocked: true,
-						reason:
-							'Antes de finalizar debes sincronizar la memoria pendiente de esta sesión.',
+						reason: 'Antes de finalizar debes sincronizar la memoria pendiente de esta sesión.',
 						dirtyScopes: blocker.dirtyScopes,
 						nextStep:
 							'Llama primero a las herramientas de actualización de memoria indicadas y, cuando terminen con éxito o unchanged, vuelve a finalizar.'
@@ -339,7 +338,8 @@ export class AgentEngine {
 	static async *executeLoop(
 		context: AgentContext,
 		userMessage: string,
-		userMessageMetadata?: string
+		userMessageMetadata?: string,
+		userAttachmentIds: string[] = []
 	): AsyncGenerator<AgentStreamPart> {
 		const startTime = Date.now();
 		const config = context.activityConfig;
@@ -408,13 +408,20 @@ export class AgentEngine {
 			memoryContext
 		);
 
-		await DBAgentMessageUtils.saveAgentMessage({
+		const userMessageId = await DBAgentMessageUtils.saveAgentMessage({
 			chatId: context.chatId,
 			role: 'user',
 			textContent: userMessage,
 			sequenceOrder: 0,
 			metadata: userMessageMetadata
 		});
+		const attachedImages = await AgentMessageAttachmentService.attachToMessage({
+			attachmentIds: userAttachmentIds,
+			chatId: context.chatId,
+			messageId: userMessageId,
+			userId: context.userId
+		});
+		const attachmentStats = AgentMessageAttachmentService.getAttachmentStats(attachedImages);
 
 		yield { type: 'status', status: 'thinking' };
 
@@ -489,8 +496,7 @@ export class AgentEngine {
 					runtimeTools,
 					toolChoice: toolChoice ?? 'none',
 					cacheStrategy,
-					cacheTargetProvider:
-						cacheStrategy === 'disabled' ? null : this.SUPPORTED_CACHE_PROVIDER,
+					cacheTargetProvider: cacheStrategy === 'disabled' ? null : this.SUPPORTED_CACHE_PROVIDER,
 					ragContext,
 					memoryContext
 				});
@@ -534,6 +540,7 @@ export class AgentEngine {
 								cacheStrategy,
 								cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
 								cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens,
+								...attachmentStats,
 								streamError: accumulated.streamError ?? undefined
 							}
 						});
@@ -649,7 +656,8 @@ export class AgentEngine {
 				modelName,
 				context,
 				startTime,
-				errorMessage: error instanceof Error ? error.message : 'Error inesperado en el motor agentico',
+				errorMessage:
+					error instanceof Error ? error.message : 'Error inesperado en el motor agentico',
 				metadata: {
 					phase: 'execute_loop',
 					toolCallsCount: accumulated.toolCallsCount
@@ -772,13 +780,15 @@ export class AgentEngine {
 					runtimeTools,
 					toolChoice: toolChoice ?? 'none',
 					cacheStrategy,
-					cacheTargetProvider:
-						cacheStrategy === 'disabled' ? null : this.SUPPORTED_CACHE_PROVIDER,
+					cacheTargetProvider: cacheStrategy === 'disabled' ? null : this.SUPPORTED_CACHE_PROVIDER,
 					ragContext: null,
 					memoryContext
 				});
 			} catch (captureError) {
-				console.error('[AgentEngine] Failed to start request capture round on resume:', captureError);
+				console.error(
+					'[AgentEngine] Failed to start request capture round on resume:',
+					captureError
+				);
 			}
 
 			const result = streamText({
@@ -924,14 +934,18 @@ export class AgentEngine {
 						}
 					);
 				} catch (captureError) {
-					console.error('[AgentEngine] Failed to fail request capture round on resume:', captureError);
+					console.error(
+						'[AgentEngine] Failed to fail request capture round on resume:',
+						captureError
+					);
 				}
 			}
 			await this.logFailureUsage({
 				modelName,
 				context,
 				startTime,
-				errorMessage: error instanceof Error ? error.message : 'Error en la continuacion del agente',
+				errorMessage:
+					error instanceof Error ? error.message : 'Error en la continuacion del agente',
 				metadata: {
 					phase: 'resume_loop',
 					resumed: true,
