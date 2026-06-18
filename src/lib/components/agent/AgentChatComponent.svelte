@@ -6,6 +6,7 @@
 	import { renderMarkdownMath } from '$lib/utils';
 	import HumanInTheLoopModal from './HumanInTheLoopModal.svelte';
 	import ImmersiveToolOverlay from './ImmersiveToolOverlay.svelte';
+	import AgentImageAttachmentPreview from './AgentImageAttachmentPreview.svelte';
 	import UIComponentRenderer from './UIComponentRenderer.svelte';
 	import { ImagePlus, X } from 'lucide-svelte';
 
@@ -715,21 +716,10 @@
 								{@html renderMarkdown(part.content)}
 							</div>
 						{:else if part.kind === 'image'}
-							<a
-								class="mt-2 block overflow-hidden rounded-lg border {msg.role === 'user'
-									? 'border-white/30'
-									: 'border-gray-200 dark:border-gray-700'}"
-								href={resolve('/api/files/[fileId]', { fileId: part.fileId })}
-								target="_blank"
-								rel="noreferrer"
-								aria-label={part.displayName ?? 'Imagen adjunta'}
-							>
-								<img
-									src={resolve('/api/files/[fileId]/thumbnail', { fileId: part.fileId })}
-									alt={part.displayName ?? 'Imagen adjunta'}
-									class="max-h-56 w-full object-cover"
-								/>
-							</a>
+							<AgentImageAttachmentPreview
+								attachment={part}
+								variant={msg.role === 'user' ? 'chat-user' : 'chat-assistant'}
+							/>
 						{:else if part.kind === 'tool-call'}
 							<!-- Bloque de Tool Call -->
 							<div
@@ -894,12 +884,14 @@
 			<div class="mb-3 flex flex-wrap gap-2">
 				{#each pendingImageAttachments as attachment (attachment.id)}
 					<div
-						class="group relative h-20 w-20 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800"
+						class="group relative h-20 w-20 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 p-1 dark:border-gray-700 dark:bg-gray-800"
 					>
 						<img
 							src={resolve('/api/files/[fileId]', { fileId: attachment.fileId })}
 							alt={attachment.displayName ?? 'Imagen adjunta'}
-							class="h-full w-full object-cover"
+							width={attachment.width ?? 80}
+							height={attachment.height ?? 80}
+							class="h-full w-full object-contain"
 						/>
 						<button
 							type="button"

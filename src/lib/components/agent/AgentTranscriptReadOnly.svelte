@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import { Bot, Clock3, Copy, Keyboard, PencilLine, User, Wrench } from 'lucide-svelte';
+	import AgentImageAttachmentPreview from './AgentImageAttachmentPreview.svelte';
 	import UIComponentRenderer from './UIComponentRenderer.svelte';
 	import ImmersiveToolOverlay from './ImmersiveToolOverlay.svelte';
 	import { getUIComponentRegistryEntry, isImmersiveUIComponentEntry } from './ui/registry';
@@ -205,19 +205,7 @@
 										{@html renderMarkdown(part.content)}
 									</div>
 								{:else if part.kind === 'image'}
-									<a
-										class="block max-w-xs overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950"
-										href={resolve('/api/files/[fileId]', { fileId: part.fileId })}
-										target="_blank"
-										rel="noreferrer"
-										aria-label={part.displayName ?? 'Imagen adjunta'}
-									>
-										<img
-											src={resolve('/api/files/[fileId]/thumbnail', { fileId: part.fileId })}
-											alt={part.displayName ?? 'Imagen adjunta'}
-											class="max-h-64 w-full object-cover"
-										/>
-									</a>
+									<AgentImageAttachmentPreview attachment={part} variant="review" />
 								{:else if part.kind === 'tool-call'}
 									{@const tone = toolStatusClasses(part.status)}
 									<div class={`rounded-2xl border ${tone.panel}`}>
