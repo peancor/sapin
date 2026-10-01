@@ -26,6 +26,10 @@ export const patchRunSchema = z
 		(value) => value.title !== undefined || value.endsAt !== undefined,
 		'Indica un título o una nueva hora de fin.'
 	);
+// Gemini through OpenRouter can reject maxItems in structured output schemas.
+// Custom refinements retain the server-side limits without sending that keyword.
+const atMost = (limit: number) => (items: unknown[]) => items.length <= limit;
+
 export const extractionSchema = z.object({
 	observations: z
 		.array(
@@ -40,13 +44,13 @@ export const extractionSchema = z.object({
 							description: z.string().max(600)
 						})
 					)
-					.max(3),
+					.refine(atMost(3), 'Como máximo tres temas por observación.'),
 				confusion: z.string().max(600).nullable(),
-				evidenceIds: z.array(z.string()).max(7),
+				evidenceIds: z.array(z.string()).refine(atMost(7), 'Como máximo siete evidencias.'),
 				insufficientContext: z.boolean()
 			})
 		)
-		.max(50)
+		.refine(atMost(50), 'Como máximo cincuenta observaciones por lote.')
 });
 export const synthesisSchema = z.object({
 	summary: z.string().max(1800),
@@ -55,10 +59,10 @@ export const synthesisSchema = z.object({
 			z.object({
 				topicId: z.string(),
 				suggestion: z.string().max(600),
-				evidenceIds: z.array(z.string()).min(1).max(5)
+				evidenceIds: z.array(z.string()).min(1).refine(atMost(5), 'Como máximo cinco evidencias.')
 			})
 		)
-		.max(8)
+		.refine(atMost(8), 'Como máximo ocho aclaraciones.')
 });
 export type Extraction = z.infer<typeof extractionSchema>;
 export type Synthesis = z.infer<typeof synthesisSchema>;

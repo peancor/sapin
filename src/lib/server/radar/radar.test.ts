@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { zodSchema } from 'ai';
 import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { invalidateRadarChats, RadarRepository } from './RadarRepository';
@@ -8,11 +9,60 @@ import {
 	extractionSchema,
 	normalizeTitle,
 	statistics,
+	synthesisSchema,
 	validateExtraction,
 	type RadarInput
 } from './domain';
 import { prepareBatch, RadarWorker, type RadarAI } from './RadarWorker';
 import { fakeRadarAI, radarFixture } from './testing';
+
+test('esquemas compatibles con Gemini conservan límites de listas en servidor', async () => {
+	for (const definition of [zodSchema(extractionSchema), zodSchema(synthesisSchema)]) {
+		const exported = await definition.jsonSchema;
+		assert.ok(!JSON.stringify(exported).includes('"maxItems"'));
+	}
+	const observation = {
+		id: 'message',
+		intent: 'concept',
+		topics: [],
+		confusion: null,
+		evidenceIds: ['message'],
+		insufficientContext: false
+	};
+	assert.ok(extractionSchema.safeParse({ observations: [observation] }).success);
+	assert.ok(!extractionSchema.safeParse({ observations: Array(51).fill(observation) }).success);
+	assert.ok(
+		!extractionSchema.safeParse({
+			observations: [{ ...observation, evidenceIds: Array(8).fill('message') }]
+		}).success
+	);
+	const topic = { existingId: null, title: 'Derivadas', description: 'Significado' };
+	assert.ok(
+		!extractionSchema.safeParse({
+			observations: [{ ...observation, topics: Array(4).fill(topic) }]
+		}).success
+	);
+	const clarification = {
+		topicId: 'topic',
+		suggestion: 'Mostrar un ejemplo',
+		evidenceIds: ['message']
+	};
+	assert.ok(
+		synthesisSchema.safeParse({ summary: 'Resumen', clarifications: [clarification] }).success
+	);
+	assert.ok(
+		!synthesisSchema.safeParse({ summary: 'Resumen', clarifications: Array(9).fill(clarification) })
+			.success
+	);
+	for (const length of [0, 6]) {
+		assert.ok(
+			!synthesisSchema.safeParse({
+				summary: 'Resumen',
+				clarifications: [{ ...clarification, evidenceIds: Array(length).fill('message') }]
+			}).success
+		);
+	}
+});
 
 for (const type of ['chat', 'agent'] as const)
 	test(`${type}: intervalo por mensaje, chats antiguos, contexto y exclusiones`, () => {
