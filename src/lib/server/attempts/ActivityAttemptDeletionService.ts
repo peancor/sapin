@@ -4,6 +4,7 @@ import { db, CourseInteractiveAuthUtils } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
 import { auditAction, auditSeverity } from '$lib/server/db/schema';
 import { auditService } from '$lib/server/logging/AuditService';
+import { invalidateRadarChats } from '$lib/server/radar/RadarRepository';
 
 export type AttemptDeletionKind = 'lesson' | 'chat' | 'agent';
 
@@ -582,6 +583,7 @@ function countRunResult(result: { changes?: number } | undefined): number {
 
 function deleteChatGraph(tx: DatabaseTransaction, chatIds: string[]): Record<string, number> {
 	if (chatIds.length === 0) return {};
+	invalidateRadarChats(tx, chatIds);
 
 	const agentMessageIds = tx
 		.select({ id: schema.agentMessage.id })

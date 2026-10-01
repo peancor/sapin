@@ -253,7 +253,8 @@ export const agentMessage = sqliteTable(
 		index('agent_message_chat_idx').on(table.chatId),
 		index('agent_message_role_idx').on(table.role),
 		index('agent_message_tool_call_idx').on(table.toolCallId),
-		index('agent_message_created_idx').on(table.createdAt)
+		index('agent_message_created_idx').on(table.createdAt),
+		index('agent_message_chat_time_idx').on(table.chatId, table.createdAt)
 	]
 );
 

@@ -93,6 +93,16 @@
 				])
 	]);
 	const diagnosticItems = $derived([
+		...(data.interactive.type === 'chat' || data.interactive.type === 'agent'
+			? [
+					{
+						id: 'radar',
+						label: 'Radar de dudas',
+						href: resolve(`/course/${cid}/admin/interactives/${ilid}/radar`),
+						icon: MessageSquare
+					}
+				]
+			: []),
 		...(!isAgent && !isLesson
 			? [
 					{
@@ -118,11 +128,7 @@
 	]);
 
 	const previewHref = $derived(
-		isLesson
-			? `/lesson/${ilid}`
-			: isAgent
-				? `/agent-chat/${ilid}`
-				: `/interactive-chat/${ilid}`
+		isLesson ? `/lesson/${ilid}` : isAgent ? `/agent-chat/${ilid}` : `/interactive-chat/${ilid}`
 	);
 
 	const spanClass = 'ms-3 flex-1 whitespace-nowrap';
@@ -136,14 +142,20 @@
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
 	<!-- Mobile sidebar toggle -->
 	<div
-		class="sticky top-16 z-30 flex items-center gap-4 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800 lg:hidden"
+		class="sticky top-16 z-30 flex items-center gap-4 border-b border-gray-200 bg-white px-4 py-3 lg:hidden dark:border-gray-700 dark:bg-gray-800"
 	>
 		<SidebarButton
 			onclick={sidebarUi.toggle}
 			class="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
 		/>
 		<div class="flex items-center gap-3 truncate">
-			<div class="flex h-8 w-8 items-center justify-center rounded-lg {isAgent ? 'bg-green-100 dark:bg-green-900/50' : isLesson ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-blue-100 dark:bg-blue-900/50'}">
+			<div
+				class="flex h-8 w-8 items-center justify-center rounded-lg {isAgent
+					? 'bg-green-100 dark:bg-green-900/50'
+					: isLesson
+						? 'bg-amber-100 dark:bg-amber-900/30'
+						: 'bg-blue-100 dark:bg-blue-900/50'}"
+			>
 				{#if isAgent}
 					<Bot class="h-4 w-4 text-green-600 dark:text-green-400" />
 				{:else if isLesson}
@@ -164,7 +176,7 @@
 			{activeUrl}
 			isOpen={isSidebarOpen}
 			closeSidebar={sidebarUi.close}
-			class="fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 border-r border-gray-200 bg-white transition-transform dark:border-gray-700 dark:bg-gray-800 lg:translate-x-0"
+			class="fixed top-16 left-0 z-40 h-[calc(100vh-4rem)] w-64 border-r border-gray-200 bg-white transition-transform lg:translate-x-0 dark:border-gray-700 dark:bg-gray-800"
 			position="fixed"
 			backdrop={true}
 			backdropClass="!top-16"
@@ -181,14 +193,20 @@
 				<div class="mb-6">
 					<a
 						href={resolve(`/course/${cid}/admin/interactives`)}
-						class="mb-4 flex items-center gap-2 text-sm text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
+						class="hover:text-primary-600 dark:hover:text-primary-400 mb-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400"
 					>
 						<ChevronLeft class="h-4 w-4" />
 						Volver a actividades
 					</a>
 
 					<!-- Interactive Header -->
-					<div class="rounded-xl bg-linear-to-br {isAgent ? 'from-green-500 to-green-600' : isLesson ? 'from-amber-500 to-orange-500' : 'from-blue-500 to-blue-600'} p-4">
+					<div
+						class="rounded-xl bg-linear-to-br {isAgent
+							? 'from-green-500 to-green-600'
+							: isLesson
+								? 'from-amber-500 to-orange-500'
+								: 'from-blue-500 to-blue-600'} p-4"
+					>
 						<div class="flex items-center gap-3">
 							<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
 								{#if isAgent}
@@ -203,7 +221,13 @@
 								<h2 class="line-clamp-2 text-sm font-bold text-white">
 									{data.interactive.name}
 								</h2>
-								<span class="text-xs {isAgent ? 'text-green-100' : isLesson ? 'text-amber-100' : 'text-blue-100'}">
+								<span
+									class="text-xs {isAgent
+										? 'text-green-100'
+										: isLesson
+											? 'text-amber-100'
+											: 'text-blue-100'}"
+								>
 									{data.interactive.type || 'chat'}
 								</span>
 							</div>
@@ -223,7 +247,7 @@
 							</p>
 							<a
 								href={resolve(`/course/${cid}/admin`)}
-								class="text-xs text-primary-600 hover:underline dark:text-primary-400"
+								class="text-primary-600 dark:text-primary-400 text-xs hover:underline"
 							>
 								Ir al admin del curso
 							</a>
@@ -233,7 +257,9 @@
 
 				<!-- Navigation -->
 				<SidebarGroup>
-					<p class="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+					<p
+						class="mb-2 px-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
+					>
 						Gestión de actividad
 					</p>
 					{#each managementItems as item (item.id)}
@@ -246,7 +272,9 @@
 				</SidebarGroup>
 
 				<SidebarGroup border class="mt-4">
-					<p class="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+					<p
+						class="mb-2 px-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
+					>
 						Diagnóstico docente
 					</p>
 					{#each diagnosticItems as item (item.id)}
@@ -260,7 +288,8 @@
 						<div class="flex items-start gap-2">
 							<ShieldAlert class="mt-0.5 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" />
 							<p class="text-xs leading-5 text-sky-800 dark:text-sky-200">
-								Desde aquí puedes revisar fricción, abandono, intervención y análisis guiado sin salir del contexto de la actividad.
+								Desde aquí puedes revisar fricción, abandono, intervención y análisis guiado sin
+								salir del contexto de la actividad.
 							</p>
 						</div>
 					</div>
@@ -268,7 +297,9 @@
 
 				<!-- Quick Actions -->
 				<SidebarGroup border class="mt-4">
-					<p class="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+					<p
+						class="mb-2 px-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
+					>
 						Acciones rápidas
 					</p>
 					<a
@@ -285,7 +316,9 @@
 				{#if data.interactive.description}
 					<div class="mt-auto pt-4">
 						<div class="rounded-xl bg-gray-100 p-4 dark:bg-gray-700">
-							<p class="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+							<p
+								class="mb-1 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
+							>
 								Descripción
 							</p>
 							<p class="line-clamp-4 text-sm text-gray-600 dark:text-gray-300">

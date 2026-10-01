@@ -1,4 +1,5 @@
 import type { ModelMessage } from 'ai';
+import { invalidateRadarChats } from '$lib/server/radar/RadarRepository';
 import { AIUtils } from '$lib/server/ai/AIUtils';
 import { db, CourseInteractiveAuthUtils, InteractiveChatAuthUtils } from '$lib/server/db';
 import { DBAgentMessageUtils } from '$lib/server/db/agent';
@@ -2460,6 +2461,7 @@ export class LessonService {
 
 		db.transaction((tx) => {
 			if (chatIds.length > 0) {
+				invalidateRadarChats(tx, chatIds);
 				tx.delete(agentMessage).where(inArray(agentMessage.chatId, chatIds)).run();
 				tx.delete(message).where(inArray(message.chatId, chatIds)).run();
 			}

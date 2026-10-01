@@ -148,6 +148,13 @@
       "when": 1781342182994,
       "tag": "0020_fast_talos",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1790842511020,
+      "tag": "0021_fancy_kabuki",
+      "breakpoints": true
     }
   ]
 }

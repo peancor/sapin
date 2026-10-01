@@ -6,6 +6,10 @@ import { httpLogger } from '$lib/server/logging';
 import cron from 'node-cron';
 import { imageProcessingQueue } from '$lib/server/files/ImageProcessingQueue';
 import { fileCleanupService } from '$lib/server/files/FileCleanupService';
+import { building } from '$app/environment';
+import { startRadarScheduler } from '$lib/server/radar/service';
+
+if (!building) startRadarScheduler();
 
 // ============================================
 // CRON JOBS - File Processing and Cleanup

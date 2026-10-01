@@ -1,4 +1,4 @@
-import { generateText, Output, streamText, type ModelMessage } from 'ai';
+import { generateText, NoObjectGeneratedError, Output, streamText, type ModelMessage } from 'ai';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -418,7 +418,13 @@ export class AIUtils {
 			interactiveLearningId?: string;
 			chatId?: string;
 		},
-		options?: { temperature?: number }
+		options?: {
+			temperature?: number;
+			maxOutputTokens?: number;
+			abortSignal?: AbortSignal;
+			maxRetries?: number;
+			metadata?: Record<string, unknown>;
+		}
 	): Promise<T> {
 		const startTime = Date.now();
 		const quotaCheck = await this.checkQuota(
@@ -435,7 +441,7 @@ export class AIUtils {
 				operation: 'completion',
 				startTime,
 				errorMessage: `Cuota excedida: ${quotaCheck.reason}`,
-				metadata: { phase: 'quota_check', structuredOutput: true }
+				metadata: { ...options?.metadata, phase: 'quota_check', structuredOutput: true }
 			});
 			throw new Error(`Cuota excedida: ${quotaCheck.reason}`);
 		}
@@ -451,7 +457,7 @@ export class AIUtils {
 				startTime,
 				errorMessage:
 					error instanceof Error ? error.message : `No se pudo cargar el modelo "${modelName}".`,
-				metadata: { phase: 'model_build', structuredOutput: true }
+				metadata: { ...options?.metadata, phase: 'model_build', structuredOutput: true }
 			});
 			throw error;
 		}
@@ -461,12 +467,16 @@ export class AIUtils {
 				model,
 				messages,
 				temperature: options?.temperature,
+				maxOutputTokens: options?.maxOutputTokens,
+				abortSignal: options?.abortSignal,
+				maxRetries: options?.maxRetries,
 				output: Output.object({ schema })
 			});
 
 			const durationMs = Date.now() - startTime;
 			const usage = result.usage;
 			const metadata: Record<string, unknown> = {
+				...options?.metadata,
 				totalTokens: usage?.totalTokens,
 				reasoningTokens: usage?.reasoningTokens,
 				cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens,
@@ -492,6 +502,7 @@ export class AIUtils {
 			return result.output as T;
 		} catch (error) {
 			const durationMs = Date.now() - startTime;
+			const failedUsage = NoObjectGeneratedError.isInstance(error) ? error.usage : undefined;
 
 			await this.logUsage({
 				modelName,
@@ -500,12 +511,12 @@ export class AIUtils {
 				interactiveLearningId: context?.interactiveLearningId,
 				chatId: context?.chatId,
 				operation: 'completion',
-				inputTokens: 0,
-				outputTokens: 0,
+				inputTokens: failedUsage?.inputTokens ?? 0,
+				outputTokens: failedUsage?.outputTokens ?? 0,
 				durationMs,
 				success: false,
 				errorMessage: error instanceof Error ? error.message : 'Unknown error',
-				metadata: { structuredOutput: true }
+				metadata: { ...options?.metadata, structuredOutput: true }
 			});
 
 			throw error;

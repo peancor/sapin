@@ -685,6 +685,18 @@ No editar a mano salvo que el flujo lo requiera explícitamente:
 - notificaciones: `src/lib/server/notifications/`, `src/lib/server/notifier/`
 - analítica pedagógica: `src/lib/server/learning-evidence/`
 
+## Radar de dudas durante la clase
+
+- Subsistema: `src/lib/server/radar/`; contratos compartidos en `src/lib/types/radar.ts` y componentes en `src/lib/components/radar/`.
+- Dashboard docente: `/course/[cid]/admin/interactives/[ilid]/radar`, solo para actividades `chat` y `agent`.
+- API: `/api/course/[cid]/interactives/[ilid]/radar/runs`, detalle, edición, `stop`, `analyze` y evidencias paginadas por tema. Cada endpoint comprueba sesión, permiso docente `viewAnalytics`, relación curso–actividad y ámbito del seguimiento.
+- Tablas de `schema/radar.ts`: `radar_run`, `radar_observation`, `radar_topic`, `radar_observation_topic`, `radar_analysis`. Migración oficial `0021_fancy_kabuki` y snapshot correspondientes. Se añaden índices conversación–fecha en ambos tipos de mensaje.
+- El lector usa fecha de mensaje y matrícula activa de estudiante, excluye roles docentes y disparadores internos; las respuestas del asistente solo aportan contexto. Las observaciones conservan referencias a las fuentes, sin copiar transcripciones.
+- `hooks.server.ts` inicia el planificador cada diez segundos; se deshabilita durante build, con `NODE_ENV=test` y en el contexto de `node:test`. El procesamiento continúa sin navegador, cierra intervalos vencidos, usa un arrendamiento persistente por seguimiento y admite dos trabajos concurrentes por proceso.
+- La IA clasifica incrementalmente por lotes de hasta 50 mensajes y sintetiza una vez por ciclo con cambios. Solo usa modelos activos en BD; revalida permisos del creador y aplica cuotas y trazabilidad existentes. `AIUtils.generateObjectFromMessages` admite cancelación, límite de salida, reintentos y metadatos opcionales. `ModelResolver` acepta también identificadores de modelo.
+- Los borrados de intentos, chats de lecciones y usuarios invalidan las interpretaciones dependientes y eliminan sus evidencias del radar.
+- Pruebas `node:test`: `radar.test.ts` y `load.test.ts`, SQLite aislada con la cadena oficial de migraciones, reloj y modelo sustituibles. `scripts/radar-pilot.ts` genera una BD de demostración nueva con datos ficticios y análisis simulado; uso y revisión docente en `docs/radar-pilot.md`.
+
 ## Nota final
 
 Este documento sustituye a `CLAUDE.md` como guía operativa central del proyecto. Si más adelante cambian arquitectura, scripts o modelo de datos, actualiza primero `AGENTS.md` y deja `CLAUDE.md` solo como puntero.

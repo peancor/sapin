@@ -16,7 +16,12 @@ export type AvailableModel = {
 
 const FALLBACK_MODELS: AvailableModel[] = [
 	{ provider: 'OpenAI', providerType: 'openai', name: 'OpenAI - GPT-5', model: 'gpt-5-2025-08-07' },
-	{ provider: 'OpenAI', providerType: 'openai', name: 'OpenAI - GPT-5 mini', model: 'gpt-5-mini-2025-08-07' },
+	{
+		provider: 'OpenAI',
+		providerType: 'openai',
+		name: 'OpenAI - GPT-5 mini',
+		model: 'gpt-5-mini-2025-08-07'
+	},
 	{
 		provider: 'OpenRouter',
 		providerType: 'openrouter',
@@ -29,21 +34,40 @@ const FALLBACK_MODELS: AvailableModel[] = [
 		name: 'OpenRouter - Gemini 2.5 Flash',
 		model: 'google/gemini-2.5-flash'
 	},
-	{ provider: 'OpenRouter', providerType: 'openrouter', name: 'OpenRouter - GPT-5', model: 'openai/gpt-5' },
+	{
+		provider: 'OpenRouter',
+		providerType: 'openrouter',
+		name: 'OpenRouter - GPT-5',
+		model: 'openai/gpt-5'
+	},
 	{
 		provider: 'OpenRouter',
 		providerType: 'openrouter',
 		name: 'OpenRouter - Claude Sonnet 4',
 		model: 'anthropic/claude-sonnet-4'
 	},
-	{ provider: 'OpenRouter', providerType: 'openrouter', name: 'OpenRouter - Grok 4', model: 'x-ai/grok-4' },
-	{ provider: 'LM Studio', providerType: 'lmstudio', name: 'LM Studio - Gemma 3 27B', model: 'gemma-3-27b-it' }
+	{
+		provider: 'OpenRouter',
+		providerType: 'openrouter',
+		name: 'OpenRouter - Grok 4',
+		model: 'x-ai/grok-4'
+	},
+	{
+		provider: 'LM Studio',
+		providerType: 'lmstudio',
+		name: 'LM Studio - Gemma 3 27B',
+		model: 'gemma-3-27b-it'
+	}
 ];
 
 export class ModelResolver {
 	public static async getModelDefinitionByName(modelName: string): Promise<AvailableModel | null> {
 		const models = await this.getAvailableModels();
-		return models.find((item) => item.name === modelName) ?? null;
+		return (
+			models.find((item) => item.id === modelName) ??
+			models.find((item) => item.name === modelName) ??
+			null
+		);
 	}
 
 	public static async getProviderTypeByModelName(modelName: string): Promise<string | null> {
@@ -88,7 +112,9 @@ export class ModelResolver {
 	public static async getModelIdByName(modelName: string): Promise<string | null> {
 		try {
 			const models = await this.getAvailableModels();
-			const model = models.find((item) => item.name === modelName);
+			const model =
+				models.find((item) => item.id === modelName) ??
+				models.find((item) => item.name === modelName);
 			return model?.id ?? null;
 		} catch {
 			return null;
@@ -142,7 +168,9 @@ export class ModelResolver {
 			}
 			case 'google': {
 				if (!apiKey) {
-					throw new Error('API key de Google no configurada. Configúrala en el panel de administración.');
+					throw new Error(
+						'API key de Google no configurada. Configúrala en el panel de administración.'
+					);
 				}
 				return createOpenRouter({ apiKey }).chat(modelDef.model);
 			}

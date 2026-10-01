@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid';
+import { invalidateRadarChats } from '$lib/server/radar/RadarRepository';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
 import { eq, or } from 'drizzle-orm';
@@ -179,6 +180,7 @@ export default class DBUserUtils {
 
                 // First get all chats owned by the user
                 const userChats = tx.select().from(table.chat).where(eq(table.chat.userId, userId)).all();
+                invalidateRadarChats(tx, userChats.map((chat) => chat.id));
 
                 for (const chat of userChats) {
                     // Delete all messages in each chat
