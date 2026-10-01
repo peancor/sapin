@@ -217,7 +217,7 @@ class FileSystemSettings {
 
 	/**
 	 * Get maximum file size for a category
-	 * @param category - File category (avatar, course, chat, rag_document)
+	 * @param category - File category (avatar, course, chat, lesson, rag_document)
 	 * @returns Maximum size in bytes
 	 */
 	async getMaxSize(category: string): Promise<number> {
@@ -226,6 +226,7 @@ class FileSystemSettings {
 			avatar: 2 * 1024 * 1024, // 2MB
 			course: 50 * 1024 * 1024, // 50MB
 			chat: 10 * 1024 * 1024, // 10MB
+			lesson: 50 * 1024 * 1024, // 50MB
 			rag_document: 50 * 1024 * 1024, // 50MB
 			public: 20 * 1024 * 1024 // 20MB
 		};
@@ -249,6 +250,7 @@ class FileSystemSettings {
 				'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 			],
 			chat: ['image/*', 'application/pdf', 'text/*'],
+			lesson: ['image/*', 'application/pdf', 'text/*', 'video/*', 'audio/*'],
 			rag_document: [
 				'application/pdf',
 				'text/plain',

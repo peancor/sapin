@@ -6,7 +6,6 @@ import {
     user,
     chat,
     userInteractiveLearningChat,
-    interactiveLearningChat,
     interactiveLearning
 } from '$lib/server/db/schema';
 import { ROLE_LEVELS } from '$lib/server/roles';
@@ -31,14 +30,6 @@ export const load = (async ({ params, locals }) => {
             throw error(403, 'No autorizado: Solo profesores del curso y administradores pueden ver el historial de chats');
         }
     }
-
-    // Cargar mensajes del chat
-    const messages = await db
-        .select()
-        .from(message)
-        .where(eq(message.chatId, cid))
-        .orderBy(message.createdAt)
-        .all();
 
     // Cargar información del chat
     const chatData = await db
@@ -76,12 +67,17 @@ export const load = (async ({ params, locals }) => {
         throw error(404, 'Interactive learning chat relation not found');
     }
 
-    // Cargar información de la actividad interactiva
-    const ilChatData = await db
+    if (userILChat.interactiveLearningChatId !== ilid) {
+        throw error(404, 'Chat not found for this activity');
+    }
+
+    // Cargar mensajes solo después de vincular el chat con la actividad autorizada
+    const messages = await db
         .select()
-        .from(interactiveLearningChat)
-        .where(eq(interactiveLearningChat.id, userILChat.interactiveLearningChatId))
-        .get();
+        .from(message)
+        .where(eq(message.chatId, cid))
+        .orderBy(message.createdAt)
+        .all();
 
     const ilData = await db
         .select()

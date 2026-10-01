@@ -6,16 +6,17 @@
 		Activity,
 		MoreVertical,
 		Plus,
-		Link,
 		Eye,
 		Trash2,
 		Clock,
 		BarChart3,
-		TrendingUp
+		TrendingUp,
+		Bot
 	} from 'lucide-svelte';
 	import { Modal, Dropdown, DropdownItem, Button, Toast, Badge } from 'flowbite-svelte';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import MoodleActivityLinkMenu from '$lib/components/MoodleActivityLinkMenu.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -41,29 +42,10 @@
 		deleteModal = true;
 	}
 
-	function getStudentRunUrl(interactive: { id: string; type: string }): string {
-		return interactive.type === 'agent'
-			? `/student/run-agent/${interactive.id}`
-			: `/student/run-chat/${interactive.id}`;
-	}
-
 	function getPreviewUrl(interactive: { id: string; type: string }): string {
-		return interactive.type === 'agent'
-			? `/agent-chat/${interactive.id}`
-			: `/interactive-chat/${interactive.id}`;
-	}
-
-	async function copyActivityLink(interactive: { id: string; type: string }) {
-		try {
-			const link = `${window.location.origin}${getStudentRunUrl(interactive)}`;
-			await navigator.clipboard.writeText(link);
-			showToastMessage(
-				'Enlace copiado al portapapeles. Recuerda añadir el parámetro ?externalid=ID_ALUMNO',
-				'success'
-			);
-		} catch (error) {
-			showToastMessage('Error al copiar el enlace', 'error');
-		}
+		if (interactive.type === 'agent') return `/agent-chat/${interactive.id}`;
+		if (interactive.type === 'lesson') return `/lesson/${interactive.id}`;
+		return `/interactive-chat/${interactive.id}`;
 	}
 
 	function getTypeColor(type: string): 'blue' | 'purple' | 'green' | 'gray' {
@@ -72,6 +54,8 @@
 				return 'blue';
 			case 'agent':
 				return 'green';
+			case 'lesson':
+				return 'purple';
 			case 'quiz':
 				return 'purple';
 			case 'simulation':
@@ -200,6 +184,13 @@
 		</div>
 		<div class="flex flex-wrap items-center gap-2">
 			<a
+				href={resolve(`/course/${data.course.id}/admin/course-agent`)}
+				class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
+			>
+				<Bot class="h-4 w-4" />
+				Agente del curso
+			</a>
+			<a
 				href={resolve(`/course/${data.course.id}/admin/analytics`)}
 				class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 			>
@@ -280,19 +271,28 @@
 
 	<!-- Learning Analytics -->
 	<div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
-		<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800 xl:col-span-2">
+		<div class="rounded-xl bg-white p-5 shadow-sm xl:col-span-2 dark:bg-gray-800">
 			<div class="mb-4 flex items-center justify-between">
 				<div>
-					<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Tendencia de actividad (14 días)</h3>
-					<p class="text-sm text-gray-500 dark:text-gray-400">Eventos de progreso registrados por día</p>
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+						Tendencia de actividad (14 días)
+					</h3>
+					<p class="text-sm text-gray-500 dark:text-gray-400">
+						Eventos de progreso registrados por día
+					</p>
 				</div>
 				<TrendingUp class="h-5 w-5 text-gray-400" />
 			</div>
-			<div class="grid grid-cols-14 items-end gap-2 h-44">
+			<div class="grid h-44 grid-cols-14 items-end gap-2">
 				{#each data.analytics.trend14d as point (point.date)}
 					<div class="flex h-full flex-col items-center justify-end gap-2">
-						<div class="w-full rounded-t bg-blue-500/80" style={`height: ${Math.max(6, Math.round((point.total / maxTrend) * 120))}px`}></div>
-						<span class="text-[10px] text-gray-500 dark:text-gray-400">{new Date(point.date).getDate()}</span>
+						<div
+							class="w-full rounded-t bg-blue-500/80"
+							style={`height: ${Math.max(6, Math.round((point.total / maxTrend) * 120))}px`}
+						></div>
+						<span class="text-[10px] text-gray-500 dark:text-gray-400"
+							>{new Date(point.date).getDate()}</span
+						>
 					</div>
 				{/each}
 			</div>
@@ -303,15 +303,21 @@
 			<div class="mt-4 space-y-4">
 				<div>
 					<p class="text-sm text-gray-500 dark:text-gray-400">Progreso global</p>
-					<p class="text-2xl font-bold text-gray-900 dark:text-white">{data.analytics.overallCompletionRate}%</p>
+					<p class="text-2xl font-bold text-gray-900 dark:text-white">
+						{data.analytics.overallCompletionRate}%
+					</p>
 				</div>
 				<div>
 					<p class="text-sm text-gray-500 dark:text-gray-400">Media por estudiante</p>
-					<p class="text-xl font-semibold text-gray-900 dark:text-white">{data.analytics.avgCompletionRateByStudent}%</p>
+					<p class="text-xl font-semibold text-gray-900 dark:text-white">
+						{data.analytics.avgCompletionRateByStudent}%
+					</p>
 				</div>
 				<div>
 					<p class="text-sm text-gray-500 dark:text-gray-400">Estudiantes activos (7d)</p>
-					<p class="text-xl font-semibold text-gray-900 dark:text-white">{data.analytics.activeStudents7d}</p>
+					<p class="text-xl font-semibold text-gray-900 dark:text-white">
+						{data.analytics.activeStudents7d}
+					</p>
 				</div>
 				<div>
 					<p class="text-sm text-gray-500 dark:text-gray-400">Tiempo medio por participante</p>
@@ -327,7 +333,9 @@
 		<div class="mb-4 flex items-center justify-between">
 			<div>
 				<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Actividad reciente</h3>
-				<p class="text-sm text-gray-500 dark:text-gray-400">Últimos eventos registrados por estudiantes en actividades del curso</p>
+				<p class="text-sm text-gray-500 dark:text-gray-400">
+					Últimos eventos registrados por estudiantes en actividades del curso
+				</p>
 			</div>
 			<Clock class="h-5 w-5 text-gray-400" />
 		</div>
@@ -335,22 +343,30 @@
 		<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
 			<div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
 				<p class="text-xs text-gray-500 dark:text-gray-400">Eventos (24h)</p>
-				<p class="text-lg font-semibold text-gray-900 dark:text-white">{data.analytics.recentActivityStats.events24h}</p>
+				<p class="text-lg font-semibold text-gray-900 dark:text-white">
+					{data.analytics.recentActivityStats.events24h}
+				</p>
 			</div>
 			<div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
 				<p class="text-xs text-gray-500 dark:text-gray-400">Completadas (24h)</p>
-				<p class="text-lg font-semibold text-gray-900 dark:text-white">{data.analytics.recentActivityStats.completed24h}</p>
+				<p class="text-lg font-semibold text-gray-900 dark:text-white">
+					{data.analytics.recentActivityStats.completed24h}
+				</p>
 			</div>
 			<div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
 				<p class="text-xs text-gray-500 dark:text-gray-400">Estudiantes activos (24h)</p>
-				<p class="text-lg font-semibold text-gray-900 dark:text-white">{data.analytics.recentActivityStats.activeStudents24h}</p>
+				<p class="text-lg font-semibold text-gray-900 dark:text-white">
+					{data.analytics.recentActivityStats.activeStudents24h}
+				</p>
 			</div>
 		</div>
 
 		{#if data.analytics.recentActivities.length > 0}
 			<div class="space-y-3">
 				{#each data.analytics.recentActivities as event (event.eventAt.toISOString() + event.userId + event.activityId)}
-					<div class="flex items-start justify-between gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+					<div
+						class="flex items-start justify-between gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700"
+					>
 						<div>
 							<p class="text-sm font-medium text-gray-900 dark:text-white">
 								<a
@@ -362,7 +378,9 @@
 								· {getEventTypeLabel(event.eventType)}
 								{#if event.activityCount === 1}
 									<a
-										href={resolve(`/course/${data.course.id}/admin/interactives/${event.activityId}`)}
+										href={resolve(
+											`/course/${data.course.id}/admin/interactives/${event.activityId}`
+										)}
 										class="hover:text-primary-600 dark:hover:text-primary-400 underline-offset-2 hover:underline"
 									>
 										{event.activityName}
@@ -379,8 +397,12 @@
 							</p>
 						</div>
 						<div class="flex items-center gap-2">
-							<Badge color={getTypeColor(event.activityType)} class="text-xs capitalize">{event.activityType}</Badge>
-							<Badge color={getEventTypeBadgeColor(event.eventType)} class="text-xs">{getEventTypeLabel(event.eventType)}</Badge>
+							<Badge color={getTypeColor(event.activityType)} class="text-xs capitalize"
+								>{event.activityType}</Badge
+							>
+							<Badge color={getEventTypeBadgeColor(event.eventType)} class="text-xs"
+								>{getEventTypeLabel(event.eventType)}</Badge
+							>
 						</div>
 					</div>
 				{/each}
@@ -393,14 +415,18 @@
 	<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800">
 		<div class="mb-4">
 			<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Rendimiento por actividad</h3>
-			<p class="text-sm text-gray-500 dark:text-gray-400">Completado por porcentaje de estudiantes</p>
+			<p class="text-sm text-gray-500 dark:text-gray-400">
+				Completado por porcentaje de estudiantes
+			</p>
 		</div>
 		<div class="space-y-3">
 			{#each data.analytics.activityAnalytics as activity (activity.activityId)}
 				<div>
 					<div class="mb-1 flex items-center justify-between text-sm">
 						<span class="font-medium text-gray-800 dark:text-gray-200">{activity.name}</span>
-						<span class="text-gray-500 dark:text-gray-400">{activity.completedStudents}/{data.analytics.totalStudents}</span>
+						<span class="text-gray-500 dark:text-gray-400"
+							>{activity.completedStudents}/{data.analytics.totalStudents}</span
+						>
 					</div>
 					<div class="h-2 w-full rounded bg-gray-200 dark:bg-gray-700">
 						<div
@@ -462,13 +488,12 @@
 								{interactive.type}
 							</Badge>
 							<div class="flex items-center gap-1">
-								<Button
-									color="light"
-									class="!p-1.5"
-									onclick={() => copyActivityLink(interactive)}
-								>
-									<Link class="h-4 w-4" />
-								</Button>
+								<MoodleActivityLinkMenu
+									{interactive}
+									notify={showToastMessage}
+									triggerIdPrefix="dashboard-moodle-link"
+									buttonClass="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white p-1.5 text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+								/>
 								<Button color="light" class="!p-1.5">
 									<MoreVertical class="h-4 w-4" />
 								</Button>
@@ -476,15 +501,6 @@
 									<DropdownItem href={getPreviewUrl(interactive)}>
 										<Eye class="mr-2 h-4 w-4" />
 										Previsualizar
-									</DropdownItem>
-									<DropdownItem
-										onclick={() => {
-											copyActivityLink(interactive);
-											document.body.click();
-										}}
-									>
-										<Link class="mr-2 h-4 w-4" />
-										Copiar enlace
 									</DropdownItem>
 									<DropdownItem
 										class="text-red-600 hover:!bg-red-50 dark:text-red-400 dark:hover:!bg-red-900/20"

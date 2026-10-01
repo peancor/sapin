@@ -12,6 +12,8 @@ import CourseRoleUtils from './CourseRoleUtils';
 import InteractiveChatAuthUtils from './InteractiveChatAuthUtils';
 import CourseInteractiveAuthUtils from './CourseInteractiveAuthUtils';
 import InvitationUtils from './InvitationUtils';
+import DBStaffAgentUtils from './staff-agent/DBStaffAgentUtils';
+import StaffAgentAuthUtils from './staff-agent/StaffAgentAuthUtils';
 import type { ChatInstanceInterface, InteractiveChatInterface } from './DBChatUtils';
 import type { Permission, Permissions, UserWithRoles } from './RoleUtils';
 import * as schema from './schema';
@@ -31,6 +33,7 @@ export {
   DBUserUtils, DBCourseUtils,
   LoginUtils, DBChatUtils, RoleUtils, CourseRoleUtils, InteractiveChatAuthUtils, CourseInteractiveAuthUtils,
   InvitationUtils,
+  DBStaffAgentUtils, StaffAgentAuthUtils,
   type ChatInstanceInterface, type InteractiveChatInterface,
   type Permission, type Permissions, type UserWithRoles
 };

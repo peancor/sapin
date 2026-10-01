@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { auditLog, auditAction, auditSeverity, appSetting, user } from '$lib/server/db/schema';
-import { eq, desc, and, gte, lte, like, or, count, sql } from 'drizzle-orm';
+import { eq, desc, and, gte, lte, like, or, count } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { logger } from './logger';
 
@@ -215,6 +215,7 @@ class AuditService {
 	private getCategory(action: string): keyof AuditConfig['categories'] {
 		if (action.startsWith('user_')) return 'user';
 		if (action.startsWith('course_')) return 'course';
+		if (action.startsWith('activity_')) return 'course';
 		if (action.startsWith('settings_')) return 'settings';
 		if (action.startsWith('notification_')) return 'notifications';
 		return 'errors';
@@ -365,15 +366,9 @@ class AuditService {
 					.orderBy(desc(count()))
 					.limit(10),
 
-				db
-					.select({ count: count() })
-					.from(auditLog)
-					.where(gte(auditLog.timestamp, oneDayAgo)),
+				db.select({ count: count() }).from(auditLog).where(gte(auditLog.timestamp, oneDayAgo)),
 
-				db
-					.select({ count: count() })
-					.from(auditLog)
-					.where(gte(auditLog.timestamp, sevenDaysAgo))
+				db.select({ count: count() }).from(auditLog).where(gte(auditLog.timestamp, sevenDaysAgo))
 			]);
 
 		const bySeverity: Record<string, number> = {};

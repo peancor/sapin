@@ -1,3 +1,5 @@
+import type { LearningEvidenceInputMetrics } from './learningEvidence';
+
 // Definir interfaz para las estadísticas de chat
 export interface ChatSummaryStats {
     totalChats: number;
@@ -175,6 +177,7 @@ export interface ProcessedChatData {
         type: string;
         content: string;
         createdAt: string;
+        inputMetrics?: LearningEvidenceInputMetrics;
     }[];
 }
 

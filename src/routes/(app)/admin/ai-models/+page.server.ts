@@ -1,7 +1,22 @@
 import type { PageServerLoad, Actions } from './$types';
 import { AIModelService } from '$lib/server/ai/AIModelService';
-import { fail } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
+import { ROLE_LEVELS } from '$lib/server/roles';
 import * as table from '$lib/server/db/schema';
+
+function requireAdmin(locals: App.Locals) {
+	if (!locals.user) {
+		throw error(401, 'No autenticado');
+	}
+
+	if (locals.user.highestRoleLevel < ROLE_LEVELS.ADMIN) {
+		throw error(403, 'No autorizado');
+	}
+}
+
+function getSubmittedModelCapabilities(data: FormData): string[] {
+	return data.get('supportsVision') === 'on' ? ['text', 'vision'] : ['text'];
+}
 
 export const load = (async () => {
 	// Seed defaults si es necesario
@@ -55,7 +70,8 @@ export const load = (async () => {
 }) satisfies PageServerLoad;
 
 export const actions = {
-	createProvider: async ({ request }) => {
+	createProvider: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 
 		const name = data.get('name')?.toString();
@@ -82,7 +98,8 @@ export const actions = {
 		}
 	},
 
-	updateProvider: async ({ request }) => {
+	updateProvider: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
@@ -103,7 +120,8 @@ export const actions = {
 		}
 	},
 
-	deleteProvider: async ({ request }) => {
+	deleteProvider: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
@@ -113,11 +131,14 @@ export const actions = {
 			await AIModelService.deleteProvider(id);
 			return { success: true, message: 'Proveedor eliminado' };
 		} catch {
-			return fail(500, { error: 'Error al eliminar el proveedor. Asegúrate de que no tiene modelos asociados.' });
+			return fail(500, {
+				error: 'Error al eliminar el proveedor. Asegúrate de que no tiene modelos asociados.'
+			});
 		}
 	},
 
-	createModel: async ({ request }) => {
+	createModel: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 
 		const providerId = data.get('providerId')?.toString();
@@ -128,22 +149,21 @@ export const actions = {
 			return fail(400, { error: 'Proveedor, nombre y nombre a mostrar son requeridos' });
 		}
 
-		const capabilitiesStr = data.get('capabilities')?.toString();
-		const capabilities = capabilitiesStr ? capabilitiesStr.split(',').map((c) => c.trim()) : [];
-
 		try {
 			await AIModelService.createModel({
 				providerId,
 				name,
 				displayName,
 				description: data.get('description')?.toString(),
-				capabilities,
+				capabilities: getSubmittedModelCapabilities(data),
 				contextWindow: parseInt(data.get('contextWindow')?.toString() || '0') || undefined,
 				maxOutputTokens: parseInt(data.get('maxOutputTokens')?.toString() || '0') || undefined,
-				inputPricePerMillion: parseFloat(data.get('inputPricePerMillion')?.toString() || '0') || undefined,
-				outputPricePerMillion: parseFloat(data.get('outputPricePerMillion')?.toString() || '0') || undefined,
+				inputPricePerMillion:
+					parseFloat(data.get('inputPricePerMillion')?.toString() || '0') || undefined,
+				outputPricePerMillion:
+					parseFloat(data.get('outputPricePerMillion')?.toString() || '0') || undefined,
 				isDefault: data.get('isDefault') === 'on',
-				isActive: data.get('isActive') !== 'off',
+				isActive: data.get('isActive') === 'on',
 				sortOrder: parseInt(data.get('sortOrder')?.toString() || '0')
 			});
 			return { success: true, message: 'Modelo creado correctamente' };
@@ -152,14 +172,12 @@ export const actions = {
 		}
 	},
 
-	updateModel: async ({ request }) => {
+	updateModel: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
 		if (!id) return fail(400, { error: 'ID requerido' });
-
-		const capabilitiesStr = data.get('capabilities')?.toString();
-		const capabilities = capabilitiesStr ? capabilitiesStr.split(',').map((c) => c.trim()) : undefined;
 
 		try {
 			await AIModelService.updateModel(id, {
@@ -167,11 +185,13 @@ export const actions = {
 				name: data.get('name')?.toString(),
 				displayName: data.get('displayName')?.toString(),
 				description: data.get('description')?.toString(),
-				capabilities,
+				capabilities: getSubmittedModelCapabilities(data),
 				contextWindow: parseInt(data.get('contextWindow')?.toString() || '0') || undefined,
 				maxOutputTokens: parseInt(data.get('maxOutputTokens')?.toString() || '0') || undefined,
-				inputPricePerMillion: parseFloat(data.get('inputPricePerMillion')?.toString() || '0') || undefined,
-				outputPricePerMillion: parseFloat(data.get('outputPricePerMillion')?.toString() || '0') || undefined,
+				inputPricePerMillion:
+					parseFloat(data.get('inputPricePerMillion')?.toString() || '0') || undefined,
+				outputPricePerMillion:
+					parseFloat(data.get('outputPricePerMillion')?.toString() || '0') || undefined,
 				isDefault: data.get('isDefault') === 'on',
 				isActive: data.get('isActive') === 'on',
 				sortOrder: parseInt(data.get('sortOrder')?.toString() || '0')
@@ -182,7 +202,8 @@ export const actions = {
 		}
 	},
 
-	deleteModel: async ({ request }) => {
+	deleteModel: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
@@ -196,7 +217,8 @@ export const actions = {
 		}
 	},
 
-	toggleModelActive: async ({ request }) => {
+	toggleModelActive: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 		const isActive = data.get('isActive') === 'true';
@@ -211,7 +233,8 @@ export const actions = {
 		}
 	},
 
-	setDefaultModel: async ({ request }) => {
+	setDefaultModel: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
@@ -225,7 +248,8 @@ export const actions = {
 		}
 	},
 
-	createQuota: async ({ request }) => {
+	createQuota: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 
 		const type = data.get('type')?.toString() as keyof typeof table.aiQuotaType;
@@ -250,7 +274,8 @@ export const actions = {
 		}
 	},
 
-	updateQuota: async ({ request }) => {
+	updateQuota: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
@@ -272,7 +297,8 @@ export const actions = {
 		}
 	},
 
-	deleteQuota: async ({ request }) => {
+	deleteQuota: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 
@@ -286,7 +312,8 @@ export const actions = {
 		}
 	},
 
-	resetQuota: async ({ request }) => {
+	resetQuota: async ({ request, locals }) => {
+		requireAdmin(locals);
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 

@@ -214,7 +214,10 @@ export function toInsightsProcessedChats(
 		messages: session.messages.map((message) => ({
 			type: message.role.toUpperCase(),
 			content: message.displayText,
-			createdAt: message.createdAt
+			createdAt: message.createdAt,
+			...(message.role === 'user' && message.inputMetrics
+				? { inputMetrics: message.inputMetrics }
+				: {})
 		}))
 	}));
 }

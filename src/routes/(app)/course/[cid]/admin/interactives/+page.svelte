@@ -2,12 +2,15 @@
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Button, Modal, Toast, Input, Badge, Dropdown, DropdownItem } from 'flowbite-svelte';
+	import MoodleActivityLinkMenu from '$lib/components/MoodleActivityLinkMenu.svelte';
 	import {
 		getStoredCourseAdminInteractiveViewMode,
 		setStoredCourseAdminInteractiveViewMode,
+		getFilenameFromContentDisposition,
+		saveBlobAs,
 		type CourseAdminInteractiveViewMode
 	} from '$lib/utils';
 	import {
@@ -15,7 +18,6 @@
 		Search,
 		MoreVertical,
 		Eye,
-		Link,
 		Trash2,
 		Users,
 		MessageSquare,
@@ -24,7 +26,8 @@
 		BookOpen,
 		Download,
 		Upload,
-		Bot
+		Bot,
+		Route
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -50,6 +53,13 @@
 	let importModal = $state(false);
 	let importFile = $state<File | null>(null);
 	let importing = $state(false);
+	let importResult = $state<{
+		activityId: string;
+		activityType: string;
+		message: string;
+		resourceCount: number;
+		revisionCount: number;
+	} | null>(null);
 
 	// Toast
 	let showToast = $state(false);
@@ -72,31 +82,14 @@
 		deleteModal = true;
 	}
 
-	function getStudentRunUrl(interactive: { id: string; type: string }): string {
-		return interactive.type === 'agent'
-			? `/student/run-agent/${interactive.id}`
-			: `/student/run-chat/${interactive.id}`;
-	}
-
-	async function copyActivityLink(interactive: { id: string; type: string }) {
-		try {
-			const link = `${window.location.origin}${getStudentRunUrl(interactive)}`;
-			await navigator.clipboard.writeText(link);
-			showNotification(
-				'Enlace copiado. Añade ?externalid=ID_ALUMNO para identificar estudiantes',
-				'success'
-			);
-		} catch {
-			showNotification('Error al copiar el enlace', 'error');
-		}
-	}
-
 	function getTypeColor(type: string): 'blue' | 'purple' | 'green' | 'gray' {
 		switch (type) {
 			case 'chat':
 				return 'blue';
 			case 'agent':
 				return 'green';
+			case 'lesson':
+				return 'purple';
 			case 'quiz':
 				return 'purple';
 			case 'simulation':
@@ -149,16 +142,22 @@
 			if (!response.ok) throw new Error('Error al exportar');
 
 			const blob = await response.blob();
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = `activity-${name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-${Date.now()}.json`;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
+			const filename = getFilenameFromContentDisposition(
+				response.headers.get('Content-Disposition'),
+				`activity-${name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-${Date.now()}.json`
+			);
+			const saveResult = await saveBlobAs(blob, filename);
+			if (saveResult === 'cancelled') {
+				showNotification('Exportación cancelada', 'success');
+				return;
+			}
 
-			showNotification('Actividad exportada correctamente', 'success');
+			showNotification(
+				saveResult === 'saved'
+					? 'Actividad guardada correctamente'
+					: 'Actividad exportada correctamente',
+				'success'
+			);
 		} catch {
 			showNotification('Error al exportar la actividad', 'error');
 		}
@@ -168,6 +167,7 @@
 		const input = event.target as HTMLInputElement;
 		if (input.files && input.files.length > 0) {
 			importFile = input.files[0];
+			importResult = null;
 		}
 	}
 
@@ -179,16 +179,13 @@
 
 		importing = true;
 		try {
-			const text = await importFile.text();
-			const importData = JSON.parse(text);
+			const formData = new FormData();
+			formData.append('courseId', data.courseId);
+			formData.append('file', importFile);
 
 			const response = await fetch('/api/interactive/import', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					courseId: data.courseId,
-					importData
-				})
+				body: formData
 			});
 
 			if (!response.ok) {
@@ -196,15 +193,35 @@
 				throw new Error(error.message || 'Error al importar');
 			}
 
-			importModal = false;
 			importFile = null;
-			showNotification('Actividad importada correctamente', 'success');
+			const result = await response.json();
+			importResult = {
+				activityId: result.activityId,
+				activityType: result.activityType ?? 'chat',
+				message: result.message ?? 'Actividad importada correctamente',
+				resourceCount: result.resourceCount ?? 0,
+				revisionCount: result.revisionCount ?? 0
+			};
+			showNotification(importResult.message, 'success');
 			await invalidateAll();
 		} catch (e) {
 			showNotification(e instanceof Error ? e.message : 'Error al importar la actividad', 'error');
 		} finally {
 			importing = false;
 		}
+	}
+
+	type ImportResultHref =
+		| `/course/${string}/admin/interactives`
+		| `/course/${string}/admin/interactives/${string}`
+		| `/course/${string}/lesson-studio/${string}`;
+
+	function getImportResultHref(): ImportResultHref {
+		if (!importResult) return `/course/${data.courseId}/admin/interactives`;
+		if (importResult.activityType === 'lesson') {
+			return `/course/${data.courseId}/lesson-studio/${importResult.activityId}`;
+		}
+		return `/course/${data.courseId}/admin/interactives/${importResult.activityId}`;
 	}
 </script>
 
@@ -311,71 +328,50 @@
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			{#each filteredInteractives as interactive (interactive.id)}
 				<div
-					class="group relative overflow-hidden rounded-xl bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800"
+					class="relative rounded-xl bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800"
 				>
 					<!-- Card Header -->
 					<div class="border-b border-gray-100 p-4 dark:border-gray-700">
-						<div class="flex items-start justify-between">
-							<div class="flex items-center gap-3">
-								<div
-									class="flex h-10 w-10 items-center justify-center rounded-lg {interactive.type === 'agent' ? 'bg-green-100 dark:bg-green-900/50' : 'bg-blue-100 dark:bg-blue-900/50'}"
+						<div class="flex items-start gap-3">
+							<div
+								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {interactive.type ===
+								'agent'
+									? 'bg-green-100 dark:bg-green-900/50'
+									: interactive.type === 'lesson'
+										? 'bg-amber-100 dark:bg-amber-900/30'
+										: 'bg-blue-100 dark:bg-blue-900/50'}"
+							>
+								{#if interactive.type === 'agent'}
+									<Bot class="h-5 w-5 text-green-600 dark:text-green-400" />
+								{:else if interactive.type === 'lesson'}
+									<Route class="h-5 w-5 text-amber-600 dark:text-amber-400" />
+								{:else}
+									<MessageSquare class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+								{/if}
+							</div>
+							<div class="min-w-0">
+								<a
+									href={resolve(`/course/${data.courseId}/admin/interactives/${interactive.id}`)}
+									class="hover:text-primary-600 dark:hover:text-primary-400 line-clamp-1 font-semibold text-gray-900 underline-offset-2 hover:underline dark:text-white"
 								>
-									{#if interactive.type === 'agent'}
-										<Bot class="h-5 w-5 text-green-600 dark:text-green-400" />
-									{:else}
-										<MessageSquare class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-									{/if}
-								</div>
-								<div>
-									<h3 class="line-clamp-1 font-semibold text-gray-900 dark:text-white">
-										{interactive.name}
-									</h3>
-									<div class="mt-1 flex gap-1">
-										<Badge color={getTypeColor(interactive.type)}>{interactive.type}</Badge>
-										<Badge color={getStatusColor(interactive.status)}
-											>{getStatusLabel(interactive.status)}</Badge
-										>
-									</div>
+									{interactive.name}
+								</a>
+								<div class="mt-1 flex flex-wrap gap-1">
+									<Badge color={getTypeColor(interactive.type)}>{interactive.type}</Badge>
+									<Badge color={getStatusColor(interactive.status)}
+										>{getStatusLabel(interactive.status)}</Badge
+									>
 								</div>
 							</div>
-							<Button
-								color="light"
-								class="p-2! opacity-0 transition-opacity group-hover:opacity-100"
-								id="dropdown-btn-{interactive.id}"
-							>
-								<MoreVertical class="h-4 w-4" />
-							</Button>
-							<Dropdown triggeredBy="#dropdown-btn-{interactive.id}" simple>
-								<DropdownItem
-									href={resolve(interactive.type === 'agent'
-										? `/agent-chat/${interactive.id}`
-										: `/interactive-chat/${interactive.id}`)}
-								>
-									<Eye class="mr-2 inline h-4 w-4" /> Previsualizar
-								</DropdownItem>
-								<DropdownItem
-									href={resolve(`/course/${data.courseId}/admin/interactives/${interactive.id}/students`)}
-								>
-									<Users class="mr-2 inline h-4 w-4" /> Ver estudiantes
-								</DropdownItem>
-								<DropdownItem onclick={() => copyActivityLink(interactive)}>
-									<Link class="mr-2 inline h-4 w-4" /> Copiar enlace
-								</DropdownItem>
-								<DropdownItem onclick={() => exportActivity(interactive.id, interactive.name)}>
-									<Download class="mr-2 inline h-4 w-4" /> Exportar
-								</DropdownItem>
-								<DropdownItem
-									class="text-red-600 dark:text-red-400"
-									onclick={() => confirmDelete(interactive)}
-								>
-									<Trash2 class="mr-2 inline h-4 w-4" /> Eliminar
-								</DropdownItem>
-							</Dropdown>
 						</div>
 					</div>
 
 					<!-- Card Body -->
-					<div class="p-4">
+					<a
+						href={resolve(`/course/${data.courseId}/admin/interactives/${interactive.id}`)}
+						class="block p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30"
+						aria-label={`Ver detalles de ${interactive.name}`}
+					>
 						<p class="mb-4 line-clamp-2 text-sm text-gray-600 dark:text-gray-400">
 							{interactive.description || 'Sin descripción'}
 						</p>
@@ -385,21 +381,57 @@
 								<span>{interactive.participations ?? 0} participaciones</span>
 							</div>
 						</div>
-					</div>
+					</a>
 
 					<!-- Card Footer -->
 					<div
-						class="flex items-center justify-between border-t border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50"
+						class="flex flex-wrap items-center gap-2 border-t border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50"
 					>
-						<span class="text-xs text-gray-500 dark:text-gray-400"
-							>Orden: {interactive.order ?? '-'}</span
+						<MoodleActivityLinkMenu
+							{interactive}
+							notify={showNotification}
+							label="Enlace Moodle"
+							triggerIdPrefix="interactives-card-moodle-link"
+							buttonClass="inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-primary-200 bg-primary-50 px-3 text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-100 dark:border-primary-500/60 dark:bg-primary-600 dark:text-white dark:hover:bg-primary-500"
+						/>
+						<Button
+							color="light"
+							class="h-9 w-9 p-0!"
+							id="dropdown-btn-{interactive.id}"
+							aria-label="Más acciones"
+							title="Más acciones"
 						>
-						<a
-							href={resolve(`/course/${data.courseId}/admin/interactives/${interactive.id}`)}
-							class="text-primary-600 hover:text-primary-700 dark:text-primary-400 text-sm font-medium"
-						>
-							Ver detalles →
-						</a>
+							<MoreVertical class="h-4 w-4" />
+						</Button>
+						<Dropdown triggeredBy="#dropdown-btn-{interactive.id}" simple>
+							<DropdownItem
+								href={resolve(
+									interactive.type === 'agent'
+										? `/agent-chat/${interactive.id}`
+										: interactive.type === 'lesson'
+											? `/lesson/${interactive.id}`
+											: `/interactive-chat/${interactive.id}`
+								)}
+							>
+								<Eye class="mr-2 inline h-4 w-4" /> Previsualizar
+							</DropdownItem>
+							<DropdownItem
+								href={resolve(
+									`/course/${data.courseId}/admin/interactives/${interactive.id}/students`
+								)}
+							>
+								<Users class="mr-2 inline h-4 w-4" /> Ver estudiantes
+							</DropdownItem>
+							<DropdownItem onclick={() => exportActivity(interactive.id, interactive.name)}>
+								<Download class="mr-2 inline h-4 w-4" /> Exportar
+							</DropdownItem>
+							<DropdownItem
+								class="text-red-600 dark:text-red-400"
+								onclick={() => confirmDelete(interactive)}
+							>
+								<Trash2 class="mr-2 inline h-4 w-4" /> Eliminar
+							</DropdownItem>
+						</Dropdown>
 					</div>
 				</div>
 			{/each}
@@ -463,22 +495,23 @@
 							<td class="px-6 py-4">
 								<div class="flex items-center justify-center gap-1">
 									<a
-										href={resolve(interactive.type === 'agent'
-											? `/agent-chat/${interactive.id}`
-											: `/interactive-chat/${interactive.id}`)}
+										href={resolve(
+											interactive.type === 'agent'
+												? `/agent-chat/${interactive.id}`
+												: interactive.type === 'lesson'
+													? `/lesson/${interactive.id}`
+													: `/interactive-chat/${interactive.id}`
+										)}
 										class="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-600"
 										title="Previsualizar"
 									>
 										<Eye class="h-4 w-4" />
 									</a>
-									<button
-										type="button"
-										onclick={() => copyActivityLink(interactive)}
-										class="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-600"
-										title="Copiar enlace"
-									>
-										<Link class="h-4 w-4" />
-									</button>
+									<MoodleActivityLinkMenu
+										{interactive}
+										notify={showNotification}
+										triggerIdPrefix="interactives-table-moodle-link"
+									/>
 									<button
 										type="button"
 										onclick={() => exportActivity(interactive.id, interactive.name)}
@@ -552,7 +585,7 @@
 			</div>
 			<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-white">Importar actividad</h3>
 			<p class="text-sm text-gray-500 dark:text-gray-400">
-				Selecciona un archivo JSON exportado previamente
+				Selecciona un JSON de actividad o un paquete .sapinlesson.zip
 			</p>
 		</div>
 
@@ -564,7 +597,12 @@
 				<span class="text-sm text-gray-500 dark:text-gray-400">
 					{importFile ? importFile.name : 'Haz clic para seleccionar archivo'}
 				</span>
-				<input type="file" accept=".json" class="hidden" onchange={handleFileSelect} />
+				<input
+					type="file"
+					accept=".json,.zip,.sapinlesson.zip,application/zip"
+					class="hidden"
+					onchange={handleFileSelect}
+				/>
 			</label>
 		</div>
 
@@ -577,12 +615,35 @@
 			</div>
 		{/if}
 
+		{#if importResult}
+			<div class="rounded-lg bg-green-50 p-3 dark:bg-green-900/20">
+				<p class="text-sm font-semibold text-green-800 dark:text-green-200">
+					{importResult.message}
+				</p>
+				{#if importResult.activityType === 'lesson'}
+					<p class="mt-1 text-sm text-green-700 dark:text-green-300">
+						{importResult.resourceCount} recurso{importResult.resourceCount === 1 ? '' : 's'} y
+						{importResult.revisionCount} revisi{importResult.revisionCount === 1 ? 'ón' : 'ones'}
+						importad{importResult.revisionCount === 1 ? 'a' : 'as'}.
+					</p>
+				{/if}
+				<button
+					type="button"
+					onclick={() => goto(resolve(getImportResultHref()))}
+					class="text-primary-700 dark:text-primary-300 mt-3 inline-flex text-sm font-semibold hover:underline"
+				>
+					Abrir actividad importada
+				</button>
+			</div>
+		{/if}
+
 		<div class="flex justify-end gap-3 pt-4">
 			<Button
 				color="alternative"
 				onclick={() => {
 					importModal = false;
 					importFile = null;
+					importResult = null;
 				}}
 			>
 				Cancelar

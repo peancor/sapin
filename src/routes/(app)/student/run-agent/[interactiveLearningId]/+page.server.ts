@@ -4,14 +4,22 @@ import { db, DBUserUtils, InteractiveChatAuthUtils, LoginUtils } from '$lib/serv
 import * as schema from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { DBAgentActivityUtils } from '$lib/server/db/agent';
+import { resolveExternalIdSearchParam } from '$lib/server/students/externalIdSearchParam';
+import { resolveMoodleLinkVerification } from '$lib/server/students/moodleLinkVerification';
 
 export const load = (async (event) => {
 	const { interactiveLearningId } = event.params;
-	let externalId = event.url.searchParams.get('externalId');
-
-	if (!externalId) {
-		externalId = event.url.searchParams.get('externalid');
+	const moodleLinkVerification = await resolveMoodleLinkVerification({
+		activityId: interactiveLearningId,
+		expectedActivityType: 'agent',
+		searchParams: event.url.searchParams,
+		user: event.locals.user
+	});
+	if (moodleLinkVerification) {
+		return { moodleLinkVerification, activityId: interactiveLearningId, chatId: null };
 	}
+
+	const externalId = resolveExternalIdSearchParam(event.url.searchParams);
 
 	if (!externalId) {
 		error(401, 'Unauthorized');
@@ -69,9 +77,10 @@ export const load = (async (event) => {
 		})
 	});
 
-	const payload = (await response.json().catch(() => null)) as
-		| { chatId?: string; error?: string }
-		| null;
+	const payload = (await response.json().catch(() => null)) as {
+		chatId?: string;
+		error?: string;
+	} | null;
 
 	if (!response.ok || !payload?.chatId) {
 		console.error('Error creating agent chat:', payload?.error);
@@ -79,6 +88,7 @@ export const load = (async (event) => {
 	}
 
 	return {
+		moodleLinkVerification: null,
 		activityId: interactiveLearningId,
 		chatId: payload.chatId
 	};

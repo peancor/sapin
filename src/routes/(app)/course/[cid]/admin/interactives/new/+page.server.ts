@@ -9,8 +9,10 @@ import { eq, sql } from 'drizzle-orm';
 import { AIUtils } from '$lib/server/ai/AIUtils';
 import { auditService, auditAction } from '$lib/server/logging';
 import { generateSlug } from '$lib/utils/slug';
-import { DBAgentActivityUtils, DBAgentToolUtils, DBAgentUIUtils } from '$lib/server/db/agent';
-import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '$lib/server/agent/tools/constants';
+import { interactiveLearningLesson } from '$lib/server/db/schema';
+import { LessonService } from '$lib/server/lesson/LessonService';
+import { LessonRevisionService } from '$lib/server/lesson/LessonRevisionService';
+import { lessonStudioHref } from '$lib/lesson/lessonStudioNavigation';
 
 function getClientIP(request: Request): string | null {
     return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -23,30 +25,9 @@ export const load = (async ({ locals, params }) => {
         throw error(401, 'Unauthorized');
     }
 
-    // Cargar modelos activos desde el nuevo sistema
-    const availableModels = await AIUtils.getAvailableModels();
-    const models = availableModels.map(m => ({
-        name: m.name,
-        provider: m.provider
-    }));
-
-    // Obtener modelo por defecto
-    const defaultModel = await AIUtils.getDefaultModel();
-
-    // Seed y cargar catálogos para actividades agénticas
-    await DBAgentToolUtils.seedBuiltinTools(BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT);
-    await DBAgentUIUtils.seedBuiltinUIComponents();
-    const activeTools = await DBAgentToolUtils.getActiveToolDefinitions(BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT);
-    const activeUIComponents = await DBAgentUIUtils.getAllUIComponents();
-    const availableUIComponentKeys = activeUIComponents.map((component) => component.componentKey);
-
     return {
         courseId: params.cid,
-        types: Object.values(interactiveLearningTypes),
-        models,
-        defaultModel,
-        activeTools,
-        availableUIComponentKeys
+        types: Object.values(interactiveLearningTypes)
     };
 }) satisfies PageServerLoad;
 
@@ -60,37 +41,41 @@ export const actions = {
         const name = data.get('name')?.toString();
         const description = data.get('description')?.toString();
         const type = data.get('type')?.toString();
-        // Obtener status del formulario (default: draft)
         const statusValue = data.get('status')?.toString();
-        const status = (statusValue === 'published' || statusValue === 'archived' || statusValue === 'hidden') ? statusValue : 'hidden';
+        const status = (statusValue === 'published' || statusValue === 'closed' || statusValue === 'archived' || statusValue === 'hidden')
+            ? statusValue
+            : 'hidden';
 
-        // Get chat configuration fields directly
-        const llmRole = data.get('llmRole')?.toString() || '';
-        const llmInstructions = data.get('llmInstructions')?.toString() || '';
-        const llmModel = data.get('llmModel')?.toString() || '';
-        const llmContext = data.get('llmContext')?.toString() || '';
-        const systemPrompt = data.get('systemPrompt')?.toString() || '';
-        const temperature = data.get('temperature') ? parseFloat(data.get('temperature')?.toString() || '0.7') : 0.7;
-        const maxTokens = data.get('maxTokens') ? parseInt(data.get('maxTokens')?.toString() || '2000') : 2000;
-        const topP = data.get('topP') ? parseFloat(data.get('topP')?.toString() || '0.9') : 0.9;
-
-        if (!name || !type || !Object.values(interactiveLearningTypes).includes(type as any)) {
+        if (!name || !type || !['chat', 'agent', 'lesson'].includes(type)) {
             throw error(400, 'Invalid input');
         }
 
         const id = nanoid();
         const now = new Date();
+        const defaultModel = type === 'lesson' ? '' : await AIUtils.getDefaultModel();
+        const llmRole = '';
+        const llmInstructions = '';
+        const llmContext = '';
+        const systemPrompt = '';
+        const llmModel = defaultModel || 'GPT-4o';
+        const temperature = 0.7;
+        const maxTokens = 2000;
+        const topP = 0.9;
+        const lessonDefinition = LessonService.createDefaultDefinition();
+        const sessionPolicy = 'resume_latest' as const;
+        const allowRestart = true;
 
-        // Create content JSON for backward compatibility
-        const content = JSON.stringify({
-            llmRole,
-            llmInstructions,
-            llmModel,
-            temperature,
-            maxTokens,
-            topP,
-            systemPrompt
-        }, null, 2);
+        const content = type === 'lesson'
+            ? LessonService.serializeDefinition(lessonDefinition)
+            : JSON.stringify({
+                llmRole,
+                llmInstructions,
+                llmModel,
+                temperature,
+                maxTokens,
+                topP,
+                systemPrompt
+            }, null, 2);
 
         // Generar slug único
         const existingSlugs = await db
@@ -119,10 +104,9 @@ export const actions = {
             updatedAt: now
         });
 
-        // Si es de tipo chat, crear el interactiveLearningChat con el MISMO ID (patrón de herencia 1:1)
         if (type === 'chat') {
             await db.insert(interactiveLearningChat).values({
-                id, // Mismo ID que interactiveLearning
+                id,
                 llmRole,
                 llmInstructions,
                 llmContext,
@@ -135,39 +119,6 @@ export const actions = {
                 metadata: '{}'
             });
         } else if (type === 'agent') {
-            const maxToolRoundtrips = data.get('maxToolRoundtrips') ? parseInt(data.get('maxToolRoundtrips')?.toString() || '5') : 5;
-            const parallelToolCalls = data.get('parallelToolCalls') === 'on' || data.get('parallelToolCalls') === 'true';
-            const toolChoice = (['auto', 'required', 'none'].includes(data.get('toolChoice')?.toString() ?? '')) ? (data.get('toolChoice')?.toString() as 'auto' | 'required' | 'none') : 'auto';
-            const finalizationEnabledRaw = data.get('finalizationEnabled')?.toString();
-            const finalizationEnabled = finalizationEnabledRaw === undefined || finalizationEnabledRaw === null
-                ? true
-                : finalizationEnabledRaw === 'on' || finalizationEnabledRaw === 'true';
-            const finalizationToolName = data.get('finalizationToolName')?.toString().trim() || 'finalize_activity';
-            const finalizationHandlerRaw = data.get('finalizationHandler')?.toString();
-            const finalizationHandler = (['mark_complete_and_notify', 'mark_complete_only', 'notify_only'].includes(finalizationHandlerRaw ?? ''))
-                ? (finalizationHandlerRaw as 'mark_complete_and_notify' | 'mark_complete_only' | 'notify_only')
-                : 'mark_complete_and_notify';
-            const requireFinalizationToolCallRaw = data.get('requireFinalizationToolCall')?.toString();
-            const requireFinalizationToolCall = requireFinalizationToolCallRaw === undefined || requireFinalizationToolCallRaw === null
-                ? true
-                : requireFinalizationToolCallRaw === 'on' || requireFinalizationToolCallRaw === 'true';
-            const finalizationConfigRaw = data.get('finalizationConfig')?.toString().trim() || '';
-            let finalizationConfig: string | null = null;
-            if (finalizationConfigRaw) {
-                try {
-                    JSON.parse(finalizationConfigRaw);
-                    finalizationConfig = finalizationConfigRaw;
-                } catch {
-                    throw error(400, 'finalizationConfig debe ser JSON valido');
-                }
-            }
-
-            let selectedToolIds: string[] = [];
-            try {
-                const toolIdsRaw = data.get('selectedToolIds')?.toString();
-                if (toolIdsRaw) selectedToolIds = JSON.parse(toolIdsRaw) as string[];
-            } catch { /* ignore */ }
-
             await db.insert(interactiveLearningAgent).values({
                 id,
                 llmRole,
@@ -178,18 +129,28 @@ export const actions = {
                 temperature,
                 maxTokens,
                 topP,
-                maxToolRoundtrips,
-                parallelToolCalls,
-                toolChoice,
-                finalizationEnabled,
-                finalizationToolName,
-                finalizationHandler,
-                finalizationConfig,
-                requireFinalizationToolCall,
+                maxToolRoundtrips: 5,
+                parallelToolCalls: false,
+                toolChoice: 'auto',
+                finalizationEnabled: true,
+                finalizationToolName: 'finalize_activity',
+                finalizationHandler: 'mark_complete_and_notify',
+                finalizationConfig: null,
+                requireFinalizationToolCall: true,
                 createdAt: now
             });
-
-            await DBAgentActivityUtils.setActivityTools(id, selectedToolIds);
+        } else if (type === 'lesson') {
+            await db.insert(interactiveLearningLesson).values({
+                id,
+                sessionPolicy,
+                allowRestart,
+                metadata: null,
+                createdAt: now,
+                updatedAt: now
+            });
+			await LessonRevisionService.ensureLessonRevisionState(id, {
+				actorUserId: locals.user.id
+			});
         }
 
         // Obtener el último orden para este curso
@@ -220,7 +181,12 @@ export const actions = {
             severity: 'info'
         });
 
-        // Redirect to course administration page
-        throw redirect(303, `/course/${params.cid}/admin`);
+        const editPath = type === 'chat'
+            ? `/course/${params.cid}/admin/interactives/${id}/chatedit`
+            : type === 'agent'
+                ? `/course/${params.cid}/admin/interactives/${id}/agentedit`
+                : lessonStudioHref({ cid: params.cid, ilid: id });
+
+        throw redirect(303, editPath);
     }
 } satisfies Actions;

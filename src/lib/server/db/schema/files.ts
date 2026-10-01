@@ -14,6 +14,7 @@ export const fileCategory = {
     AVATAR: 'avatar',
     COURSE: 'course',
     CHAT: 'chat',
+    LESSON: 'lesson',
     RAG_DOCUMENT: 'rag_document',
     PUBLIC: 'public'
 } as const;

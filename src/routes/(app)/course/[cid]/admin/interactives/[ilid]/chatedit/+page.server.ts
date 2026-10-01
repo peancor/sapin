@@ -441,7 +441,12 @@ export const load = (async ({ params, locals }) => {
 export const actions = {
     updateChat: async ({ request, params, locals }) => {
         const formData = await request.formData();
+        const name = formData.get('name')?.toString() ?? '';
         const description = formData.get('description')?.toString();
+
+        if (!name.trim()) {
+            throw error(400, 'El nombre es obligatorio');
+        }
 
         // Obtener status del formulario
         const statusValue = formData.get('status')?.toString();
@@ -483,6 +488,7 @@ export const actions = {
 
         // Determinar timestamps basado en cambios de estado
         const updateData: {
+            name?: string;
             description: string | undefined;
             status: InteractiveLearningStatusType;
             updatedAt: Date;
@@ -490,6 +496,7 @@ export const actions = {
             closedAt?: Date | null;
             archivedAt?: Date | null;
         } = {
+            name,
             description,
             status: status as InteractiveLearningStatusType,
             updatedAt: now
@@ -526,7 +533,7 @@ export const actions = {
             userId: locals.user?.id,
             targetType: 'activity',
             targetId: params.ilid,
-            details: { name: interactive?.name, description, status, llmModel: data.llmModel, courseId: params.cid },
+            details: { name, description, status, llmModel: data.llmModel, courseId: params.cid },
             ipAddress: getClientIP(request),
             userAgent: request.headers.get('user-agent'),
             severity: 'info'

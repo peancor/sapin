@@ -1,8 +1,15 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { interactiveLearning, courseInteractiveLearning, interactiveLearningChat, userInteractiveLearningChat } from '$lib/server/db/schema';
-import { eq, and, sql, count, inArray } from 'drizzle-orm';
+import {
+	courseInteractiveLearning,
+	interactiveLearning,
+	interactiveLearningChat,
+	interactiveLessonSession,
+	lessonSessionScope,
+	userInteractiveLearningChat
+} from '$lib/server/db/schema';
+import { eq, and, sql, count, inArray, isNotNull } from 'drizzle-orm';
 
 export const load = (async ({ params, locals }) => {
 	if (!locals.user) {
@@ -34,6 +41,7 @@ export const load = (async ({ params, locals }) => {
 	// Separar por tipo
 	const chatIds = interactives.filter((i) => i.type === 'chat').map((i) => i.id);
 	const agentIds = interactives.filter((i) => i.type === 'agent').map((i) => i.id);
+	const lessonIds = interactives.filter((i) => i.type === 'lesson').map((i) => i.id);
 
 	// Conteo de participaciones para actividades tipo chat (via interactiveLearningChat)
 	const chatParticipationCounts =
@@ -61,7 +69,25 @@ export const load = (async ({ params, locals }) => {
 					.groupBy(userInteractiveLearningChat.interactiveLearningChatId)
 			: [];
 
-	const allParticipationCounts = [...chatParticipationCounts, ...agentParticipationCounts];
+	const lessonParticipationCounts =
+		lessonIds.length > 0
+			? await db
+					.select({
+						interactiveLearningId: interactiveLessonSession.interactiveLearningId,
+						count: count()
+					})
+					.from(interactiveLessonSession)
+					.where(
+						and(
+							inArray(interactiveLessonSession.interactiveLearningId, lessonIds),
+							eq(interactiveLessonSession.scope, lessonSessionScope.LEARNER),
+							isNotNull(interactiveLessonSession.definitionRevisionId)
+						)
+					)
+					.groupBy(interactiveLessonSession.interactiveLearningId)
+			: [];
+
+	const allParticipationCounts = [...chatParticipationCounts, ...agentParticipationCounts, ...lessonParticipationCounts];
 
 	// Combinar datos
 	const interactivesWithStats = interactives.map((interactive) => ({

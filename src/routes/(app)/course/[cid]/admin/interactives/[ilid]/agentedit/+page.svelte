@@ -22,6 +22,7 @@
 	let temperature = $state(0.7);
 	let maxTokens = $state(2000);
 	let topP = $state(0.9);
+	let name = $state('');
 	let description = $state('');
 	let status = $state<'hidden' | 'published' | 'closed' | 'archived'>('hidden');
 	let llmContext = $state('');
@@ -53,6 +54,7 @@
 		temperature = data.agentConfig?.temperature ?? 0.7;
 		maxTokens = data.agentConfig?.maxTokens ?? 2000;
 		topP = data.agentConfig?.topP ?? 0.9;
+		name = data.interactive?.name ?? '';
 		description = data.interactive?.description ?? '';
 		status = (data.interactive?.status ?? 'hidden') as typeof status;
 		llmContext = data.agentConfig?.llmContext ?? '';
@@ -143,6 +145,7 @@
 			class="space-y-6 rounded-lg bg-white p-6 shadow-sm dark:bg-gray-800"
 		>
 			<ChatConfigForm
+				bind:name
 				bind:description
 				bind:llmRole
 				bind:llmInstructions
@@ -155,7 +158,7 @@
 				bind:status
 				models={data.models}
 				defaultModel={data.defaultModel}
-				showNameField={false}
+				showNameField={true}
 				onchange={markDirty}
 			/>
 

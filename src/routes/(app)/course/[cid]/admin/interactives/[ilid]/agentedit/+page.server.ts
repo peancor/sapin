@@ -421,7 +421,12 @@ export const actions = {
         await requireAgentAdminContext(cid, ilid, locals);
 
         const data = await request.formData();
+        const name = data.get('name')?.toString() ?? '';
         const description = data.get('description')?.toString() ?? '';
+
+        if (!name.trim()) {
+            throw error(400, 'El nombre es obligatorio');
+        }
         const statusValue = data.get('status')?.toString();
         const status = (['hidden', 'published', 'closed', 'archived'].includes(statusValue ?? ''))
             ? (statusValue as InteractiveLearningStatusType)
@@ -493,6 +498,7 @@ export const actions = {
 
         await db.update(interactiveLearning)
             .set({
+                name,
                 description,
                 status,
                 publishedAt: status === 'published' ? now : undefined,
@@ -526,7 +532,7 @@ export const actions = {
             userId: locals.user?.id,
             targetType: 'activity',
             targetId: ilid,
-            details: { description, status, type: 'agent', courseId: cid },
+            details: { name, description, status, type: 'agent', courseId: cid },
             ipAddress: getClientIP(request),
             userAgent: request.headers.get('user-agent'),
             severity: 'info'

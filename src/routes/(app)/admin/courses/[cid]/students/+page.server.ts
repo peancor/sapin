@@ -2,7 +2,18 @@ import type { PageServerLoad, Actions } from './$types';
 import { db, CourseRoleUtils } from '$lib/server/db';
 import { user } from '$lib/server/db/schema';
 import { not, inArray } from 'drizzle-orm';
-import { fail } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
+import { ROLE_LEVELS } from '$lib/server/roles';
+
+function requireAdmin(locals: App.Locals) {
+    if (!locals.user) {
+        throw error(401, 'No autenticado');
+    }
+
+    if (locals.user.highestRoleLevel < ROLE_LEVELS.ADMIN) {
+        throw error(403, 'No autorizado');
+    }
+}
 
 export const load = (async ({ parent, params }) => {
     const parentData = await parent();
@@ -22,7 +33,8 @@ export const load = (async ({ parent, params }) => {
 }) satisfies PageServerLoad;
 
 export const actions = {
-    addStudents: async ({ request, params }) => {
+    addStudents: async ({ request, params, locals }) => {
+        requireAdmin(locals);
         const formData = await request.formData();
         const studentIdsJson = formData.get('studentIds') as string;
 
@@ -54,7 +66,8 @@ export const actions = {
         }
     },
 
-    removeStudent: async ({ request, params }) => {
+    removeStudent: async ({ request, params, locals }) => {
+        requireAdmin(locals);
         const formData = await request.formData();
         const studentId = formData.get('studentId') as string;
 
@@ -76,7 +89,8 @@ export const actions = {
         }
     },
 
-    removeStudentsBulk: async ({ request, params }) => {
+    removeStudentsBulk: async ({ request, params, locals }) => {
+        requireAdmin(locals);
         const formData = await request.formData();
         const studentIdsJson = formData.get('studentIds') as string;
 

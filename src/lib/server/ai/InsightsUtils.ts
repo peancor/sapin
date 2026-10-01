@@ -1,5 +1,21 @@
 import type { ProcessedChatData, ReportOptions } from "$lib/types/insights";
 
+function buildChatsForPrompt(
+    chats: ProcessedChatData[],
+    includeInputMetrics: boolean
+): ProcessedChatData[] {
+    if (includeInputMetrics) return chats;
+
+    return chats.map((chat) => ({
+        ...chat,
+        messages: chat.messages.map((message) => ({
+            type: message.type,
+            content: message.content,
+            createdAt: message.createdAt
+        }))
+    }));
+}
+
 export class InsightsUtils {
     // Función para generar un prompt para el análisis de chats
     public static generateChatAnalysisPrompt(
@@ -33,6 +49,8 @@ export class InsightsUtils {
         } else if (analysisMode === 'comparison') {
             analysisModeText = `Analisis comparativo: compara el rendimiento entre los ${studentCount} estudiantes seleccionados, identificando fortalezas y debilidades relativas.`;
         }
+
+        const chatsForPrompt = buildChatsForPrompt(chats, options.detectAIUsage);
 
         let prompt = `# Solicitud de Analisis de Actividad de Chat para Educadores
 
@@ -89,6 +107,9 @@ Areas de enfoque especificas:`;
 - **Detección de Uso de IA**:
   - Identificar estudiantes que posiblemente han utilizado ChatGPT u otras herramientas de IA para generar sus respuestas
   - Analizar patrones lingüísticos, estructura, coherencia y características típicas de texto generado por IA
+  - Combinar el análisis textual con métricas de escritura cuando estén disponibles: pulsaciones, pegados, caracteres, palabras, tiempo de redacción, ediciones y borrados
+  - Considerar como señales auxiliares combinaciones como muchos caracteres con pocas pulsaciones, uso de pegado, pocas ediciones/borrados o tiempos de redacción anómalos
+  - No tratar estas métricas como prueba concluyente de uso de IA; la ausencia de métricas tampoco debe interpretarse como sospecha
   - Proporcionar ejemplos específicos donde se sospeche uso de herramientas de IA
   - Explicar los indicadores que sugieren uso de IA (repetición de patrones, estilo demasiado formal, conocimiento inusualmente amplio, etc.)
   - Ofrecer recomendaciones sobre cómo abordar estas situaciones`;
@@ -236,7 +257,7 @@ Areas de enfoque especificas:`;
 - Concluye con recomendaciones accionables para el educador
 
 ## Datos de Conversaciones de Estudiantes
-${JSON.stringify(chats, null, 2)}`;
+${JSON.stringify(chatsForPrompt, null, 2)}`;
 
         return prompt;
     }

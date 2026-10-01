@@ -1,0 +1,13 @@
+[31mfailed to load config from D:\source\sapin\vite.config.ts[39m
+[31merror when starting dev server:
+Error: spawn EPERM
+    at ChildProcess.spawn (node:internal/child_process:420:11)
+    at Object.spawn (node:child_process:787:9)
+    at ensureServiceIsRunning (D:\source\sapin\node_modules\vite\node_modules\esbuild\lib\main.js:1978:29)
+    at build (D:\source\sapin\node_modules\vite\node_modules\esbuild\lib\main.js:1876:26)
+    at bundleConfigFile (file:///D:/source/sapin/node_modules/vite/dist/node/chunks/config.js:35808:23)
+    at bundleAndLoadConfigFile (file:///D:/source/sapin/node_modules/vite/dist/node/chunks/config.js:35795:24)
+    at loadConfigFromFile (file:///D:/source/sapin/node_modules/vite/dist/node/chunks/config.js:35764:179)
+    at resolveConfig (file:///D:/source/sapin/node_modules/vite/dist/node/chunks/config.js:35413:28)
+    at _createServer (file:///D:/source/sapin/node_modules/vite/dist/node/chunks/config.js:25362:73)
+    at createServer$2 (file:///D:/source/sapin/node_modules/vite/dist/node/chunks/config.js:25359:9)[39m
