@@ -1,0 +1,2 @@
+ALTER TABLE `agent_tool_definition` ADD `usage_domain` text DEFAULT 'agent_chat' NOT NULL;--> statement-breakpoint
+CREATE INDEX `agent_tool_def_usage_domain_idx` ON `agent_tool_definition` (`usage_domain`);

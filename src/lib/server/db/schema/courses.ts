@@ -56,12 +56,16 @@ export const course = sqliteTable(
 /**
  * Tipo de invitación que determina el alcance y comportamiento
  * - course_student: Invita a registrarse y auto-matricula como estudiante en un curso
+ * - course_teacher: Invita a registrarse y auto-asigna profesor en un curso
+ * - generic_student: Invita a registrarse y asigna rol de estudiante a nivel sistema
  * - course_role: Invita a registrarse y asigna un rol específico en un curso
  * - system_role: Invita a registrarse y asigna un rol de sistema (admin genera para profesor, etc.)
- * - open_registration: Solo permite registro sin asignaciones adicionales
+ * - open_registration: Registro abierto con asignación de rol base de sistema (user)
  */
 export const inviteType = {
     COURSE_STUDENT: 'course_student',
+    COURSE_TEACHER: 'course_teacher',
+    GENERIC_STUDENT: 'generic_student',
     COURSE_ROLE: 'course_role',
     SYSTEM_ROLE: 'system_role',
     OPEN_REGISTRATION: 'open_registration'
@@ -76,7 +80,7 @@ export type InviteType = (typeof inviteType)[keyof typeof inviteType];
 export type InviteConfig = {
     /** Tipo de invitación */
     type: InviteType;
-    /** ID del curso (requerido para course_student y course_role) */
+    /** ID del curso (requerido para course_student, course_teacher y course_role) */
     courseId?: string;
     /** Rol a asignar en el curso (para course_role) */
     courseRole?: (typeof courseRoleType)[keyof typeof courseRoleType];

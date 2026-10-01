@@ -21,6 +21,11 @@ export const topbarMenuItems = writable<TopbarMenuItem[]>([
         href: '/dashboard',
         label: 'Mi Espacio',
         minLevel: ROLE_LEVELS.STUDENT
+    },
+    {
+        href: '/tutor',
+        label: 'Asistente',
+        minLevel: ROLE_LEVELS.STUDENT
     }
     // Añadir más items públicos o informativos aquí
 ]);

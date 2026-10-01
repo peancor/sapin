@@ -25,39 +25,15 @@
         ];
 
         data.students.forEach(student => {
-            // Calcular métricas totales para el estudiante
-            let totalKeypresses = 0;
-            let totalPastes = 0;
-            let totalTime = 0;
-            
-            // Recorrer todos los chats del estudiante para sumar métricas
-            student.chats.forEach(chat => {
-                if (chat.messages) {
-                    chat.messages.forEach(message => {
-                        // Extraer métricas del mensaje si existen
-                        if (message.metadata) {
-                            try {
-                                const metrics = JSON.parse(message.metadata);
-                                totalKeypresses += metrics.keystrokeCount || 0;
-                                totalPastes += metrics.pasteCount || 0;
-                                totalTime += metrics.timeSpentSeconds || 0;
-                            } catch (e) {
-                                // Ignorar errores de parseo
-                            }
-                        }
-                    });
-                }
-            });
-            
             const row = [
                 student.username || student.alias || 'Sin nombre',
                 student.isCompleted ? 'Completado' : student.inProgress ? 'En Progreso' : 'Pendiente',
                 formatDate(student.lastActivity),
                 student.totalMessages,
                 student.chats.length,
-                totalKeypresses,
-                totalPastes,
-                totalTime
+                student.totalKeypresses,
+                student.totalPastes,
+                student.totalTimeSpentSeconds
             ];
             csvRows.push(row.join(';'));
         });
@@ -115,7 +91,11 @@
                         <p class="font-medium text-blue-800 dark:text-blue-200">Criterios de estado de actividad</p>
                         <ul class="list-disc ml-5 mt-2 text-sm text-blue-700 dark:text-blue-300">
                             <li>Un estudiante ha <strong>accedido</strong> a la actividad cuando tiene al menos un chat.</li>
-                            <li>Un estudiante ha <strong>completado</strong> la actividad cuando tiene al menos {data.requiresMinMessages} mensajes y uno de ellos contiene el texto <code>[[DONE]]</code>.</li>
+							{#if data.interactive.type === 'agent'}
+								<li>Un estudiante ha <strong>completado</strong> la actividad cuando el agente ejecuta la tool de finalizacion configurada y se registra progreso completado.</li>
+							{:else}
+                            	<li>Un estudiante ha <strong>completado</strong> la actividad cuando tiene al menos {data.requiresMinMessages} mensajes y uno de ellos contiene el texto <code>[[DONE]]</code>.</li>
+							{/if}
                             <li>Un estudiante está <strong>en progreso</strong> cuando ha accedido pero aún no ha completado la actividad.</li>
                         </ul>
                     </div>
@@ -182,7 +162,7 @@
                         <TableHeadCell>Chats</TableHeadCell>
                     </TableHead>
                     <TableBody class="divide-y">
-                        {#each data.students as student}
+                        {#each data.students as student (student.id)}
                             <TableBodyRow>
                                 <TableBodyCell class="p-4! w-14 h-14 flex items-center justify-center">
                                     <Avatar 

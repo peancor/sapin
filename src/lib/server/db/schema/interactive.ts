@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { user } from './users';
 import { course } from './courses';
 import { chat } from './chat';
-import { fileType } from './files';
+import { fileType, fileStorage } from './files';
 import type { RagConfig } from '$lib/server/rag/config';
 
 // ============================================
@@ -101,6 +101,8 @@ export const interactiveLearningChat = sqliteTable(
 );
 
 // Add user chats table to link users with interactive learning chats
+// Note: interactiveLearningChatId references interactiveLearning.id (not interactiveLearningChat.id)
+// so that both chat AND agent activities can store sessions here using the same column.
 export const userInteractiveLearningChat = sqliteTable(
     'user_interactive_learning_chat',
     {
@@ -110,7 +112,7 @@ export const userInteractiveLearningChat = sqliteTable(
             .references(() => user.id),
         interactiveLearningChatId: text('interactive_learning_chat_id')
             .notNull()
-            .references(() => interactiveLearningChat.id),
+            .references(() => interactiveLearning.id),
         chatId: text('chat_id')
             .notNull()
             .references(() => chat.id),
@@ -122,40 +124,15 @@ export const userInteractiveLearningChat = sqliteTable(
     ]
 );
 
-// Tabla para documentos RAG asociados a un chat interactivo
-export const interactiveLearningChatRagDocument = sqliteTable(
-    'interactive_learning_chat_rag_document',
+// Shared files for any interactive learning activity (chat/agent/others)
+export const interactiveLearningFile = sqliteTable(
+    'interactive_learning_file',
     {
         id: text('id').primaryKey(),
-        interactiveLearningChatId: text('interactive_learning_chat_id')
+        interactiveLearningId: text('interactive_learning_id')
             .notNull()
-            .references(() => interactiveLearningChat.id, { onDelete: 'cascade' }),
-        name: text('name').notNull(), // Nombre del documento
-        originalPath: text('original_path'), // Ruta al archivo original (si existe)
-        fileType: text('file_type').notNull(), // pdf, docx, txt, etc.
-        fileSize: integer('file_size'), // Tamaño en bytes
-        chunkCount: integer('chunk_count').default(0), // Número de chunks generados
-        totalCharacters: integer('total_characters').default(0), // Total de caracteres
-        status: text('status').notNull().default('pending'), // pending, processing, indexed, error
-        errorMessage: text('error_message'), // Mensaje de error si falló
-        qdrantPointIds: text('qdrant_point_ids'), // JSON array con los IDs de los puntos en Qdrant
-        metadata: text('metadata'), // Metadata adicional en JSON
-        createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-        updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
-    },
-    (table) => [
-        index('interactive_learning_chat_rag_document_chat_idx').on(table.interactiveLearningChatId),
-        index('interactive_learning_chat_rag_document_status_idx').on(table.status)
-    ]
-);
-
-export const interactiveLearningChatFile = sqliteTable(
-    'interactive_learning_chat_file',
-    {
-        id: text('id').primaryKey(),
-        interactiveLearningChatId: text('interactive_learning_chat_id')
-            .notNull()
-            .references(() => interactiveLearningChat.id),
+            .references(() => interactiveLearning.id, { onDelete: 'cascade' }),
+        fileStorageId: text('file_storage_id').references(() => fileStorage.id, { onDelete: 'set null' }),
         name: text('name').notNull(),
         path: text('path').notNull(),
         type: text('type').$type<keyof typeof fileType>().notNull(),
@@ -163,7 +140,39 @@ export const interactiveLearningChatFile = sqliteTable(
         mimeType: text('mime_type').notNull(),
         createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
     },
-    (table) => [index('interactive_learning_chat_file_idx').on(table.interactiveLearningChatId)]
+    (table) => [
+        index('interactive_learning_file_il_idx').on(table.interactiveLearningId),
+        index('interactive_learning_file_storage_idx').on(table.fileStorageId)
+    ]
+);
+
+// Shared RAG documents for any interactive learning activity (chat/agent/others)
+export const interactiveLearningRagDocument = sqliteTable(
+    'interactive_learning_rag_document',
+    {
+        id: text('id').primaryKey(),
+        interactiveLearningId: text('interactive_learning_id')
+            .notNull()
+            .references(() => interactiveLearning.id, { onDelete: 'cascade' }),
+        fileStorageId: text('file_storage_id').references(() => fileStorage.id, { onDelete: 'set null' }),
+        name: text('name').notNull(),
+        originalPath: text('original_path'),
+        fileType: text('file_type').notNull(),
+        fileSize: integer('file_size'),
+        chunkCount: integer('chunk_count').default(0),
+        totalCharacters: integer('total_characters').default(0),
+        status: text('status').notNull().default('pending'),
+        errorMessage: text('error_message'),
+        qdrantPointIds: text('qdrant_point_ids'),
+        metadata: text('metadata'),
+        createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+        updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
+    },
+    (table) => [
+        index('interactive_learning_rag_document_il_idx').on(table.interactiveLearningId),
+        index('interactive_learning_rag_document_status_idx').on(table.status),
+        index('interactive_learning_rag_document_storage_idx').on(table.fileStorageId)
+    ]
 );
 
 // ========== Drizzle Relations ==========
@@ -173,7 +182,9 @@ export const interactiveLearningRelations = relations(interactiveLearning, ({ on
         fields: [interactiveLearning.id],
         references: [interactiveLearningChat.id]
     }),
-    courses: many(courseInteractiveLearning)
+    courses: many(courseInteractiveLearning),
+    files: many(interactiveLearningFile),
+    ragDocuments: many(interactiveLearningRagDocument)
 }));
 
 export const interactiveLearningChatRelations = relations(interactiveLearningChat, ({ one, many }) => ({
@@ -181,9 +192,7 @@ export const interactiveLearningChatRelations = relations(interactiveLearningCha
         fields: [interactiveLearningChat.id],
         references: [interactiveLearning.id]
     }),
-    userChats: many(userInteractiveLearningChat),
-    ragDocuments: many(interactiveLearningChatRagDocument),
-    files: many(interactiveLearningChatFile)
+    userChats: many(userInteractiveLearningChat)
 }));
 
 export const courseInteractiveLearningRelations = relations(courseInteractiveLearning, ({ one }) => ({
@@ -212,17 +221,25 @@ export const userInteractiveLearningChatRelations = relations(userInteractiveLea
     })
 }));
 
-export const interactiveLearningChatRagDocumentRelations = relations(interactiveLearningChatRagDocument, ({ one }) => ({
-    interactiveLearningChat: one(interactiveLearningChat, {
-        fields: [interactiveLearningChatRagDocument.interactiveLearningChatId],
-        references: [interactiveLearningChat.id]
+export const interactiveLearningFileRelations = relations(interactiveLearningFile, ({ one }) => ({
+    interactiveLearning: one(interactiveLearning, {
+        fields: [interactiveLearningFile.interactiveLearningId],
+        references: [interactiveLearning.id]
+    }),
+    storageFile: one(fileStorage, {
+        fields: [interactiveLearningFile.fileStorageId],
+        references: [fileStorage.id]
     })
 }));
 
-export const interactiveLearningChatFileRelations = relations(interactiveLearningChatFile, ({ one }) => ({
-    interactiveLearningChat: one(interactiveLearningChat, {
-        fields: [interactiveLearningChatFile.interactiveLearningChatId],
-        references: [interactiveLearningChat.id]
+export const interactiveLearningRagDocumentRelations = relations(interactiveLearningRagDocument, ({ one }) => ({
+    interactiveLearning: one(interactiveLearning, {
+        fields: [interactiveLearningRagDocument.interactiveLearningId],
+        references: [interactiveLearning.id]
+    }),
+    storageFile: one(fileStorage, {
+        fields: [interactiveLearningRagDocument.fileStorageId],
+        references: [fileStorage.id]
     })
 }));
 
@@ -250,11 +267,11 @@ export const selectCourseInteractiveLearningSchema = createSelectSchema(courseIn
 export const insertUserInteractiveLearningChatSchema = createInsertSchema(userInteractiveLearningChat);
 export const selectUserInteractiveLearningChatSchema = createSelectSchema(userInteractiveLearningChat);
 
-export const insertInteractiveLearningChatRagDocumentSchema = createInsertSchema(interactiveLearningChatRagDocument);
-export const selectInteractiveLearningChatRagDocumentSchema = createSelectSchema(interactiveLearningChatRagDocument);
+export const insertInteractiveLearningFileSchema = createInsertSchema(interactiveLearningFile);
+export const selectInteractiveLearningFileSchema = createSelectSchema(interactiveLearningFile);
 
-export const insertInteractiveLearningChatFileSchema = createInsertSchema(interactiveLearningChatFile);
-export const selectInteractiveLearningChatFileSchema = createSelectSchema(interactiveLearningChatFile);
+export const insertInteractiveLearningRagDocumentSchema = createInsertSchema(interactiveLearningRagDocument);
+export const selectInteractiveLearningRagDocumentSchema = createSelectSchema(interactiveLearningRagDocument);
 
 // ========== Type Exports ==========
 
@@ -262,5 +279,5 @@ export type InteractiveLearning = typeof interactiveLearning.$inferSelect;
 export type CourseInteractiveLearning = typeof courseInteractiveLearning.$inferSelect;
 export type InteractiveLearningChat = typeof interactiveLearningChat.$inferSelect;
 export type UserInteractiveLearningChat = typeof userInteractiveLearningChat.$inferSelect;
-export type InteractiveLearningChatRagDocument = typeof interactiveLearningChatRagDocument.$inferSelect;
-export type InteractiveLearningChatFile = typeof interactiveLearningChatFile.$inferSelect;
+export type InteractiveLearningFile = typeof interactiveLearningFile.$inferSelect;
+export type InteractiveLearningRagDocument = typeof interactiveLearningRagDocument.$inferSelect;

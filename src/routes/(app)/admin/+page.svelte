@@ -11,28 +11,28 @@
             value: data.stats.totalUsers,
             icon: Users,
             color: 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400',
-            trend: '+12%'
+            trend: data.trends.totalUsers
         },
         {
             title: 'Estudiantes',
             value: data.stats.students,
             icon: Users,
             color: 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400',
-            trend: '+8%'
+            trend: data.trends.students
         },
         {
             title: 'Profesores',
             value: data.stats.teachers,
             icon: GraduationCap,
             color: 'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-400',
-            trend: '+3%'
+            trend: data.trends.teachers
         },
         {
             title: 'Cursos',
             value: data.stats.totalCourses,
             icon: BookOpen,
             color: 'bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-400',
-            trend: '+5%'
+            trend: data.trends.courses
         }
     ]);
 
@@ -72,8 +72,8 @@
                     </div>
                 </div>
                 <div class="mt-3 flex items-center text-sm">
-                    <TrendingUp class="mr-1 h-4 w-4 text-green-500" />
-                    <span class="font-medium text-green-500">{card.trend}</span>
+                    <TrendingUp class="mr-1 h-4 w-4 {card.trend.startsWith('-') ? 'text-red-500' : 'text-green-500'}" />
+                    <span class="font-medium {card.trend.startsWith('-') ? 'text-red-500' : 'text-green-500'}">{card.trend}</span>
                     <span class="ml-2 text-gray-500 dark:text-gray-400">vs mes anterior</span>
                 </div>
             </div>

@@ -25,7 +25,8 @@
 	}
 
 	interface ChatUser {
-		username: string;
+		username?: string;
+		alias?: string;
 	}
 
 	// Interface para métricas de mensajes
@@ -376,12 +377,16 @@
 			return processThinkTags(mathProcessed);
 		}
 
+	function getConnectedUserLabel(user?: ChatUser) {
+		return user?.alias?.trim() || user?.username?.trim() || 'usuario';
+	}
+
 	onMount(() => {
 		// Inicializar métricas 
 		resetMetrics();
 		
 		if (messages.length === 0 && props.user) {
-			sendMessage(`[[Usuario conectado: ${props.user.username}]]`);
+			sendMessage(`[[Usuario conectado: ${getConnectedUserLabel(props.user)}]]`);
 		}
 
 		container?.addEventListener('scroll', handleScroll);

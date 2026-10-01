@@ -21,6 +21,7 @@ export const fileCategory = {
 export const fileEntityType = {
     USER: 'user',
     COURSE: 'course',
+    INTERACTIVE_LEARNING: 'interactive_learning',
     INTERACTIVE_LEARNING_CHAT: 'interactive_learning_chat',
     SYSTEM: 'system'
 } as const;

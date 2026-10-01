@@ -13,7 +13,9 @@
 		Edit,
 		Settings,
 		AlertCircle,
-		ArrowLeft
+		ArrowLeft,
+		Bot,
+		Wrench
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -32,48 +34,18 @@
 		});
 	}
 
-	// Quick actions
-	const quickActions = $derived([
-		{
-			label: 'Ver estudiantes',
-			href: resolve(`/course/${cid}/admin/interactives/${ilid}/students`),
-			icon: Users,
-			color: 'blue',
-			description: 'Ver el progreso de cada estudiante'
-		},
-		{
-			label: 'Revisar respuestas',
-			href: resolve(`/course/${cid}/admin/interactives/${ilid}/chat-review`),
-			icon: Eye,
-			color: 'green',
-			description: 'Revisar las conversaciones de los estudiantes'
-		},
-		{
-			label: 'Editar actividad',
-			href: resolve(`/course/${cid}/admin/interactives/${ilid}/chatedit`),
-			icon: Edit,
-			color: 'purple',
-			description: 'Modificar la configuración del chat'
-		},
-		{
-			label: 'Generar insights',
-			href: resolve(`/course/${cid}/admin/interactives/${ilid}/insights`),
-			icon: BarChart3,
-			color: 'amber',
-			description: 'Análisis detallado con IA'
-		}
-	]);
+	const isAgent = $derived(data.interactive.type === 'agent');
 </script>
 
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
 	<!-- Header with back arrow -->
 	<div class="sticky top-0 z-10 bg-white dark:bg-gray-800 shadow-sm">
-		<div class="container mx-auto px-4 max-w-screen-xl">
+		<div class="container mx-auto max-w-7xl px-4">
 			<div class="flex items-center gap-4 py-4">
 				<a
-					href="/course/{cid}/admin"
+					href={resolve(`/course/${cid}/admin/interactives`)}
 					class="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-					title="Volver al curso"
+					title="Volver a actividades"
 				>
 					<ArrowLeft size={20} class="text-gray-500 dark:text-gray-400" />
 				</a>
@@ -87,7 +59,7 @@
 	</div>
 
 	<!-- Content Area -->
-	<div class="container mx-auto px-4 py-6 max-w-screen-xl space-y-6">
+	<div class="container mx-auto max-w-7xl space-y-6 px-4 py-6">
 	<!-- Activity Banner -->
 	<div class="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
 		<div class="relative overflow-hidden bg-linear-to-br from-blue-500 via-blue-600 to-indigo-700 p-6">
@@ -183,20 +155,61 @@
 	<div class="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
 		<h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Acciones rápidas</h2>
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-			{#each quickActions as action (action.label)}
-				<a
-					href={action.href}
-					class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-{action.color}-300 hover:bg-{action.color}-50 dark:border-gray-700 dark:hover:border-{action.color}-800 dark:hover:bg-{action.color}-900/20"
-				>
-					<div
-						class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-{action.color}-100 text-{action.color}-600 dark:bg-{action.color}-900/50 dark:text-{action.color}-400"
-					>
-						<action.icon class="h-5 w-5" />
-					</div>
-					<h3 class="font-medium text-gray-900 dark:text-white">{action.label}</h3>
-					<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{action.description}</p>
-				</a>
-			{/each}
+			<a
+				href={resolve(`/course/${cid}/admin/interactives/${ilid}/students`)}
+				class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-blue-300 hover:bg-blue-50 dark:border-gray-700 dark:hover:border-blue-800 dark:hover:bg-blue-900/20"
+			>
+				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400">
+					<Users class="h-5 w-5" />
+				</div>
+				<h3 class="font-medium text-gray-900 dark:text-white">Ver estudiantes</h3>
+				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+					Ver el progreso de cada estudiante
+				</p>
+			</a>
+
+			<a
+				href={resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agent-review' : 'chat-review'}`)}
+				class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-green-300 hover:bg-green-50 dark:border-gray-700 dark:hover:border-green-800 dark:hover:bg-green-900/20"
+			>
+				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400">
+					<Eye class="h-5 w-5" />
+				</div>
+				<h3 class="font-medium text-gray-900 dark:text-white">Revisar sesiones</h3>
+				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+					{isAgent
+						? 'Revisar las sesiones de los estudiantes con el agente'
+						: 'Revisar las conversaciones de los estudiantes'}
+				</p>
+			</a>
+
+			<a
+				href={resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chatedit'}`)}
+				class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-purple-300 hover:bg-purple-50 dark:border-gray-700 dark:hover:border-purple-800 dark:hover:bg-purple-900/20"
+			>
+				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400">
+					<Edit class="h-5 w-5" />
+				</div>
+				<h3 class="font-medium text-gray-900 dark:text-white">Editar actividad</h3>
+				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+					{isAgent
+						? 'Modificar la configuración del agente'
+						: 'Modificar la configuración del chat'}
+				</p>
+			</a>
+
+			<a
+				href={resolve(`/course/${cid}/admin/interactives/${ilid}/insights`)}
+				class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-amber-300 hover:bg-amber-50 dark:border-gray-700 dark:hover:border-amber-800 dark:hover:bg-amber-900/20"
+			>
+				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
+					<BarChart3 class="h-5 w-5" />
+				</div>
+				<h3 class="font-medium text-gray-900 dark:text-white">Generar insights</h3>
+				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+					Análisis detallado con IA
+				</p>
+			</a>
 		</div>
 	</div>
 
@@ -209,45 +222,83 @@
 					Configuración de la actividad
 				</h2>
 				<a
-					href={resolve(`/course/${cid}/admin/interactives/${ilid}/chatedit`)}
+					href={resolve(`/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chatedit'}`)}
 					class="text-sm text-primary-600 hover:underline dark:text-primary-400"
 				>
 					Editar
 				</a>
 			</div>
-			<div class="space-y-4">
-				<div class="flex items-start gap-3">
-					<Settings class="mt-0.5 h-5 w-5 text-gray-400" />
-					<div>
-						<p class="text-sm font-medium text-gray-900 dark:text-white">Rol del asistente</p>
-						<p class="text-sm text-gray-500 dark:text-gray-400">
-							{data.chatConfig?.llmRole || 'No configurado'}
-						</p>
-					</div>
-				</div>
-				{#if data.chatConfig?.llmInstructions}
+			{#if isAgent}
+				<div class="space-y-4">
 					<div class="flex items-start gap-3">
-						<MessageSquare class="mt-0.5 h-5 w-5 text-gray-400" />
+						<Bot class="mt-0.5 h-5 w-5 text-gray-400" />
 						<div>
-							<p class="text-sm font-medium text-gray-900 dark:text-white">Instrucciones</p>
-							<p class="line-clamp-3 text-sm text-gray-500 dark:text-gray-400">
-								{data.chatConfig.llmInstructions}
+							<p class="text-sm font-medium text-gray-900 dark:text-white">Rol del agente</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								{data.agentConfig?.llmRole || 'No configurado'}
 							</p>
 						</div>
 					</div>
-				{/if}
-				<div class="flex items-start gap-3">
-					<Activity class="mt-0.5 h-5 w-5 text-gray-400" />
-					<div>
-						<p class="text-sm font-medium text-gray-900 dark:text-white">
-							Criterio de finalización
-						</p>
-						<p class="text-sm text-gray-500 dark:text-gray-400">
-							Mínimo {data.stats.requiresMinMessages} mensajes + marca [[DONE]]
-						</p>
+					<div class="flex items-start gap-3">
+						<Settings class="mt-0.5 h-5 w-5 text-gray-400" />
+						<div>
+							<p class="text-sm font-medium text-gray-900 dark:text-white">Configuración agéntica</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								Máx. {data.agentConfig?.maxToolRoundtrips ?? 5} rondas · {data.agentConfig?.toolChoice ?? 'auto'}
+							</p>
+						</div>
+					</div>
+					{#if data.enabledTools && data.enabledTools.length > 0}
+						<div class="flex items-start gap-3">
+							<Wrench class="mt-0.5 h-5 w-5 text-gray-400" />
+							<div>
+								<p class="text-sm font-medium text-gray-900 dark:text-white">Herramientas habilitadas</p>
+								<div class="mt-1 flex flex-wrap gap-1">
+									{#each data.enabledTools as tool (tool.id)}
+										<span class="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+											{tool.displayName}
+										</span>
+									{/each}
+								</div>
+							</div>
+						</div>
+					{/if}
+				</div>
+			{:else}
+				<div class="space-y-4">
+					<div class="flex items-start gap-3">
+						<Settings class="mt-0.5 h-5 w-5 text-gray-400" />
+						<div>
+							<p class="text-sm font-medium text-gray-900 dark:text-white">Rol del asistente</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								{data.chatConfig?.llmRole || 'No configurado'}
+							</p>
+						</div>
+					</div>
+					{#if data.chatConfig?.llmInstructions}
+						<div class="flex items-start gap-3">
+							<MessageSquare class="mt-0.5 h-5 w-5 text-gray-400" />
+							<div>
+								<p class="text-sm font-medium text-gray-900 dark:text-white">Instrucciones</p>
+								<p class="line-clamp-3 text-sm text-gray-500 dark:text-gray-400">
+									{data.chatConfig.llmInstructions}
+								</p>
+							</div>
+						</div>
+					{/if}
+					<div class="flex items-start gap-3">
+						<Activity class="mt-0.5 h-5 w-5 text-gray-400" />
+						<div>
+							<p class="text-sm font-medium text-gray-900 dark:text-white">
+								Criterio de finalización
+							</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								Mínimo {data.stats.requiresMinMessages} mensajes + marca [[DONE]]
+							</p>
+						</div>
 					</div>
 				</div>
-			</div>
+			{/if}
 		</div>
 
 		<!-- Progress Overview -->
@@ -306,7 +357,7 @@
 	<!-- Preview Button -->
 	<div class="flex justify-center">
 		<a
-			href={resolve(`/interactive-chat/${ilid}`)}
+			href={resolve(isAgent ? `/agent-chat/${ilid}` : `/interactive-chat/${ilid}`)}
 			target="_blank"
 			class="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-6 py-3 text-white transition-colors hover:bg-primary-700"
 		>

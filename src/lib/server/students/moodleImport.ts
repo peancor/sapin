@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { db, DBUserUtils, CourseRoleUtils } from '$lib/server/db';
-import { user, courseRole } from '$lib/server/db/schema';
+import { user, courseRole, role } from '$lib/server/db/schema';
+import * as RoleUtils from '$lib/server/db/RoleUtils';
 import type { MoodleStudent } from '$lib/server/integrations/moodle/MoodleClient';
 
 export type MoodleImportAction =
@@ -209,6 +210,35 @@ async function setExternalIdIfMissing(userId: string, externalId: string) {
     }
 }
 
+async function ensureStudentSystemRole(userId: string) {
+    const studentRole = await db
+        .select({ id: role.id })
+        .from(role)
+        .where(
+            and(
+                eq(role.id, 'role_student'),
+                eq(role.isActive, true)
+            )
+        )
+        .get();
+
+    if (!studentRole) {
+        return;
+    }
+
+    const hasStudentRole = await RoleUtils.userHasRole(userId, 'student');
+    if (hasStudentRole) {
+        return;
+    }
+
+    await RoleUtils.assignRoleToUser(
+        userId,
+        'role_student',
+        undefined,
+        'Assigned via Moodle import'
+    );
+}
+
 export async function executeMoodleImport(
     courseId: string,
     previewRows: MoodleImportPreviewRow[]
@@ -231,6 +261,9 @@ export async function executeMoodleImport(
             }
 
             if (row.action === 'already_enrolled') {
+                if (row.userId) {
+                    await ensureStudentSystemRole(row.userId);
+                }
                 results.push({
                     moodleUserId: row.moodleUserId,
                     email: row.email,
@@ -252,6 +285,7 @@ export async function executeMoodleImport(
                 if (!assignResult.success) {
                     throw new Error(assignResult.error || 'No se pudo inscribir al estudiante');
                 }
+                await ensureStudentSystemRole(userId);
 
                 results.push({
                     moodleUserId: row.moodleUserId,
@@ -276,6 +310,8 @@ export async function executeMoodleImport(
                     throw new Error(assignResult.error || 'No se pudo inscribir al estudiante');
                 }
             }
+
+            await ensureStudentSystemRole(row.userId);
 
             results.push({
                 moodleUserId: row.moodleUserId,

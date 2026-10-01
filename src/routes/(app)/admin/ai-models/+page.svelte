@@ -97,6 +97,21 @@
 		});
 	}
 
+	function summarizeMetadata(metadata: string | null): string {
+		if (!metadata) return '-';
+		try {
+			const parsed = JSON.parse(metadata) as Record<string, unknown>;
+			const phase = typeof parsed.phase === 'string' ? parsed.phase : null;
+			const streamError = typeof parsed.streamError === 'string' ? parsed.streamError : null;
+			const resumed = parsed.resumed === true ? 'reanudado' : null;
+			return [phase, resumed, streamError].filter(Boolean).join(' · ') || '-';
+		} catch {
+			return '-';
+		}
+	}
+
+	let failedRecentLogs = $derived(data.recentLogs.filter(({ log }) => !log.success));
+
 	function openProviderModal(provider?: typeof data.providers[0]) {
 		editingProvider = provider || null;
 		showProviderModal = true;
@@ -159,7 +174,7 @@
 	{/if}
 
 	<!-- Stats Cards -->
-	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
 		<Card class="p-4">
 			<div class="flex items-center gap-3">
 				<div class="rounded-lg bg-blue-100 p-3 dark:bg-blue-900">
@@ -211,6 +226,20 @@
 					<p class="text-sm text-gray-500 dark:text-gray-400">Latencia media</p>
 					<p class="text-2xl font-bold text-gray-900 dark:text-white">
 						{data.usageStats.avgDurationMs}ms
+					</p>
+				</div>
+			</div>
+		</Card>
+
+		<Card class="p-4">
+			<div class="flex items-center gap-3">
+				<div class="rounded-lg bg-red-100 p-3 dark:bg-red-900">
+					<XCircle class="h-6 w-6 text-red-600 dark:text-red-400" />
+				</div>
+				<div>
+					<p class="text-sm text-gray-500 dark:text-gray-400">Errores (mes)</p>
+					<p class="text-2xl font-bold text-gray-900 dark:text-white">
+						{formatNumber(data.usageStats.failedRequests)}
 					</p>
 				</div>
 			</div>
@@ -476,6 +505,34 @@
 			{/snippet}
 
 			<div class="space-y-6">
+				{#if failedRecentLogs.length > 0}
+					<div>
+						<h3 class="mb-3 text-lg font-medium text-gray-900 dark:text-white">
+							Errores Recientes
+						</h3>
+						<div class="space-y-2">
+							{#each failedRecentLogs.slice(0, 5) as { log, model, user } (log.id)}
+								<Card class="border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/30">
+									<div class="flex flex-col gap-1 text-sm">
+										<div class="flex flex-wrap items-center gap-2">
+											<Badge color="red">Error</Badge>
+											<Badge color="blue">{model?.displayName || 'Modelo desconocido'}</Badge>
+											<span class="text-xs text-gray-500">{formatDate(log.createdAt)}</span>
+											<span class="text-xs text-gray-500">{user?.username || user?.email || '-'}</span>
+										</div>
+										<p class="font-medium text-red-800 dark:text-red-300">
+											{log.errorMessage || 'Sin mensaje de error'}
+										</p>
+										<p class="text-xs text-red-700 dark:text-red-400">
+											{summarizeMetadata(log.metadata)}
+										</p>
+									</div>
+								</Card>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
 				<!-- Top Users -->
 				<div>
 					<h3 class="mb-3 text-lg font-medium text-gray-900 dark:text-white">
@@ -518,6 +575,7 @@
 							<TableHeadCell>Tokens</TableHeadCell>
 							<TableHeadCell>Costo</TableHeadCell>
 							<TableHeadCell>Estado</TableHeadCell>
+							<TableHeadCell>Detalle</TableHeadCell>
 						</TableHead>
 						<TableBody>
 							{#each data.recentLogs as { log, model, user } (log.id)}
@@ -548,6 +606,14 @@
 										{:else}
 											<Badge color="red">Error</Badge>
 										{/if}
+									</TableBodyCell>
+									<TableBodyCell>
+										<div class="max-w-md text-xs text-gray-500 dark:text-gray-400">
+											<p>{log.errorMessage || '—'}</p>
+											{#if log.metadata}
+												<p class="mt-1">{summarizeMetadata(log.metadata)}</p>
+											{/if}
+										</div>
 									</TableBodyCell>
 								</TableBodyRow>
 							{/each}

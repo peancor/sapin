@@ -29,6 +29,9 @@ export const auditAction = {
     // Configuración
     SETTINGS_UPDATED: 'settings_updated',
     // Sistema
+    AGENT_TOOL_CALL_DUPLICATE: 'agent_tool_call_duplicate',
+    AGENT_TOOL_CALL_PERSIST_FAILED: 'agent_tool_call_persist_failed',
+    AGENT_ENGINE_ERROR: 'agent_engine_error',
     SYSTEM_ERROR: 'system_error',
     CRITICAL_ERROR: 'critical_error'
 } as const;

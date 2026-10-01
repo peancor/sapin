@@ -10,7 +10,11 @@
     let turnstileToken = $state('');
     let isSubmitting = $state(false);
     let turnstile: Turnstile | undefined = $state();
-    let inviteCodeValue = $state(data.inviteCode || '');
+    let inviteCodeValue = $state('');
+
+    $effect(() => {
+        inviteCodeValue = data.inviteCode || '';
+    });
     
     function handleTurnstileVerify(token: string) {
         turnstileToken = token;
@@ -19,6 +23,8 @@
     function getInviteTypeIcon(type: string) {
         switch (type) {
             case 'course_student': return BookOpen;
+            case 'course_teacher': return BookOpen;
+            case 'generic_student': return UserPlus;
             case 'course_role': return BookOpen;
             case 'system_role': return Shield;
             case 'open_registration': return Globe;
@@ -29,6 +35,8 @@
     function getInviteTypeLabel(type: string): string {
         switch (type) {
             case 'course_student': return 'Matriculación en curso';
+            case 'course_teacher': return 'Invitación de profesor en curso';
+            case 'generic_student': return 'Invitación de estudiante';
             case 'course_role': return 'Invitación a curso';
             case 'system_role': return 'Invitación de rol';
             case 'open_registration': return 'Registro abierto';
@@ -48,7 +56,7 @@
             {@const InviteIcon = getInviteTypeIcon(data.inviteInfo.type)}
             <div class="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/30">
                 <div class="flex items-start gap-3">
-                    <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-green-100 dark:bg-green-800">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100 dark:bg-green-800">
                         <InviteIcon class="h-4 w-4 text-green-600 dark:text-green-400" />
                     </div>
                     <div>

@@ -3,6 +3,13 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tailwindcss from '@tailwindcss/vite';
+import {
+	prepareNodeTikzjaxStaticAssets,
+	prepareTikzjaxBrowserRuntimeAssets
+} from './scripts/prepare-tikzjax-browser-tex-files.mjs';
+
+prepareTikzjaxBrowserRuntimeAssets();
+prepareNodeTikzjaxStaticAssets();
 
 export default defineConfig({
 	plugins: [

@@ -1,8 +1,15 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { Button, Modal, Toast, Input, Badge, Dropdown, DropdownItem } from 'flowbite-svelte';
+	import {
+		getStoredCourseAdminInteractiveViewMode,
+		setStoredCourseAdminInteractiveViewMode,
+		type CourseAdminInteractiveViewMode
+	} from '$lib/utils';
 	import {
 		Plus,
 		Search,
@@ -16,13 +23,14 @@
 		List,
 		BookOpen,
 		Download,
-		Upload
+		Upload,
+		Bot
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	// Estado de la vista
-	let viewMode = $state<'cards' | 'table'>('cards');
+	let viewMode = $state<CourseAdminInteractiveViewMode>('cards');
 	let searchQuery = $state('');
 
 	// Filtrar actividades
@@ -48,6 +56,10 @@
 	let toastMessage = $state('');
 	let toastType = $state<'success' | 'error'>('success');
 
+	onMount(() => {
+		viewMode = getStoredCourseAdminInteractiveViewMode() ?? 'cards';
+	});
+
 	function showNotification(message: string, type: 'success' | 'error') {
 		toastMessage = message;
 		toastType = type;
@@ -60,9 +72,15 @@
 		deleteModal = true;
 	}
 
-	async function copyActivityLink(id: string) {
+	function getStudentRunUrl(interactive: { id: string; type: string }): string {
+		return interactive.type === 'agent'
+			? `/student/run-agent/${interactive.id}`
+			: `/student/run-chat/${interactive.id}`;
+	}
+
+	async function copyActivityLink(interactive: { id: string; type: string }) {
 		try {
-			const link = `${window.location.origin}/student/run-chat/${id}`;
+			const link = `${window.location.origin}${getStudentRunUrl(interactive)}`;
 			await navigator.clipboard.writeText(link);
 			showNotification(
 				'Enlace copiado. Añade ?externalid=ID_ALUMNO para identificar estudiantes',
@@ -77,6 +95,8 @@
 		switch (type) {
 			case 'chat':
 				return 'blue';
+			case 'agent':
+				return 'green';
 			case 'quiz':
 				return 'purple';
 			case 'simulation':
@@ -114,6 +134,13 @@
 			default:
 				return status;
 		}
+	}
+
+	function setViewMode(nextMode: CourseAdminInteractiveViewMode) {
+		if (viewMode === nextMode) return;
+
+		viewMode = nextMode;
+		setStoredCourseAdminInteractiveViewMode(nextMode);
 	}
 
 	async function exportActivity(id: string, name: string) {
@@ -196,7 +223,7 @@
 				Importar
 			</Button>
 			<a
-				href="interactives/new"
+				href={resolve(`/course/${data.courseId}/admin/interactives/new`)}
 				class="bg-primary-600 hover:bg-primary-700 inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-colors"
 			>
 				<Plus class="h-4 w-4" />
@@ -231,7 +258,9 @@
 					class="rounded-l-lg p-2 transition-colors {viewMode === 'cards'
 						? 'bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-400'
 						: 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'}"
-					onclick={() => (viewMode = 'cards')}
+					aria-pressed={viewMode === 'cards'}
+					title="Vista en tarjetas"
+					onclick={() => setViewMode('cards')}
 				>
 					<LayoutGrid class="h-4 w-4" />
 				</button>
@@ -240,7 +269,9 @@
 					class="rounded-r-lg p-2 transition-colors {viewMode === 'table'
 						? 'bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-400'
 						: 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'}"
-					onclick={() => (viewMode = 'table')}
+					aria-pressed={viewMode === 'table'}
+					title="Vista en lista"
+					onclick={() => setViewMode('table')}
 				>
 					<List class="h-4 w-4" />
 				</button>
@@ -267,7 +298,7 @@
 					Crea tu primera actividad de aprendizaje interactivo
 				</p>
 				<a
-					href="interactives/new"
+					href={resolve(`/course/${data.courseId}/admin/interactives/new`)}
 					class="bg-primary-600 hover:bg-primary-700 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white"
 				>
 					<Plus class="h-4 w-4" />
@@ -287,9 +318,13 @@
 						<div class="flex items-start justify-between">
 							<div class="flex items-center gap-3">
 								<div
-									class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/50"
+									class="flex h-10 w-10 items-center justify-center rounded-lg {interactive.type === 'agent' ? 'bg-green-100 dark:bg-green-900/50' : 'bg-blue-100 dark:bg-blue-900/50'}"
 								>
-									<MessageSquare class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+									{#if interactive.type === 'agent'}
+										<Bot class="h-5 w-5 text-green-600 dark:text-green-400" />
+									{:else}
+										<MessageSquare class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+									{/if}
 								</div>
 								<div>
 									<h3 class="line-clamp-1 font-semibold text-gray-900 dark:text-white">
@@ -305,19 +340,25 @@
 							</div>
 							<Button
 								color="light"
-								class="!p-2 opacity-0 transition-opacity group-hover:opacity-100"
+								class="p-2! opacity-0 transition-opacity group-hover:opacity-100"
 								id="dropdown-btn-{interactive.id}"
 							>
 								<MoreVertical class="h-4 w-4" />
 							</Button>
 							<Dropdown triggeredBy="#dropdown-btn-{interactive.id}" simple>
-								<DropdownItem href="/interactive-chat/{interactive.id}">
+								<DropdownItem
+									href={resolve(interactive.type === 'agent'
+										? `/agent-chat/${interactive.id}`
+										: `/interactive-chat/${interactive.id}`)}
+								>
 									<Eye class="mr-2 inline h-4 w-4" /> Previsualizar
 								</DropdownItem>
-								<DropdownItem href="./{interactive.id}/students">
+								<DropdownItem
+									href={resolve(`/course/${data.courseId}/admin/interactives/${interactive.id}/students`)}
+								>
 									<Users class="mr-2 inline h-4 w-4" /> Ver estudiantes
 								</DropdownItem>
-								<DropdownItem onclick={() => copyActivityLink(interactive.id)}>
+								<DropdownItem onclick={() => copyActivityLink(interactive)}>
 									<Link class="mr-2 inline h-4 w-4" /> Copiar enlace
 								</DropdownItem>
 								<DropdownItem onclick={() => exportActivity(interactive.id, interactive.name)}>
@@ -354,7 +395,7 @@
 							>Orden: {interactive.order ?? '-'}</span
 						>
 						<a
-							href="./interactives/{interactive.id}"
+							href={resolve(`/course/${data.courseId}/admin/interactives/${interactive.id}`)}
 							class="text-primary-600 hover:text-primary-700 dark:text-primary-400 text-sm font-medium"
 						>
 							Ver detalles →
@@ -391,7 +432,7 @@
 						<tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50">
 							<td class="px-6 py-4">
 								<a
-									href="./{interactive.id}"
+									href={resolve(`/course/${data.courseId}/admin/interactives/${interactive.id}`)}
 									class="hover:text-primary-600 dark:hover:text-primary-400 font-medium text-gray-900 dark:text-white"
 								>
 									{interactive.name}
@@ -422,7 +463,9 @@
 							<td class="px-6 py-4">
 								<div class="flex items-center justify-center gap-1">
 									<a
-										href="/interactive-chat/{interactive.id}"
+										href={resolve(interactive.type === 'agent'
+											? `/agent-chat/${interactive.id}`
+											: `/interactive-chat/${interactive.id}`)}
 										class="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-600"
 										title="Previsualizar"
 									>
@@ -430,7 +473,7 @@
 									</a>
 									<button
 										type="button"
-										onclick={() => copyActivityLink(interactive.id)}
+										onclick={() => copyActivityLink(interactive)}
 										class="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-600"
 										title="Copiar enlace"
 									>

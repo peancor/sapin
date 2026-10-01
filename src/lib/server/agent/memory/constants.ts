@@ -1,0 +1,35 @@
+export const STUDENT_COURSE_CANVAS_READ_TOOL_NAME = 'student_course_canvas_read';
+export const STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME = 'student_course_canvas_update';
+export const STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME = 'student_activity_canvas_read';
+export const STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME = 'student_activity_canvas_update';
+export const COURSE_SHARED_CANVAS_READ_TOOL_NAME = 'course_shared_canvas_read';
+export const COURSE_SHARED_CANVAS_UPDATE_TOOL_NAME = 'course_shared_canvas_update';
+export const SYSTEM_GLOBAL_CANVAS_READ_TOOL_NAME = 'system_global_canvas_read';
+export const SYSTEM_GLOBAL_CANVAS_UPDATE_TOOL_NAME = 'system_global_canvas_update';
+
+export const COURSE_CANVAS_TOOL_NAMES = [
+	STUDENT_COURSE_CANVAS_READ_TOOL_NAME,
+	STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME
+] as const;
+
+export const ACTIVITY_CANVAS_TOOL_NAMES = [
+	STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME,
+	STUDENT_ACTIVITY_CANVAS_UPDATE_TOOL_NAME
+] as const;
+
+export const COURSE_SHARED_CANVAS_TOOL_NAMES = [
+	COURSE_SHARED_CANVAS_READ_TOOL_NAME,
+	COURSE_SHARED_CANVAS_UPDATE_TOOL_NAME
+] as const;
+
+export const SYSTEM_GLOBAL_CANVAS_TOOL_NAMES = [
+	SYSTEM_GLOBAL_CANVAS_READ_TOOL_NAME,
+	SYSTEM_GLOBAL_CANVAS_UPDATE_TOOL_NAME
+] as const;
+
+export const ALL_MEMORY_TOOL_NAMES = [
+	...COURSE_CANVAS_TOOL_NAMES,
+	...ACTIVITY_CANVAS_TOOL_NAMES,
+	...COURSE_SHARED_CANVAS_TOOL_NAMES,
+	...SYSTEM_GLOBAL_CANVAS_TOOL_NAMES
+] as const;
