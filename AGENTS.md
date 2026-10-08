@@ -70,7 +70,7 @@ Perfiles principales:
 
 - `Inlang Paraglide JS`
 - `Cloudflare Turnstile`
-- `Nodemailer`
+- `Nodemailer 10` (tipos incluidos) y `sharp 0.35` con correcciones de seguridad
 - `node-cron`
 - `Pino`
 - notificador opcional de Telegram
@@ -646,7 +646,7 @@ La configuración de notificaciones se guarda en `app_setting`.
 
 - `svelte.config.js` usa `adapter-node`
 - `vite.config.ts` prepara assets de TikzJax antes de exportar la config
-- `postbuild` copia `myserver.js` dentro de `build/`
+- `postbuild` copia `myserver.js` dentro de `build/` con `scripts/copy-server.mjs`, sin dependencias de globbing
 - `drizzle.config.ts` apunta a `src/lib/server/db/schema/index.ts`
 
 ## Convenciones prácticas

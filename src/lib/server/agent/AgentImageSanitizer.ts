@@ -1,4 +1,4 @@
-import sharp from 'sharp';
+import sharp, { type Metadata } from 'sharp';
 
 export const MAX_AGENT_IMAGE_ATTACHMENTS_PER_MESSAGE = 3;
 export const MAX_AGENT_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -38,7 +38,7 @@ export async function sanitizeAgentImage(file: File): Promise<SanitizedAgentImag
 	assertImageFile(file);
 
 	const inputBuffer = Buffer.from(await file.arrayBuffer());
-	let metadata: sharp.Metadata;
+	let metadata: Metadata;
 	try {
 		metadata = await sharp(inputBuffer, { animated: false }).metadata();
 	} catch {
