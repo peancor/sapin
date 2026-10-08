@@ -112,6 +112,8 @@ Notas operativas:
 - `npm run check`
 - `npm run check:watch`
 - `npm test`
+- `npm run test:e2e` (Chromium, compilación y servidor Node con BD ficticia nueva)
+- `npm run test:integration:live` (opt-in: llamadas pequeñas de IA y embeddings; requiere `TEST_QDRANT_URL` local)
 - `npm run lint`
 - `npm run format`
 
@@ -659,6 +661,20 @@ La configuración de notificaciones se guarda en `app_setting`.
 - en flujos IA, comprobar cuota y registrar uso antes de asumir éxito
 
 ## Estado actual de testing
+
+- Playwright vive en `tests/e2e/` y `playwright.config.ts`. Instalar el navegador con `npx playwright install chromium`.
+- `scripts/e2e-server.mjs` genera una BD nueva con las migraciones oficiales en `output/e2e/run-*`, compila en modo test y ejecuta `build/index.js` en `127.0.0.1:4187`. No reutiliza servidores ni la BD habitual; anula credenciales externas y separa ficheros. No ejecutar simultáneamente con Vite o un build en el mismo checkout.
+- La suite cubre login, persistencia de formato TipTap, navegación de lecciones, subida de imágenes y autorización/rechazo HITL. Los eventos SSE y la respuesta de confirmación HITL se simulan: no prueban por sí solos la ejecución del endpoint de confirmación.
+- Una prueba adicional llama al endpoint real de confirmación con la calculadora builtin: verifica ejecución, rechazo, repetición y rechazo de tool calls pertenecientes a otra conversación. El handler comprueba el chat del mensaje asociado antes de modificar la llamada.
+- `scripts/integration-smoke.ts` lee solo la configuración de proveedor/modelo en la BD local; utiliza contenido ficticio para streaming, visión y una tool sin efectos secundarios. Comprueba embeddings reales y búsqueda Qdrant en una colección única que elimina al finalizar. Requiere `--live` y `TEST_QDRANT_URL` con host local; consume una pequeña cantidad de tokens. No envía correos ni modifica conversaciones reales.
+- Los informes y trazas de prueba quedan en `output/` (ignorado por Git). La comprobación del correo usa un transporte en memoria, sin entrega externa.
+
+### Auditoría de dependencias (2026-10-08)
+
+- Tras actualizar Sharp y Nodemailer y retirar `cpy-cli` y `vite-plugin-static-copy`: cero avisos críticos o altos; quedan 10 moderados y 4 bajos según `npm audit` en esa fecha.
+- Desarrollo/build: Drizzle Kit arrastra esbuild antiguo; Typography arrastra PostCSS selector parser. No exponer servidores de herramientas de desarrollo. Evitar los downgrades que propone automáticamente `npm audit fix --force`.
+- Runtime pendiente: `csv-parse` requiere evaluar la migración a v7; Mammoth arrastra argparse/sprintf-js; KaTeX mantiene la rama compatible con `marked-katex-extension`; el aviso bajo de cookie llega por Kit/adapter. Revisar esas migraciones por separado, conservando Node y sus restricciones de compatibilidad.
+- Prettier excluye explícitamente `src/lib/paraglide/`, generado en cada build. ESLint conserva sus reglas: los avisos heredados no se silencian para declarar un resultado limpio.
 
 Hay un `npm test` oficial que ejecuta los tests `node:test` con un loader local para resolver alias SvelteKit como `$lib`.
 Existen tests propios con `node:test`, por ejemplo:

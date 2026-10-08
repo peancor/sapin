@@ -20,7 +20,7 @@ import { ToolExecutor } from '$lib/server/agent/ToolExecutor';
 import type { AgentContext } from '$lib/types/agent';
 import { db } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import {
 	deriveEnabledUIComponentKeysFromTools,
 	resolveUIRendererBindings
@@ -60,6 +60,14 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	// Buscar el tool call en la BD
 	const toolCall = await DBAgentMessageUtils.getToolCall(toolCallId);
 	if (!toolCall) return json({ error: 'Tool call no encontrado' }, { status: 404 });
+
+	// A valid chat session must not authorize a tool call from another conversation.
+	const message = await db
+		.select({ id: schema.agentMessage.id })
+		.from(schema.agentMessage)
+		.where(and(eq(schema.agentMessage.id, toolCall.messageId), eq(schema.agentMessage.chatId, cid)))
+		.get();
+	if (!message) return json({ error: 'Tool call no encontrado' }, { status: 404 });
 
 	if (toolCall.status !== 'awaiting_confirmation') {
 		return json(

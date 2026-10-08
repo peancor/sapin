@@ -37,7 +37,9 @@
 		"db:generate": "drizzle-kit generate",
 		"db:studio": "drizzle-kit studio",
 		"db:backfill-agent-ui-components": "npx tsx scripts/backfill-agent-ui-components.ts",
-		"machine-translate": "inlang machine translate --project project.inlang"
+		"machine-translate": "inlang machine translate --project project.inlang",
+		"test:e2e": "playwright test",
+		"test:integration:live": "node --import ./scripts/node-test-register.mjs scripts/integration-smoke.ts --live"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^2.1.1",

@@ -8,6 +8,7 @@ import ts from 'typescript-eslint';
 const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
 export default ts.config(
+	{ ignores: ['src/lib/paraglide/**', 'project.inlang/cache/**'] },
 	includeIgnoreFile(gitignorePath),
 	js.configs.recommended,
 	...ts.configs.recommended,
