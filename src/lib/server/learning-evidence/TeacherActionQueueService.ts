@@ -102,9 +102,16 @@ export class TeacherActionQueueService {
 		let previousCompletion: number | null = null;
 
 		for (const activity of activities) {
-			const overview = await LearningEvidenceService.getActivityEvidenceOverview(access, activity.activityId);
-			const completed = overview.studentSummaries.filter((student) => student.progressStatus === 'completed').length;
-			const abandoned = overview.studentSummaries.filter((student) => student.progressStatus === 'abandoned').length;
+			const overview = await LearningEvidenceService.getActivityEvidenceOverview(
+				access,
+				activity.activityId
+			);
+			const completed = overview.studentSummaries.filter(
+				(student) => student.progressStatus === 'completed'
+			).length;
+			const abandoned = overview.studentSummaries.filter(
+				(student) => student.progressStatus === 'abandoned'
+			).length;
 			const started = overview.studentSummaries.filter(
 				(student) => student.progressStatus !== 'not_started' || student.sessionCount > 0
 			).length;
@@ -174,7 +181,9 @@ export class TeacherActionQueueService {
 				highSeverityCount: items.filter((item) => item.severity === 'high').length,
 				averageParticipationRate:
 					items.length > 0
-						? Math.round(items.reduce((sum, item) => sum + item.participationRate, 0) / items.length)
+						? Math.round(
+								items.reduce((sum, item) => sum + item.participationRate, 0) / items.length
+							)
 						: 0,
 				averageCompletionRate:
 					items.length > 0
@@ -184,7 +193,10 @@ export class TeacherActionQueueService {
 			items,
 			alerts: topBottlenecks
 				.filter((item) => item.severity !== 'low')
-				.map((item) => `La actividad "${item.activityName}" concentra una friccion secuencial relevante.`),
+				.map(
+					(item) =>
+						`La actividad "${item.activityName}" concentra una friccion secuencial relevante.`
+				),
 			recommendedActions: topBottlenecks.map((item) => ({
 				activityId: item.activityId,
 				activityName: item.activityName,
@@ -214,7 +226,11 @@ export class TeacherActionQueueService {
 
 		if (params.activityId) {
 			const [overview, risk, depth] = await Promise.all([
-				LearningEvidenceService.getActivityEvidenceOverview(access, params.activityId, params.studentIds),
+				LearningEvidenceService.getActivityEvidenceOverview(
+					access,
+					params.activityId,
+					params.studentIds
+				),
 				AdvancedInsightsService.forecastCompletionRisk(access, {
 					activityId: params.activityId,
 					studentIds: params.studentIds,
@@ -236,8 +252,11 @@ export class TeacherActionQueueService {
 					key: 'activation_group',
 					label: 'Activation group',
 					goal: 'Arrancar la actividad con alumnado que aun no empieza.',
-					suggestedAction: 'Microtutoria breve para aclarar la primera accion y reducir incertidumbre inicial.',
-					members: overview.studentSummaries.filter((student) => student.progressStatus === 'not_started')
+					suggestedAction:
+						'Microtutoria breve para aclarar la primera accion y reducir incertidumbre inicial.',
+					members: overview.studentSummaries.filter(
+						(student) => student.progressStatus === 'not_started'
+					)
 				},
 				{
 					key: 'reengagement_group',
@@ -253,10 +272,14 @@ export class TeacherActionQueueService {
 					key: 'deepening_group',
 					label: 'Deepening group',
 					goal: 'Elevar la calidad de la respuesta en alumnado que participa pero elabora poco.',
-					suggestedAction: 'Trabajar justificacion, ejemplos y explicacion del razonamiento con andamiaje corto.',
+					suggestedAction:
+						'Trabajar justificacion, ejemplos y explicacion del razonamiento con andamiaje corto.',
 					members: overview.studentSummaries.filter((student) => {
 						const depthEntry = depthByStudent.get(student.userId);
-						return student.progressStatus !== 'not_started' && (depthEntry?.depthBand ?? 'shallow') === 'shallow';
+						return (
+							student.progressStatus !== 'not_started' &&
+							(depthEntry?.depthBand ?? 'shallow') === 'shallow'
+						);
 					})
 				},
 				{
@@ -304,7 +327,10 @@ export class TeacherActionQueueService {
 					totalStudentsCovered: groups.reduce((sum, group) => sum + group.memberCount, 0)
 				},
 				items: groups,
-				alerts: groups.length === 0 ? ['No se identificaron grupos operativos claros con el alcance actual.'] : [],
+				alerts:
+					groups.length === 0
+						? ['No se identificaron grupos operativos claros con el alcance actual.']
+						: [],
 				recommendedActions: groups.map((group) => `${group.label}: ${group.suggestedAction}`),
 				limitations: [
 					'Los grupos se forman por heuristicas de riesgo, progreso y profundidad de respuesta.',
@@ -324,9 +350,11 @@ export class TeacherActionQueueService {
 				key: 'activation_group',
 				label: 'Activation group',
 				goal: 'Activar alumnado con demasiadas actividades sin empezar.',
-				suggestedAction: 'Poner foco en el siguiente paso accionable y calendarizar un primer arranque.',
+				suggestedAction:
+					'Poner foco en el siguiente paso accionable y calendarizar un primer arranque.',
 				members: signals.students.filter(
-					(student) => student.notStartedActivities >= Math.max(2, Math.ceil(student.totalActivities / 3))
+					(student) =>
+						student.notStartedActivities >= Math.max(2, Math.ceil(student.totalActivities / 3))
 				)
 			},
 			{
@@ -377,7 +405,10 @@ export class TeacherActionQueueService {
 				totalStudentsCovered: groups.reduce((sum, group) => sum + group.memberCount, 0)
 			},
 			items: groups,
-			alerts: groups.length === 0 ? ['No se identificaron grupos operativos claros con el alcance actual.'] : [],
+			alerts:
+				groups.length === 0
+					? ['No se identificaron grupos operativos claros con el alcance actual.']
+					: [],
 			recommendedActions: groups.map((group) => `${group.label}: ${group.suggestedAction}`),
 			limitations: [
 				'Los grupos de curso se basan en senales agregadas por secuencia, no en trazas finas por actividad.',
@@ -396,7 +427,11 @@ export class TeacherActionQueueService {
 		}
 	) {
 		const [overview, nonStarters, risk, stuck, depth] = await Promise.all([
-			LearningEvidenceService.getActivityEvidenceOverview(access, params.activityId, params.studentIds),
+			LearningEvidenceService.getActivityEvidenceOverview(
+				access,
+				params.activityId,
+				params.studentIds
+			),
 			ActivityMicroAnalyticsService.getActivityNonStarters(access, {
 				activityId: params.activityId,
 				studentIds: params.studentIds
@@ -421,7 +456,9 @@ export class TeacherActionQueueService {
 		]);
 
 		const minPriority = priorityWeight(params.minPriority ?? 'low');
-		const nonStartersByStudent = new Map(nonStarters.items.map((item) => [item.student.userId, item]));
+		const nonStartersByStudent = new Map(
+			nonStarters.items.map((item) => [item.student.userId, item])
+		);
 		const riskByStudent = new Map(risk.students.map((item) => [item.student.userId, item]));
 		const depthByStudent = new Map(depth.items.map((item) => [item.student.userId, item]));
 		const stuckByStudent = new Map<string, typeof stuck.sessions>();
@@ -505,7 +542,9 @@ export class TeacherActionQueueService {
 				};
 			})
 			.filter((item) => item.priorityScore >= minPriority)
-			.sort((a, b) => b.priorityScore - a.priorityScore || a.displayName.localeCompare(b.displayName))
+			.sort(
+				(a, b) => b.priorityScore - a.priorityScore || a.displayName.localeCompare(b.displayName)
+			)
 			.slice(0, params.maxResults ?? 15);
 
 		return {
@@ -518,10 +557,10 @@ export class TeacherActionQueueService {
 			},
 			items: queue,
 			alerts:
-				queue.length === 0
-					? ['No hay estudiantes que superen el umbral actual de prioridad.']
-					: [],
-			recommendedActions: queue.slice(0, 3).map((item) => `${item.displayName}: ${item.actionSuggested}`),
+				queue.length === 0 ? ['No hay estudiantes que superen el umbral actual de prioridad.'] : [],
+			recommendedActions: queue
+				.slice(0, 3)
+				.map((item) => `${item.displayName}: ${item.actionSuggested}`),
 			limitations: [
 				'La prioridad combina heuristicas de riesgo, no-arranque, atasco y recencia.',
 				'La cola no sustituye el juicio docente sobre contexto personal o evaluativo.'
@@ -578,7 +617,9 @@ export class TeacherActionQueueService {
 					);
 					if (bottleneckSignal && bottleneckSignal.progressStatus !== 'completed') {
 						priorityScore += 10;
-						reasons.push(`Sigue sin superar el cuello de botella en "${firstBottleneck.activityName}".`);
+						reasons.push(
+							`Sigue sin superar el cuello de botella en "${firstBottleneck.activityName}".`
+						);
 						evidence.push(`Actividad foco: ${firstBottleneck.activityName}.`);
 					}
 				}
@@ -608,7 +649,9 @@ export class TeacherActionQueueService {
 				};
 			})
 			.filter((item) => item.priorityScore >= minPriority)
-			.sort((a, b) => b.priorityScore - a.priorityScore || a.displayName.localeCompare(b.displayName))
+			.sort(
+				(a, b) => b.priorityScore - a.priorityScore || a.displayName.localeCompare(b.displayName)
+			)
 			.slice(0, params.maxResults ?? 15);
 
 		return {
@@ -620,10 +663,10 @@ export class TeacherActionQueueService {
 			},
 			items: queue,
 			alerts:
-				queue.length === 0
-					? ['No hay estudiantes que superen el umbral actual de prioridad.']
-					: [],
-			recommendedActions: queue.slice(0, 3).map((item) => `${item.displayName}: ${item.actionSuggested}`),
+				queue.length === 0 ? ['No hay estudiantes que superen el umbral actual de prioridad.'] : [],
+			recommendedActions: queue
+				.slice(0, 3)
+				.map((item) => `${item.displayName}: ${item.actionSuggested}`),
 			limitations: [
 				'La cola de curso usa senales agregadas y el principal cuello de botella detectado.',
 				'No incorpora contexto extraplataforma ni criterios evaluativos manuales.'

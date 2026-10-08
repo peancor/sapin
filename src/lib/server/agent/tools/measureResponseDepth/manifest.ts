@@ -39,7 +39,15 @@ export const measureResponseDepthManifest: ToolManifest = {
 			recommendedActions: { type: 'array' },
 			limitations: { type: 'array' }
 		},
-		required: ['activityId', 'activityName', 'summary', 'items', 'alerts', 'recommendedActions', 'limitations']
+		required: [
+			'activityId',
+			'activityName',
+			'summary',
+			'items',
+			'alerts',
+			'recommendedActions',
+			'limitations'
+		]
 	},
 	executorType: 'builtin',
 	executorConfig: { handler: 'measureResponseDepth' },

@@ -285,10 +285,10 @@
 		</button>
 		{#if showSystemPrompt}
 			<p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
-				Opcional. Si lo defines, sustituye la plantilla base completa. Puedes usar
-				&#123;role&#125;, &#123;instructions&#125;, &#123;context&#125;,
-				&#123;tools_section&#125; y &#123;finalization_instruction&#125;. La memoria y el
-				contexto RAG se anaden automaticamente en bloques separados.
+				Opcional. Si lo defines, sustituye la plantilla base completa. Puedes usar &#123;role&#125;,
+				&#123;instructions&#125;, &#123;context&#125;, &#123;tools_section&#125; y
+				&#123;finalization_instruction&#125;. La memoria y el contexto RAG se anaden automaticamente
+				en bloques separados.
 			</p>
 			<textarea
 				id="systemPrompt"

@@ -1011,7 +1011,9 @@
 	<div
 		class="flex h-full min-h-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.08),_transparent_22%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_18%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.1),_transparent_22%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.08),_transparent_18%),linear-gradient(180deg,_#020617_0%,_#111827_100%)]"
 	>
-		<div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8 xl:overflow-hidden">
+		<div
+			class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8 xl:overflow-hidden"
+		>
 			<div
 				class="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-[24px] border border-white/70 bg-white/88 px-4 py-3 shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/72"
 			>
@@ -1021,18 +1023,26 @@
 					>
 						Debug workspace
 					</p>
-					<div class="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+					<div
+						class="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400"
+					>
 						<span class="truncate font-semibold text-slate-900 dark:text-white">
 							{snapshot.activity.name}
 						</span>
-						<span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 dark:border-slate-700 dark:bg-slate-900">
+						<span
+							class="rounded-full border border-slate-200 bg-white px-2 py-0.5 dark:border-slate-700 dark:bg-slate-900"
+						>
 							Actual: {snapshot.currentBlockId}
 						</span>
-						<span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 dark:border-slate-700 dark:bg-slate-900">
+						<span
+							class="rounded-full border border-slate-200 bg-white px-2 py-0.5 dark:border-slate-700 dark:bg-slate-900"
+						>
 							Seleccionado: {snapshot.selectedBlockId}
 						</span>
 						{#if selectedSession}
-							<span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 dark:border-slate-700 dark:bg-slate-900">
+							<span
+								class="rounded-full border border-slate-200 bg-white px-2 py-0.5 dark:border-slate-700 dark:bg-slate-900"
+							>
 								Intento #{selectedSession.attemptNumber}
 							</span>
 						{/if}
@@ -1102,9 +1112,7 @@
 						/>
 					</section>
 
-					<aside
-						class="space-y-4 xl:min-h-0 xl:overflow-y-auto xl:pr-1"
-					>
+					<aside class="space-y-4 xl:min-h-0 xl:overflow-y-auto xl:pr-1">
 						{@render controlsPanel()}
 						{@render blockNavigator()}
 						{@render inspectorPanel()}

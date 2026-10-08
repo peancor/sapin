@@ -35,13 +35,7 @@ export const recommendNextActivityManifest: ToolManifest = {
 			recommendedActivity: { type: 'object' },
 			alternativeActivities: { type: 'array' }
 		},
-		required: [
-			'activityId',
-			'student',
-			'recommendationType',
-			'reason',
-			'alternativeActivities'
-		]
+		required: ['activityId', 'student', 'recommendationType', 'reason', 'alternativeActivities']
 	},
 	executorType: 'builtin',
 	executorConfig: { handler: 'recommendNextActivity' },

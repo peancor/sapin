@@ -204,9 +204,7 @@ export interface LessonCheckShortTextQuestion extends LessonCheckQuestionBase {
 }
 
 export type LessonCheckQuestion =
-	| LessonCheckChoiceQuestion
-	| LessonCheckNumericQuestion
-	| LessonCheckShortTextQuestion;
+	LessonCheckChoiceQuestion | LessonCheckNumericQuestion | LessonCheckShortTextQuestion;
 
 export interface LessonCheckGenerationProposal {
 	id: string;
@@ -421,7 +419,10 @@ export function createLessonCheckTrueFalseOptions(): LessonCheckOption[] {
 	];
 }
 
-function normalizeLessonCheckQuestion(question: LessonCheckQuestion, index: number): LessonCheckQuestion {
+function normalizeLessonCheckQuestion(
+	question: LessonCheckQuestion,
+	index: number
+): LessonCheckQuestion {
 	const id = question.id?.trim() || `question_${index + 1}`;
 	const prompt = question.prompt?.trim() || `Pregunta ${index + 1}`;
 
@@ -470,7 +471,9 @@ function normalizeLessonCheckQuestion(question: LessonCheckQuestion, index: numb
 			mode: 'numeric',
 			acceptedRange: question.acceptedRange
 				? {
-						...(question.acceptedRange.min !== undefined ? { min: question.acceptedRange.min } : {}),
+						...(question.acceptedRange.min !== undefined
+							? { min: question.acceptedRange.min }
+							: {}),
 						...(question.acceptedRange.max !== undefined ? { max: question.acceptedRange.max } : {})
 					}
 				: undefined,

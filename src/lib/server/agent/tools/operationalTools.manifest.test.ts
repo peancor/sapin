@@ -28,8 +28,14 @@ const manifests = [
 test('new operational manifests have unique names and builtin executors', () => {
 	const names = manifests.map((manifest) => manifest.name);
 	assert.equal(new Set(names).size, manifests.length);
-	assert.equal(manifests.every((manifest) => manifest.executorType === 'builtin'), true);
-	assert.equal(manifests.every((manifest) => manifest.requiresConfirmation === false), true);
+	assert.equal(
+		manifests.every((manifest) => manifest.executorType === 'builtin'),
+		true
+	);
+	assert.equal(
+		manifests.every((manifest) => manifest.requiresConfirmation === false),
+		true
+	);
 });
 
 test('operational manifests use expected domains', () => {

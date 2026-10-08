@@ -3,6 +3,7 @@
 Script: `scripts/legacy-interactive-learning-files-transfer.ts`
 
 Objetivo:
+
 - Exportar datos de tablas legacy desde una base **no migrada**:
   - `interactive_learning_chat_file`
   - `interactive_learning_chat_rag_document`
@@ -22,6 +23,7 @@ npx tsx scripts/legacy-interactive-learning-files-transfer.ts export --db=RUTA_D
 ```
 
 Opciones útiles:
+
 - `--dry-run`: no escribe fichero, solo muestra resumen.
 - `--out=PATH`: ruta del JSON de salida.
 - `--db=PATH`: ruta de la base origen (si no se pasa, usa `DATABASE_URL` o `./sapin.db`).
@@ -33,6 +35,7 @@ npx tsx scripts/legacy-interactive-learning-files-transfer.ts import --db=RUTA_D
 ```
 
 Opciones útiles:
+
 - `--dry-run`: simula import sin escribir.
 - `--backup`: crea backup previo de la DB destino.
 - `--on-conflict=error|skip|replace`: política de conflicto por `id` (por defecto `error`).
@@ -42,6 +45,7 @@ Opciones útiles:
 ## Flujo recomendado
 
 1. Exportar desde DB antigua:
+
 ```bash
 npx tsx scripts/legacy-interactive-learning-files-transfer.ts export --db=./sapin-pre-migracion.db --out=./legacy-il-files.json
 ```
@@ -51,11 +55,13 @@ npx tsx scripts/legacy-interactive-learning-files-transfer.ts export --db=./sapi
 3. Migrar esquema manualmente (drop de legacy + mantener tablas nuevas).
 
 4. Importar en DB ya migrada:
+
 ```bash
 npx tsx scripts/legacy-interactive-learning-files-transfer.ts import --db=./sapin-post-migracion.db --file=./legacy-il-files.json --backup --on-conflict=error
 ```
 
 5. (Opcional) Repetir en modo simulación primero:
+
 ```bash
 npx tsx scripts/legacy-interactive-learning-files-transfer.ts import --db=./sapin-post-migracion.db --file=./legacy-il-files.json --dry-run
 ```
@@ -67,11 +73,12 @@ npx tsx scripts/legacy-interactive-learning-files-transfer.ts import --db=./sapi
 - `file_storage_id` no existe en legacy; el script intenta inferirlo desde:
   - `path` (chat files)
   - `original_path` (rag docs)
-  si siguen patrón `/api/files/<id>` y existe el `id` en `file_storage`.
+    si siguen patrón `/api/files/<id>` y existe el `id` en `file_storage`.
 
 ## Salidas y trazabilidad
 
 El JSON de export incluye:
+
 - `version`
 - `exportedAt`
 - `sourceDatabasePath`

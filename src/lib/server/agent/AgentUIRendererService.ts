@@ -23,7 +23,9 @@ interface RenderUIComponentParams {
 }
 
 export class AgentUIRendererService {
-	static async renderUIComponent(params: RenderUIComponentParams): Promise<UIRenderExecutionResult> {
+	static async renderUIComponent(
+		params: RenderUIComponentParams
+	): Promise<UIRenderExecutionResult> {
 		const componentKey = params.runtimeTool.executorConfig.componentKey as string | undefined;
 		const toolInteractive = (params.runtimeTool.executorConfig.interactive as boolean) ?? false;
 

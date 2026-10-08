@@ -1,12 +1,7 @@
 import type { AgentContext, ToolResult } from '$lib/types/agent';
 
 export type BuiltinToolCategory =
-	| 'knowledge'
-	| 'evaluation'
-	| 'communication'
-	| 'data'
-	| 'custom'
-	| 'ui';
+	'knowledge' | 'evaluation' | 'communication' | 'data' | 'custom' | 'ui';
 
 export type BuiltinToolExecutorType = 'builtin' | 'http' | 'script';
 

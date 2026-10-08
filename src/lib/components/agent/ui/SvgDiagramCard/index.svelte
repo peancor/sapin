@@ -48,9 +48,16 @@
 	class="my-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
 	data-instance-id={instanceId}
 >
-	<div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-700">
+	<div
+		class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-700"
+	>
 		<div class="flex min-w-0 items-center gap-2">
-			<svg class="h-4 w-4 shrink-0 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+			<svg
+				class="h-4 w-4 shrink-0 text-emerald-500"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+			>
 				<path
 					stroke-linecap="round"
 					stroke-linejoin="round"
@@ -58,7 +65,9 @@
 					d="M4 19V5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1zm3-3l3-4 3 3 4-5"
 				/>
 			</svg>
-			<span class="truncate text-sm font-semibold text-gray-900 dark:text-white">{displayTitle}</span>
+			<span class="truncate text-sm font-semibold text-gray-900 dark:text-white"
+				>{displayTitle}</span
+			>
 		</div>
 		<span
 			class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
@@ -96,7 +105,9 @@
 			<p class="mt-2 text-xs leading-relaxed text-gray-600 dark:text-gray-300">{caption}</p>
 		{/if}
 
-		<details class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs dark:border-gray-700 dark:bg-gray-900">
+		<details
+			class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs dark:border-gray-700 dark:bg-gray-900"
+		>
 			<summary class="cursor-pointer font-medium text-gray-700 dark:text-gray-200">
 				Detalles técnicos
 			</summary>
@@ -109,7 +120,8 @@
 				</ul>
 			{/if}
 
-			<pre class="mt-3 overflow-x-auto rounded-lg bg-white p-3 leading-5 text-gray-700 dark:bg-gray-950 dark:text-gray-200">{svg}</pre>
+			<pre
+				class="mt-3 overflow-x-auto rounded-lg bg-white p-3 leading-5 text-gray-700 dark:bg-gray-950 dark:text-gray-200">{svg}</pre>
 		</details>
 	</div>
 </div>
@@ -126,12 +138,17 @@
 			<div class="relative z-10 w-full">
 				<button
 					type="button"
-					class="absolute right-2 top-2 z-10 rounded-full bg-black/60 p-2 text-white hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-white"
+					class="absolute top-2 right-2 z-10 rounded-full bg-black/60 p-2 text-white hover:bg-black/80 focus:ring-2 focus:ring-white focus:outline-none"
 					onclick={closePreview}
 					aria-label="Cerrar vista ampliada"
 				>
 					<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M6 18L18 6M6 6l12 12"
+						/>
 					</svg>
 				</button>
 				<img src={svgSrc} alt={altText} class="max-h-[90vh] w-full rounded-lg object-contain" />

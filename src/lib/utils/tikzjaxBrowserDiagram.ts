@@ -138,7 +138,9 @@ export function prepareTikzjaxBrowserDiagram(
 			detectedPackages = extractPackagesFromPreamble(preamble);
 			detectedLibraries = extractTikzLibrariesFromPreamble(preamble);
 			detectedPreamble = cleanPreamble(preamble);
-			notes.push('Se extrajeron instrucciones de preámbulo iniciales sin necesidad de \\begin{document}.');
+			notes.push(
+				'Se extrajeron instrucciones de preámbulo iniciales sin necesidad de \\begin{document}.'
+			);
 		}
 	}
 
@@ -146,8 +148,12 @@ export function prepareTikzjaxBrowserDiagram(
 		throw new Error('La fuente TikZ no contiene cuerpo renderizable tras normalizar el documento.');
 	}
 
-	const manualPackages = unique((input.texPackages ?? []).map((item) => item.trim()).filter(Boolean));
-	const manualLibraries = unique((input.tikzLibraries ?? []).map((item) => item.trim()).filter(Boolean));
+	const manualPackages = unique(
+		(input.texPackages ?? []).map((item) => item.trim()).filter(Boolean)
+	);
+	const manualLibraries = unique(
+		(input.tikzLibraries ?? []).map((item) => item.trim()).filter(Boolean)
+	);
 	const mergedPackages = {
 		...detectedPackages,
 		...Object.fromEntries(manualPackages.map((packageName) => [packageName, '']))

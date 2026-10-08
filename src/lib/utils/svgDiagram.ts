@@ -30,7 +30,11 @@ export interface PreparedSvgDiagram {
 }
 
 function normalizeSvgMarkup(svg: string): string {
-	return svg.trim().replace(XML_DECLARATION_PATTERN, '').replace(LEADING_COMMENT_PATTERN, '').trim();
+	return svg
+		.trim()
+		.replace(XML_DECLARATION_PATTERN, '')
+		.replace(LEADING_COMMENT_PATTERN, '')
+		.trim();
 }
 
 export function prepareSvgDiagram(svg: string): PreparedSvgDiagram {

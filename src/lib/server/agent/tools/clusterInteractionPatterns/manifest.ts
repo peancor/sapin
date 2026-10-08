@@ -4,8 +4,7 @@ import type { ToolManifest } from '../types';
 export const clusterInteractionPatternsManifest: ToolManifest = {
 	name: 'cluster_interaction_patterns',
 	displayName: 'Agrupar patrones de interaccion',
-	description:
-		'Agrupa estudiantes por patrones de uso e interaccion dentro de la actividad.',
+	description: 'Agrupa estudiantes por patrones de uso e interaccion dentro de la actividad.',
 	category: 'data',
 	parametersSchema: {
 		type: 'object',

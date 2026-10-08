@@ -2662,9 +2662,8 @@ export class LessonService {
 		lesson: InteractiveLearningLesson,
 		definition: LessonDefinition
 	): Promise<InteractiveLessonSession> {
-		const result = db.transaction(
-			(tx): EnterBlockTransactionResult =>
-				this.enterBlockWithExecutor(tx, session, blockId, activity, lesson, definition)
+		const result = db.transaction((tx): EnterBlockTransactionResult =>
+			this.enterBlockWithExecutor(tx, session, blockId, activity, lesson, definition)
 		);
 
 		if (result.completionProgress) {
@@ -4112,9 +4111,8 @@ export class LessonService {
 		metadata?: JsonRecord | null;
 	}): Promise<InteractiveLessonBlockVisit> {
 		const scope = input.scope ?? (await this.resolveSessionScope(input.sessionId));
-		return db.transaction(
-			(tx): InteractiveLessonBlockVisit =>
-				this.createBlockVisitWithExecutor(tx, { ...input, scope })
+		return db.transaction((tx): InteractiveLessonBlockVisit =>
+			this.createBlockVisitWithExecutor(tx, { ...input, scope })
 		);
 	}
 
@@ -4184,8 +4182,8 @@ export class LessonService {
 		completedAt?: Date | null;
 		metadata?: JsonRecord | null;
 	}): Promise<InteractiveLessonBlockVisit> {
-		return db.transaction(
-			(tx): InteractiveLessonBlockVisit => this.updateBlockVisitWithExecutor(tx, input)
+		return db.transaction((tx): InteractiveLessonBlockVisit =>
+			this.updateBlockVisitWithExecutor(tx, input)
 		);
 	}
 

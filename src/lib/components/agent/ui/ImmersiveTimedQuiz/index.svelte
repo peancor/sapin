@@ -99,16 +99,14 @@
 	const timerPercent = $derived(
 		Math.max(
 			0,
-			Math.min(
-				100,
-				Math.round((timeLeftMs / (resolvedConfig.timePerQuestionSec * 1000)) * 100)
-			)
+			Math.min(100, Math.round((timeLeftMs / (resolvedConfig.timePerQuestionSec * 1000)) * 100))
 		)
 	);
 	const progressPercent = $derived(
 		questions.length > 0
 			? Math.round(
-					(((phase === 'results' ? questions.length : safeCurrentIndex) + (phase === 'playing' ? 1 : 0)) /
+					(((phase === 'results' ? questions.length : safeCurrentIndex) +
+						(phase === 'playing' ? 1 : 0)) /
 						questions.length) *
 						100
 				)
@@ -193,8 +191,12 @@
 	}
 
 	function commitResult(result: TimedQuizQuestionResult) {
-		answers = answers.map((answer, index) => (index === safeCurrentIndex ? result.selectedIndex : answer));
-		questionResults = questionResults.map((entry, index) => (index === safeCurrentIndex ? result : entry));
+		answers = answers.map((answer, index) =>
+			index === safeCurrentIndex ? result.selectedIndex : answer
+		);
+		questionResults = questionResults.map((entry, index) =>
+			index === safeCurrentIndex ? result : entry
+		);
 	}
 
 	function startGame() {
@@ -214,7 +216,8 @@
 	}
 
 	function selectAnswer(optionIndex: number) {
-		if (!interactive || phase !== 'playing' || !currentQuestion || isSubmitting || isAdvancing) return;
+		if (!interactive || phase !== 'playing' || !currentQuestion || isSubmitting || isAdvancing)
+			return;
 		if (optionIndex < 0 || optionIndex >= currentQuestion.options.length) return;
 
 		clearTimer();
@@ -229,7 +232,8 @@
 	}
 
 	function handleTimeout() {
-		if (!interactive || phase !== 'playing' || !currentQuestion || isSubmitting || isAdvancing) return;
+		if (!interactive || phase !== 'playing' || !currentQuestion || isSubmitting || isAdvancing)
+			return;
 
 		const result = buildTimedQuizQuestionResult(currentQuestion, -1, {
 			timedOut: true,
@@ -354,27 +358,34 @@
 	});
 </script>
 
-<div class="min-h-full rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.22),_transparent_32%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,6,23,0.98))] text-white shadow-2xl">
+<div
+	class="min-h-full rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.22),_transparent_32%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,6,23,0.98))] text-white shadow-2xl"
+>
 	{#if phase === 'intro'}
 		<div class="grid min-h-[70vh] gap-8 px-6 py-8 lg:grid-cols-[1.1fr_0.9fr] lg:px-10 lg:py-10">
 			<div class="flex flex-col justify-center">
-				<p class="text-sm font-semibold uppercase tracking-[0.28em] text-cyan-300">Modo arcade</p>
-				<h3 class="mt-3 text-4xl font-black tracking-tight sm:text-5xl">{title ?? 'Quiz Contrarreloj Arcade'}</h3>
+				<p class="text-sm font-semibold tracking-[0.28em] text-cyan-300 uppercase">Modo arcade</p>
+				<h3 class="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
+					{title ?? 'Quiz Contrarreloj Arcade'}
+				</h3>
 				<p class="mt-4 max-w-2xl text-lg leading-8 text-slate-200">
-					Una experiencia a pantalla completa con cuenta atras, feedback instantaneo y botones grandes para responder rapido.
+					Una experiencia a pantalla completa con cuenta atras, feedback instantaneo y botones
+					grandes para responder rapido.
 				</p>
 
 				<div class="mt-8 grid gap-3 sm:grid-cols-3">
 					<div class="rounded-3xl border border-white/10 bg-white/6 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Preguntas</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">Preguntas</p>
 						<p class="mt-2 text-3xl font-black">{questions.length}</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-white/6 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Dificultad</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">
+							Dificultad
+						</p>
 						<p class="mt-2 text-3xl font-black capitalize">{resolvedConfig.resolvedDifficulty}</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-white/6 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Tiempo</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">Tiempo</p>
 						<p class="mt-2 text-3xl font-black">{resolvedConfig.timePerQuestionSec}s</p>
 					</div>
 				</div>
@@ -387,14 +398,18 @@
 					>
 						Empezar partida
 					</button>
-					<div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
+					<div
+						class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200"
+					>
 						El temporizador empieza solo cuando pulses el boton.
 					</div>
 				</div>
 			</div>
 
-			<div class="rounded-[2rem] border border-cyan-400/20 bg-slate-950/70 p-6 shadow-[0_0_80px_rgba(34,211,238,0.12)]">
-				<p class="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200">Como funciona</p>
+			<div
+				class="rounded-[2rem] border border-cyan-400/20 bg-slate-950/70 p-6 shadow-[0_0_80px_rgba(34,211,238,0.12)]"
+			>
+				<p class="text-sm font-semibold tracking-[0.24em] text-cyan-200 uppercase">Como funciona</p>
 				<div class="mt-5 space-y-4 text-base text-slate-200">
 					<p>1. Lee la pregunta en grande y elige una opcion antes de que expire el tiempo.</p>
 					<p>2. Cada acierto o error se marca al instante y el juego avanza automaticamente.</p>
@@ -404,19 +419,29 @@
 		</div>
 	{:else if phase === 'playing' && currentQuestion}
 		<div class="flex min-h-[70vh] flex-col px-5 py-5 sm:px-8 sm:py-8">
-			<div class="grid gap-4 rounded-[1.75rem] border border-white/10 bg-white/6 p-4 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
+			<div
+				class="grid gap-4 rounded-[1.75rem] border border-white/10 bg-white/6 p-4 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6"
+			>
 				<div>
 					<div class="flex flex-wrap items-center gap-3">
-						<p class="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200">Partida en curso</p>
+						<p class="text-sm font-semibold tracking-[0.24em] text-cyan-200 uppercase">
+							Partida en curso
+						</p>
 						<span class="rounded-full bg-white/10 px-3 py-1 text-sm font-semibold capitalize">
 							{resolvedConfig.resolvedDifficulty}
 						</span>
 					</div>
-					<h3 class="mt-2 text-2xl font-black sm:text-3xl">{title ?? 'Quiz Contrarreloj Arcade'}</h3>
+					<h3 class="mt-2 text-2xl font-black sm:text-3xl">
+						{title ?? 'Quiz Contrarreloj Arcade'}
+					</h3>
 				</div>
 
-				<div class="rounded-3xl border border-cyan-300/20 bg-slate-950/60 px-5 py-3 text-center shadow-inner">
-					<p class="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200">Tiempo restante</p>
+				<div
+					class="rounded-3xl border border-cyan-300/20 bg-slate-950/60 px-5 py-3 text-center shadow-inner"
+				>
+					<p class="text-xs font-semibold tracking-[0.22em] text-cyan-200 uppercase">
+						Tiempo restante
+					</p>
 					<p class="mt-1 text-4xl font-black">{Math.ceil(timeLeftMs / 1000)}s</p>
 				</div>
 			</div>
@@ -443,10 +468,14 @@
 				</div>
 			</div>
 
-			<div class="mt-6 flex flex-1 flex-col rounded-[2rem] border border-white/10 bg-slate-950/60 p-5 shadow-[0_24px_120px_rgba(15,23,42,0.7)] sm:p-8">
-				<p class="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200">Pregunta {safeCurrentIndex + 1}</p>
-				<div class="mt-4 text-3xl font-black leading-tight sm:text-5xl">
-					<span class="[&_p]:inline [&_.katex-display]:inline [&_.katex-display]:m-0">
+			<div
+				class="mt-6 flex flex-1 flex-col rounded-[2rem] border border-white/10 bg-slate-950/60 p-5 shadow-[0_24px_120px_rgba(15,23,42,0.7)] sm:p-8"
+			>
+				<p class="text-sm font-semibold tracking-[0.24em] text-cyan-200 uppercase">
+					Pregunta {safeCurrentIndex + 1}
+				</p>
+				<div class="mt-4 text-3xl leading-tight font-black sm:text-5xl">
+					<span class="[&_.katex-display]:m-0 [&_.katex-display]:inline [&_p]:inline">
 						{@html renderInline(currentQuestion.question)}
 					</span>
 				</div>
@@ -455,7 +484,9 @@
 					{#each currentQuestion.options as option, optionIndex}
 						<button
 							type="button"
-							class="min-h-28 rounded-[1.5rem] border px-5 py-5 text-left text-xl font-semibold transition-all sm:min-h-32 sm:px-6 sm:text-2xl {getOptionClass(optionIndex)}"
+							class="min-h-28 rounded-[1.5rem] border px-5 py-5 text-left text-xl font-semibold transition-all sm:min-h-32 sm:px-6 sm:text-2xl {getOptionClass(
+								optionIndex
+							)}"
 							disabled={feedbackState !== null || isSubmitting || isAdvancing}
 							onclick={() => selectAnswer(optionIndex)}
 						>
@@ -467,7 +498,9 @@
 					{/each}
 				</div>
 
-				<div class="mt-5 text-base font-semibold sm:text-lg {getFeedbackClass()}">{getFeedbackText()}</div>
+				<div class="mt-5 text-base font-semibold sm:text-lg {getFeedbackClass()}">
+					{getFeedbackText()}
+				</div>
 			</div>
 		</div>
 	{:else}
@@ -475,35 +508,51 @@
 			<div class="rounded-[2rem] border border-white/10 bg-white/6 p-6 sm:p-8">
 				<div class="flex flex-wrap items-start justify-between gap-4">
 					<div>
-						<p class="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200">Resultado final</p>
-						<h3 class="mt-2 text-3xl font-black sm:text-4xl">{title ?? 'Quiz Contrarreloj Arcade'}</h3>
+						<p class="text-sm font-semibold tracking-[0.24em] text-cyan-200 uppercase">
+							Resultado final
+						</p>
+						<h3 class="mt-2 text-3xl font-black sm:text-4xl">
+							{title ?? 'Quiz Contrarreloj Arcade'}
+						</h3>
 					</div>
-					<div class="rounded-full px-4 py-2 text-base font-black {getTimedQuizScoreBadgeClass(scorePercent)}">
+					<div
+						class="rounded-full px-4 py-2 text-base font-black {getTimedQuizScoreBadgeClass(
+							scorePercent
+						)}"
+					>
 						{scorePercent}%
 					</div>
 				</div>
 
 				<div class="mt-6 grid gap-3 md:grid-cols-4">
 					<div class="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Correctas</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">Correctas</p>
 						<p class="mt-2 text-3xl font-black">{resultPayload.correctCount}</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Timeouts</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">Timeouts</p>
 						<p class="mt-2 text-3xl font-black">{resultPayload.timeoutCount}</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Incorrectas</p>
-						<p class="mt-2 text-3xl font-black">{questions.length - resultPayload.correctCount - resultPayload.timeoutCount}</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">
+							Incorrectas
+						</p>
+						<p class="mt-2 text-3xl font-black">
+							{questions.length - resultPayload.correctCount - resultPayload.timeoutCount}
+						</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Tiempo/pregunta</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">
+							Tiempo/pregunta
+						</p>
 						<p class="mt-2 text-3xl font-black">{resultPayload.timePerQuestionSec}s</p>
 					</div>
 				</div>
 
 				{#if submitError}
-					<div class="mt-5 rounded-3xl border border-rose-400/40 bg-rose-500/10 p-4 text-sm text-rose-100">
+					<div
+						class="mt-5 rounded-3xl border border-rose-400/40 bg-rose-500/10 p-4 text-sm text-rose-100"
+					>
 						{submitError}
 						<div class="mt-3">
 							<button
@@ -525,22 +574,35 @@
 					<div class="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
 						<div class="flex flex-wrap items-start justify-between gap-3">
 							<p class="text-lg font-semibold text-white">
-								{index + 1}. <span class="[&_p]:inline [&_.katex-display]:inline [&_.katex-display]:m-0">{@html renderInline(question.question)}</span>
+								{index + 1}.
+								<span class="[&_.katex-display]:m-0 [&_.katex-display]:inline [&_p]:inline"
+									>{@html renderInline(question.question)}</span
+								>
 							</p>
 
-							<span class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]
-								{result.timedOut ? 'bg-amber-400/15 text-amber-200' : result.isCorrect ? 'bg-emerald-400/15 text-emerald-200' : 'bg-rose-400/15 text-rose-200'}">
+							<span
+								class="rounded-full px-3 py-1 text-xs font-semibold tracking-[0.18em] uppercase
+								{result.timedOut
+									? 'bg-amber-400/15 text-amber-200'
+									: result.isCorrect
+										? 'bg-emerald-400/15 text-emerald-200'
+										: 'bg-rose-400/15 text-rose-200'}"
+							>
 								{result.timedOut ? 'Timeout' : result.isCorrect ? 'Correcta' : 'Incorrecta'}
 							</span>
 						</div>
 
 						<div class="mt-4 grid gap-3 md:grid-cols-2">
 							<div class="rounded-3xl border border-white/10 bg-white/5 p-4">
-								<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Tu respuesta</p>
+								<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">
+									Tu respuesta
+								</p>
 								<p class="mt-2 text-base text-slate-100">
 									{#if result.selectedIndex >= 0}
 										{String.fromCharCode(65 + result.selectedIndex)}.
-										<span class="[&_p]:inline">{@html renderInline(question.options[result.selectedIndex] ?? '')}</span>
+										<span class="[&_p]:inline"
+											>{@html renderInline(question.options[result.selectedIndex] ?? '')}</span
+										>
 									{:else}
 										Sin respuesta
 									{/if}
@@ -548,16 +610,22 @@
 							</div>
 
 							<div class="rounded-3xl border border-white/10 bg-white/5 p-4">
-								<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Correcta</p>
+								<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">
+									Correcta
+								</p>
 								<p class="mt-2 text-base text-slate-100">
 									{String.fromCharCode(65 + result.correctIndex)}.
-									<span class="[&_p]:inline">{@html renderInline(question.options[result.correctIndex] ?? '')}</span>
+									<span class="[&_p]:inline"
+										>{@html renderInline(question.options[result.correctIndex] ?? '')}</span
+									>
 								</p>
 							</div>
 						</div>
 
 						{#if question.explanation}
-							<div class="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200 [&_p]:m-0">
+							<div
+								class="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200 [&_p]:m-0"
+							>
 								{@html renderBlock(question.explanation)}
 							</div>
 						{/if}

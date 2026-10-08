@@ -36,12 +36,19 @@ export const renderImmersiveTimedQuizManifest: ToolManifest = {
 					type: 'object',
 					properties: {
 						question: { type: 'string', description: 'Texto de la pregunta' },
-						options: { type: 'array', description: 'Opciones de respuesta', items: { type: 'string' } },
+						options: {
+							type: 'array',
+							description: 'Opciones de respuesta',
+							items: { type: 'string' }
+						},
 						correctIndex: {
 							type: 'integer',
 							description: 'Indice de la respuesta correcta (0-based)'
 						},
-						explanation: { type: 'string', description: 'Explicacion opcional de la respuesta correcta' }
+						explanation: {
+							type: 'string',
+							description: 'Explicacion opcional de la respuesta correcta'
+						}
 					},
 					required: ['question', 'options', 'correctIndex']
 				}

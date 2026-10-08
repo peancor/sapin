@@ -181,10 +181,14 @@
 </script>
 
 <div class="space-y-6">
-	<section class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+	<section
+		class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+	>
 		<div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
 			<div class="max-w-3xl">
-				<div class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+				<div
+					class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold tracking-wide text-emerald-700 uppercase dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+				>
 					Staff agent
 				</div>
 				<h1 class="mt-4 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">
@@ -217,13 +221,17 @@
 	</section>
 
 	{#if actionError}
-		<div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+		<div
+			class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300"
+		>
 			{actionError}
 		</div>
 	{/if}
 
 	<div class="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-		<aside class="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+		<aside
+			class="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+		>
 			<div class="mb-3 flex items-center justify-between px-2">
 				<div>
 					<p class="text-sm font-semibold text-slate-900 dark:text-white">Hilos compartidos</p>
@@ -270,7 +278,7 @@
 								<div
 									class:text-slate-300={selectedThread?.id === thread.id}
 									class:text-slate-400={selectedThread?.id !== thread.id}
-									class="mt-3 flex items-center justify-between text-[11px] uppercase tracking-wide"
+									class="mt-3 flex items-center justify-between text-[11px] tracking-wide uppercase"
 								>
 									<span>{thread.status}</span>
 									<span>{formatDate(thread.lastMessageAt ?? thread.updatedAt)}</span>
@@ -306,21 +314,26 @@
 						</div>
 					{/each}
 				{:else}
-					<div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300">
+					<div
+						class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300"
+					>
 						Todavia no hay hilos. Crea uno nuevo para empezar a consultar este espacio.
 					</div>
 				{/if}
 			</div>
 		</aside>
 
-		<section class="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+		<section
+			class="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+		>
 			{#if selectedThread}
 				<div class="mb-4 flex flex-col gap-1 px-2">
 					<div class="text-sm font-semibold text-slate-900 dark:text-white">
 						{selectedThread.title?.trim() || 'Nuevo hilo'}
 					</div>
 					<div class="text-xs text-slate-500 dark:text-slate-400">
-						Hilo compartido del staff. Lo que preguntes aqui queda disponible para el resto del equipo docente.
+						Hilo compartido del staff. Lo que preguntes aqui queda disponible para el resto del
+						equipo docente.
 					</div>
 				</div>
 
@@ -339,7 +352,8 @@
 							No hay ningun hilo seleccionado
 						</h2>
 						<p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-							Crea un hilo nuevo para empezar a preguntar por el curso o la actividad. El chat usara las herramientas habilitadas en este workspace.
+							Crea un hilo nuevo para empezar a preguntar por el curso o la actividad. El chat usara
+							las herramientas habilitadas en este workspace.
 						</p>
 						<button
 							type="button"

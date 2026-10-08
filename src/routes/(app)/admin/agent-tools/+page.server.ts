@@ -2,7 +2,10 @@ import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { DBAgentToolUtils } from '$lib/server/db/agent';
 import { ROLE_LEVELS } from '$lib/server/roles';
-import { BUILTIN_TOOL_USAGE_DOMAINS, isBuiltinToolUsageDomain } from '$lib/server/agent/tools/constants';
+import {
+	BUILTIN_TOOL_USAGE_DOMAINS,
+	isBuiltinToolUsageDomain
+} from '$lib/server/agent/tools/constants';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) error(401, 'No autenticado');

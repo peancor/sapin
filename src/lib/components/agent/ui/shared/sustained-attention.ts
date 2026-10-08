@@ -55,9 +55,21 @@ const DEFAULT_COPY =
 
 const DIFFICULTY_DEFAULTS: Record<
 	Difficulty,
-	{ practiceTrials: number; mainTrials: number; stimulusDurationMs: number; interStimulusMs: number; noGoRate: number }
+	{
+		practiceTrials: number;
+		mainTrials: number;
+		stimulusDurationMs: number;
+		interStimulusMs: number;
+		noGoRate: number;
+	}
 > = {
-	easy: { practiceTrials: 6, mainTrials: 24, stimulusDurationMs: 1200, interStimulusMs: 700, noGoRate: 0.2 },
+	easy: {
+		practiceTrials: 6,
+		mainTrials: 24,
+		stimulusDurationMs: 1200,
+		interStimulusMs: 700,
+		noGoRate: 0.2
+	},
 	medium: {
 		practiceTrials: 8,
 		mainTrials: 36,
@@ -65,7 +77,13 @@ const DIFFICULTY_DEFAULTS: Record<
 		interStimulusMs: 500,
 		noGoRate: 0.25
 	},
-	hard: { practiceTrials: 10, mainTrials: 48, stimulusDurationMs: 700, interStimulusMs: 350, noGoRate: 0.3 }
+	hard: {
+		practiceTrials: 10,
+		mainTrials: 48,
+		stimulusDurationMs: 700,
+		interStimulusMs: 350,
+		noGoRate: 0.3
+	}
 };
 
 function sanitizePositiveInteger(value: unknown, fallback: number, min = 1, max = 200): number {
@@ -97,7 +115,9 @@ function buildTrials(params: {
 	if (params.count <= 0) return [];
 
 	const noGoCount =
-		params.count <= 2 ? 1 : Math.max(1, Math.min(params.count - 1, Math.round(params.count * params.noGoRate)));
+		params.count <= 2
+			? 1
+			: Math.max(1, Math.min(params.count - 1, Math.round(params.count * params.noGoRate)));
 	const goCount = Math.max(1, params.count - noGoCount);
 	const kinds = shuffle([
 		...Array.from({ length: goCount }, () => 'go' as const),
@@ -115,11 +135,12 @@ function buildTrials(params: {
 	}));
 }
 
-export function resolveSustainedAttentionConfig(input: Record<string, unknown>): SustainedAttentionConfig {
+export function resolveSustainedAttentionConfig(
+	input: Record<string, unknown>
+): SustainedAttentionConfig {
 	const difficulty = resolveDifficulty(input.difficulty);
 	const defaults = DIFFICULTY_DEFAULTS[difficulty];
-	const testType =
-		input.testType === 'go_no_go' ? ('go_no_go' as const) : ('go_no_go' as const);
+	const testType = input.testType === 'go_no_go' ? ('go_no_go' as const) : ('go_no_go' as const);
 	const goStimulus =
 		typeof input.goStimulus === 'string' && input.goStimulus.trim().length > 0
 			? input.goStimulus.trim()
@@ -129,7 +150,12 @@ export function resolveSustainedAttentionConfig(input: Record<string, unknown>):
 			? input.noGoStimulus.trim()
 			: 'STOP';
 
-	const practiceCount = sanitizePositiveInteger(input.practiceTrials, defaults.practiceTrials, 0, 40);
+	const practiceCount = sanitizePositiveInteger(
+		input.practiceTrials,
+		defaults.practiceTrials,
+		0,
+		40
+	);
 	const mainCount = sanitizePositiveInteger(input.mainTrials, defaults.mainTrials, 4, 200);
 
 	return {

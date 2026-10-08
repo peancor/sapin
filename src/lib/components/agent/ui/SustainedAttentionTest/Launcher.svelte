@@ -31,12 +31,12 @@
 	description="Abre una prueba inmersiva Go/No-Go para medir atencion sostenida, inhibicion y tiempo de reaccion."
 	badge="Atencion sostenida"
 	completed={!!payload}
-	summaryItems={summaryItems}
+	{summaryItems}
 	statusText={payload
 		? 'Resultado guardado. Puedes reabrir la sesion para revisar las metricas.'
 		: 'Pulsa para abrir el test. El ensayo empieza solo cuando pulses Empezar.'}
 	actionLabel="Abrir test"
 	reopenLabel="Reabrir metricas"
 	accentClass="from-amber-400 via-orange-500 to-rose-500"
-	onopen={onopen}
+	{onopen}
 />

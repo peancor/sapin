@@ -17,7 +17,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const now = new Date();
 
 	if (mode === 'preview') {
-		const expired = await db.select({ id: session.id }).from(session).where(lt(session.expiresAt, now)).all();
+		const expired = await db
+			.select({ id: session.id })
+			.from(session)
+			.where(lt(session.expiresAt, now))
+			.all();
 		return json({ count: expired.length });
 	}
 

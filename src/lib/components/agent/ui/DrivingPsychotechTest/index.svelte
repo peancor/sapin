@@ -174,17 +174,16 @@
 				? buildBimanualPayload({
 						difficulty: config.difficulty,
 						segmentLog: bimanualSegmentLog,
-						summaryInput:
-							bimanualMainSummaryInput ?? {
-								totalDurationMs: 1,
-								onTrackLeftMs: 0,
-								onTrackRightMs: 0,
-								simultaneousOffTrackMs: 0,
-								offTrackEventsLeft: 0,
-								offTrackEventsRight: 0,
-								meanAbsoluteOffsetLeft: 0,
-								meanAbsoluteOffsetRight: 0
-							}
+						summaryInput: bimanualMainSummaryInput ?? {
+							totalDurationMs: 1,
+							onTrackLeftMs: 0,
+							onTrackRightMs: 0,
+							simultaneousOffTrackMs: 0,
+							offTrackEventsLeft: 0,
+							offTrackEventsRight: 0,
+							meanAbsoluteOffsetLeft: 0,
+							meanAbsoluteOffsetRight: 0
+						}
 					})
 				: config.testType === 'time_to_contact'
 					? buildTimeToContactPayload({
@@ -302,7 +301,8 @@
 		currentElapsedMs = 0;
 		phaseStartedAtMs = 0;
 		trialIndex = 0;
-		bimanualSegmentLog = initialPayload?.testType === 'bimanual_coordination' ? initialPayload.segmentLog : [];
+		bimanualSegmentLog =
+			initialPayload?.testType === 'bimanual_coordination' ? initialPayload.segmentLog : [];
 		bimanualMainSummaryInput = null;
 		bimanualAccumulator = createEmptyBimanualAccumulator();
 		bimanualLastSampleAtMs = 0;
@@ -376,7 +376,9 @@
 		if (config.testType !== 'time_to_contact') return;
 		phase = nextPhase;
 		trialIndex = 0;
-		startTimeToContactTrial(nextPhase === 'practice' ? config.practiceTrials[0] : config.mainTrials[0]);
+		startTimeToContactTrial(
+			nextPhase === 'practice' ? config.practiceTrials[0] : config.mainTrials[0]
+		);
 		setImmersiveState();
 		startLoop();
 	}
@@ -542,8 +544,10 @@
 	function handleBimanualKeyUp(event: KeyboardEvent) {
 		if (config.testType !== 'bimanual_coordination') return;
 		const key = event.key.toLowerCase();
-		if ((key === 'a' && leftKeyDirection < 0) || (key === 'd' && leftKeyDirection > 0)) leftKeyDirection = 0;
-		if ((key === 'j' && rightKeyDirection < 0) || (key === 'l' && rightKeyDirection > 0)) rightKeyDirection = 0;
+		if ((key === 'a' && leftKeyDirection < 0) || (key === 'd' && leftKeyDirection > 0))
+			leftKeyDirection = 0;
+		if ((key === 'j' && rightKeyDirection < 0) || (key === 'l' && rightKeyDirection > 0))
+			rightKeyDirection = 0;
 	}
 
 	function handleDocumentKeydown(event: KeyboardEvent) {
@@ -572,11 +576,7 @@
 		}
 	}
 
-	function mapHalfPosition(
-		clientX: number,
-		rect: DOMRect,
-		side: 'left' | 'right'
-	): number {
+	function mapHalfPosition(clientX: number, rect: DOMRect, side: 'left' | 'right'): number {
 		const halfWidth = rect.width / 2;
 		const relative =
 			side === 'left'
@@ -587,7 +587,9 @@
 			: clamp(0.57 + clamp(relative, 0, 1) * 0.36, 0.57, 0.93);
 	}
 
-	function handleTrackPointerDown(event: PointerEvent & { currentTarget: EventTarget & HTMLDivElement }) {
+	function handleTrackPointerDown(
+		event: PointerEvent & { currentTarget: EventTarget & HTMLDivElement }
+	) {
 		if (config.testType !== 'bimanual_coordination' || !interactive || !isPlayPhase) return;
 		const rect = event.currentTarget.getBoundingClientRect();
 		const side = event.clientX - rect.left < rect.width / 2 ? 'left' : 'right';
@@ -602,7 +604,9 @@
 		event.currentTarget.setPointerCapture(event.pointerId);
 	}
 
-	function handleTrackPointerMove(event: PointerEvent & { currentTarget: EventTarget & HTMLDivElement }) {
+	function handleTrackPointerMove(
+		event: PointerEvent & { currentTarget: EventTarget & HTMLDivElement }
+	) {
 		if (config.testType !== 'bimanual_coordination' || !interactive || !isPlayPhase) return;
 		const rect = event.currentTarget.getBoundingClientRect();
 		if (event.pointerId === leftPointerId) {
@@ -613,7 +617,9 @@
 		}
 	}
 
-	function handleTrackPointerUp(event: PointerEvent & { currentTarget: EventTarget & HTMLDivElement }) {
+	function handleTrackPointerUp(
+		event: PointerEvent & { currentTarget: EventTarget & HTMLDivElement }
+	) {
 		if (event.pointerId === leftPointerId) leftPointerId = null;
 		if (event.pointerId === rightPointerId) rightPointerId = null;
 		if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -630,9 +636,7 @@
 		const right =
 			0.75 +
 			Math.sin(elapsedMs * 0.00081 + yNorm * 7.3 + 1.1) * nextConfig.curveAmplitudeRight +
-			Math.cos(elapsedMs * 0.00049 + yNorm * 10.1 + 0.7) *
-				nextConfig.curveAmplitudeRight *
-				0.42;
+			Math.cos(elapsedMs * 0.00049 + yNorm * 10.1 + 0.7) * nextConfig.curveAmplitudeRight * 0.42;
 		return {
 			left: clamp(left, 0.1, 0.4),
 			right: clamp(right, 0.6, 0.9)
@@ -671,8 +675,10 @@
 		if (leftOnTrack) bimanualAccumulator.onTrackLeftMs += dtMs;
 		if (rightOnTrack) bimanualAccumulator.onTrackRightMs += dtMs;
 		if (!leftOnTrack && !rightOnTrack) bimanualAccumulator.simultaneousOffTrackMs += dtMs;
-		if (bimanualAccumulator.wasOnTrackLeft && !leftOnTrack) bimanualAccumulator.offTrackEventsLeft += 1;
-		if (bimanualAccumulator.wasOnTrackRight && !rightOnTrack) bimanualAccumulator.offTrackEventsRight += 1;
+		if (bimanualAccumulator.wasOnTrackLeft && !leftOnTrack)
+			bimanualAccumulator.offTrackEventsLeft += 1;
+		if (bimanualAccumulator.wasOnTrackRight && !rightOnTrack)
+			bimanualAccumulator.offTrackEventsRight += 1;
 		bimanualAccumulator.absOffsetIntegralLeft += Math.abs(leftOffset) * dtMs;
 		bimanualAccumulator.absOffsetIntegralRight += Math.abs(rightOffset) * dtMs;
 		bimanualAccumulator.wasOnTrackLeft = leftOnTrack;
@@ -778,11 +784,7 @@
 		drawReactionScene(context, width, height);
 	}
 
-	function drawBimanualScene(
-		context: CanvasRenderingContext2D,
-		width: number,
-		height: number
-	) {
+	function drawBimanualScene(context: CanvasRenderingContext2D, width: number, height: number) {
 		const nextConfig = config as BimanualConfig;
 		const gradient = context.createLinearGradient(0, 0, 0, height);
 		gradient.addColorStop(0, '#0f172a');
@@ -905,8 +907,7 @@
 		}
 
 		if (currentTimeTrial) {
-			const predictedExitAtMs =
-				currentTimeTrial.visibleDurationMs + currentTimeTrial.occlusionMs;
+			const predictedExitAtMs = currentTimeTrial.visibleDurationMs + currentTimeTrial.occlusionMs;
 			const startX = width * 0.12;
 			const endX = width * 0.86;
 			let x = startX;
@@ -946,11 +947,7 @@
 		}
 	}
 
-	function drawReactionScene(
-		context: CanvasRenderingContext2D,
-		width: number,
-		height: number
-	) {
+	function drawReactionScene(context: CanvasRenderingContext2D, width: number, height: number) {
 		const gradient = context.createLinearGradient(0, 0, 0, height);
 		gradient.addColorStop(0, '#0f172a');
 		gradient.addColorStop(0.4, '#1f3750');
@@ -993,11 +990,7 @@
 				context.fill();
 				context.fillStyle = '#f8fafc';
 				context.font = `700 ${Math.max(18, width * 0.024)}px system-ui`;
-				context.fillText(
-					hazard ? 'Peligro' : 'Distractor',
-					laneX - width * 0.045,
-					height * 0.74
-				);
+				context.fillText(hazard ? 'Peligro' : 'Distractor', laneX - width * 0.045, height * 0.74);
 			}
 		}
 
@@ -1070,7 +1063,11 @@
 		return [
 			{ label: 'Fase', value: phaseLabel },
 			{ label: 'Ensayo', value: currentTrialCountLabel },
-			{ label: 'Modo', value: (config as ReactionBrakingConfig).responseMode === 'selective' ? 'Selectivo' : 'Freno' },
+			{
+				label: 'Modo',
+				value:
+					(config as ReactionBrakingConfig).responseMode === 'selective' ? 'Selectivo' : 'Freno'
+			},
 			{ label: 'Dificultad', value: formatDifficultyLabel(config.difficulty) }
 		];
 	}
@@ -1116,7 +1113,9 @@
 {#if phase === 'intro'}
 	<div class="flex min-h-[78vh] flex-col justify-between gap-8">
 		<div class="space-y-6">
-			<div class="inline-flex rounded-full border border-cyan-300/25 bg-cyan-400/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100">
+			<div
+				class="inline-flex rounded-full border border-cyan-300/25 bg-cyan-400/10 px-4 py-1 text-xs font-semibold tracking-[0.22em] text-cyan-100 uppercase"
+			>
 				Psicotecnico de conduccion
 			</div>
 			<div class="space-y-3">
@@ -1127,14 +1126,14 @@
 			</div>
 			<div class="grid gap-4 lg:grid-cols-3">
 				<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Dificultad</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">Dificultad</p>
 					<p class="mt-2 text-3xl font-black text-white">
 						{formatDifficultyLabel(config.difficulty)}
 					</p>
 					<p class="mt-2 text-sm text-slate-300">La fase principal se guarda al terminar.</p>
 				</div>
 				<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Controles</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">Controles</p>
 					<p class="mt-2 text-lg font-bold text-white">
 						{#if config.testType === 'bimanual_coordination'}
 							2 dedos o A/D + J/L
@@ -1151,7 +1150,7 @@
 					</p>
 				</div>
 				<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Formato</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">Formato</p>
 					<p class="mt-2 text-lg font-bold text-white">
 						{config.testType === 'bimanual_coordination'
 							? `${config.practiceDurationSec}s de practica + ${config.durationSec}s principal`
@@ -1179,11 +1178,13 @@
 {:else if phase === 'practice-complete'}
 	<div class="flex min-h-[76vh] flex-col justify-center gap-8">
 		<div class="max-w-3xl space-y-4">
-			<p class="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">Practica completada</p>
+			<p class="text-xs font-semibold tracking-[0.2em] text-cyan-200 uppercase">
+				Practica completada
+			</p>
 			<h2 class="text-4xl font-black text-white sm:text-5xl">Ahora empieza la parte principal</h2>
 			<p class="text-base text-slate-200 sm:text-lg">
-				La practica no se puntua. La siguiente fase registra las metricas finales y se guardara
-				al terminar.
+				La practica no se puntua. La siguiente fase registra las metricas finales y se guardara al
+				terminar.
 			</p>
 		</div>
 		<div class="flex flex-wrap gap-3">
@@ -1217,11 +1218,15 @@
 				onpointerup={handleTrackPointerUp}
 				onpointercancel={handleTrackPointerUp}
 			>
-				<div class="absolute bottom-6 left-6 rounded-3xl bg-slate-950/55 px-4 py-3 text-sm text-slate-100">
+				<div
+					class="absolute bottom-6 left-6 rounded-3xl bg-slate-950/55 px-4 py-3 text-sm text-slate-100"
+				>
 					<p class="font-semibold">Canal izquierdo</p>
 					<p class="text-slate-300">A / D o dedo izquierdo</p>
 				</div>
-				<div class="absolute bottom-6 right-6 rounded-3xl bg-slate-950/55 px-4 py-3 text-right text-sm text-slate-100">
+				<div
+					class="absolute right-6 bottom-6 rounded-3xl bg-slate-950/55 px-4 py-3 text-right text-sm text-slate-100"
+				>
 					<p class="font-semibold">Canal derecho</p>
 					<p class="text-slate-300">J / L o dedo derecho</p>
 				</div>
@@ -1239,7 +1244,9 @@
 					>
 						Marcar salida
 					</button>
-					<div class="rounded-3xl border border-white/10 bg-white/6 px-5 py-4 text-sm text-slate-200">
+					<div
+						class="rounded-3xl border border-white/10 bg-white/6 px-5 py-4 text-sm text-slate-200"
+					>
 						Pulsa cuando creas que el objeto saldria del tunel.
 					</div>
 				</div>
@@ -1272,7 +1279,9 @@
 							Frenar
 						</button>
 					{/if}
-					<div class="rounded-3xl border border-white/10 bg-white/6 px-5 py-4 text-sm text-slate-200">
+					<div
+						class="rounded-3xl border border-white/10 bg-white/6 px-5 py-4 text-sm text-slate-200"
+					>
 						{#if (config as ReactionBrakingConfig).responseMode === 'selective'}
 							Flechas izquierda/derecha en desktop. Ignora los distractores.
 						{:else}
@@ -1286,9 +1295,11 @@
 		{#snippet footer()}
 			<div class="rounded-3xl border border-white/10 bg-white/6 px-5 py-4 text-sm text-slate-200">
 				{#if config.testType === 'bimanual_coordination'}
-					Mantén ambos cursores centrados. Las salidas simultaneas penalizan mas que una desviacion aislada.
+					Mantén ambos cursores centrados. Las salidas simultaneas penalizan mas que una desviacion
+					aislada.
 				{:else if config.testType === 'time_to_contact'}
-					Ensayos consecutivos pueden tener distinta longitud de oclusion. Cuenta mentalmente el ritmo.
+					Ensayos consecutivos pueden tener distinta longitud de oclusion. Cuenta mentalmente el
+					ritmo.
 				{:else}
 					Responde solo ante peligro real. En dificil debes discriminar la direccion correcta.
 				{/if}
@@ -1298,7 +1309,7 @@
 {:else}
 	<div class="space-y-6">
 		<div class="space-y-3">
-			<p class="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">Resultados</p>
+			<p class="text-xs font-semibold tracking-[0.2em] text-cyan-200 uppercase">Resultados</p>
 			<h2 class="text-4xl font-black text-white sm:text-5xl">
 				{title ?? getDrivingPsychotechLabel(effectivePayload.testType)}
 			</h2>
@@ -1307,32 +1318,38 @@
 
 		<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 			<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-				<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Score</p>
+				<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">Score</p>
 				<p class="mt-2 text-4xl font-black text-white">{formatPercent(effectivePayload.score)}</p>
 			</div>
 
 			{#if effectivePayload.testType === 'bimanual_coordination'}
 				<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Tiempo en pista</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">
+						Tiempo en pista
+					</p>
 					<p class="mt-2 text-2xl font-black text-white">
-						{effectivePayload.summary.percentOnTrackLeft}% / {effectivePayload.summary.percentOnTrackRight}%
+						{effectivePayload.summary.percentOnTrackLeft}% / {effectivePayload.summary
+							.percentOnTrackRight}%
 					</p>
 				</div>
 				<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Salidas</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">Salidas</p>
 					<p class="mt-2 text-2xl font-black text-white">
-						{effectivePayload.summary.offTrackEventsLeft + effectivePayload.summary.offTrackEventsRight}
+						{effectivePayload.summary.offTrackEventsLeft +
+							effectivePayload.summary.offTrackEventsRight}
 					</p>
 				</div>
 				<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Fuera en ambos</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">
+						Fuera en ambos
+					</p>
 					<p class="mt-2 text-2xl font-black text-white">
 						{Math.round(effectivePayload.summary.simultaneousOffTrackMs / 100) / 10}s
 					</p>
 				</div>
 			{:else if effectivePayload.testType === 'time_to_contact'}
 				<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Error medio</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">Error medio</p>
 					<p class="mt-2 text-2xl font-black text-white">
 						{typeof effectivePayload.summary.meanAbsoluteErrorMs === 'number'
 							? `${effectivePayload.summary.meanAbsoluteErrorMs} ms`
@@ -1340,26 +1357,30 @@
 					</p>
 				</div>
 				<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">A tiempo</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">A tiempo</p>
 					<p class="mt-2 text-2xl font-black text-white">{effectivePayload.summary.onTimeCount}</p>
 				</div>
 				<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Antes / tarde</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">
+						Antes / tarde
+					</p>
 					<p class="mt-2 text-2xl font-black text-white">
 						{effectivePayload.summary.earlyCount} / {effectivePayload.summary.lateCount}
 					</p>
 				</div>
 			{:else}
 				<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Hits</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">Hits</p>
 					<p class="mt-2 text-2xl font-black text-white">{effectivePayload.summary.hits}</p>
 				</div>
 				<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Falsos positivos</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">
+						Falsos positivos
+					</p>
 					<p class="mt-2 text-2xl font-black text-white">{effectivePayload.summary.falseAlarms}</p>
 				</div>
 				<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">RT media</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">RT media</p>
 					<p class="mt-2 text-2xl font-black text-white">
 						{typeof effectivePayload.summary.meanReactionMs === 'number'
 							? `${effectivePayload.summary.meanReactionMs} ms`
@@ -1370,12 +1391,16 @@
 		</div>
 
 		<div class="rounded-[2rem] border border-white/10 bg-white/6 p-5">
-			<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Lectura orientativa</p>
+			<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">
+				Lectura orientativa
+			</p>
 			<p class="mt-3 text-sm leading-7 text-slate-200">
 				{resultsInterpretation} Esta lectura es interna a la app y no equivale a una evaluacion oficial.
 			</p>
-			<p class="mt-4 text-xs uppercase tracking-[0.18em] text-slate-400">
-				{submitted ? 'Resultado guardado' : 'Pendiente de guardado'} · {formatDifficultyLabel(effectivePayload.difficulty)}
+			<p class="mt-4 text-xs tracking-[0.18em] text-slate-400 uppercase">
+				{submitted ? 'Resultado guardado' : 'Pendiente de guardado'} · {formatDifficultyLabel(
+					effectivePayload.difficulty
+				)}
 			</p>
 			{#if submitError}
 				<p class="mt-4 text-sm text-rose-200">{submitError}</p>

@@ -191,7 +191,10 @@ function normalizeGeneratedQuestion(
 			.filter((option) => option.isCorrect)
 			.map((option) => option.id);
 		if (rawQuestion.mode === 'single_choice' && correctOptionIds.length !== 1) {
-			return makeRejection(rawQuestion, 'Una pregunta de opción única necesita exactamente una correcta.');
+			return makeRejection(
+				rawQuestion,
+				'Una pregunta de opción única necesita exactamente una correcta.'
+			);
 		}
 		if (rawQuestion.mode === 'multiple_choice') {
 			if (correctOptionIds.length < 2) {

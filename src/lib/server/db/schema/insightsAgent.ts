@@ -20,9 +20,7 @@ export const interactiveLearningInsightsAgent = sqliteTable(
 		maxTokens: integer('max_tokens'),
 		topP: real('top_p'),
 		maxToolRoundtrips: integer('max_tool_roundtrips').notNull().default(8),
-		parallelToolCalls: integer('parallel_tool_calls', { mode: 'boolean' })
-			.notNull()
-			.default(false),
+		parallelToolCalls: integer('parallel_tool_calls', { mode: 'boolean' }).notNull().default(false),
 		toolChoice: text('tool_choice').notNull().default('auto'),
 		metadata: text('metadata'),
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
@@ -121,8 +119,7 @@ export const insightsAgentRunRelations = relations(insightsAgentRun, ({ one }) =
 	})
 }));
 
-export type InteractiveLearningInsightsAgent =
-	typeof interactiveLearningInsightsAgent.$inferSelect;
+export type InteractiveLearningInsightsAgent = typeof interactiveLearningInsightsAgent.$inferSelect;
 export type NewInteractiveLearningInsightsAgent =
 	typeof interactiveLearningInsightsAgent.$inferInsert;
 export type InsightsAgentActivityTool = typeof insightsAgentActivityTool.$inferSelect;

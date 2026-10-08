@@ -75,12 +75,12 @@
 					: 'Abre una prueba inmersiva Stroop para medir control inhibitorio y atencion selectiva.'}
 	badge="Atencion y control"
 	completed={!!payload}
-	summaryItems={summaryItems}
+	{summaryItems}
 	statusText={payload
 		? 'Disponible para consulta en modo solo lectura.'
 		: 'Pulsa para abrir la experiencia. El test empieza cuando pulses Empezar.'}
 	actionLabel="Abrir test"
 	reopenLabel="Reabrir metricas"
 	accentClass="from-fuchsia-500 via-rose-500 to-orange-400"
-	onopen={onopen}
+	{onopen}
 />

@@ -10,11 +10,7 @@ import {
 export type AttentionControlTestType = 'go_no_go' | 'stroop' | 'flanker' | 'sdmt';
 export type StroopColor = 'rojo' | 'azul' | 'verde' | 'amarillo';
 export type FlankerDirection = 'left' | 'right';
-export type AttentionControlResponse =
-	| 'respond'
-	| StroopColor
-	| FlankerDirection
-	| null;
+export type AttentionControlResponse = 'respond' | StroopColor | FlankerDirection | null;
 
 export interface AttentionControlTrial {
 	id: string;
@@ -55,13 +51,7 @@ export interface AttentionControlTrialLog {
 	actualResponse: AttentionControlResponse;
 	reactionMs: number | null;
 	outcome:
-		| 'hit'
-		| 'commission'
-		| 'omission'
-		| 'correct-rejection'
-		| 'correct'
-		| 'error'
-		| 'timeout';
+		'hit' | 'commission' | 'omission' | 'correct-rejection' | 'correct' | 'error' | 'timeout';
 	stimulusStartedAtMs: number;
 	stimulusEndedAtMs: number;
 	isCongruent?: boolean;
@@ -113,13 +103,23 @@ export interface AttentionControlConfig {
 	responseMode: 'single' | 'palette' | 'binary';
 }
 
-const STROOP_COLORS = ['rojo', 'azul', 'verde', 'amarillo'] as const satisfies readonly StroopColor[];
+const STROOP_COLORS = [
+	'rojo',
+	'azul',
+	'verde',
+	'amarillo'
+] as const satisfies readonly StroopColor[];
 
 const ATTENTION_DEFAULTS: Record<
 	Exclude<AttentionControlTestType, 'sdmt'>,
 	Record<
 		Difficulty,
-		{ practiceTrials: number; mainTrials: number; stimulusDurationMs: number; interStimulusMs: number }
+		{
+			practiceTrials: number;
+			mainTrials: number;
+			stimulusDurationMs: number;
+			interStimulusMs: number;
+		}
 	>
 > = {
 	go_no_go: {
@@ -198,9 +198,7 @@ function buildStroopTrials(params: {
 	return Array.from({ length: params.count }, (_, index) => {
 		const inkColor = STROOP_COLORS[index % STROOP_COLORS.length];
 		const isCongruent = index % 2 === 0;
-		const word = isCongruent
-			? inkColor
-			: STROOP_COLORS[(index + 1) % STROOP_COLORS.length];
+		const word = isCongruent ? inkColor : STROOP_COLORS[(index + 1) % STROOP_COLORS.length];
 		return {
 			id: `${params.phase}-${index + 1}-${isCongruent ? 'congruent' : 'incongruent'}`,
 			phase: params.phase,
@@ -220,10 +218,7 @@ function buildStroopTrials(params: {
 	});
 }
 
-function buildFlankerPattern(
-	targetDirection: FlankerDirection,
-	isCongruent: boolean
-): string {
+function buildFlankerPattern(targetDirection: FlankerDirection, isCongruent: boolean): string {
 	if (targetDirection === 'left') {
 		return isCongruent ? '<<<<<' : '>><>>';
 	}
@@ -261,7 +256,11 @@ export function resolveAttentionControlConfig(
 	input: Record<string, unknown>
 ): AttentionControlConfig {
 	const difficulty = resolveDifficulty(input.difficulty);
-	const testType = sanitizeChoice(input.testType, ['go_no_go', 'stroop', 'flanker', 'sdmt'], 'stroop');
+	const testType = sanitizeChoice(
+		input.testType,
+		['go_no_go', 'stroop', 'flanker', 'sdmt'],
+		'stroop'
+	);
 	if (testType === 'sdmt') {
 		return {
 			title:
@@ -283,7 +282,12 @@ export function resolveAttentionControlConfig(
 	}
 
 	const defaults = ATTENTION_DEFAULTS[testType][difficulty];
-	const practiceCount = sanitizePositiveInteger(input.practiceTrials, defaults.practiceTrials, 0, 40);
+	const practiceCount = sanitizePositiveInteger(
+		input.practiceTrials,
+		defaults.practiceTrials,
+		0,
+		40
+	);
 	const mainCount = sanitizePositiveInteger(input.mainTrials, defaults.mainTrials, 4, 200);
 	const goStimulus =
 		typeof input.goStimulus === 'string' && input.goStimulus.trim().length > 0
@@ -342,8 +346,7 @@ export function resolveAttentionControlConfig(
 		mainTrials: buildTrials('main', mainCount),
 		goStimulus,
 		noGoStimulus,
-		responseMode:
-			testType === 'go_no_go' ? 'single' : testType === 'stroop' ? 'palette' : 'binary'
+		responseMode: testType === 'go_no_go' ? 'single' : testType === 'stroop' ? 'palette' : 'binary'
 	};
 }
 
@@ -356,7 +359,8 @@ export function buildAttentionControlTrialLog(params: {
 }): AttentionControlTrialLog {
 	let outcome: AttentionControlTrialLog['outcome'];
 	if (params.trial.testType === 'go_no_go') {
-		const isGoTrial = params.trial.stimulus.kind === 'go_no_go' && params.trial.stimulus.tone === 'go';
+		const isGoTrial =
+			params.trial.stimulus.kind === 'go_no_go' && params.trial.stimulus.tone === 'go';
 		if (isGoTrial) {
 			outcome = params.actualResponse === 'respond' ? 'hit' : 'omission';
 		} else {
@@ -419,9 +423,7 @@ function buildGoNoGoSummary(logs: AttentionControlTrialLog[]): AttentionControlS
 		errorCount: commissionErrors + omissionErrors,
 		accuracy: scoreRatio(correctCount, totalTrials),
 		meanReactionMs: meanRounded(
-			logs
-				.filter((entry) => entry.outcome === 'hit')
-				.map((entry) => entry.reactionMs)
+			logs.filter((entry) => entry.outcome === 'hit').map((entry) => entry.reactionMs)
 		),
 		goTrials,
 		noGoTrials,
@@ -439,7 +441,9 @@ function buildCongruencySummary(
 	const congruent = logs.filter((entry) => entry.isCongruent === true);
 	const incongruent = logs.filter((entry) => entry.isCongruent === false);
 	const correctCount = logs.filter((entry) => entry.outcome === 'correct').length;
-	const errorCount = logs.filter((entry) => entry.outcome === 'error' || entry.outcome === 'timeout').length;
+	const errorCount = logs.filter(
+		(entry) => entry.outcome === 'error' || entry.outcome === 'timeout'
+	).length;
 	const congruentMeanReactionMs = meanRounded(
 		congruent.filter((entry) => entry.outcome === 'correct').map((entry) => entry.reactionMs)
 	);

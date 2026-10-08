@@ -9,24 +9,25 @@ import { ROLE_LEVELS } from '$lib/server/roles';
 import { DBAgentAnalyticsUtils } from '$lib/server/db/agent';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-    const user = locals.user;
-    if (!user) return json({ error: 'Unauthorized' }, { status: 401 });
-    if (user.highestRoleLevel < ROLE_LEVELS.ADMIN) return json({ error: 'Forbidden' }, { status: 403 });
+	const user = locals.user;
+	if (!user) return json({ error: 'Unauthorized' }, { status: 401 });
+	if (user.highestRoleLevel < ROLE_LEVELS.ADMIN)
+		return json({ error: 'Forbidden' }, { status: 403 });
 
-    const activityId = url.searchParams.get('activityId');
-    if (!activityId) {
-        return json({ error: 'activityId is required' }, { status: 400 });
-    }
+	const activityId = url.searchParams.get('activityId');
+	if (!activityId) {
+		return json({ error: 'activityId is required' }, { status: 400 });
+	}
 
-    const results = await DBAgentAnalyticsUtils.getUIResponsesForActivity(activityId);
+	const results = await DBAgentAnalyticsUtils.getUIResponsesForActivity(activityId);
 
-    // Return as JSON with content-disposition for download
-    const filename = `agent-results-${activityId}-${new Date().toISOString().slice(0, 10)}.json`;
+	// Return as JSON with content-disposition for download
+	const filename = `agent-results-${activityId}-${new Date().toISOString().slice(0, 10)}.json`;
 
-    return new Response(JSON.stringify(results, null, 2), {
-        headers: {
-            'Content-Type': 'application/json',
-            'Content-Disposition': `attachment; filename="${filename}"`
-        }
-    });
+	return new Response(JSON.stringify(results, null, 2), {
+		headers: {
+			'Content-Type': 'application/json',
+			'Content-Disposition': `attachment; filename="${filename}"`
+		}
+	});
 };

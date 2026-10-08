@@ -48,10 +48,10 @@
 		}>;
 	}
 
-	let { 
-		value = '', 
-		placeholder = '', 
-		rows = 5, 
+	let {
+		value = '',
+		placeholder = '',
+		rows = 5,
 		onchange,
 		name,
 		id,
@@ -81,11 +81,15 @@
 
 		try {
 			const uploaded = await uploadImage(file);
-			editor?.chain().focus().setImage({
-				src: uploaded.path,
-				alt: uploaded.name,
-				title: uploaded.name
-			}).run();
+			editor
+				?.chain()
+				.focus()
+				.setImage({
+					src: uploaded.path,
+					alt: uploaded.name,
+					title: uploaded.name
+				})
+				.run();
 		} catch (errorValue) {
 			imageUploadError =
 				errorValue instanceof Error ? errorValue.message : 'No se pudo subir la imagen.';
@@ -258,10 +262,12 @@
 	}
 </script>
 
-<div class="rich-text-editor rounded border dark:border-gray-600 bg-white dark:bg-gray-700">
+<div class="rich-text-editor rounded border bg-white dark:border-gray-600 dark:bg-gray-700">
 	<!-- Toolbar -->
 	{#if editor}
-		<div class="toolbar flex flex-wrap gap-1 border-b p-2 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 rounded-t">
+		<div
+			class="toolbar flex flex-wrap gap-1 rounded-t border-b bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-800"
+		>
 			<!-- Text formatting -->
 			<div class="flex gap-0.5 border-r pr-2 dark:border-gray-600">
 				<button
@@ -455,7 +461,7 @@
 
 	<!-- Hidden input for form submission -->
 	{#if name}
-		<input type="hidden" {name} {id} bind:this={hiddenInput} value={value} />
+		<input type="hidden" {name} {id} bind:this={hiddenInput} {value} />
 	{/if}
 
 	{#if isUploadingImage || imageUploadError}

@@ -19,8 +19,7 @@ export const renderTikzjaxBrowserDiagramManifest: ToolManifest = {
 				type: 'string',
 				minLength: 1,
 				maxLength: 50000,
-				description:
-					`Fuente TikZ o TeX. Puede incluir \\begin{document}, \\usepackage y \\usetikzlibrary. ${voltageSourceGuidance} ${sourceAuthoringGuidance}`
+				description: `Fuente TikZ o TeX. Puede incluir \\begin{document}, \\usepackage y \\usetikzlibrary. ${voltageSourceGuidance} ${sourceAuthoringGuidance}`
 			},
 			title: {
 				type: 'string',
@@ -36,8 +35,7 @@ export const renderTikzjaxBrowserDiagramManifest: ToolManifest = {
 			},
 			texPackages: {
 				type: 'array',
-				description:
-					`Lista opcional de paquetes TeX extra. Solo se admiten paquetes soportados por el runtime browser: ${supportedPackagesDescription}. No la uses para paquetes no soportados ni como sustituto de \\usepackage{circuitikz} si el snippet depende de circuitikz.`,
+				description: `Lista opcional de paquetes TeX extra. Solo se admiten paquetes soportados por el runtime browser: ${supportedPackagesDescription}. No la uses para paquetes no soportados ni como sustituto de \\usepackage{circuitikz} si el snippet depende de circuitikz.`,
 				items: {
 					type: 'string'
 				}

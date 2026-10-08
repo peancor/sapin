@@ -40,7 +40,9 @@ export const load = (async ({ params, locals, url }) => {
 		throw error(404, 'Lesson no encontrada');
 	}
 
-	const canManage = access.isSystemAdmin || ['owner', 'admin', 'teacher', 'assistant'].includes(access.courseRole || '');
+	const canManage =
+		access.isSystemAdmin ||
+		['owner', 'admin', 'teacher', 'assistant'].includes(access.courseRole || '');
 
 	if (!canManage && activity.status !== 'published' && activity.status !== 'closed') {
 		throw error(404, 'Lesson no disponible');
@@ -56,9 +58,7 @@ export const load = (async ({ params, locals, url }) => {
 		actorUserId: user.id
 	});
 	const definition =
-		previewMode === 'draft'
-			? revisionState.draftDefinition
-			: revisionState.publishedDefinition;
+		previewMode === 'draft' ? revisionState.draftDefinition : revisionState.publishedDefinition;
 	let runtimeValidationError: { message: string; status: number } | null = null;
 
 	try {
@@ -90,21 +90,24 @@ export const load = (async ({ params, locals, url }) => {
 
 	const latestSession =
 		access.courseId && previewMode !== 'draft'
-		? await db
-				.select()
-				.from(interactiveLessonSession)
-				.where(
-					and(
-						eq(interactiveLessonSession.interactiveLearningId, params.ilid),
-						eq(interactiveLessonSession.userId, user.id),
-						eq(interactiveLessonSession.courseId, access.courseId),
-						eq(interactiveLessonSession.scope, latestScope),
-						isNotNull(interactiveLessonSession.definitionRevisionId)
+			? await db
+					.select()
+					.from(interactiveLessonSession)
+					.where(
+						and(
+							eq(interactiveLessonSession.interactiveLearningId, params.ilid),
+							eq(interactiveLessonSession.userId, user.id),
+							eq(interactiveLessonSession.courseId, access.courseId),
+							eq(interactiveLessonSession.scope, latestScope),
+							isNotNull(interactiveLessonSession.definitionRevisionId)
+						)
 					)
-				)
-				.orderBy(desc(interactiveLessonSession.attemptNumber), desc(interactiveLessonSession.createdAt))
-				.get()
-		: null;
+					.orderBy(
+						desc(interactiveLessonSession.attemptNumber),
+						desc(interactiveLessonSession.createdAt)
+					)
+					.get()
+			: null;
 
 	return {
 		interactiveLearning: activity,

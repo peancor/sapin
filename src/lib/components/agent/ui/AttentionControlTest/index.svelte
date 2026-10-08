@@ -73,7 +73,9 @@
 	let phase = $state<'intro' | 'practice' | 'practice-complete' | 'main' | 'results'>(
 		initialPayload ? 'results' : 'intro'
 	);
-	let interactive = $state((() => initialInteractive && !initialPayload && config.testType !== 'sdmt')());
+	let interactive = $state(
+		(() => initialInteractive && !initialPayload && config.testType !== 'sdmt')()
+	);
 	let currentTrial = $state<AttentionControlTrial | null>(null);
 	let currentIndex = $state(0);
 	let respondedThisTrial = $state(false);
@@ -200,10 +202,7 @@
 		startPhase('main');
 	}
 
-	function finalizeTrial(
-		actualResponse: AttentionControlResponse,
-		reactionMs: number | null
-	) {
+	function finalizeTrial(actualResponse: AttentionControlResponse, reactionMs: number | null) {
 		if (!currentTrial || trialStartedAtMs === null) return;
 		clearTimers();
 		const finishedAtMs = Date.now();
@@ -355,44 +354,52 @@
 
 <svelte:document onkeydown={handleDocumentKeydown} />
 
-<div class="min-h-full rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(244,114,182,0.18),_transparent_28%),linear-gradient(180deg,rgba(27,12,26,0.96),rgba(7,8,18,0.99))] text-white shadow-2xl">
+<div
+	class="min-h-full rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(244,114,182,0.18),_transparent_28%),linear-gradient(180deg,rgba(27,12,26,0.96),rgba(7,8,18,0.99))] text-white shadow-2xl"
+>
 	{#if config.testType === 'sdmt'}
 		<div class="grid min-h-[70vh] gap-8 px-6 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-10 lg:py-10">
 			<div class="flex flex-col justify-center">
-				<p class="text-sm font-semibold uppercase tracking-[0.28em] text-fuchsia-300">
+				<p class="text-sm font-semibold tracking-[0.28em] text-fuchsia-300 uppercase">
 					Attention Control
 				</p>
 				<h3 class="mt-3 text-4xl font-black tracking-tight sm:text-5xl">{config.title}</h3>
 				<p class="mt-4 max-w-2xl text-lg leading-8 text-slate-200">{config.instructions}</p>
 				<div class="mt-8 grid gap-3 sm:grid-cols-3">
 					<div class="rounded-3xl border border-white/10 bg-white/6 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-200">Estado</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-fuchsia-200 uppercase">Estado</p>
 						<p class="mt-2 text-3xl font-black">Preparado</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-white/6 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-200">Familia</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-fuchsia-200 uppercase">
+							Familia
+						</p>
 						<p class="mt-2 text-3xl font-black">SDMT</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-white/6 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-200">Siguiente</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-fuchsia-200 uppercase">
+							Siguiente
+						</p>
 						<p class="mt-2 text-3xl font-black">v2</p>
 					</div>
 				</div>
 			</div>
 
 			<div class="rounded-[2rem] border border-white/10 bg-white/6 p-6 shadow-xl">
-				<p class="text-sm font-semibold uppercase tracking-[0.22em] text-fuchsia-200">Roadmap</p>
+				<p class="text-sm font-semibold tracking-[0.22em] text-fuchsia-200 uppercase">Roadmap</p>
 				<div class="mt-6 space-y-4">
 					<div class="rounded-3xl border border-white/10 bg-slate-950/35 p-5">
 						<h4 class="text-xl font-semibold">Clave simbolo-digito</h4>
 						<p class="mt-2 text-sm leading-7 text-slate-300">
-							La siguiente iteracion mostrara una clave persistente y una secuencia de simbolos aislados para responder con keypad numerico.
+							La siguiente iteracion mostrara una clave persistente y una secuencia de simbolos
+							aislados para responder con keypad numerico.
 						</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-slate-950/35 p-5">
 						<h4 class="text-xl font-semibold">Metricas previstas</h4>
 						<p class="mt-2 text-sm leading-7 text-slate-300">
-							Se guardaran aciertos, errores, velocidad por bloque y log por ensayo sin cambiar el contrato del chat.
+							Se guardaran aciertos, errores, velocidad por bloque y log por ensayo sin cambiar el
+							contrato del chat.
 						</p>
 					</div>
 				</div>
@@ -401,7 +408,7 @@
 	{:else if phase === 'intro'}
 		<div class="grid min-h-[70vh] gap-8 px-6 py-8 lg:grid-cols-[1.1fr_0.9fr] lg:px-10 lg:py-10">
 			<div class="flex flex-col justify-center">
-				<p class="text-sm font-semibold uppercase tracking-[0.28em] text-fuchsia-300">
+				<p class="text-sm font-semibold tracking-[0.28em] text-fuchsia-300 uppercase">
 					{config.testType === 'go_no_go'
 						? 'Atencion e inhibicion'
 						: config.testType === 'flanker'
@@ -413,19 +420,19 @@
 
 				<div class="mt-8 grid gap-3 sm:grid-cols-3">
 					<div class="rounded-3xl border border-white/10 bg-white/6 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-200">
+						<p class="text-xs font-semibold tracking-[0.18em] text-fuchsia-200 uppercase">
 							Dificultad
 						</p>
 						<p class="mt-2 text-3xl font-black">{formatDifficultyLabel(config.difficulty)}</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-white/6 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-200">
+						<p class="text-xs font-semibold tracking-[0.18em] text-fuchsia-200 uppercase">
 							Practica
 						</p>
 						<p class="mt-2 text-3xl font-black">{config.practiceTrials.length}</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-white/6 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-200">
+						<p class="text-xs font-semibold tracking-[0.18em] text-fuchsia-200 uppercase">
 							Ensayos
 						</p>
 						<p class="mt-2 text-3xl font-black">{config.mainTrials.length}</p>
@@ -446,27 +453,32 @@
 			</div>
 
 			<div class="rounded-[2rem] border border-white/10 bg-white/6 p-6 shadow-xl">
-				<p class="text-sm font-semibold uppercase tracking-[0.22em] text-fuchsia-200">Controles</p>
+				<p class="text-sm font-semibold tracking-[0.22em] text-fuchsia-200 uppercase">Controles</p>
 				<div class="mt-6 space-y-4">
 					{#if config.testType === 'go_no_go'}
 						<div class="rounded-3xl border border-white/10 bg-slate-950/35 p-5">
 							<h4 class="text-xl font-semibold">Responde solo al objetivo</h4>
 							<p class="mt-2 text-sm leading-7 text-slate-300">
-								Pulsa espacio o toca el boton cuando aparezca <span class="font-semibold text-emerald-300">{config.goStimulus}</span>. No respondas cuando veas <span class="font-semibold text-rose-300">{config.noGoStimulus}</span>.
+								Pulsa espacio o toca el boton cuando aparezca <span
+									class="font-semibold text-emerald-300">{config.goStimulus}</span
+								>. No respondas cuando veas
+								<span class="font-semibold text-rose-300">{config.noGoStimulus}</span>.
 							</p>
 						</div>
 					{:else if config.testType === 'stroop'}
 						<div class="rounded-3xl border border-white/10 bg-slate-950/35 p-5">
 							<h4 class="text-xl font-semibold">Ignora la palabra</h4>
 							<p class="mt-2 text-sm leading-7 text-slate-300">
-								Elige el color de la tinta. Puedes usar las teclas 1-4 o tocar uno de los botones cromaticos.
+								Elige el color de la tinta. Puedes usar las teclas 1-4 o tocar uno de los botones
+								cromaticos.
 							</p>
 						</div>
 					{:else}
 						<div class="rounded-3xl border border-white/10 bg-slate-950/35 p-5">
 							<h4 class="text-xl font-semibold">Foco en la flecha central</h4>
 							<p class="mt-2 text-sm leading-7 text-slate-300">
-								Usa las flechas izquierda/derecha o los botones grandes inferiores para indicar la direccion correcta.
+								Usa las flechas izquierda/derecha o los botones grandes inferiores para indicar la
+								direccion correcta.
 							</p>
 						</div>
 					{/if}
@@ -475,11 +487,16 @@
 		</div>
 	{:else if phase === 'practice-complete'}
 		<div class="flex min-h-[70vh] items-center justify-center px-6 py-8">
-			<div class="max-w-2xl rounded-[2rem] border border-white/10 bg-white/6 p-8 text-center shadow-xl">
-				<p class="text-sm font-semibold uppercase tracking-[0.28em] text-fuchsia-200">Practica completada</p>
+			<div
+				class="max-w-2xl rounded-[2rem] border border-white/10 bg-white/6 p-8 text-center shadow-xl"
+			>
+				<p class="text-sm font-semibold tracking-[0.28em] text-fuchsia-200 uppercase">
+					Practica completada
+				</p>
 				<h3 class="mt-4 text-4xl font-black">Empieza la fase principal</h3>
 				<p class="mt-4 text-lg leading-8 text-slate-200">
-					Ahora se registraran las metricas finales del test. Mantente concentrado y responde con decision.
+					Ahora se registraran las metricas finales del test. Mantente concentrado y responde con
+					decision.
 				</p>
 				<button
 					type="button"
@@ -494,15 +511,15 @@
 		<div class="flex min-h-[76vh] flex-col px-4 py-4 sm:px-6 sm:py-6">
 			<div class="grid gap-3 sm:grid-cols-3">
 				<div class="rounded-3xl border border-white/10 bg-white/6 px-4 py-3">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-200">Fase</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-fuchsia-200 uppercase">Fase</p>
 					<p class="mt-2 text-2xl font-black">{phase === 'practice' ? 'Practica' : 'Principal'}</p>
 				</div>
 				<div class="rounded-3xl border border-white/10 bg-white/6 px-4 py-3">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-200">Progreso</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-fuchsia-200 uppercase">Progreso</p>
 					<p class="mt-2 text-2xl font-black">{progressLabel}</p>
 				</div>
 				<div class="rounded-3xl border border-white/10 bg-white/6 px-4 py-3">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-200">Test</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-fuchsia-200 uppercase">Test</p>
 					<p class="mt-2 text-2xl font-black">
 						{config.testType === 'go_no_go'
 							? 'Go/No-Go'
@@ -513,12 +530,16 @@
 				</div>
 			</div>
 
-			<div class="mt-4 flex min-h-0 flex-1 flex-col justify-between gap-6 rounded-[2rem] border border-white/10 bg-black/20 p-4 sm:p-6">
+			<div
+				class="mt-4 flex min-h-0 flex-1 flex-col justify-between gap-6 rounded-[2rem] border border-white/10 bg-black/20 p-4 sm:p-6"
+			>
 				<div class="flex justify-center text-center">
 					{#if isBetweenTrials || !currentTrial}
 						<div class="flex min-h-[38vh] items-center justify-center">
 							<div>
-								<p class="text-xs font-semibold uppercase tracking-[0.28em] text-fuchsia-200">Preparado</p>
+								<p class="text-xs font-semibold tracking-[0.28em] text-fuchsia-200 uppercase">
+									Preparado
+								</p>
 								<h3 class="mt-4 text-5xl font-black sm:text-7xl">Siguiente ensayo</h3>
 								<p class="mt-4 text-lg text-slate-300">Mantente atento al proximo estimulo.</p>
 							</div>
@@ -537,13 +558,17 @@
 						</div>
 					{:else if currentTrial.stimulus.kind === 'stroop'}
 						<div class="flex min-h-[38vh] items-center justify-center">
-							<div class={`text-6xl font-black uppercase tracking-[0.12em] sm:text-8xl ${getStroopToneClass(currentTrial.stimulus.inkColor)}`}>
+							<div
+								class={`text-6xl font-black tracking-[0.12em] uppercase sm:text-8xl ${getStroopToneClass(currentTrial.stimulus.inkColor)}`}
+							>
 								{currentTrial.stimulus.word}
 							</div>
 						</div>
 					{:else}
 						<div class="flex min-h-[38vh] items-center justify-center">
-							<div class="font-mono text-7xl font-black tracking-[0.18em] text-cyan-200 sm:text-9xl">
+							<div
+								class="font-mono text-7xl font-black tracking-[0.18em] text-cyan-200 sm:text-9xl"
+							>
 								{currentTrial.stimulus.pattern}
 							</div>
 						</div>
@@ -566,7 +591,7 @@
 							{#each ['rojo', 'azul', 'verde', 'amarillo'] as color, index (color)}
 								<button
 									type="button"
-									class={`flex min-h-20 items-center justify-between rounded-[1.6rem] border px-5 py-4 text-left text-xl font-black uppercase tracking-[0.08em] transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-40 ${getStroopButtonClass(color as StroopColor)}`}
+									class={`flex min-h-20 items-center justify-between rounded-[1.6rem] border px-5 py-4 text-left text-xl font-black tracking-[0.08em] uppercase transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-40 ${getStroopButtonClass(color as StroopColor)}`}
 									onclick={() => handleResponse(color as StroopColor)}
 									disabled={!currentTrial || isBetweenTrials}
 								>
@@ -603,16 +628,17 @@
 	{:else}
 		<div class="grid min-h-[70vh] gap-6 px-6 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-10 lg:py-10">
 			<div class="rounded-[2rem] border border-white/10 bg-white/6 p-6 shadow-xl">
-				<p class="text-sm font-semibold uppercase tracking-[0.28em] text-fuchsia-200">Resultados</p>
+				<p class="text-sm font-semibold tracking-[0.28em] text-fuchsia-200 uppercase">Resultados</p>
 				<h3 class="mt-4 text-4xl font-black">{config.title}</h3>
 				<p class="mt-4 text-lg leading-8 text-slate-200">
-					Score {formatPercent(effectivePayload.score)} con {effectivePayload.summary.totalTrials} ensayos principales.
+					Score {formatPercent(effectivePayload.score)} con {effectivePayload.summary.totalTrials} ensayos
+					principales.
 				</p>
 
 				<div class="mt-8 grid gap-3 sm:grid-cols-2">
 					{#each getSummaryItems() as item (item.label)}
 						<div class="rounded-3xl border border-white/10 bg-slate-950/30 p-4">
-							<p class="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-200">
+							<p class="text-xs font-semibold tracking-[0.18em] text-fuchsia-200 uppercase">
 								{item.label}
 							</p>
 							<p class="mt-2 text-3xl font-black">{item.value}</p>
@@ -621,7 +647,9 @@
 				</div>
 
 				{#if submitError}
-					<div class="mt-6 rounded-2xl border border-rose-300/30 bg-rose-500/12 p-4 text-sm text-rose-100">
+					<div
+						class="mt-6 rounded-2xl border border-rose-300/30 bg-rose-500/12 p-4 text-sm text-rose-100"
+					>
 						<p>{submitError}</p>
 						<button
 							type="button"
@@ -635,7 +663,9 @@
 			</div>
 
 			<div class="rounded-[2rem] border border-white/10 bg-white/6 p-6 shadow-xl">
-				<p class="text-sm font-semibold uppercase tracking-[0.22em] text-fuchsia-200">Lectura rapida</p>
+				<p class="text-sm font-semibold tracking-[0.22em] text-fuchsia-200 uppercase">
+					Lectura rapida
+				</p>
 				<div class="mt-6 space-y-4">
 					<div class="rounded-3xl border border-white/10 bg-slate-950/35 p-5">
 						<h4 class="text-xl font-semibold">Precision</h4>

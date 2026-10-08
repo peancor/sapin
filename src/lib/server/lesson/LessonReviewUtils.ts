@@ -132,10 +132,7 @@ export function buildLessonReviewAttemptSummary(input: {
 		);
 	}
 
-	if (
-		session.status === 'abandoned' ||
-		blockVisits.some((visit) => visit.status === 'abandoned')
-	) {
+	if (session.status === 'abandoned' || blockVisits.some((visit) => visit.status === 'abandoned')) {
 		alerts.push(
 			createAlert(
 				'abandoned_attempt',
@@ -161,7 +158,9 @@ export function buildLessonReviewAttemptSummary(input: {
 		sessionId: session.id,
 		userId: session.userId,
 		attemptNumber: session.attemptNumber,
-		sessionStatus: lessonAttemptStatuses.includes(session.status as (typeof lessonAttemptStatuses)[number])
+		sessionStatus: lessonAttemptStatuses.includes(
+			session.status as (typeof lessonAttemptStatuses)[number]
+		)
 			? (session.status as (typeof lessonAttemptStatuses)[number])
 			: 'active',
 		reviewStatus: getReviewStatus(session, alerts),

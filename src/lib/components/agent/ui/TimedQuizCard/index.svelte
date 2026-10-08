@@ -577,7 +577,7 @@
 			>
 				<p class="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
 					{safeCurrentIndex + 1}.
-					<span class="[&_p]:inline [&_.katex-display]:inline [&_.katex-display]:m-0">
+					<span class="[&_.katex-display]:m-0 [&_.katex-display]:inline [&_p]:inline">
 						{@html renderInline(currentQuestion.question)}
 					</span>
 				</p>
@@ -662,7 +662,7 @@
 						<div class="mb-2 flex items-start justify-between gap-2">
 							<p class="font-semibold text-slate-800 dark:text-slate-100">
 								{i + 1}.
-								<span class="[&_p]:inline [&_.katex-display]:inline [&_.katex-display]:m-0">
+								<span class="[&_.katex-display]:m-0 [&_.katex-display]:inline [&_p]:inline">
 									{@html renderInline(question.question)}
 								</span>
 							</p>
@@ -693,7 +693,7 @@
 								<span class="font-medium text-slate-800 dark:text-slate-100">
 									{#if result.selectedIndex >= 0}
 										{String.fromCharCode(65 + result.selectedIndex)}.
-										<span class="[&_p]:inline [&_.katex-display]:inline [&_.katex-display]:m-0">
+										<span class="[&_.katex-display]:m-0 [&_.katex-display]:inline [&_p]:inline">
 											{@html renderInline(question.options[result.selectedIndex] ?? '')}
 										</span>
 									{:else}
@@ -705,7 +705,7 @@
 								Correcta:
 								<span class="font-medium text-slate-800 dark:text-slate-100">
 									{String.fromCharCode(65 + result.correctIndex)}.
-									<span class="[&_p]:inline [&_.katex-display]:inline [&_.katex-display]:m-0">
+									<span class="[&_.katex-display]:m-0 [&_.katex-display]:inline [&_p]:inline">
 										{@html renderInline(question.options[result.correctIndex] ?? '')}
 									</span>
 								</span>

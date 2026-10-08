@@ -63,7 +63,9 @@ type CreateSyncEventParams = {
 	errorMessage?: string | null;
 };
 
-function normalizeCanvasRow(row: typeof schema.agentMemoryCanvas.$inferSelect): AgentMemoryCanvasRecord {
+function normalizeCanvasRow(
+	row: typeof schema.agentMemoryCanvas.$inferSelect
+): AgentMemoryCanvasRecord {
 	return {
 		id: row.id,
 		scopeType: row.scopeType,

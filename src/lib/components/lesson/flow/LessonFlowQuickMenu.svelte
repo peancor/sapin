@@ -150,7 +150,9 @@
 			}}
 		>
 			<div class="border-b border-[#d9e6dc] px-4 py-3 dark:border-stone-800">
-				<p class="text-[9px] font-bold tracking-[0.22em] text-[#2e7d32] uppercase dark:text-emerald-300">
+				<p
+					class="text-[9px] font-bold tracking-[0.22em] text-[#2e7d32] uppercase dark:text-emerald-300"
+				>
 					{title}
 				</p>
 				{#if subtitle}
@@ -159,7 +161,7 @@
 				<input
 					bind:this={inputElement}
 					value={query}
-					class="mt-2.5 w-full rounded-xl border border-[#d9e6dc] bg-white px-3 py-2 text-sm text-[#0f2537] outline-hidden shadow-sm transition placeholder:text-stone-400 focus:border-[#2e7d32] focus:ring-2 focus:ring-[#a8e063]/35 dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:placeholder:text-stone-500 dark:focus:border-emerald-600"
+					class="mt-2.5 w-full rounded-xl border border-[#d9e6dc] bg-white px-3 py-2 text-sm text-[#0f2537] shadow-sm outline-hidden transition placeholder:text-stone-400 focus:border-[#2e7d32] focus:ring-2 focus:ring-[#a8e063]/35 dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:placeholder:text-stone-500 dark:focus:border-emerald-600"
 					placeholder="Buscar acción o tipo de bloque…"
 					oninput={(event) => onquerychange((event.currentTarget as HTMLInputElement).value)}
 				/>
@@ -171,7 +173,7 @@
 						{#each filteredItems as item, index (item.id)}
 							<button
 								type="button"
-							class={`flex w-full items-start justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition active:scale-98 ${toneClass(item)} ${index === activeIndex && !item.disabled ? 'ring-2 ring-[#a8e063]/80 ring-offset-1 ring-offset-transparent dark:ring-emerald-700/60' : ''}`}
+								class={`flex w-full items-start justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition active:scale-98 ${toneClass(item)} ${index === activeIndex && !item.disabled ? 'ring-2 ring-[#a8e063]/80 ring-offset-1 ring-offset-transparent dark:ring-emerald-700/60' : ''}`}
 								role="option"
 								aria-selected={index === activeIndex}
 								disabled={item.disabled}

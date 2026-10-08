@@ -80,7 +80,9 @@ export const load = (async () => {
 	const [prevMonthCourses] = await db
 		.select({ count: count() })
 		.from(course)
-		.where(and(gte(course.createdAt, startOfPreviousMonth), lt(course.createdAt, startOfCurrentMonth)));
+		.where(
+			and(gte(course.createdAt, startOfPreviousMonth), lt(course.createdAt, startOfCurrentMonth))
+		);
 
 	// Role assignment trends: new assignments this month vs previous month by role level
 	const currentMonthRoleAssignments = await db
@@ -93,10 +95,17 @@ export const load = (async () => {
 		.select({ level: role.level, count: count() })
 		.from(userRoleAssignment)
 		.innerJoin(role, eq(userRoleAssignment.roleId, role.id))
-		.where(and(gte(userRoleAssignment.assignedAt, startOfPreviousMonth), lt(userRoleAssignment.assignedAt, startOfCurrentMonth)))
+		.where(
+			and(
+				gte(userRoleAssignment.assignedAt, startOfPreviousMonth),
+				lt(userRoleAssignment.assignedAt, startOfCurrentMonth)
+			)
+		)
 		.groupBy(role.level);
 
-	const currentByLevel = Object.fromEntries(currentMonthRoleAssignments.map((r) => [r.level, r.count]));
+	const currentByLevel = Object.fromEntries(
+		currentMonthRoleAssignments.map((r) => [r.level, r.count])
+	);
 	const prevByLevel = Object.fromEntries(prevMonthRoleAssignments.map((r) => [r.level, r.count]));
 
 	const currentStudentAssignments = Object.entries(currentByLevel)
@@ -137,9 +146,8 @@ export const load = (async () => {
 	const recentUsers = await Promise.all(
 		recentUsersBase.map(async (u) => {
 			const roles = await RoleUtils.getUserRoles(u.id);
-			const highestRole = roles.length > 0
-				? roles.reduce((max, r) => r.level > max.level ? r : max)
-				: null;
+			const highestRole =
+				roles.length > 0 ? roles.reduce((max, r) => (r.level > max.level ? r : max)) : null;
 			return {
 				...u,
 				roles,

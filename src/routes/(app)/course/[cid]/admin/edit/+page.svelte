@@ -132,7 +132,9 @@
 		/>
 
 		<!-- Save Button -->
-		<div class="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+		<div
+			class="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+		>
 			<div class="flex items-center gap-2">
 				{#if isDirty}
 					<div class="h-2 w-2 rounded-full bg-amber-500"></div>
@@ -142,12 +144,7 @@
 					<span class="text-sm text-gray-500 dark:text-gray-400">Todo actualizado</span>
 				{/if}
 			</div>
-			<Button
-				type="submit"
-				color="blue"
-				disabled={isSaving}
-				class="gap-2 !rounded-xl !px-6"
-			>
+			<Button type="submit" color="blue" disabled={isSaving} class="gap-2 !rounded-xl !px-6">
 				{#if isSaving}
 					<Loader2 class="h-4 w-4 animate-spin" />
 					Guardando...
@@ -160,7 +157,7 @@
 	</form>
 
 	<!-- Course Files Section -->
-	<div class="mt-10 space-y-6 hidden">
+	<div class="mt-10 hidden space-y-6">
 		<div class="flex items-center justify-between">
 			<div>
 				<h2 class="text-xl font-bold text-gray-900 dark:text-white">Archivos del curso</h2>
@@ -230,7 +227,7 @@
 							<input type="hidden" name="fileId" value={file.id} />
 							<button
 								type="submit"
-								class="rounded-lg p-2 text-gray-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:hover:bg-red-900/20"
+								class="rounded-lg p-2 text-gray-400 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
 								title="Eliminar archivo"
 							>
 								<Trash2 class="h-4 w-4" />
@@ -240,7 +237,9 @@
 				{/each}
 			</div>
 		{:else}
-			<div class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 py-12 dark:border-gray-700 dark:bg-gray-800/50">
+			<div
+				class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 py-12 dark:border-gray-700 dark:bg-gray-800/50"
+			>
 				<div class="rounded-full bg-gray-100 p-4 dark:bg-gray-700">
 					<FolderOpen class="h-8 w-8 text-gray-400" />
 				</div>
@@ -254,7 +253,7 @@
 <!-- Toast Notification -->
 {#if showToast}
 	<Toast
-		class="fixed bottom-4 right-4 z-50"
+		class="fixed right-4 bottom-4 z-50"
 		color={toastType === 'success' ? 'green' : 'red'}
 		dismissable
 	>

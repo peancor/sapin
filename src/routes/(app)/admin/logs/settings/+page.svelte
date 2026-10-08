@@ -2,13 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import { resolve } from '$app/paths';
-	import {
-		Button,
-		Alert,
-		Toggle,
-		Select,
-		Card
-	} from 'flowbite-svelte';
+	import { Button, Alert, Toggle, Select, Card } from 'flowbite-svelte';
 	import {
 		Settings,
 		Save,
@@ -190,7 +184,7 @@
 				Configura el sistema de logs de auditoria
 			</p>
 		</div>
-		<a href={resolve("/admin/logs")}>
+		<a href={resolve('/admin/logs')}>
 			<Button color="alternative" class="flex items-center gap-2">
 				<ArrowLeft class="h-4 w-4" />
 				Volver a Logs
@@ -294,8 +288,8 @@
 							</div>
 						</div>
 						<Toggle
-							name={"category" + cat.label}
-							checked={checked}
+							name={'category' + cat.label}
+							{checked}
 							onchange={(e: Event) => cat.set((e.target as HTMLInputElement).checked)}
 						/>
 					</div>

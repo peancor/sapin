@@ -157,7 +157,9 @@ function runExport() {
 					chatToInteractiveMap.set(row.id, row.interactive_learning_id);
 				}
 			} else {
-				const rows = db.prepare(`SELECT id FROM interactive_learning_chat`).all() as Array<{ id: string }>;
+				const rows = db.prepare(`SELECT id FROM interactive_learning_chat`).all() as Array<{
+					id: string;
+				}>;
 				for (const row of rows) {
 					chatToInteractiveMap.set(row.id, row.id);
 				}
@@ -264,7 +266,9 @@ function runExport() {
 			console.log(`- Output file: ${resolvedOutputPath}`);
 			console.log(`- Chat files: ${payload.summary.chatFiles}`);
 			console.log(`- RAG documents: ${payload.summary.ragDocuments}`);
-			console.log(`- Unresolved interactive IDs: ${payload.summary.unresolvedInteractiveLearningIds}`);
+			console.log(
+				`- Unresolved interactive IDs: ${payload.summary.unresolvedInteractiveLearningIds}`
+			);
 			return;
 		}
 
@@ -275,7 +279,9 @@ function runExport() {
 		console.log(`- File: ${resolvedOutputPath}`);
 		console.log(`- Chat files: ${payload.summary.chatFiles}`);
 		console.log(`- RAG documents: ${payload.summary.ragDocuments}`);
-		console.log(`- Unresolved interactive IDs: ${payload.summary.unresolvedInteractiveLearningIds}`);
+		console.log(
+			`- Unresolved interactive IDs: ${payload.summary.unresolvedInteractiveLearningIds}`
+		);
 	} finally {
 		db.close();
 	}
@@ -625,9 +631,15 @@ function validatePayload(payload: ExportPayload): void {
 		throw new Error('Invalid import file: expected object payload');
 	}
 	if (payload.version !== 1) {
-		throw new Error(`Unsupported payload version: ${String((payload as { version?: unknown }).version)}`);
+		throw new Error(
+			`Unsupported payload version: ${String((payload as { version?: unknown }).version)}`
+		);
 	}
-	if (!payload.data || !Array.isArray(payload.data.chatFiles) || !Array.isArray(payload.data.ragDocuments)) {
+	if (
+		!payload.data ||
+		!Array.isArray(payload.data.chatFiles) ||
+		!Array.isArray(payload.data.ragDocuments)
+	) {
 		throw new Error('Invalid import file: missing data.chatFiles / data.ragDocuments arrays');
 	}
 }

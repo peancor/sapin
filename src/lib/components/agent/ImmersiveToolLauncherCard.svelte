@@ -42,7 +42,7 @@
 		<div class="flex flex-wrap items-start justify-between gap-3">
 			<div class="min-w-0">
 				{#if badge}
-					<p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/80">{badge}</p>
+					<p class="text-[11px] font-semibold tracking-[0.24em] text-white/80 uppercase">{badge}</p>
 				{/if}
 				<h3 class="mt-1 text-lg font-semibold sm:text-xl">{title}</h3>
 				<p class="mt-2 max-w-2xl text-sm text-white/85 sm:text-[15px]">{description}</p>
@@ -58,11 +58,17 @@
 		{#if summaryItems.length > 0}
 			<div class="grid gap-2 sm:grid-cols-3">
 				{#each summaryItems as item}
-					<div class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/60">
-						<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+					<div
+						class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/60"
+					>
+						<p
+							class="text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+						>
 							{item.label}
 						</p>
-						<p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{item.value}</p>
+						<p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+							{item.value}
+						</p>
 					</div>
 				{/each}
 			</div>
@@ -70,7 +76,10 @@
 
 		<div class="mt-4 flex flex-wrap items-center justify-between gap-3">
 			<p class="text-sm text-slate-600 dark:text-slate-300">
-				{statusText ?? (completed ? 'Disponible para consulta en modo solo lectura.' : 'Pulsa para abrir la experiencia completa.')}
+				{statusText ??
+					(completed
+						? 'Disponible para consulta en modo solo lectura.'
+						: 'Pulsa para abrir la experiencia completa.')}
 			</p>
 
 			<span

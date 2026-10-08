@@ -217,10 +217,13 @@ function parseMetadataForImport(input: {
 function rewriteMarkdownFileUrls(body: string, fileUrlIdMap: Map<string, string>): string {
 	if (fileUrlIdMap.size === 0) return body;
 
-	return body.replace(/(\/api\/files\/)([A-Za-z0-9_-]+)/g, (match, prefix: string, fileId: string) => {
-		const mappedFileId = fileUrlIdMap.get(fileId);
-		return mappedFileId ? `${prefix}${mappedFileId}` : match;
-	});
+	return body.replace(
+		/(\/api\/files\/)([A-Za-z0-9_-]+)/g,
+		(match, prefix: string, fileId: string) => {
+			const mappedFileId = fileUrlIdMap.get(fileId);
+			return mappedFileId ? `${prefix}${mappedFileId}` : match;
+		}
+	);
 }
 
 export function rewriteLessonDefinitionResourceIds(

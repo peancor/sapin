@@ -1,5 +1,11 @@
 import { db } from '$lib/server/db';
-import { fileStorage, user, course, interactiveLearning, interactiveLearningChat } from '$lib/server/db/schema';
+import {
+	fileStorage,
+	user,
+	course,
+	interactiveLearning,
+	interactiveLearningChat
+} from '$lib/server/db/schema';
 import type { FileStorage } from '$lib/server/db/schema';
 import { eq, and, lt, sql, isNull } from 'drizzle-orm';
 import fs from 'fs/promises';
@@ -285,9 +291,7 @@ class FileCleanupService {
 			const filesToPurge = await db
 				.select()
 				.from(fileStorage)
-				.where(
-					and(eq(fileStorage.isActive, false), lt(fileStorage.deletedAt, cutoffDate))
-				);
+				.where(and(eq(fileStorage.isActive, false), lt(fileStorage.deletedAt, cutoffDate)));
 
 			for (const file of filesToPurge) {
 				try {
@@ -295,12 +299,7 @@ class FileCleanupService {
 					const otherRefs = await db
 						.select({ id: fileStorage.id })
 						.from(fileStorage)
-						.where(
-							and(
-								eq(fileStorage.hash, file.hash),
-								eq(fileStorage.isActive, true)
-							)
-						)
+						.where(and(eq(fileStorage.hash, file.hash), eq(fileStorage.isActive, true)))
 						.limit(1);
 
 					// Only delete physical file if no other references exist

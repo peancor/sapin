@@ -29,9 +29,9 @@
 	description="Abre la ficha inmersiva de la familia de flexibilidad ejecutiva. Esta primera entrega deja lista la estructura y la UX base para TMT y WCST."
 	badge="Funcion ejecutiva"
 	completed={false}
-	summaryItems={summaryItems}
+	{summaryItems}
 	statusText="Pulsa para ver la estructura prevista y el alcance de la siguiente ola."
 	actionLabel="Abrir roadmap"
 	accentClass="from-lime-400 via-emerald-500 to-teal-600"
-	onopen={onopen}
+	{onopen}
 />

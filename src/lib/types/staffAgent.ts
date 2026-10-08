@@ -1,4 +1,8 @@
-import type { AgentDisplayMessage, AgentStreamPart, ToolDefinitionResolved } from '$lib/types/agent';
+import type {
+	AgentDisplayMessage,
+	AgentStreamPart,
+	ToolDefinitionResolved
+} from '$lib/types/agent';
 
 export type StaffAgentFeatureKey = 'staff_agent';
 export type StaffAgentWorkspaceKind = 'course_staff' | 'activity_staff';

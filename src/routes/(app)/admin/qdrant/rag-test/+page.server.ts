@@ -4,11 +4,11 @@ import type { PageServerLoad } from './$types';
 const ADMIN_LEVEL = 90;
 
 export const load: PageServerLoad = async ({ locals }) => {
-    if (!locals.user || locals.user.highestRoleLevel < ADMIN_LEVEL) {
-        throw redirect(302, '/');
-    }
+	if (!locals.user || locals.user.highestRoleLevel < ADMIN_LEVEL) {
+		throw redirect(302, '/');
+	}
 
-    return {
-        title: 'RAG Test Lab'
-    };
+	return {
+		title: 'RAG Test Lab'
+	};
 };

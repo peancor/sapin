@@ -13,7 +13,10 @@
 		themeObserver = new MutationObserver(() => {
 			isDark = document.documentElement.classList.contains('dark');
 		});
-		themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+		themeObserver.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ['class']
+		});
 	});
 
 	onDestroy(() => {
@@ -53,9 +56,7 @@
 	}
 
 	function getActivityProgress(activityId: string) {
-		const progress = data.stats.activitiesDetail.find(
-			(p) => p.activityId === activityId
-		);
+		const progress = data.stats.activitiesDetail.find((p) => p.activityId === activityId);
 		if (!progress) return { status: 'not_started', timeSpentSeconds: 0 };
 		return progress;
 	}
@@ -179,9 +180,7 @@
 		return days;
 	});
 
-	const recentEvents7d = $derived(
-		eventsByDay.slice(-7).reduce((acc, day) => acc + day.total, 0)
-	);
+	const recentEvents7d = $derived(eventsByDay.slice(-7).reduce((acc, day) => acc + day.total, 0));
 
 	const activityTrendOptions = $derived({
 		tooltip: {
@@ -386,7 +385,7 @@
 			<EChart options={timeByActivityOptions} height="260px" theme={isDark ? 'dark' : 'light'} />
 		</div>
 
-		<div class="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-800 xl:col-span-2">
+		<div class="rounded-lg bg-white p-4 shadow-sm xl:col-span-2 dark:bg-gray-800">
 			<h2 class="mb-3 text-lg font-semibold dark:text-white">Actividad reciente (30 días)</h2>
 			<EChart options={activityTrendOptions} height="280px" theme={isDark ? 'dark' : 'light'} />
 		</div>

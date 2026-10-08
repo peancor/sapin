@@ -34,9 +34,9 @@
 	let selectedToolIds = $state<string[]>([]);
 	let finalizationEnabled = $state(true);
 	let finalizationToolName = $state('finalize_activity');
-	let finalizationHandler = $state<'mark_complete_and_notify' | 'mark_complete_only' | 'notify_only'>(
-		'mark_complete_and_notify'
-	);
+	let finalizationHandler = $state<
+		'mark_complete_and_notify' | 'mark_complete_only' | 'notify_only'
+	>('mark_complete_and_notify');
 	let finalizationConfig = $state('');
 	let requireFinalizationToolCall = $state(true);
 
@@ -126,7 +126,9 @@
 					<ArrowLeft size={20} class="text-gray-500 dark:text-gray-400" />
 				</a>
 				<div class="flex min-w-0 flex-1 items-center gap-3">
-					<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/40">
+					<div
+						class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/40"
+					>
 						<Bot class="h-4 w-4 text-green-600 dark:text-green-400" />
 					</div>
 					<h1 class="truncate text-lg font-semibold text-gray-900 dark:text-white">
@@ -225,14 +227,14 @@
 			title="Recursos compartidos de la actividad"
 			description="Sube imágenes y documentos para reutilizarlos en prompts y UI del agente."
 			warningMessage="Importante: estos adjuntos no sustituyen al RAG. Se usan como recursos visuales o enlaces que puedes referenciar en las instrucciones del agente."
-			copyHint='En imágenes usa "Copiar nombre"; la tool buscará el recurso por nombre en esta actividad.'
+			copyHint="En imágenes usa &quot;Copiar nombre&quot;; la tool buscará el recurso por nombre en esta actividad."
 			emptyMessage="Aún no hay recursos. Sube imágenes o documentos para reutilizarlos en la actividad."
 		/>
 	</div>
 </div>
 
 {#if showToast}
-	<div class="fixed bottom-4 right-4 z-50">
+	<div class="fixed right-4 bottom-4 z-50">
 		<Toast color={toastType === 'success' ? 'green' : 'red'}>
 			{toastMessage}
 		</Toast>

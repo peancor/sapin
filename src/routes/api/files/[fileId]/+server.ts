@@ -25,11 +25,7 @@ export const GET: RequestHandler = async ({ params, locals, url, request }) => {
 
 		// Check permissions
 		const userId = locals.user?.id || null;
-		const permissionCheck = await filePermissionMiddleware.checkPermission(
-			fileId,
-			userId,
-			'read'
-		);
+		const permissionCheck = await filePermissionMiddleware.checkPermission(fileId, userId, 'read');
 
 		if (!permissionCheck.allowed) {
 			// Log failed access attempt

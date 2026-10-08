@@ -135,7 +135,9 @@ function normalizeIdList(values?: string[]): string[] {
 	if (!Array.isArray(values)) return [];
 	return [
 		...new Set(
-			values.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+			values.filter(
+				(value): value is string => typeof value === 'string' && value.trim().length > 0
+			)
 		)
 	];
 }
@@ -178,7 +180,9 @@ function truncateText(value: string, maxLength = 180): string {
 function toBucketStart(dateIso: string, bucket: TimelineBucket): string {
 	const date = new Date(dateIso);
 	if (bucket === 'day') {
-		return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())).toISOString();
+		return new Date(
+			Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+		).toISOString();
 	}
 
 	const day = date.getUTCDay() || 7;
@@ -262,7 +266,10 @@ function extractTopTerms(
 		.map(([term, count]) => ({ term, count }));
 }
 
-function collectToolUsage(transcripts: LearningEvidenceTranscriptSession[], limit = TOOL_USAGE_LIMIT) {
+function collectToolUsage(
+	transcripts: LearningEvidenceTranscriptSession[],
+	limit = TOOL_USAGE_LIMIT
+) {
 	const callMap = new Map<string, ToolCallAggregate>();
 	const tools = new Map<
 		string,
@@ -401,7 +408,8 @@ function collectToolUsage(transcripts: LearningEvidenceTranscriptSession[], limi
 		tools.set(call.toolName, current);
 
 		const student = studentUsage.get(call.studentId) ?? {
-			student: transcripts.find((session) => session.student.userId === call.studentId)?.student ?? {
+			student: transcripts.find((session) => session.student.userId === call.studentId)
+				?.student ?? {
 				userId: call.studentId,
 				username: call.studentId,
 				email: '',
@@ -419,7 +427,9 @@ function collectToolUsage(transcripts: LearningEvidenceTranscriptSession[], limi
 	}
 
 	const toolSummaries = [...tools.values()]
-		.sort((a, b) => b.totalCalls - a.totalCalls || a.toolDisplayName.localeCompare(b.toolDisplayName))
+		.sort(
+			(a, b) => b.totalCalls - a.totalCalls || a.toolDisplayName.localeCompare(b.toolDisplayName)
+		)
 		.slice(0, limit)
 		.map((tool) => ({
 			toolName: tool.toolName,
@@ -442,11 +452,15 @@ function collectToolUsage(transcripts: LearningEvidenceTranscriptSession[], limi
 			responseCount: component.responseCount,
 			uniqueStudents: component.studentIds.size,
 			averageScore:
-				component.scoreSamples > 0 ? Math.round(component.totalScore / component.scoreSamples) : null
+				component.scoreSamples > 0
+					? Math.round(component.totalScore / component.scoreSamples)
+					: null
 		}));
 
 	const studentSummaries = [...studentUsage.values()]
-		.sort((a, b) => b.toolCalls - a.toolCalls || a.student.username.localeCompare(b.student.username))
+		.sort(
+			(a, b) => b.toolCalls - a.toolCalls || a.student.username.localeCompare(b.student.username)
+		)
 		.slice(0, limit)
 		.map((entry) => ({
 			student: entry.student,
@@ -507,7 +521,9 @@ function evaluateStuckSessions(
 
 				if (session.learnerMessageCount >= minLearnerMessages) {
 					score += 10;
-					reasons.push(`Sesion larga con ${session.learnerMessageCount} intervenciones del estudiante.`);
+					reasons.push(
+						`Sesion larga con ${session.learnerMessageCount} intervenciones del estudiante.`
+					);
 				}
 
 				if (session.learnerMessageCount >= minLearnerMessages + 3) {
@@ -516,7 +532,9 @@ function evaluateStuckSessions(
 
 				if (repeatedLearnerTurns > 0) {
 					score += 20;
-					reasons.push(`Hay ${repeatedLearnerTurns} reformulaciones o repeticiones del estudiante.`);
+					reasons.push(
+						`Hay ${repeatedLearnerTurns} reformulaciones o repeticiones del estudiante.`
+					);
 				}
 
 				if (toolFailureCount > 0) {
@@ -570,8 +588,7 @@ function evaluateStuckSessions(
 				new Date(b.sessionUpdatedAt).getTime() - new Date(a.sessionUpdatedAt).getTime()
 		);
 
-	const sessions = flaggedSessions
-		.slice(0, maxResults);
+	const sessions = flaggedSessions.slice(0, maxResults);
 
 	return {
 		totalFlaggedSessions: flaggedSessions.length,
@@ -590,7 +607,8 @@ function buildGroupStats(records: StudentActivityRecord[]) {
 	return {
 		studentCount: records.length,
 		activeStudents: records.filter((record) => record.metrics.sessionCount > 0).length,
-		completionRate: records.length > 0 ? Math.round((statuses.completed / records.length) * 100) : 0,
+		completionRate:
+			records.length > 0 ? Math.round((statuses.completed / records.length) * 100) : 0,
 		statuses,
 		averageSessionsPerStudent: average(records.map((record) => record.metrics.sessionCount)),
 		averageLearnerMessages: average(records.map((record) => record.metrics.learnerMessageCount)),
@@ -627,7 +645,11 @@ async function loadActivityData(
 
 	const roster =
 		activity.courseId !== null
-			? await LearningEvidenceService.getCourseStudentRoster(access, activity.courseId, query.studentIds)
+			? await LearningEvidenceService.getCourseStudentRoster(
+					access,
+					activity.courseId,
+					query.studentIds
+				)
 			: [];
 
 	const progressConditions = [eq(schema.learningActivityProgress.activityId, query.activityId)];
@@ -667,13 +689,12 @@ async function loadActivityData(
 
 	const students = sortStudentsByName(
 		allStudentIds.map((studentId) => {
-			const student =
-				studentRefMap.get(studentId) ?? {
-					userId: studentId,
-					username: studentId,
-					email: '',
-					alias: undefined
-				};
+			const student = studentRefMap.get(studentId) ?? {
+				userId: studentId,
+				username: studentId,
+				email: '',
+				alias: undefined
+			};
 			const sessions = sessionsByStudent.get(studentId) ?? [];
 			const progress = progressByStudent.get(studentId) ?? null;
 			const learnerMessages = sessions.flatMap((session) =>
@@ -875,7 +896,8 @@ export class ActivityAnalyticsService {
 
 		const statuses = {
 			completed: data.students.filter((student) => student.metrics.status === 'completed').length,
-			inProgress: data.students.filter((student) => student.metrics.status === 'in_progress').length,
+			inProgress: data.students.filter((student) => student.metrics.status === 'in_progress')
+				.length,
 			abandoned: data.students.filter((student) => student.metrics.status === 'abandoned').length,
 			notStarted: data.students.filter((student) => student.metrics.status === 'not_started').length
 		};
@@ -926,7 +948,9 @@ export class ActivityAnalyticsService {
 			search: query.search
 		});
 
-		const groupAIds = normalizeIdList(query.groupAStudentIds?.length ? query.groupAStudentIds : query.studentIds);
+		const groupAIds = normalizeIdList(
+			query.groupAStudentIds?.length ? query.groupAStudentIds : query.studentIds
+		);
 		if (groupAIds.length === 0) {
 			throw new Error('La comparacion requiere al menos un grupo A de estudiantes.');
 		}
@@ -959,7 +983,8 @@ export class ActivityAnalyticsService {
 				stats: statsA
 			},
 			groupB: {
-				label: query.labelB?.trim() || (explicitGroupBIds.length > 0 ? 'Grupo B' : 'Resto del curso'),
+				label:
+					query.labelB?.trim() || (explicitGroupBIds.length > 0 ? 'Grupo B' : 'Resto del curso'),
 				studentIds: groupB.map((student) => student.student.userId),
 				stats: statsB
 			},
@@ -971,8 +996,7 @@ export class ActivityAnalyticsService {
 				averageLearnerMessages: statsA.averageLearnerMessages - statsB.averageLearnerMessages,
 				averageToolCalls: statsA.averageToolCalls - statsB.averageToolCalls,
 				averageAttemptsCount: statsA.averageAttemptsCount - statsB.averageAttemptsCount,
-				averageTimeSpentSeconds:
-					statsA.averageTimeSpentSeconds - statsB.averageTimeSpentSeconds
+				averageTimeSpentSeconds: statsA.averageTimeSpentSeconds - statsB.averageTimeSpentSeconds
 			}
 		};
 	}
@@ -1006,7 +1030,8 @@ export class ActivityAnalyticsService {
 		const stuckSessions = evaluateStuckSessions(data.students, { maxResults: 5 });
 		const statuses = {
 			completed: data.students.filter((student) => student.metrics.status === 'completed').length,
-			inProgress: data.students.filter((student) => student.metrics.status === 'in_progress').length,
+			inProgress: data.students.filter((student) => student.metrics.status === 'in_progress')
+				.length,
 			abandoned: data.students.filter((student) => student.metrics.status === 'abandoned').length,
 			notStarted: data.students.filter((student) => student.metrics.status === 'not_started').length
 		};
@@ -1030,7 +1055,10 @@ export class ActivityAnalyticsService {
 			});
 		}
 
-		if (startedStudents > 0 && statuses.inProgress >= Math.max(2, Math.round(startedStudents * 0.4))) {
+		if (
+			startedStudents > 0 &&
+			statuses.inProgress >= Math.max(2, Math.round(startedStudents * 0.4))
+		) {
 			difficultySignals.push({
 				type: 'high_in_progress',
 				severity: 'medium',
@@ -1070,7 +1098,10 @@ export class ActivityAnalyticsService {
 			});
 		}
 
-		if (data.students.length > 0 && statuses.notStarted >= Math.max(2, Math.round(data.students.length * 0.3))) {
+		if (
+			data.students.length > 0 &&
+			statuses.notStarted >= Math.max(2, Math.round(data.students.length * 0.3))
+		) {
 			difficultySignals.push({
 				type: 'inactive_students',
 				severity: 'medium',

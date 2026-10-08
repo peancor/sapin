@@ -12,7 +12,9 @@
 
 <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
 	<CourseRunTopbar course={data.course} user={data.user} onMenuToggle={handleMenuToggle} />
-	<main class="flex-1 overflow-auto pt-16 md:pt-20 p-6 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">
+	<main
+		class="flex-1 overflow-auto bg-gradient-to-br from-gray-100 to-gray-200 p-6 pt-16 md:pt-20 dark:from-gray-800 dark:to-gray-700"
+	>
 		{@render children()}
 	</main>
 </div>

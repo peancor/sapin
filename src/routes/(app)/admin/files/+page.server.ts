@@ -41,11 +41,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	if (category) {
-		conditions.push(eq(fileStorage.category, category as 'avatar' | 'course' | 'chat' | 'rag_document' | 'public'));
+		conditions.push(
+			eq(fileStorage.category, category as 'avatar' | 'course' | 'chat' | 'rag_document' | 'public')
+		);
 	}
 
 	if (status) {
-		conditions.push(eq(fileStorage.processingStatus, status as 'pending' | 'processing' | 'completed' | 'error'));
+		conditions.push(
+			eq(fileStorage.processingStatus, status as 'pending' | 'processing' | 'completed' | 'error')
+		);
 	}
 
 	if (showOrphans) {

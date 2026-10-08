@@ -6,7 +6,7 @@ services:
     depends_on:
       - qdrant
     ports:
-      - "${SAPIN_PORT:-3000}:3000"
+      - '${SAPIN_PORT:-3000}:3000'
     environment:
       SECRET_KEY: ${SECRET_KEY}
       ORIGIN: ${ORIGIN}

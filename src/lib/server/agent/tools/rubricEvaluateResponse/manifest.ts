@@ -24,7 +24,8 @@ export const rubricEvaluateResponseManifest: ToolManifest = {
 			},
 			responseText: {
 				type: 'string',
-				description: 'Texto de respuesta provisto manualmente. Si se omite, usa la evidencia recuperada.'
+				description:
+					'Texto de respuesta provisto manualmente. Si se omite, usa la evidencia recuperada.'
 			},
 			rubric: {
 				type: 'array',

@@ -223,7 +223,8 @@ class NotificationService {
 					.from(interactiveLearning)
 					.where(eq(interactiveLearning.id, activityId))
 					.limit(1),
-				db.select({ userId: courseRole.userId })
+				db
+					.select({ userId: courseRole.userId })
 					.from(courseRole)
 					.where(
 						and(
@@ -298,7 +299,8 @@ class NotificationService {
 					.from(interactiveLearning)
 					.where(eq(interactiveLearning.id, activityId))
 					.limit(1),
-				db.select({ userId: courseRole.userId })
+				db
+					.select({ userId: courseRole.userId })
 					.from(courseRole)
 					.where(
 						and(
@@ -376,11 +378,7 @@ class NotificationService {
 					.from(userRoleAssignment)
 					.innerJoin(role, eq(userRoleAssignment.roleId, role.id))
 					.where(
-						and(
-							eq(userRoleAssignment.isActive, true),
-							eq(role.isActive, true),
-							gte(role.level, 90)
-						)
+						and(eq(userRoleAssignment.isActive, true), eq(role.isActive, true), gte(role.level, 90))
 					);
 
 				recipientIds = [...new Set(admins.map((a) => a.userId))];
@@ -598,10 +596,7 @@ class NotificationService {
 			.offset(offset);
 
 		// Contar total
-		const totalResult = await db
-			.select({ count: count() })
-			.from(notification)
-			.where(whereClause);
+		const totalResult = await db.select({ count: count() }).from(notification).where(whereClause);
 
 		return {
 			notifications: notifications.map((n) => ({
@@ -694,7 +689,9 @@ class NotificationService {
 
 			const result = await db.delete(notification).where(lte(notification.createdAt, cutoffDate));
 
-			console.log(`Notification cleanup: deleted ${result.changes} notifications older than ${retentionDays} days`);
+			console.log(
+				`Notification cleanup: deleted ${result.changes} notifications older than ${retentionDays} days`
+			);
 
 			// Registrar limpieza en auditoría
 			if (result.changes > 0) {

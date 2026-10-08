@@ -103,11 +103,21 @@ function pickFirstDefined(record: Record<string, unknown>, keys: string[]): unkn
 function normalizeCanvasUpdateStatus(value: unknown): CanvasUpdateOutput['status'] | null {
 	if (typeof value !== 'string') return null;
 
-	const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+	const normalized = value
+		.trim()
+		.toLowerCase()
+		.replace(/[\s-]+/g, '_');
 	if (
-		['updated', 'update', 'changed', 'modified', 'rewrite', 'rewritten', 'actualizado', 'cambiado'].includes(
-			normalized
-		)
+		[
+			'updated',
+			'update',
+			'changed',
+			'modified',
+			'rewrite',
+			'rewritten',
+			'actualizado',
+			'cambiado'
+		].includes(normalized)
 	) {
 		return 'updated';
 	}
@@ -127,7 +137,14 @@ function normalizeCanvasUpdateOutput(value: unknown, currentCanvas: string): Can
 	const record = asRecord(value);
 	const contentCandidate = record
 		? extractNestedText(
-				pickFirstDefined(record, ['newContent', 'new_content', 'content', 'canvas', 'document', 'markdown'])
+				pickFirstDefined(record, [
+					'newContent',
+					'new_content',
+					'content',
+					'canvas',
+					'document',
+					'markdown'
+				])
 			)
 		: null;
 	const summaryCandidate = record
@@ -142,11 +159,16 @@ function normalizeCanvasUpdateOutput(value: unknown, currentCanvas: string): Can
 
 	let status = requestedStatus;
 	if (!status) {
-		status = contentCandidate !== null && contentCandidate !== normalizedCurrentCanvas ? 'updated' : 'unchanged';
+		status =
+			contentCandidate !== null && contentCandidate !== normalizedCurrentCanvas
+				? 'updated'
+				: 'unchanged';
 	}
 
 	const newContent =
-		status === 'updated' && contentCandidate !== null && contentCandidate !== normalizedCurrentCanvas
+		status === 'updated' &&
+		contentCandidate !== null &&
+		contentCandidate !== normalizedCurrentCanvas
 			? contentCandidate
 			: null;
 
@@ -186,7 +208,9 @@ function buildPromptSections(params: {
 	reason: string | null;
 }): string {
 	const scopeLabel = params.scope.profile.updateScopeLabel;
-	const focusLine = params.focus ? `Foco sugerido por el agente: ${params.focus}` : 'Foco sugerido: ninguno.';
+	const focusLine = params.focus
+		? `Foco sugerido por el agente: ${params.focus}`
+		: 'Foco sugerido: ninguno.';
 	const reasonLine = params.reason
 		? `Motivo de sincronización: ${params.reason}`
 		: 'Motivo de sincronización: no indicado.';
@@ -275,8 +299,11 @@ export class AgentMemoryService {
 		const scope = MemoryScopeResolver.resolve(context, toolName);
 		const existingCanvas = await DBAgentMemoryUtils.getCanvasByScope(scope);
 		const currentCanvas = existingCanvas?.content ?? profile.buildTemplate();
-		const transcript = buildSessionTranscript(await DBAgentMessageUtils.getAgentMessagesRaw(context.chatId));
-		const modelName = context.activityConfig.llmModel || (await ModelResolver.getDefaultModel()) || '';
+		const transcript = buildSessionTranscript(
+			await DBAgentMessageUtils.getAgentMessagesRaw(context.chatId)
+		);
+		const modelName =
+			context.activityConfig.llmModel || (await ModelResolver.getDefaultModel()) || '';
 
 		if (!modelName) {
 			await DBAgentMemoryUtils.createSyncEvent({
@@ -310,9 +337,7 @@ export class AgentMemoryService {
 
 		const nextContent = normalizeOptionalText(update.newContent);
 		const hasMeaningfulChange =
-			update.status === 'updated' &&
-			nextContent !== null &&
-			nextContent !== currentCanvas.trim();
+			update.status === 'updated' && nextContent !== null && nextContent !== currentCanvas.trim();
 
 		if (!hasMeaningfulChange) {
 			await DBAgentMemoryUtils.createSyncEvent({
@@ -406,7 +431,9 @@ export class AgentMemoryService {
 		const scopes = this.getEnabledCanvasScopes(context);
 		if (scopes.length === 0) return null;
 
-		const canvases = await DBAgentMemoryUtils.listCanvasesByScopeKeys(scopes.map((scope) => scope.scopeKey));
+		const canvases = await DBAgentMemoryUtils.listCanvasesByScopeKeys(
+			scopes.map((scope) => scope.scopeKey)
+		);
 		if (canvases.length === 0) return null;
 
 		const byScopeKey = new Map(canvases.map((canvas) => [canvas.scopeKey, canvas]));
@@ -415,11 +442,9 @@ export class AgentMemoryService {
 				const canvas = byScopeKey.get(scope.scopeKey);
 				if (!canvas) return null;
 
-				return [
-					scope.profile.promptHeading,
-					`Revision: ${canvas.revision}`,
-					canvas.content
-				].join('\n');
+				return [scope.profile.promptHeading, `Revision: ${canvas.revision}`, canvas.content].join(
+					'\n'
+				);
 			})
 			.filter((section): section is string => section !== null);
 

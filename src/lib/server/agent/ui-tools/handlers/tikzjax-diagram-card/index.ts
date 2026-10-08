@@ -27,7 +27,8 @@ export const tikzjaxDiagramCardHandler: UIRendererHandler = {
 
 		if (
 			input.texPackages !== undefined &&
-			(!Array.isArray(input.texPackages) || input.texPackages.some((item) => typeof item !== 'string'))
+			(!Array.isArray(input.texPackages) ||
+				input.texPackages.some((item) => typeof item !== 'string'))
 		) {
 			throw new Error('Invalid TikZJax diagram config: texPackages must be an array of strings.');
 		}
@@ -37,9 +38,7 @@ export const tikzjaxDiagramCardHandler: UIRendererHandler = {
 			(!Array.isArray(input.tikzLibraries) ||
 				input.tikzLibraries.some((item) => typeof item !== 'string'))
 		) {
-			throw new Error(
-				'Invalid TikZJax diagram config: tikzLibraries must be an array of strings.'
-			);
+			throw new Error('Invalid TikZJax diagram config: tikzLibraries must be an array of strings.');
 		}
 
 		if (input.addToPreamble !== undefined && typeof input.addToPreamble !== 'string') {

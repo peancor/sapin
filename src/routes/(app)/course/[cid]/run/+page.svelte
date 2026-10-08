@@ -96,7 +96,7 @@
 				alt={data.course.name}
 				class="absolute inset-0 h-full w-full object-cover opacity-50"
 			/>
-			<div class="absolute inset-0 bg-black opacity-20" ></div>
+			<div class="absolute inset-0 bg-black opacity-20"></div>
 			<div class="relative z-10 flex h-full items-center justify-center text-white">
 				<h1 class="text-3xl font-bold">{data.course.name}</h1>
 			</div>
@@ -172,7 +172,10 @@
 							</div>
 							{#if activity.type === 'lesson'}
 								{#if activity.latestLessonSession}
-									<Button color="light" onclick={() => goToLesson(activity, activity.latestLessonSession?.id)}>
+									<Button
+										color="light"
+										onclick={() => goToLesson(activity, activity.latestLessonSession?.id)}
+									>
 										Ver intento
 									</Button>
 								{/if}
@@ -196,12 +199,13 @@
 							{/if}
 						{:else if activity.type === 'lesson'}
 							{#if activity.latestLessonSession}
-								<Button color="blue" onclick={() => goToLesson(activity, activity.latestLessonSession?.id)}>
+								<Button
+									color="blue"
+									onclick={() => goToLesson(activity, activity.latestLessonSession?.id)}
+								>
 									Continuar lesson
 								</Button>
-								<Button color="light" onclick={() => goToLesson(activity)}>
-									Nuevo intento
-								</Button>
+								<Button color="light" onclick={() => goToLesson(activity)}>Nuevo intento</Button>
 							{:else}
 								<Button color="blue" onclick={() => goToLesson(activity)}>Iniciar lesson</Button>
 							{/if}

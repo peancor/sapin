@@ -1688,9 +1688,7 @@
 	async function openSelectedBlockDetail() {
 		if (!selectedBlock) return;
 		const blockId = selectedBlock.id;
-		const destination = resolve(
-			`/course/${cid}/lesson-studio/${ilid}/blocks/${blockId}`
-		);
+		const destination = resolve(`/course/${cid}/lesson-studio/${ilid}/blocks/${blockId}`);
 
 		if (hasUnsavedChanges) {
 			const shouldSaveFirst = window.confirm(
@@ -2631,7 +2629,9 @@
 				<div class="shrink-0 border-b border-[#d9e6dc] px-4 py-3 dark:border-slate-800">
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0 flex-1">
-							<p class="text-[9px] font-bold tracking-[0.14em] text-[#2e7d32] uppercase dark:text-emerald-300">
+							<p
+								class="text-[9px] font-bold tracking-[0.14em] text-[#2e7d32] uppercase dark:text-emerald-300"
+							>
 								Inspector
 							</p>
 							{#if selectedBlock && isRenamingSelectedBlock}
@@ -2689,9 +2689,7 @@
 								class="flex items-center justify-between gap-2 rounded-lg border border-[#d9e6dc] bg-white/72 px-3 py-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/20"
 							>
 								<div>
-									<p
-										class="text-[9px] font-bold text-slate-400 uppercase dark:text-slate-500"
-									>
+									<p class="text-[9px] font-bold text-slate-400 uppercase dark:text-slate-500">
 										ID técnico
 									</p>
 									<p class="mt-0.5 font-mono text-xs text-slate-600 dark:text-slate-300">
@@ -2725,9 +2723,7 @@
 								<div
 									class="rounded-lg border border-[#d9e6dc] bg-white/72 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/20"
 								>
-									<p
-										class="text-[9px] font-bold text-slate-400 uppercase dark:text-slate-500"
-									>
+									<p class="text-[9px] font-bold text-slate-400 uppercase dark:text-slate-500">
 										Tipo
 									</p>
 									<p class="mt-0.5 text-xs font-semibold text-slate-800 dark:text-white">
@@ -2747,9 +2743,7 @@
 								<div
 									class="rounded-lg border border-[#d9e6dc] bg-white/72 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/20"
 								>
-									<p
-										class="text-[9px] font-bold text-slate-400 uppercase dark:text-slate-500"
-									>
+									<p class="text-[9px] font-bold text-slate-400 uppercase dark:text-slate-500">
 										Posición
 									</p>
 									<p class="mt-0.5 text-xs font-semibold text-slate-800 dark:text-white">
@@ -3154,8 +3148,8 @@
 									<p
 										class="rounded-xl border border-stone-200 bg-white/80 px-3 py-2 text-sm font-medium text-stone-800 dark:border-stone-700 dark:bg-stone-950 dark:text-white"
 									>
-										{selectedBlock.checkConfig.questions.length} pregunta{selectedBlock.checkConfig.questions
-											.length === 1
+										{selectedBlock.checkConfig.questions.length} pregunta{selectedBlock.checkConfig
+											.questions.length === 1
 											? ''
 											: 's'} · {selectedBlock.checkConfig.presentationMode === 'step_by_step'
 											? 'paso a paso'
@@ -3484,13 +3478,11 @@
 
 								<a
 									href={resolve(
-										`/course/${cid}/lesson-studio/${ilid}/debug?${buildLessonDebuggerQuery(
-											{
-												blockId: selectedBlock.id,
-												view: 'debug',
-												intent: 'inspect'
-											}
-										)}`
+										`/course/${cid}/lesson-studio/${ilid}/debug?${buildLessonDebuggerQuery({
+											blockId: selectedBlock.id,
+											view: 'debug',
+											intent: 'inspect'
+										})}`
 									)}
 									class="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d9e6dc] bg-[#f6fbf3] px-4 py-2.5 text-sm font-semibold text-[#2e7d32] shadow-sm transition hover:bg-[#eaf7e9] active:scale-95 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200 dark:hover:bg-blue-950/50"
 								>
@@ -3500,14 +3492,12 @@
 
 								<a
 									href={resolve(
-										`/course/${cid}/lesson-studio/${ilid}/debug?${buildLessonDebuggerQuery(
-											{
-												blockId: selectedBlock.id,
-												view: 'student',
-												intent: 'run',
-												fresh: true
-											}
-										)}`
+										`/course/${cid}/lesson-studio/${ilid}/debug?${buildLessonDebuggerQuery({
+											blockId: selectedBlock.id,
+											view: 'student',
+											intent: 'run',
+											fresh: true
+										})}`
 									)}
 									class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0e3a75] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_32px_-22px_rgba(14,58,117,0.8)] transition hover:bg-blue-800 active:scale-95 dark:bg-blue-400 dark:text-slate-950 dark:hover:bg-blue-300"
 								>

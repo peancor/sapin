@@ -63,7 +63,7 @@
 	function handleDrop(event: DragEvent) {
 		event.preventDefault();
 		dragActive = false;
-		
+
 		const files = event.dataTransfer?.files;
 		if (files && files[0] && files[0].type.startsWith('image/')) {
 			const reader = new FileReader();
@@ -72,7 +72,7 @@
 				markDirty();
 			};
 			reader.readAsDataURL(files[0]);
-			
+
 			// Create a synthetic event for the hidden input
 			const input = document.getElementById('courseImage') as HTMLInputElement;
 			if (input) {
@@ -102,7 +102,9 @@
 
 <div class="space-y-8">
 	<!-- Header Section with Image -->
-	<div class="relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+	<div
+		class="relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
+	>
 		<!-- Image Banner -->
 		<div
 			class="relative h-48 bg-gradient-to-br from-blue-500 to-indigo-600 sm:h-56"
@@ -113,11 +115,7 @@
 			ondragleave={handleDragLeave}
 		>
 			{#if imagePreview}
-				<img
-					src={imagePreview}
-					alt="Vista previa del curso"
-					class="h-full w-full object-cover"
-				/>
+				<img src={imagePreview} alt="Vista previa del curso" class="h-full w-full object-cover" />
 				<button
 					type="button"
 					onclick={removeImage}
@@ -140,7 +138,7 @@
 					<p class="mt-1 text-xs text-white/70">PNG, JPG hasta 5MB · Recomendado: 1200×400px</p>
 				</div>
 			{/if}
-			
+
 			<!-- Upload overlay/button -->
 			<label
 				for="courseImage"
@@ -166,8 +164,10 @@
 		</div>
 
 		<!-- Course Icon Badge -->
-		<div class="absolute left-6 -bottom-6 sm:left-8">
-			<div class="flex h-14 w-14 items-center justify-center rounded-xl border-4 border-white bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg dark:border-gray-800">
+		<div class="absolute -bottom-6 left-6 sm:left-8">
+			<div
+				class="flex h-14 w-14 items-center justify-center rounded-xl border-4 border-white bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg dark:border-gray-800"
+			>
 				<BookOpen class="h-7 w-7 text-white" />
 			</div>
 		</div>
@@ -214,7 +214,9 @@
 
 	<!-- Status Selector (optional) -->
 	{#if showStatusSelector}
-		<div class="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+		<div
+			class="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+		>
 			<div class="mb-4 flex items-center gap-3">
 				<div class="rounded-lg bg-green-100 p-2 dark:bg-green-900/30">
 					<FileText class="h-5 w-5 text-green-600 dark:text-green-400" />

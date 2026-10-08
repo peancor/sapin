@@ -13,11 +13,11 @@
 	let message = $state('');
 	let turnstile = $state<Turnstile>();
 	let turnstileToken = $state('');
-	
+
 	function handleTurnstileVerify(token: string) {
 		turnstileToken = token;
 	}
-	
+
 	function handleTurnstileExpire() {
 		turnstileToken = '';
 	}
@@ -32,26 +32,34 @@
 
 <svelte:head>
 	<title>Contacto | SAPIN</title>
-	<meta name="description" content="Contacta con el equipo de SAPIN para resolver dudas o colaborar." />
+	<meta
+		name="description"
+		content="Contacta con el equipo de SAPIN para resolver dudas o colaborar."
+	/>
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-gray-900 dark:to-gray-900">
+<div
+	class="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-gray-900 dark:to-gray-900"
+>
 	<div class="container mx-auto px-4 py-12 md:py-16">
-		<div class="max-w-xl mx-auto">
+		<div class="mx-auto max-w-xl">
 			<!-- Back link -->
-			<a href="/" class="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 mb-8 transition-colors">
-				<ArrowLeft class="w-4 h-4" />
+			<a
+				href="/"
+				class="mb-8 inline-flex items-center gap-2 text-sm text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+			>
+				<ArrowLeft class="h-4 w-4" />
 				Volver al inicio
 			</a>
 
 			<!-- Header -->
-			<div class="text-center mb-8">
-				<div class="w-14 h-14 bg-indigo-100 dark:bg-indigo-900/40 rounded-2xl flex items-center justify-center mx-auto mb-4">
-					<MessageSquare class="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
+			<div class="mb-8 text-center">
+				<div
+					class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100 dark:bg-indigo-900/40"
+				>
+					<MessageSquare class="h-7 w-7 text-indigo-600 dark:text-indigo-400" />
 				</div>
-				<h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-					Contacto
-				</h1>
+				<h1 class="mb-2 text-3xl font-bold text-slate-900 dark:text-white">Contacto</h1>
 				<p class="text-slate-600 dark:text-slate-400">
 					¿Tienes alguna pregunta o sugerencia? Escríbenos.
 				</p>
@@ -59,27 +67,31 @@
 
 			<!-- Success message -->
 			{#if form?.success}
-				<div class="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-200 dark:border-slate-700 shadow-sm text-center">
-					<div class="w-16 h-16 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
-						<CheckCircle class="w-8 h-8 text-green-600 dark:text-green-400" />
+				<div
+					class="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800"
+				>
+					<div
+						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/40"
+					>
+						<CheckCircle class="h-8 w-8 text-green-600 dark:text-green-400" />
 					</div>
-					<h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+					<h2 class="mb-2 text-xl font-semibold text-slate-900 dark:text-white">
 						¡Mensaje enviado!
 					</h2>
-					<p class="text-slate-600 dark:text-slate-400 mb-6">
+					<p class="mb-6 text-slate-600 dark:text-slate-400">
 						{form.message}
 					</p>
-					<Button href="/" color="light">
-						Volver al inicio
-					</Button>
+					<Button href="/" color="light">Volver al inicio</Button>
 				</div>
 			{:else}
 				<!-- Form -->
-				<div class="bg-white dark:bg-slate-800 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 shadow-sm">
+				<div
+					class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8 dark:border-slate-700 dark:bg-slate-800"
+				>
 					{#if form?.error}
 						<Alert color="red" class="mb-6">
 							{#snippet icon()}
-								<AlertCircle class="w-5 h-5" />
+								<AlertCircle class="h-5 w-5" />
 							{/snippet}
 							{form.error}
 						</Alert>
@@ -147,22 +159,28 @@
 							/>
 						{/if}
 
-						<Button type="submit" color="primary" class="w-full" disabled={isSubmitting || (!!data.turnstileSiteKey && !turnstileToken)}>
+						<Button
+							type="submit"
+							color="primary"
+							class="w-full"
+							disabled={isSubmitting || (!!data.turnstileSiteKey && !turnstileToken)}
+						>
 							{#if isSubmitting}
-								<span class="flex items-center gap-2">
-									Enviando...
-								</span>
+								<span class="flex items-center gap-2"> Enviando... </span>
 							{:else}
 								<span class="flex items-center gap-2">
 									Enviar mensaje
-									<Send class="w-4 h-4" />
+									<Send class="h-4 w-4" />
 								</span>
 							{/if}
 						</Button>
 					</form>
 
-					<p class="text-xs text-slate-500 dark:text-slate-400 text-center mt-4">
-						Al enviar aceptas nuestra <a href="/privacy" class="text-indigo-600 dark:text-indigo-400 hover:underline">política de privacidad</a>.
+					<p class="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
+						Al enviar aceptas nuestra <a
+							href="/privacy"
+							class="text-indigo-600 hover:underline dark:text-indigo-400">política de privacidad</a
+						>.
 					</p>
 				</div>
 

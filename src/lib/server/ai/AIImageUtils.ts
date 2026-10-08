@@ -13,7 +13,11 @@ export class AIImageUtils {
 		return [
 			{ provider: 'OpenRouter', name: 'Nano Banana', model: 'google/gemini-2.5-flash-image' },
 			{ provider: 'OpenRouter', name: 'GPT-5 Image Mini', model: 'openai/gpt-5-image-mini' },
-			{ provider: 'OpenRouter', name: 'Nano Banana Pro', model: 'google/gemini-3-pro-image-preview' }
+			{
+				provider: 'OpenRouter',
+				name: 'Nano Banana Pro',
+				model: 'google/gemini-3-pro-image-preview'
+			}
 		];
 	}
 
@@ -34,7 +38,7 @@ export class AIImageUtils {
 	): Promise<{ images: string[]; content?: string; error?: string }> {
 		const availableModels = await this.getAvailableImageModels();
 		const modelDef = availableModels.find((m) => m.name === modelName);
-		
+
 		if (!modelDef) {
 			throw new Error(`Unsupported image model: ${modelName}`);
 		}

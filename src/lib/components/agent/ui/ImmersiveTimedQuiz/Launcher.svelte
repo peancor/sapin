@@ -1,6 +1,11 @@
 <script lang="ts">
 	import ImmersiveToolLauncherCard from '$lib/components/agent/ImmersiveToolLauncherCard.svelte';
-	import type { Difficulty, TimedQuizPayload, TimedQuizQuestion, TimerByDifficultySec } from '../shared/timed-quiz';
+	import type {
+		Difficulty,
+		TimedQuizPayload,
+		TimedQuizQuestion,
+		TimerByDifficultySec
+	} from '../shared/timed-quiz';
 
 	interface Props {
 		title?: string;
@@ -34,12 +39,12 @@
 	description="Abre un quiz secuencial a pantalla completa con temporizador, HUD y respuestas grandes."
 	badge="Quiz inmersivo"
 	completed={!!payload}
-	summaryItems={summaryItems}
+	{summaryItems}
 	statusText={payload
 		? 'Resultado guardado. Puedes reabrir para revisar la partida.'
 		: 'Pulsa para entrar en el modo arcade y empezar cuando estes listo.'}
 	actionLabel="Abrir quiz"
 	reopenLabel="Reabrir resultado"
 	accentClass="from-cyan-500 via-sky-500 to-indigo-600"
-	onopen={onopen}
+	{onopen}
 />

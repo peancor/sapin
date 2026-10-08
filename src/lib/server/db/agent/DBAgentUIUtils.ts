@@ -226,8 +226,7 @@ export default class DBAgentUIUtils {
 			{
 				name: 'immersive_timed_quiz',
 				displayName: 'Quiz Contrarreloj Inmersivo',
-				description:
-					'Componente inmersivo fullscreen para quizzes contrarreloj con estilo arcade.',
+				description: 'Componente inmersivo fullscreen para quizzes contrarreloj con estilo arcade.',
 				category: 'evaluation',
 				componentKey: 'ImmersiveTimedQuiz',
 				propsSchema: JSON.stringify({
@@ -582,7 +581,10 @@ export default class DBAgentUIUtils {
 				propsSchema: JSON.stringify({
 					type: 'object',
 					properties: {
-						resourceId: { type: 'string', description: 'ID del recurso compartido en la actividad' },
+						resourceId: {
+							type: 'string',
+							description: 'ID del recurso compartido en la actividad'
+						},
 						fileId: { type: 'string', description: 'ID real del archivo para /api/files/{fileId}' },
 						name: { type: 'string', description: 'Nombre original del archivo' },
 						mimeType: { type: 'string', description: 'MIME type de la imagen' },

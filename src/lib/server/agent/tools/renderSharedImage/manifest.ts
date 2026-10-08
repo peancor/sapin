@@ -1,6 +1,4 @@
-import {
-	BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
-} from '../constants';
+import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '../constants';
 import type { ToolManifest } from '../types';
 
 export const renderSharedImageManifest: ToolManifest = {
@@ -36,4 +34,3 @@ export const renderSharedImageManifest: ToolManifest = {
 	version: '2.0.0',
 	usageDomain: BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
 };
-

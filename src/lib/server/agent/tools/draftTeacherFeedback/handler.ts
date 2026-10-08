@@ -55,8 +55,7 @@ export async function draftTeacherFeedback(
 	} catch (error) {
 		return {
 			success: false,
-			errorMessage:
-				error instanceof Error ? error.message : 'Error al redactar feedback docente',
+			errorMessage: error instanceof Error ? error.message : 'Error al redactar feedback docente',
 			durationMs: Date.now() - start
 		};
 	}

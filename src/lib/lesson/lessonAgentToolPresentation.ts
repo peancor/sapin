@@ -10,10 +10,7 @@ export interface LessonAgentToolPresentationItem {
 }
 
 export type LessonAgentToolGroupId =
-	| 'evaluation_interaction'
-	| 'search_consult'
-	| 'sensitive_actions'
-	| 'utilities';
+	'evaluation_interaction' | 'search_consult' | 'sensitive_actions' | 'utilities';
 
 export interface LessonAgentToolGroup {
 	id: LessonAgentToolGroupId;
@@ -29,40 +26,35 @@ export interface LessonAgentToolMetrics {
 	persistent: number;
 }
 
-const GROUP_META: Record<
-	LessonAgentToolGroupId,
-	{ title: string; description: string }
-> = {
+const GROUP_META: Record<LessonAgentToolGroupId, { title: string; description: string }> = {
 	evaluation_interaction: {
 		title: 'Evaluacion e interaccion',
-		description: 'Quizzes, flashcards, tests y otras herramientas que convierten la IA en experiencia pedagogica visible.'
+		description:
+			'Quizzes, flashcards, tests y otras herramientas que convierten la IA en experiencia pedagogica visible.'
 	},
 	search_consult: {
 		title: 'Busqueda y consulta',
-		description: 'Herramientas para leer contexto, consultar progreso o recuperar informacion util antes de responder.'
+		description:
+			'Herramientas para leer contexto, consultar progreso o recuperar informacion util antes de responder.'
 	},
 	sensitive_actions: {
 		title: 'Comunicacion y acciones sensibles',
-		description: 'Operaciones con impacto externo o persistente que conviene revisar con mas cuidado.'
+		description:
+			'Operaciones con impacto externo o persistente que conviene revisar con mas cuidado.'
 	},
 	utilities: {
 		title: 'Utilidades',
-		description: 'Capacidades de apoyo que no encajan en los grupos anteriores pero siguen siendo lesson-safe.'
+		description:
+			'Capacidades de apoyo que no encajan en los grupos anteriores pero siguen siendo lesson-safe.'
 	}
 };
 
 function sortTools(tools: LessonAgentToolPresentationItem[]): LessonAgentToolPresentationItem[] {
-	return [...tools].sort(
-		(left, right) => left.displayName.localeCompare(right.displayName, 'es')
-	);
+	return [...tools].sort((left, right) => left.displayName.localeCompare(right.displayName, 'es'));
 }
 
 function resolveGroupId(tool: LessonAgentToolPresentationItem): LessonAgentToolGroupId {
-	if (
-		tool.isInteractiveUi ||
-		tool.name.startsWith('render_') ||
-		tool.category === 'evaluation'
-	) {
+	if (tool.isInteractiveUi || tool.name.startsWith('render_') || tool.category === 'evaluation') {
 		return 'evaluation_interaction';
 	}
 

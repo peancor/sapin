@@ -134,9 +134,7 @@
 	}
 
 	function formatActionName(action: string): string {
-		return action
-			.replace(/_/g, ' ')
-			.replace(/\b\w/g, (l) => l.toUpperCase());
+		return action.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 	}
 
 	function applyFilters() {
@@ -271,9 +269,7 @@
 	</div>
 
 	<!-- Filters -->
-	<div
-		class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
-	>
+	<div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
 		<div class="flex flex-wrap items-end gap-4">
 			<!-- Search -->
 			<div class="min-w-[200px] flex-1">
@@ -365,7 +361,10 @@
 	<!-- Results count -->
 	<div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
 		<span>
-			Mostrando {((currentPage - 1) * data.limit) + 1} - {Math.min(currentPage * data.limit, data.total)} de {data.total.toLocaleString()} registros
+			Mostrando {(currentPage - 1) * data.limit + 1} - {Math.min(
+				currentPage * data.limit,
+				data.total
+			)} de {data.total.toLocaleString()} registros
 		</span>
 		<span>
 			Retencion: {data.config.retentionDays} dias
@@ -478,8 +477,7 @@
 					}).filter((p) => p <= totalPages) as pageNum}
 						<button
 							type="button"
-							class="h-8 w-8 rounded text-sm font-medium transition-colors {pageNum ===
-							currentPage
+							class="h-8 w-8 rounded text-sm font-medium transition-colors {pageNum === currentPage
 								? 'bg-primary-600 text-white'
 								: 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}"
 							onclick={() => goToPage(pageNum)}
@@ -601,7 +599,7 @@
 			{#if selectedLog.userAgent}
 				<div>
 					<span class="text-sm font-medium text-gray-500 dark:text-gray-400">User Agent</span>
-					<p class="text-xs text-gray-700 break-all dark:text-gray-300">{selectedLog.userAgent}</p>
+					<p class="text-xs break-all text-gray-700 dark:text-gray-300">{selectedLog.userAgent}</p>
 				</div>
 			{/if}
 
@@ -609,7 +607,11 @@
 				<div>
 					<span class="text-sm font-medium text-gray-500 dark:text-gray-400">Detalles</span>
 					<pre
-						class="mt-1 max-h-64 overflow-auto rounded-lg bg-gray-100 p-3 text-xs dark:bg-gray-700">{JSON.stringify(selectedLog.details, null, 2)}</pre>
+						class="mt-1 max-h-64 overflow-auto rounded-lg bg-gray-100 p-3 text-xs dark:bg-gray-700">{JSON.stringify(
+							selectedLog.details,
+							null,
+							2
+						)}</pre>
 				</div>
 			{/if}
 		</div>

@@ -17,7 +17,16 @@
 		Dropdown,
 		DropdownItem
 	} from 'flowbite-svelte';
-	import { GraduationCap, UserPlus, Trash2, Search, X, Upload, Download, Menu } from 'lucide-svelte';
+	import {
+		GraduationCap,
+		UserPlus,
+		Trash2,
+		Search,
+		X,
+		Upload,
+		Download,
+		Menu
+	} from 'lucide-svelte';
 
 	interface ImportResult {
 		status: 'success' | 'error';
@@ -69,8 +78,7 @@
 		if (!searchTerm) return data.students;
 		const term = searchTerm.toLowerCase();
 		return data.students.filter(
-			(s) =>
-				s.username?.toLowerCase().includes(term) || s.email?.toLowerCase().includes(term)
+			(s) => s.username?.toLowerCase().includes(term) || s.email?.toLowerCase().includes(term)
 		);
 	});
 
@@ -79,8 +87,7 @@
 		if (!addSearchTerm) return data.availableStudents;
 		const term = addSearchTerm.toLowerCase();
 		return data.availableStudents.filter(
-			(s) =>
-				s.username?.toLowerCase().includes(term) || s.email?.toLowerCase().includes(term)
+			(s) => s.username?.toLowerCase().includes(term) || s.email?.toLowerCase().includes(term)
 		);
 	});
 
@@ -240,10 +247,7 @@
 		link.click();
 		document.body.removeChild(link);
 
-		showToastMessage(
-			`Exportados ${studentsToExport.length} estudiante(s)`,
-			'success'
-		);
+		showToastMessage(`Exportados ${studentsToExport.length} estudiante(s)`, 'success');
 	}
 
 	// Close import modal
@@ -387,12 +391,7 @@
 									</span>
 								</TableBodyCell>
 								<TableBodyCell>
-									<Button
-										size="xs"
-										color="red"
-										outline
-										onclick={() => confirmRemove(student)}
-									>
+									<Button size="xs" color="red" outline onclick={() => confirmRemove(student)}>
 										<Trash2 class="h-4 w-4" />
 									</Button>
 								</TableBodyCell>
@@ -541,7 +540,8 @@
 		{/if}
 
 		<p class="text-sm text-gray-600 dark:text-gray-400">
-			Sube un archivo CSV con las columnas: <strong>id, email, firstname, lastname, fullname</strong>
+			Sube un archivo CSV con las columnas: <strong>id, email, firstname, lastname, fullname</strong
+			>
 		</p>
 
 		{#if isImporting}
@@ -558,7 +558,9 @@
 				class="block w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:placeholder-gray-400"
 			/>
 
-			<div class="rounded bg-blue-50 p-3 text-xs text-gray-500 dark:bg-blue-900/20 dark:text-gray-400">
+			<div
+				class="rounded bg-blue-50 p-3 text-xs text-gray-500 dark:bg-blue-900/20 dark:text-gray-400"
+			>
 				<p class="mb-2 font-semibold">Requisitos del CSV:</p>
 				<ul class="list-inside list-disc space-y-1">
 					<li>Codificación: UTF-8 o Windows-1252</li>
@@ -615,28 +617,54 @@
 						>
 							<div class="mt-0.5 flex-shrink-0">
 								{#if result.status === 'success'}
-									<svg class="h-5 w-5 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
-										<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+									<svg
+										class="h-5 w-5 text-green-600 dark:text-green-400"
+										fill="currentColor"
+										viewBox="0 0 20 20"
+									>
+										<path
+											fill-rule="evenodd"
+											d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+											clip-rule="evenodd"
+										></path>
 									</svg>
 								{:else}
-									<svg class="h-5 w-5 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20">
-										<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+									<svg
+										class="h-5 w-5 text-red-600 dark:text-red-400"
+										fill="currentColor"
+										viewBox="0 0 20 20"
+									>
+										<path
+											fill-rule="evenodd"
+											d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+											clip-rule="evenodd"
+										></path>
 									</svg>
 								{/if}
 							</div>
 							<div class="min-w-0 flex-1">
 								<div class="flex items-center gap-2">
-									<p class="text-sm font-medium {result.status === 'success' ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}">
+									<p
+										class="text-sm font-medium {result.status === 'success'
+											? 'text-green-800 dark:text-green-200'
+											: 'text-red-800 dark:text-red-200'}"
+									>
 										{result.email}
 									</p>
 									{#if result.rowNumber}
-										<span class="rounded bg-gray-300 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-600 dark:text-gray-300">
+										<span
+											class="rounded bg-gray-300 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-600 dark:text-gray-300"
+										>
 											Fila {result.rowNumber}
 										</span>
 									{/if}
 								</div>
 								{#if result.message}
-									<p class="mt-1 text-xs {result.status === 'success' ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}">
+									<p
+										class="mt-1 text-xs {result.status === 'success'
+											? 'text-green-700 dark:text-green-300'
+											: 'text-red-700 dark:text-red-300'}"
+									>
 										{result.message}
 									</p>
 								{/if}

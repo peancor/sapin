@@ -71,7 +71,9 @@
 	let uiRendererBindings = $derived(resolveUIRendererBindings(selectedTools));
 	let availableUIComponentKeySet = $derived(new Set(availableUIComponentKeys));
 	let hasMemoryCanvasTools = $derived(
-		selectedTools.some((tool) => tool.name.includes('_canvas_read') || tool.name.includes('_canvas_update'))
+		selectedTools.some(
+			(tool) => tool.name.includes('_canvas_read') || tool.name.includes('_canvas_update')
+		)
 	);
 
 	let uiRendererDiagnostics = $derived(
@@ -79,7 +81,8 @@
 			const missingInCatalog =
 				binding.componentKey !== null && !availableUIComponentKeySet.has(binding.componentKey);
 
-			let status: 'ok' | 'invalid_executor_config' | 'missing_component_key' | 'missing_catalog_component' =
+			let status:
+				'ok' | 'invalid_executor_config' | 'missing_component_key' | 'missing_catalog_component' =
 				'ok';
 			if (binding.issue === 'invalid_executor_config') status = 'invalid_executor_config';
 			if (binding.issue === 'missing_component_key') status = 'missing_component_key';
@@ -123,7 +126,9 @@
 	<input type="hidden" name="selectedToolIds" value={JSON.stringify(selectedToolIds)} />
 
 	<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-		<h3 class="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+		<h3
+			class="mb-4 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
+		>
 			Comportamiento del Agente
 		</h3>
 		<div class="grid gap-4 sm:grid-cols-2">
@@ -142,7 +147,7 @@
 					max="20"
 					bind:value={maxToolRoundtrips}
 					oninput={onchange}
-					class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+					class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				/>
 				<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
 					Numero maximo de veces que el agente puede invocar herramientas (1-20)
@@ -150,14 +155,16 @@
 			</div>
 
 			<div>
-				<p class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Llamadas paralelas</p>
+				<p class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+					Llamadas paralelas
+				</p>
 				<label class="flex cursor-pointer items-center gap-3">
 					<input
 						type="checkbox"
 						name="parallelToolCalls"
 						value="true"
 						bind:checked={parallelToolCalls}
-						onchange={onchange}
+						{onchange}
 						class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 					/>
 					<span class="text-sm text-gray-700 dark:text-gray-300">
@@ -178,7 +185,7 @@
 								name="toolChoice"
 								value={option.value}
 								bind:group={toolChoice}
-								onchange={onchange}
+								{onchange}
 								class="mt-0.5 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
 							/>
 							<div>
@@ -195,7 +202,9 @@
 	</div>
 
 	<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-		<h3 class="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+		<h3
+			class="mb-4 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
+		>
 			Finalizacion de actividad
 		</h3>
 		<div class="grid gap-4 sm:grid-cols-2">
@@ -209,7 +218,7 @@
 						name="finalizationEnabled"
 						value="true"
 						bind:checked={finalizationEnabled}
-						onchange={onchange}
+						{onchange}
 						class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 					/>
 					<input type="hidden" name="finalizationEnabled" value="false" />
@@ -233,7 +242,7 @@
 					bind:value={finalizationToolName}
 					oninput={onchange}
 					disabled={!finalizationEnabled}
-					class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+					class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				/>
 				<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
 					Recomendado: <code>finalize_activity</code>.
@@ -251,9 +260,9 @@
 					id="finalizationHandler"
 					name="finalizationHandler"
 					bind:value={finalizationHandler}
-					onchange={onchange}
+					{onchange}
 					disabled={!finalizationEnabled}
-					class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+					class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				>
 					<option value="mark_complete_and_notify">Completar y notificar</option>
 					<option value="mark_complete_only">Solo completar</option>
@@ -271,7 +280,7 @@
 						name="requireFinalizationToolCall"
 						value="true"
 						bind:checked={requireFinalizationToolCall}
-						onchange={onchange}
+						{onchange}
 						disabled={!finalizationEnabled}
 						class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
 					/>
@@ -297,7 +306,7 @@
 					disabled={!finalizationEnabled}
 					rows="3"
 					placeholder="&#123;&quot;notifyChannel&quot;:&quot;default&quot;&#125;"
-					class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+					class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-xs text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				></textarea>
 			</div>
 		</div>
@@ -305,12 +314,18 @@
 
 	{#if tools.length > 0}
 		<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+			<h3
+				class="mb-4 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
+			>
 				Herramientas habilitadas
 			</h3>
 			{#if hasMemoryCanvasTools}
-				<div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200">
-					La memoria por canvas exige finalización explícita y selección por parejas: al guardar, el backend activará automáticamente la tool de lectura y la de actualización de cada scope de memoria.
+				<div
+					class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200"
+				>
+					La memoria por canvas exige finalización explícita y selección por parejas: al guardar, el
+					backend activará automáticamente la tool de lectura y la de actualización de cada scope de
+					memoria.
 				</div>
 			{/if}
 			<div class="space-y-4">
@@ -340,8 +355,9 @@
 												{tool.displayName}
 											</span>
 											<span
-												class="rounded px-1.5 py-0.5 text-xs font-medium {riskColors[tool.riskLevel] ??
-													riskColors.low}"
+												class="rounded px-1.5 py-0.5 text-xs font-medium {riskColors[
+													tool.riskLevel
+												] ?? riskColors.low}"
 											>
 												{tool.riskLevel}
 											</span>
@@ -368,16 +384,21 @@
 
 	<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
 		<details>
-			<summary class="cursor-pointer text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+			<summary
+				class="cursor-pointer text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
+			>
 				Modo avanzado: Diagnostico Tool -> UI
 			</summary>
 			<div class="mt-4 space-y-3">
 				<p class="text-xs text-gray-500 dark:text-gray-400">
-					Los componentes UI se habilitan automaticamente en runtime segun las tools seleccionadas que usen
+					Los componentes UI se habilitan automaticamente en runtime segun las tools seleccionadas
+					que usen
 					<code>ui_renderer</code>.
 				</p>
 				{#if uiRendererDiagnostics.length === 0}
-					<p class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+					<p
+						class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+					>
 						No hay tools UI seleccionadas.
 					</p>
 				{:else}
@@ -388,7 +409,9 @@
 									<span class="text-sm font-medium text-gray-900 dark:text-white">
 										{binding.toolDisplayName}
 									</span>
-									<code class="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+									<code
+										class="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+									>
 										{binding.toolName}
 									</code>
 									<span

@@ -7,23 +7,29 @@
 	<div class="w-full max-w-md rounded-lg bg-white p-8 shadow-lg dark:bg-gray-800">
 		{#if $page.status === 403}
 			<div class="text-center">
-				<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100">
+				<div
+					class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100"
+				>
 					<span class="text-3xl">🤖</span>
 				</div>
 				<h1 class="mb-2 text-2xl font-bold text-gray-800 dark:text-white">Actividad Cerrada</h1>
 				<p class="mb-6 text-gray-600 dark:text-gray-400">
-					{$page.error?.message || 'Esta actividad agéntica no está disponible para nuevas interacciones.'}
+					{$page.error?.message ||
+						'Esta actividad agéntica no está disponible para nuevas interacciones.'}
 				</p>
 				<div class="flex flex-col gap-3">
 					<Button color="blue" href="/" class="w-full">Ir al Inicio</Button>
 					<p class="text-sm text-gray-500">
-						Si ya participaste anteriormente, puedes consultar tu historial desde la vista del agente.
+						Si ya participaste anteriormente, puedes consultar tu historial desde la vista del
+						agente.
 					</p>
 				</div>
 			</div>
 		{:else if $page.status === 401}
 			<div class="text-center">
-				<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+				<div
+					class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100"
+				>
 					<span class="text-3xl">🚫</span>
 				</div>
 				<h1 class="mb-2 text-2xl font-bold text-gray-800 dark:text-white">Acceso No Autorizado</h1>
@@ -34,20 +40,25 @@
 			</div>
 		{:else if $page.status === 404}
 			<div class="text-center">
-				<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+				<div
+					class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100"
+				>
 					<span class="text-3xl">🔍</span>
 				</div>
 				<h1 class="mb-2 text-2xl font-bold text-gray-800 dark:text-white">
 					Actividad No Encontrada
 				</h1>
 				<p class="mb-6 text-gray-600 dark:text-gray-400">
-					{$page.error?.message || 'La actividad agéntica que buscas no existe o no está disponible.'}
+					{$page.error?.message ||
+						'La actividad agéntica que buscas no existe o no está disponible.'}
 				</p>
 				<Button color="blue" href="/" class="w-full">Ir al Inicio</Button>
 			</div>
 		{:else}
 			<div class="text-center">
-				<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+				<div
+					class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100"
+				>
 					<span class="text-3xl">⚠️</span>
 				</div>
 				<h1 class="mb-2 text-2xl font-bold text-gray-800 dark:text-white">

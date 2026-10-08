@@ -113,9 +113,13 @@ export function renderTikzInSubprocess(
 	timeoutMs = DEFAULT_RENDER_TIMEOUT_MS
 ): Promise<string> {
 	return new Promise((resolve, reject) => {
-		const child = spawn(process.execPath, ['--input-type=module', '--eval', CHILD_RENDER_PROCESS_CODE], {
-			stdio: ['ignore', 'ignore', 'pipe', 'ipc']
-		});
+		const child = spawn(
+			process.execPath,
+			['--input-type=module', '--eval', CHILD_RENDER_PROCESS_CODE],
+			{
+				stdio: ['ignore', 'ignore', 'pipe', 'ipc']
+			}
+		);
 
 		let settled = false;
 		let stderrPreview = '';

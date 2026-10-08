@@ -84,7 +84,10 @@ function safeDateFromFilter(value: string | null | undefined, endOfDay = false):
 	return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function matchesSearch(values: Array<string | null | undefined>, search: string | undefined): boolean {
+function matchesSearch(
+	values: Array<string | null | undefined>,
+	search: string | undefined
+): boolean {
 	if (!search?.trim()) return true;
 	const needle = search.trim().toLowerCase();
 	return values.some((value) => value?.toLowerCase().includes(needle));
@@ -154,7 +157,10 @@ function toCaptureFocus(
 	};
 }
 
-function toRequestRound(row: RequestRoundRow, previous: RequestRoundRow | null): ActivityDebuggerRequestRound {
+function toRequestRound(
+	row: RequestRoundRow,
+	previous: RequestRoundRow | null
+): ActivityDebuggerRequestRound {
 	const requestOptions = parseJsonRecord(row.requestOptionsJson);
 	const cacheStrategy = getStringProperty(requestOptions, 'cacheStrategy');
 	const cacheTargetProvider = getStringProperty(requestOptions, 'cacheTargetProvider');
@@ -208,8 +214,7 @@ function toRequestRound(row: RequestRoundRow, previous: RequestRoundRow | null):
 				previous && row.memoryContextHash
 					? previous.memoryContextHash === row.memoryContextHash
 					: null,
-			sameToolsHash:
-				previous && row.toolsHash ? previous.toolsHash === row.toolsHash : null
+			sameToolsHash: previous && row.toolsHash ? previous.toolsHash === row.toolsHash : null
 		},
 		systemPromptExact: row.systemPromptExact ?? null,
 		messagesExact: parseJsonValue(row.messagesExactJson),
@@ -259,9 +264,7 @@ function normalizeAgentConfig(
 		maxToolRoundtrips: config.maxToolRoundtrips,
 		parallelToolCalls: config.parallelToolCalls,
 		toolChoice:
-			config.toolChoice === 'required' || config.toolChoice === 'none'
-				? config.toolChoice
-				: 'auto',
+			config.toolChoice === 'required' || config.toolChoice === 'none' ? config.toolChoice : 'auto',
 		finalizationEnabled: config.finalizationEnabled,
 		finalizationToolName: config.finalizationToolName,
 		finalizationHandler:
@@ -362,13 +365,10 @@ export class ActivityDebuggerService {
 		const ordered = rows
 			.slice()
 			.sort(
-				(left, right) =>
-					new Date(left.startedAt).getTime() - new Date(right.startedAt).getTime()
+				(left, right) => new Date(left.startedAt).getTime() - new Date(right.startedAt).getTime()
 			);
 
-		return ordered
-			.map((row, index) => toRequestRound(row, ordered[index - 1] ?? null))
-			.reverse();
+		return ordered.map((row, index) => toRequestRound(row, ordered[index - 1] ?? null)).reverse();
 	}
 
 	private static async getPromptSnapshot(
@@ -383,7 +383,10 @@ export class ActivityDebuggerService {
 
 			if (!config) throw error(404, 'Configuracion de chat no encontrada');
 
-			const storedSystemPrompt = buildStoredPromptValue('System prompt almacenado', config.systemPrompt);
+			const storedSystemPrompt = buildStoredPromptValue(
+				'System prompt almacenado',
+				config.systemPrompt
+			);
 			const storedRole = buildStoredPromptValue('Rol almacenado', config.llmRole);
 			const storedInstructions = buildStoredPromptValue(
 				'Instrucciones almacenadas',
@@ -431,7 +434,10 @@ export class ActivityDebuggerService {
 		if (!config) throw error(404, 'Configuracion agéntica no encontrada');
 
 		const enabledTools = await DBAgentActivityUtils.getEnabledToolsForActivity(activity.id);
-		const storedSystemPrompt = buildStoredPromptValue('System prompt almacenado', config.systemPrompt);
+		const storedSystemPrompt = buildStoredPromptValue(
+			'System prompt almacenado',
+			config.systemPrompt
+		);
 		const storedRole = buildStoredPromptValue('Rol almacenado', config.llmRole);
 		const storedInstructions = buildStoredPromptValue(
 			'Instrucciones almacenadas',
@@ -443,12 +449,7 @@ export class ActivityDebuggerService {
 		const derivedCurrentSystemPrompt = !config.ragEnabled
 			? {
 					label: 'Prompt efectivo actual',
-					value: AgentPromptBuilder.buildSystemPrompt(
-						normalizedConfig,
-						enabledTools,
-						null,
-						null
-					),
+					value: AgentPromptBuilder.buildSystemPrompt(normalizedConfig, enabledTools, null, null),
 					origin: 'derived_current' as const,
 					note: 'Snapshot actual derivado sin memoria de sesion. No es una captura historica exacta.'
 				}
@@ -504,10 +505,12 @@ export class ActivityDebuggerService {
 		session: ActivityDebuggerSessionSummary,
 		filters: ActivityDebuggerSessionFilters
 	): boolean {
-		if (filters.status && filters.status !== 'all' && session.status !== filters.status) return false;
+		if (filters.status && filters.status !== 'all' && session.status !== filters.status)
+			return false;
 		if (filters.onlyErrors && !session.hasUsageErrors) return false;
 		if (filters.onlyToolFailures && !session.hasToolFailures) return false;
-		if (filters.onlyHighUsage && session.totalTokens < this.HIGH_USAGE_TOKEN_THRESHOLD) return false;
+		if (filters.onlyHighUsage && session.totalTokens < this.HIGH_USAGE_TOKEN_THRESHOLD)
+			return false;
 		return true;
 	}
 
@@ -546,7 +549,9 @@ export class ActivityDebuggerService {
 
 		return transcripts
 			.map((session) => {
-				const chatInstance = chatInstances.find((entry) => entry.chatId === session.chatId)?.instance;
+				const chatInstance = chatInstances.find(
+					(entry) => entry.chatId === session.chatId
+				)?.instance;
 				const rawMessages = chatInstance?.messages ?? [];
 				const usage = summarizeUsage(usageByChatId.get(session.chatId) ?? []);
 				const statusInfo = this.buildChatSessionStatus(rawMessages, usage.failureCount > 0);
@@ -629,7 +634,9 @@ export class ActivityDebuggerService {
 			.from(schema.agentMessage)
 			.where(inArray(schema.agentMessage.chatId, chatIds))
 			.orderBy(asc(schema.agentMessage.createdAt), asc(schema.agentMessage.sequenceOrder));
-		const assistantIds = messages.filter((message) => message.role === 'assistant').map((message) => message.id);
+		const assistantIds = messages
+			.filter((message) => message.role === 'assistant')
+			.map((message) => message.id);
 		const toolCalls =
 			assistantIds.length > 0
 				? await db
@@ -806,7 +813,9 @@ export class ActivityDebuggerService {
 					if (dateTo && new Date(session.lastActivityAt) > dateTo) return false;
 					return true;
 				});
-				const failedToolCallCount = filteredSessions.filter((session) => session.hasToolFailures).length;
+				const failedToolCallCount = filteredSessions.filter(
+					(session) => session.hasToolFailures
+				).length;
 				const pendingSessionCount = filteredSessions.filter(
 					(session) => session.status !== 'completed'
 				).length;
@@ -863,10 +872,16 @@ export class ActivityDebuggerService {
 			if (filters.onlyToolFailures && !summary.hasToolFailures) return false;
 			if (filters.onlyHighUsage && !summary.highUsage) return false;
 			if (filters.onlyPendingSessions && !summary.hasPendingSessions) return false;
-			if (filters.dateFrom && (!summary.lastActivityAt || new Date(summary.lastActivityAt) < dateFrom!)) {
+			if (
+				filters.dateFrom &&
+				(!summary.lastActivityAt || new Date(summary.lastActivityAt) < dateFrom!)
+			) {
 				return false;
 			}
-			if (filters.dateTo && (!summary.lastActivityAt || new Date(summary.lastActivityAt) > dateTo!)) {
+			if (
+				filters.dateTo &&
+				(!summary.lastActivityAt || new Date(summary.lastActivityAt) > dateTo!)
+			) {
 				return false;
 			}
 
@@ -891,8 +906,16 @@ export class ActivityDebuggerService {
 		filters: ActivityDebuggerSessionFilters = {}
 	): Promise<ActivityDebuggerActivityDetail> {
 		const activity = await this.getActivityRecord(activityId);
-		const [course, config, prompts, usageLogs, sessions, captureConfig, activityCaptureFocus, requestRounds] =
-			await Promise.all([
+		const [
+			course,
+			config,
+			prompts,
+			usageLogs,
+			sessions,
+			captureConfig,
+			activityCaptureFocus,
+			requestRounds
+		] = await Promise.all([
 			this.getCourseRelation(activityId),
 			this.getActivityConfig(activity),
 			this.getPromptSnapshot(activity),
@@ -929,7 +952,8 @@ export class ActivityDebuggerService {
 			},
 			{
 				id: 'config',
-				label: activity.type === 'chat' ? 'interactive_learning_chat' : 'interactive_learning_agent',
+				label:
+					activity.type === 'chat' ? 'interactive_learning_chat' : 'interactive_learning_agent',
 				data: config
 			},
 			{
@@ -1031,14 +1055,18 @@ export class ActivityDebuggerService {
 		await this.assertSessionBelongsToActivity(activity.id, chatId);
 		const activityDetail = await this.getActivityDetail(access, activity.id);
 		const chatInstance = await DBChatUtils.loadChatInstanceFromChatId(chatId);
-		const usageLogs = (await this.getUsageLogsForActivity(activity.id)).filter((log) => log.chatId === chatId);
+		const usageLogs = (await this.getUsageLogsForActivity(activity.id)).filter(
+			(log) => log.chatId === chatId
+		);
 		const [sessionCaptureFocus, requestRounds] = await Promise.all([
 			AIRequestCaptureService.getFocus('session', chatId),
 			this.getRequestRounds({ activityId: activity.id, chatId, limit: 120 })
 		]);
 		const sessionSummary =
 			activityDetail.sessions.find((session) => session.chatId === chatId) ??
-			(await this.getChatSessionSummaries(access, activity)).find((session) => session.chatId === chatId);
+			(await this.getChatSessionSummaries(access, activity)).find(
+				(session) => session.chatId === chatId
+			);
 		if (!sessionSummary) throw error(404, 'Resumen de sesion no encontrado');
 
 		const timeline: ActivityDebuggerTimelineEvent[] = [
@@ -1058,7 +1086,9 @@ export class ActivityDebuggerService {
 				source: 'interactive_learning_chat',
 				timestamp: toIsoString(chatInstance.chat.createdAt) ?? new Date().toISOString(),
 				title: 'Configuracion activa',
-				summary: summarizeText(activityDetail.systemPrompt || activityDetail.llmInstructions || activityDetail.llmRole),
+				summary: summarizeText(
+					activityDetail.systemPrompt || activityDetail.llmInstructions || activityDetail.llmRole
+				),
 				raw: {
 					systemPrompt: activityDetail.systemPrompt,
 					llmRole: activityDetail.llmRole,
@@ -1070,7 +1100,9 @@ export class ActivityDebuggerService {
 			},
 			...chatInstance.messages
 				.slice()
-				.sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())
+				.sort(
+					(left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+				)
 				.map((message) => ({
 					id: `message-${message.id}`,
 					kind: 'message' as const,
@@ -1173,7 +1205,9 @@ export class ActivityDebuggerService {
 		const activityDetail = await this.getActivityDetail(access, activity.id);
 		const sessionSummary =
 			activityDetail.sessions.find((session) => session.chatId === chatId) ??
-			(await this.getAgentSessionSummaries(access, activity)).find((session) => session.chatId === chatId);
+			(await this.getAgentSessionSummaries(access, activity)).find(
+				(session) => session.chatId === chatId
+			);
 		if (!sessionSummary) throw error(404, 'Resumen de sesion no encontrado');
 
 		const relation = await db
@@ -1250,7 +1284,9 @@ export class ActivityDebuggerService {
 						.where(inArray(schema.agentUIInstance.messageId, messageIds))
 						.orderBy(asc(schema.agentUIInstance.createdAt))
 				: [];
-		const usageLogs = (await this.getUsageLogsForActivity(activity.id)).filter((log) => log.chatId === chatId);
+		const usageLogs = (await this.getUsageLogsForActivity(activity.id)).filter(
+			(log) => log.chatId === chatId
+		);
 		const [sessionCaptureFocus, requestRounds] = await Promise.all([
 			AIRequestCaptureService.getFocus('session', chatId),
 			this.getRequestRounds({ activityId: activity.id, chatId, limit: 120 })
@@ -1286,7 +1322,9 @@ export class ActivityDebuggerService {
 				source: 'interactive_learning_agent',
 				timestamp: toIsoString(relation.chat.createdAt) ?? new Date().toISOString(),
 				title: 'Configuracion agéntica actual',
-				summary: summarizeText(activityDetail.systemPrompt || activityDetail.llmInstructions || activityDetail.llmRole),
+				summary: summarizeText(
+					activityDetail.systemPrompt || activityDetail.llmInstructions || activityDetail.llmRole
+				),
 				raw: {
 					systemPrompt: activityDetail.systemPrompt,
 					llmRole: activityDetail.llmRole,
@@ -1397,9 +1435,7 @@ export class ActivityDebuggerService {
 						kind: 'ui_response',
 						source: 'agent_ui_instance',
 						timestamp:
-							toIsoString(ui.respondedAt) ??
-							toIsoString(ui.createdAt) ??
-							new Date().toISOString(),
+							toIsoString(ui.respondedAt) ?? toIsoString(ui.createdAt) ?? new Date().toISOString(),
 						title: `Respuesta UI ${ui.componentKey}`,
 						summary: summarizeText(JSON.stringify(parseJsonValue(ui.userResponse))),
 						raw: ui,

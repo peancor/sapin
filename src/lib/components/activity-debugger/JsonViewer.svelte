@@ -37,7 +37,7 @@
 
 <div class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 dark:border-slate-800">
 	<div class="flex items-center justify-between border-b border-white/10 px-3 py-2">
-		<p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Raw</p>
+		<p class="text-[11px] font-semibold tracking-[0.18em] text-slate-400 uppercase">Raw</p>
 		<button
 			type="button"
 			class="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-xs text-slate-300 transition-colors hover:border-sky-500/40 hover:text-sky-200"
@@ -52,5 +52,7 @@
 			{/if}
 		</button>
 	</div>
-	<pre class={`overflow-auto px-4 py-4 text-xs text-slate-100 ${heightClass}`}>{formatValue(value)}</pre>
+	<pre class={`overflow-auto px-4 py-4 text-xs text-slate-100 ${heightClass}`}>{formatValue(
+			value
+		)}</pre>
 </div>

@@ -4,8 +4,7 @@ import type { ToolManifest } from '../types.ts';
 export const getTeacherInterventionQueueManifest: ToolManifest = {
 	name: 'get_teacher_intervention_queue',
 	displayName: 'Obtener cola de intervencion docente',
-	description:
-		'Prioriza estudiantes o casos que merecen una intervencion docente mas inmediata.',
+	description: 'Prioriza estudiantes o casos que merecen una intervencion docente mas inmediata.',
 	category: 'evaluation',
 	parametersSchema: {
 		type: 'object',

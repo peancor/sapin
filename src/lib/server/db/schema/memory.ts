@@ -16,7 +16,9 @@ export const agentMemoryCanvas = sqliteTable(
 		scopeType: text('scope_type').$type<MemoryCanvasScopeType>().notNull(),
 		scopeKey: text('scope_key').notNull(),
 		courseId: text('course_id').references(() => course.id, { onDelete: 'set null' }),
-		activityId: text('activity_id').references(() => interactiveLearning.id, { onDelete: 'set null' }),
+		activityId: text('activity_id').references(() => interactiveLearning.id, {
+			onDelete: 'set null'
+		}),
 		studentId: text('student_id').references(() => user.id, { onDelete: 'cascade' }),
 		visibility: text('visibility').$type<MemoryCanvasVisibility>().notNull(),
 		scopeBindings: text('scope_bindings', { mode: 'json' })
@@ -24,7 +26,9 @@ export const agentMemoryCanvas = sqliteTable(
 			.notNull(),
 		content: text('content').notNull(),
 		revision: integer('revision').notNull().default(1),
-		lastSourceChatId: text('last_source_chat_id').references(() => chat.id, { onDelete: 'set null' }),
+		lastSourceChatId: text('last_source_chat_id').references(() => chat.id, {
+			onDelete: 'set null'
+		}),
 		lastSourceToolCallId: text('last_source_tool_call_id'),
 		lastModelName: text('last_model_name'),
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
@@ -49,7 +53,9 @@ export const agentMemoryCanvasRevision = sqliteTable(
 		scopeType: text('scope_type').$type<MemoryCanvasScopeType>().notNull(),
 		scopeKey: text('scope_key').notNull(),
 		courseId: text('course_id').references(() => course.id, { onDelete: 'set null' }),
-		activityId: text('activity_id').references(() => interactiveLearning.id, { onDelete: 'set null' }),
+		activityId: text('activity_id').references(() => interactiveLearning.id, {
+			onDelete: 'set null'
+		}),
 		studentId: text('student_id').references(() => user.id, { onDelete: 'cascade' }),
 		visibility: text('visibility').$type<MemoryCanvasVisibility>().notNull(),
 		scopeBindings: text('scope_bindings', { mode: 'json' })
@@ -65,7 +71,10 @@ export const agentMemoryCanvasRevision = sqliteTable(
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 	},
 	(table) => [
-		uniqueIndex('agent_memory_canvas_revision_canvas_revision_idx').on(table.canvasId, table.revision),
+		uniqueIndex('agent_memory_canvas_revision_canvas_revision_idx').on(
+			table.canvasId,
+			table.revision
+		),
 		index('agent_memory_canvas_revision_scope_idx').on(table.scopeKey, table.createdAt),
 		index('agent_memory_canvas_revision_student_idx').on(table.studentId, table.createdAt),
 		index('agent_memory_canvas_revision_course_idx').on(table.courseId, table.createdAt)
@@ -80,7 +89,9 @@ export const agentMemoryCanvasSyncEvent = sqliteTable(
 		scopeType: text('scope_type').$type<MemoryCanvasScopeType>().notNull(),
 		scopeKey: text('scope_key').notNull(),
 		courseId: text('course_id').references(() => course.id, { onDelete: 'set null' }),
-		activityId: text('activity_id').references(() => interactiveLearning.id, { onDelete: 'set null' }),
+		activityId: text('activity_id').references(() => interactiveLearning.id, {
+			onDelete: 'set null'
+		}),
 		studentId: text('student_id').references(() => user.id, { onDelete: 'cascade' }),
 		visibility: text('visibility').$type<MemoryCanvasVisibility>().notNull(),
 		scopeBindings: text('scope_bindings', { mode: 'json' })

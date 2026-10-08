@@ -38,9 +38,13 @@
 
 <div class="flex h-[calc(100vh-16rem)] flex-col">
 	<!-- Header con selector de modelo -->
-	<div class="mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-4 dark:border-gray-700">
+	<div
+		class="mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-4 dark:border-gray-700"
+	>
 		<div class="flex items-center gap-3">
-			<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-400">
+			<div
+				class="bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-400 flex h-10 w-10 items-center justify-center rounded-lg"
+			>
 				<Bot class="h-5 w-5" />
 			</div>
 			<div>
@@ -60,11 +64,7 @@
 					size="md"
 				/>
 			</div>
-			<Button
-				color="alternative"
-				size="sm"
-				onclick={clearChat}
-			>
+			<Button color="alternative" size="sm" onclick={clearChat}>
 				<Trash2 class="mr-2 h-4 w-4" />
 				Limpiar
 			</Button>
@@ -80,7 +80,7 @@
 				</h3>
 				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
 					Configura los modelos de IA en la sección de
-					<a href="/admin/ai-models" class="text-primary-600 hover:underline dark:text-primary-400">
+					<a href="/admin/ai-models" class="text-primary-600 dark:text-primary-400 hover:underline">
 						Modelos IA
 					</a>
 				</p>
@@ -88,7 +88,9 @@
 		</div>
 	{:else if selectedModel}
 		<!-- Chat container usando ChatComponent -->
-		<div class="model-playground-chat flex-1 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+		<div
+			class="model-playground-chat flex-1 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
+		>
 			{#key chatKey}
 				<ChatComponent {apiEndpoint} />
 			{/key}

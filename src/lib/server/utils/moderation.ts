@@ -1,7 +1,6 @@
-import OpenAI from "openai";
-import type { ModerationCreateResponse } from "openai/resources/moderations.mjs";
-import { OPENAI_MODERATION_API_KEY } from "$env/static/private";
-
+import OpenAI from 'openai';
+import type { ModerationCreateResponse } from 'openai/resources/moderations.mjs';
+import { OPENAI_MODERATION_API_KEY } from '$env/static/private';
 
 // export interface ModerationResult {
 //     flagged: boolean;
@@ -32,22 +31,22 @@ import { OPENAI_MODERATION_API_KEY } from "$env/static/private";
 // }
 
 export async function moderatePrompt(prompt: string): Promise<ModerationCreateResponse> {
-    if (!OPENAI_MODERATION_API_KEY) {
-        throw new Error("No se encontró la API key en las variables de entorno.");
-    }
+	if (!OPENAI_MODERATION_API_KEY) {
+		throw new Error('No se encontró la API key en las variables de entorno.');
+	}
 
-    const openai = new OpenAI({ apiKey: OPENAI_MODERATION_API_KEY });
-    const moderation = await openai.moderations.create({
-        model: "omni-moderation-latest",
-        input: prompt,
-    }); 
+	const openai = new OpenAI({ apiKey: OPENAI_MODERATION_API_KEY });
+	const moderation = await openai.moderations.create({
+		model: 'omni-moderation-latest',
+		input: prompt
+	});
 
-    return moderation;
+	return moderation;
 }
 
 export async function isPromptSafe(prompt: string): Promise<boolean> {
-    const moderation = await moderatePrompt(prompt);
-    const results = moderation.results[0];
+	const moderation = await moderatePrompt(prompt);
+	const results = moderation.results[0];
 
-    return !results.flagged;
+	return !results.flagged;
 }

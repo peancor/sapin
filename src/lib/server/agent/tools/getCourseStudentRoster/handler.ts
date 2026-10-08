@@ -41,7 +41,8 @@ export async function getCourseStudentRoster(
 	} catch (error) {
 		return {
 			success: false,
-			errorMessage: error instanceof Error ? error.message : 'Error al obtener la lista de estudiantes',
+			errorMessage:
+				error instanceof Error ? error.message : 'Error al obtener la lista de estudiantes',
 			durationMs: Date.now() - start
 		};
 	}

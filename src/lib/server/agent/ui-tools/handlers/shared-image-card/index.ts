@@ -30,7 +30,9 @@ export const sharedImageCardHandler: UIRendererHandler = {
 		}
 
 		const title =
-			typeof input.title === 'string' && input.title.trim().length > 0 ? input.title.trim() : undefined;
+			typeof input.title === 'string' && input.title.trim().length > 0
+				? input.title.trim()
+				: undefined;
 		const caption =
 			typeof input.caption === 'string' && input.caption.trim().length > 0
 				? input.caption.trim()

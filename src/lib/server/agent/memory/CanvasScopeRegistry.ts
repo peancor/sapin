@@ -24,7 +24,9 @@ function buildScopeBindings(
 	entries: Array<[string, string | null | undefined]>
 ): Record<string, string> {
 	return Object.fromEntries(
-		entries.filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0)
+		entries.filter(
+			(entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0
+		)
 	);
 }
 
@@ -233,7 +235,10 @@ for (const profile of CANVAS_SCOPE_PROFILES) {
 	PROFILE_BY_TOOL_NAME.set(profile.updateToolName, profile);
 }
 
-const INTERNAL_VISIBILITIES = new Set<MemoryCanvasVisibility>(['course_internal', 'system_internal']);
+const INTERNAL_VISIBILITIES = new Set<MemoryCanvasVisibility>([
+	'course_internal',
+	'system_internal'
+]);
 
 export function getAllCanvasScopeProfiles(): CanvasScopeProfile[] {
 	return [...CANVAS_SCOPE_PROFILES];
@@ -244,18 +249,22 @@ export function getCanvasScopeProfileByToolName(toolName: string): CanvasScopePr
 }
 
 export function getCanvasToolNamePairs(): Array<readonly [string, string]> {
-	return CANVAS_SCOPE_PROFILES.map((profile) => [profile.readToolName, profile.updateToolName] as const);
+	return CANVAS_SCOPE_PROFILES.map(
+		(profile) => [profile.readToolName, profile.updateToolName] as const
+	);
 }
 
 export function getAllMemoryToolNames(): string[] {
 	return CANVAS_SCOPE_PROFILES.flatMap((profile) => [profile.readToolName, profile.updateToolName]);
 }
 
-export function getFinalizationGuardedUpdateToolNames(enabledToolNames: Iterable<string>): string[] {
+export function getFinalizationGuardedUpdateToolNames(
+	enabledToolNames: Iterable<string>
+): string[] {
 	const enabled = new Set(enabledToolNames);
-	return CANVAS_SCOPE_PROFILES
-		.filter((profile) => profile.requiresFinalizationGuard && enabled.has(profile.updateToolName))
-		.map((profile) => profile.updateToolName);
+	return CANVAS_SCOPE_PROFILES.filter(
+		(profile) => profile.requiresFinalizationGuard && enabled.has(profile.updateToolName)
+	).map((profile) => profile.updateToolName);
 }
 
 export function isCrossDomainAgentChatMemoryTool(toolName: string): boolean {

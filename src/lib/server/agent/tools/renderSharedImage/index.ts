@@ -6,4 +6,3 @@ export const renderSharedImagePackage: BuiltinToolPackage = {
 };
 
 export { renderSharedImageManifest } from './manifest';
-

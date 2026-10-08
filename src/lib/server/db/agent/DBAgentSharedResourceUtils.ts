@@ -10,8 +10,7 @@ export interface SharedImageResource {
 }
 
 export type SharedImageResourceResolution =
-	| { ok: true; resource: SharedImageResource }
-	| { ok: false; error: string };
+	{ ok: true; resource: SharedImageResource } | { ok: false; error: string };
 
 type SharedImageCandidate = typeof schema.interactiveLearningFile.$inferSelect;
 

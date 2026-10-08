@@ -1,6 +1,9 @@
 import type { AgentContext, ToolResult } from '$lib/types/agent';
 import type { MemoryCanvasReadInput } from '$lib/types/agentMemory';
-import { AgentMemoryService, STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME } from '$lib/server/agent/memory';
+import {
+	AgentMemoryService,
+	STUDENT_ACTIVITY_CANVAS_READ_TOOL_NAME
+} from '$lib/server/agent/memory';
 
 export async function studentActivityCanvasRead(
 	params: MemoryCanvasReadInput,

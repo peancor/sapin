@@ -1,4 +1,8 @@
-import type { AgentDisplayMessage, AgentStreamPart, ToolDefinitionResolved } from '$lib/types/agent';
+import type {
+	AgentDisplayMessage,
+	AgentStreamPart,
+	ToolDefinitionResolved
+} from '$lib/types/agent';
 
 export type InsightsAgentScopeMode = 'cohort' | 'students' | 'sessions';
 

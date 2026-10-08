@@ -1,5 +1,17 @@
 <script lang="ts">
-	import { Alert, Badge, Button, Modal, Spinner, Table, TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell } from 'flowbite-svelte';
+	import {
+		Alert,
+		Badge,
+		Button,
+		Modal,
+		Spinner,
+		Table,
+		TableBody,
+		TableBodyCell,
+		TableBodyRow,
+		TableHead,
+		TableHeadCell
+	} from 'flowbite-svelte';
 	import { ShieldAlert, Play, Eye, CircleCheck, CircleX, Info } from 'lucide-svelte';
 
 	// --- tipos ---
@@ -221,11 +233,15 @@
 		}
 		if (id === 'fix-student-roles') return `${d.users?.length ?? 0} usuario(s) sin rol de sistema`;
 		if (id === 'cleanup-expired-sessions') return `${d.count ?? 0} sesión(es) expirada(s)`;
-		if (id === 'deactivate-expired-roles') return `${d.assignments?.length ?? 0} asignación(es) expirada(s)`;
-		if (id === 'orphan-file-detection') return `${d.files?.length ?? 0} archivo(s) huérfano(s) — ${d.totalSizeKb ?? 0} KB`;
-		if (id === 'rebuild-ai-stats') return `${d.daysToRebuild ?? 0} combinación(es) día-modelo a reconstruir`;
+		if (id === 'deactivate-expired-roles')
+			return `${d.assignments?.length ?? 0} asignación(es) expirada(s)`;
+		if (id === 'orphan-file-detection')
+			return `${d.files?.length ?? 0} archivo(s) huérfano(s) — ${d.totalSizeKb ?? 0} KB`;
+		if (id === 'rebuild-ai-stats')
+			return `${d.daysToRebuild ?? 0} combinación(es) día-modelo a reconstruir`;
 		if (id === 'rebuild-analytics-stats') return `${d.daysToRebuild ?? 0} día(s) a reconstruir`;
-		if (id === 'rebuild-course-progress') return `${d.pairsToRebuild ?? 0} par(es) usuario-curso a reconstruir`;
+		if (id === 'rebuild-course-progress')
+			return `${d.pairsToRebuild ?? 0} par(es) usuario-curso a reconstruir`;
 		return null;
 	}
 
@@ -265,7 +281,9 @@
 			{@const state = states[script.id]}
 			{@const badge = riskBadge[script.risk]}
 
-			<div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+			<div
+				class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+			>
 				<!-- cabecera -->
 				<div class="mb-4 flex flex-wrap items-start justify-between gap-3">
 					<div>
@@ -332,7 +350,9 @@
 
 					<!-- tabla detallada solo para scripts con listas de entidades -->
 					{#if script.id === 'fix-student-roles' && pd.users && pd.users.length > 0}
-						<div class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+						<div
+							class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700"
+						>
 							<Table hoverable>
 								<TableHead>
 									<TableHeadCell>Usuario</TableHeadCell>
@@ -351,7 +371,9 @@
 					{/if}
 
 					{#if script.id === 'deactivate-expired-roles' && pd.assignments && pd.assignments.length > 0}
-						<div class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+						<div
+							class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700"
+						>
 							<Table hoverable>
 								<TableHead>
 									<TableHeadCell>Usuario</TableHeadCell>
@@ -372,7 +394,9 @@
 					{/if}
 
 					{#if script.id === 'orphan-file-detection' && pd.files && pd.files.length > 0}
-						<div class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+						<div
+							class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700"
+						>
 							<Table hoverable>
 								<TableHead>
 									<TableHeadCell>Nombre</TableHeadCell>
@@ -394,40 +418,60 @@
 
 					{#if script.id === 'sync-builtin-agent-tools' && pd.domains}
 						<div class="mb-4 grid gap-3 md:grid-cols-5">
-							<div class="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30">
-								<p class="text-xs font-medium uppercase tracking-wide text-green-700 dark:text-green-300">
+							<div
+								class="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30"
+							>
+								<p
+									class="text-xs font-medium tracking-wide text-green-700 uppercase dark:text-green-300"
+								>
 									A crear
 								</p>
 								<p class="mt-1 text-2xl font-semibold text-green-800 dark:text-green-200">
 									{pd.created ?? 0}
 								</p>
 							</div>
-							<div class="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/30">
-								<p class="text-xs font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300">
+							<div
+								class="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/30"
+							>
+								<p
+									class="text-xs font-medium tracking-wide text-blue-700 uppercase dark:text-blue-300"
+								>
 									A actualizar
 								</p>
 								<p class="mt-1 text-2xl font-semibold text-blue-800 dark:text-blue-200">
 									{pd.updated ?? 0}
 								</p>
 							</div>
-							<div class="rounded-lg border border-rose-200 bg-rose-50 p-3 dark:border-rose-800 dark:bg-rose-950/30">
-								<p class="text-xs font-medium uppercase tracking-wide text-rose-700 dark:text-rose-300">
+							<div
+								class="rounded-lg border border-rose-200 bg-rose-50 p-3 dark:border-rose-800 dark:bg-rose-950/30"
+							>
+								<p
+									class="text-xs font-medium tracking-wide text-rose-700 uppercase dark:text-rose-300"
+								>
 									A retirar
 								</p>
 								<p class="mt-1 text-2xl font-semibold text-rose-800 dark:text-rose-200">
 									{pd.removed ?? 0}
 								</p>
 							</div>
-							<div class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
-								<p class="text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-300">
+							<div
+								class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30"
+							>
+								<p
+									class="text-xs font-medium tracking-wide text-amber-700 uppercase dark:text-amber-300"
+								>
 									Conflictos
 								</p>
 								<p class="mt-1 text-2xl font-semibold text-amber-800 dark:text-amber-200">
 									{pd.conflicts ?? 0}
 								</p>
 							</div>
-							<div class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/60">
-								<p class="text-xs font-medium uppercase tracking-wide text-gray-700 dark:text-gray-300">
+							<div
+								class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/60"
+							>
+								<p
+									class="text-xs font-medium tracking-wide text-gray-700 uppercase dark:text-gray-300"
+								>
 									Sin cambios
 								</p>
 								<p class="mt-1 text-2xl font-semibold text-gray-800 dark:text-gray-200">
@@ -454,7 +498,9 @@
 						</div>
 
 						{#if pd.tools && pd.tools.length > 0}
-							<div class="max-h-80 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+							<div
+								class="max-h-80 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700"
+							>
 								<Table hoverable>
 									<TableHead>
 										<TableHeadCell>Herramienta</TableHeadCell>
@@ -467,15 +513,15 @@
 												<TableBodyCell class="font-mono text-xs">{tool.name}</TableBodyCell>
 												<TableBodyCell>{tool.usageDomain}</TableBodyCell>
 												<TableBodyCell>
-												{#if tool.action === 'create'}
-													<Badge color="green">Crear</Badge>
-												{:else if tool.action === 'update'}
-													<Badge color="blue">Actualizar</Badge>
-												{:else if tool.action === 'remove'}
-													<Badge color="red">Retirar</Badge>
-												{:else if tool.action === 'conflict'}
-													<Badge color="yellow">Conflicto</Badge>
-												{:else}
+													{#if tool.action === 'create'}
+														<Badge color="green">Crear</Badge>
+													{:else if tool.action === 'update'}
+														<Badge color="blue">Actualizar</Badge>
+													{:else if tool.action === 'remove'}
+														<Badge color="red">Retirar</Badge>
+													{:else if tool.action === 'conflict'}
+														<Badge color="yellow">Conflicto</Badge>
+													{:else}
 														<Badge color="gray">Sin cambios</Badge>
 													{/if}
 												</TableBodyCell>
@@ -498,7 +544,8 @@
 		<ShieldAlert class="mx-auto mb-4 h-12 w-12 text-yellow-400" />
 		<h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">¿Confirmar ejecución?</h3>
 		<p class="mb-6 text-sm text-gray-500 dark:text-gray-400">
-			Esta acción modificará datos en el sistema. Asegúrate de haber revisado la vista previa antes de continuar.
+			Esta acción modificará datos en el sistema. Asegúrate de haber revisado la vista previa antes
+			de continuar.
 		</p>
 		<div class="flex justify-center gap-4">
 			<Button color="alternative" onclick={() => (confirmModalOpen = false)}>Cancelar</Button>

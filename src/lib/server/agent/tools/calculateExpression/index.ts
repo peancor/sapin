@@ -9,4 +9,3 @@ export const calculateExpressionPackage: BuiltinToolPackage = {
 
 export { calculateExpression } from './handler';
 export { calculateExpressionManifest } from './manifest';
-

@@ -188,7 +188,9 @@
 		class="border-b border-gray-100 bg-linear-to-r from-indigo-50 to-purple-50 px-6 py-4 dark:border-gray-700 dark:from-gray-800 dark:to-gray-800"
 	>
 		<div class="flex items-center gap-3">
-			<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+			<div
+				class="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30"
+			>
 				<Paperclip class="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
 			</div>
 			<div>
@@ -375,7 +377,7 @@
 </div>
 
 {#if showToast}
-	<div class="fixed bottom-4 right-4 z-50">
+	<div class="fixed right-4 bottom-4 z-50">
 		<Toast color={toastType === 'success' ? 'green' : 'red'}>
 			{toastMessage}
 		</Toast>

@@ -17,7 +17,11 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 			interactiveLearningId: params.ilid
 		});
 
-		return json({ sessionId: session.id, currentBlockId: session.currentBlockId, status: session.status });
+		return json({
+			sessionId: session.id,
+			currentBlockId: session.currentBlockId,
+			status: session.status
+		});
 	} catch (error) {
 		if (error instanceof LessonServiceError) {
 			return json({ error: error.message }, { status: error.status });

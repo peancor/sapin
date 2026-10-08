@@ -9,11 +9,7 @@ export type InsightTemplateId =
 	| 'next_edition_adjustments'
 	| 'compare_groups';
 
-export type InsightTemplateFamily =
-	| 'understand'
-	| 'improve'
-	| 'compare'
-	| 'follow_up';
+export type InsightTemplateFamily = 'understand' | 'improve' | 'compare' | 'follow_up';
 
 type TemplateScopeMode = Exclude<InsightsAgentRunScope['mode'], 'sessions'>;
 type DatePreset = 'last_14_days' | 'none';
@@ -70,7 +66,8 @@ export interface InsightPromptContext {
 
 function describeDateRange(scope: InsightsAgentRunScope): string {
 	if (!scope.dateFrom && !scope.dateTo) return 'Sin filtro temporal.';
-	if (scope.dateFrom && scope.dateTo) return `Periodo analizado: del ${scope.dateFrom} al ${scope.dateTo}.`;
+	if (scope.dateFrom && scope.dateTo)
+		return `Periodo analizado: del ${scope.dateFrom} al ${scope.dateTo}.`;
 	if (scope.dateFrom) return `Periodo analizado: desde ${scope.dateFrom}.`;
 	return `Periodo analizado: hasta ${scope.dateTo}.`;
 }
@@ -97,7 +94,8 @@ function comparisonSentence(context: InsightPromptContext): string {
 	if (groupACount === 0) return 'No hay grupo A seleccionado.';
 
 	const labelA = context.groupALabel?.trim() || 'grupo A';
-	const labelB = context.groupBLabel?.trim() || (groupBCount > 0 ? 'grupo B' : 'resto de la cohorte');
+	const labelB =
+		context.groupBLabel?.trim() || (groupBCount > 0 ? 'grupo B' : 'resto de la cohorte');
 	return `Compara ${labelA} (${groupACount} estudiantes) con ${labelB}${groupBCount > 0 ? ` (${groupBCount} estudiantes)` : ''}.`;
 }
 
@@ -223,7 +221,8 @@ export const insightTemplates: InsightTemplateDefinition[] = [
 		resultSummary: 'Sintesis de evidencia, plan de apoyo y borradores seguros.',
 		estimatedTime: '4-6 min',
 		caution: 'Todo sale como borrador revisable; nada se envia automaticamente.',
-		defaultObjective: 'Quiero preparar una intervencion cuidadosa y basada en evidencia para este estudiante.',
+		defaultObjective:
+			'Quiero preparar una intervencion cuidadosa y basada en evidencia para este estudiante.',
 		requiresStudent: true,
 		supportsDateRange: false,
 		defaultScope: {
@@ -279,11 +278,13 @@ export const insightTemplates: InsightTemplateDefinition[] = [
 		id: 'friction_points',
 		family: 'understand',
 		title: 'Detectar puntos de friccion',
-		description: 'Detecta donde se atasca el alumnado y que partes de la actividad generan mas dificultad.',
+		description:
+			'Detecta donde se atasca el alumnado y que partes de la actividad generan mas dificultad.',
 		resultSummary: 'Bloqueos, senales de dificultad y prioridades de revision.',
 		estimatedTime: '3-5 min',
 		caution: 'Distingue entre friccion observada y la interpretacion pedagogica posterior.',
-		defaultObjective: 'Quiero identificar donde aparece mas friccion para decidir que revisar primero.',
+		defaultObjective:
+			'Quiero identificar donde aparece mas friccion para decidir que revisar primero.',
 		requiresStudent: false,
 		supportsDateRange: true,
 		defaultScope: {
@@ -330,11 +331,14 @@ export const insightTemplates: InsightTemplateDefinition[] = [
 		id: 'redesign_summary',
 		family: 'improve',
 		title: 'Resumen para rediseño docente',
-		description: 'Convierte la evidencia en una lectura util para redisenar la actividad con criterio.',
+		description:
+			'Convierte la evidencia en una lectura util para redisenar la actividad con criterio.',
 		resultSummary: 'Que funciona, que no y que cambios tendrian mas impacto.',
 		estimatedTime: '4-6 min',
-		caution: 'Usa la evidencia como base, pero las decisiones finales deben considerar contexto y objetivos.',
-		defaultObjective: 'Quiero preparar un rediseño informado de la actividad para la siguiente iteracion.',
+		caution:
+			'Usa la evidencia como base, pero las decisiones finales deben considerar contexto y objetivos.',
+		defaultObjective:
+			'Quiero preparar un rediseño informado de la actividad para la siguiente iteracion.',
 		requiresStudent: false,
 		supportsDateRange: true,
 		defaultScope: {
@@ -347,7 +351,8 @@ export const insightTemplates: InsightTemplateDefinition[] = [
 			'get_learning_progress_timeline',
 			'get_activity_tool_usage_summary'
 		],
-		emptyStateHint: 'Use esta plantilla cuando quiera transformar el analisis en decisiones de rediseño.',
+		emptyStateHint:
+			'Use esta plantilla cuando quiera transformar el analisis en decisiones de rediseño.',
 		buildRunTitle: () => 'Resumen para rediseño docente',
 		promptFactory: ({ activityName, objective, scope }) =>
 			[
@@ -356,9 +361,7 @@ export const insightTemplates: InsightTemplateDefinition[] = [
 				describeDateRange(scope),
 				describeSearch(scope),
 				'Necesito entender que partes estan funcionando, cuales generan problemas y que ajustes estructurales tendrian mayor impacto.',
-				sharedOutputContract(
-					'Termina con "Cambios de rediseño sugeridos" y justifica cada cambio.'
-				)
+				sharedOutputContract('Termina con "Cambios de rediseño sugeridos" y justifica cada cambio.')
 			]
 				.filter(Boolean)
 				.join(' '),
@@ -385,11 +388,13 @@ export const insightTemplates: InsightTemplateDefinition[] = [
 		id: 'next_edition_adjustments',
 		family: 'improve',
 		title: 'Preparar ajustes para la siguiente edicion',
-		description: 'Transforma hallazgos en cambios concretos de consigna, secuencia, apoyo y evaluacion.',
+		description:
+			'Transforma hallazgos en cambios concretos de consigna, secuencia, apoyo y evaluacion.',
 		resultSummary: 'Checklist de cambios y preparacion para la siguiente edicion.',
 		estimatedTime: '4-6 min',
 		caution: 'Piensa en cambios asumibles; evita propuestas demasiado amplias o abstractas.',
-		defaultObjective: 'Quiero salir con ajustes concretos para preparar la siguiente edicion de esta actividad.',
+		defaultObjective:
+			'Quiero salir con ajustes concretos para preparar la siguiente edicion de esta actividad.',
 		requiresStudent: false,
 		supportsDateRange: true,
 		defaultScope: {
@@ -398,7 +403,8 @@ export const insightTemplates: InsightTemplateDefinition[] = [
 			datePreset: 'none'
 		},
 		recommendedTools: ['analyze_activity_difficulty', 'get_activity_tool_usage_summary'],
-		emptyStateHint: 'Ideal cuando ya sabe que la actividad se repetira y quiere una lista operativa.',
+		emptyStateHint:
+			'Ideal cuando ya sabe que la actividad se repetira y quiere una lista operativa.',
 		buildRunTitle: () => 'Ajustes para la siguiente edicion',
 		promptFactory: ({ activityName, objective, scope }) =>
 			[
@@ -436,11 +442,13 @@ export const insightTemplates: InsightTemplateDefinition[] = [
 		id: 'compare_groups',
 		family: 'compare',
 		title: 'Comparar dos grupos',
-		description: 'Contrasta un grupo seleccionado frente al resto de la cohorte para detectar diferencias relevantes.',
+		description:
+			'Contrasta un grupo seleccionado frente al resto de la cohorte para detectar diferencias relevantes.',
 		resultSummary: 'Diferencias observadas, interpretacion prudente y acciones docentes derivadas.',
 		estimatedTime: '4-6 min',
 		caution: 'No conviertas diferencias descriptivas en causalidad sin evidencia adicional.',
-		defaultObjective: 'Quiero comparar un grupo concreto frente al resto de la cohorte para orientar decisiones docentes.',
+		defaultObjective:
+			'Quiero comparar un grupo concreto frente al resto de la cohorte para orientar decisiones docentes.',
 		requiresStudent: false,
 		supportsDateRange: true,
 		defaultScope: {
@@ -462,9 +470,7 @@ export const insightTemplates: InsightTemplateDefinition[] = [
 				describeDateRange(scope),
 				describeSearch(scope),
 				'Necesito diferencias observadas, una interpretacion prudente y acciones docentes derivadas sin sobregeneralizar.',
-				sharedOutputContract(
-					'Termina con "Diferencias clave" y "Acciones docentes sugeridas".'
-				)
+				sharedOutputContract('Termina con "Diferencias clave" y "Acciones docentes sugeridas".')
 			]
 				.filter(Boolean)
 				.join(' '),

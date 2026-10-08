@@ -68,7 +68,8 @@
 
 	const config = createResolvedConfig();
 	const initialPayload = (() => parseInitialWorkingMemoryPayload(initialUserResponse))();
-	const activeModes = config.mode === 'both' ? (['forward', 'backward'] as const) : ([config.mode] as const);
+	const activeModes =
+		config.mode === 'both' ? (['forward', 'backward'] as const) : ([config.mode] as const);
 
 	let phase = $state<'intro' | 'practice' | 'practice-complete' | 'main' | 'results'>(
 		initialPayload ? 'results' : 'intro'
@@ -107,14 +108,18 @@
 			})
 	);
 	const currentModeLabel = $derived(
-		currentTrial?.mode === 'backward' ? 'Inverso' : currentTrial?.mode === 'forward' ? 'Directo' : 'Preparado'
+		currentTrial?.mode === 'backward'
+			? 'Inverso'
+			: currentTrial?.mode === 'forward'
+				? 'Directo'
+				: 'Preparado'
 	);
 
 	function setImmersiveState() {
 		onImmersiveStateChange?.({
-			canCloseSafely:
-				phase === 'intro' || phase === 'results' || phase === 'practice-complete',
-			closePrompt: 'Si sales ahora se perdera la sesion de memoria de trabajo en curso. ¿Quieres cerrar?'
+			canCloseSafely: phase === 'intro' || phase === 'results' || phase === 'practice-complete',
+			closePrompt:
+				'Si sales ahora se perdera la sesion de memoria de trabajo en curso. ¿Quieres cerrar?'
 		});
 	}
 
@@ -384,25 +389,29 @@
 
 <svelte:document onkeydown={handleDocumentKeydown} />
 
-<div class="min-h-full rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_30%),linear-gradient(180deg,rgba(8,22,45,0.97),rgba(4,8,18,0.99))] text-white shadow-2xl">
+<div
+	class="min-h-full rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_30%),linear-gradient(180deg,rgba(8,22,45,0.97),rgba(4,8,18,0.99))] text-white shadow-2xl"
+>
 	{#if phase === 'intro'}
 		<div class="grid min-h-[70vh] gap-8 px-6 py-8 lg:grid-cols-[1.08fr_0.92fr] lg:px-10 lg:py-10">
 			<div class="flex flex-col justify-center">
-				<p class="text-sm font-semibold uppercase tracking-[0.28em] text-sky-300">Memoria de trabajo</p>
+				<p class="text-sm font-semibold tracking-[0.28em] text-sky-300 uppercase">
+					Memoria de trabajo
+				</p>
 				<h3 class="mt-3 text-4xl font-black tracking-tight sm:text-5xl">{config.title}</h3>
 				<p class="mt-4 max-w-2xl text-lg leading-8 text-slate-200">{config.instructions}</p>
 
 				<div class="mt-8 grid gap-3 sm:grid-cols-3">
 					<div class="rounded-3xl border border-white/10 bg-white/6 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Dificultad</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-sky-200 uppercase">Dificultad</p>
 						<p class="mt-2 text-3xl font-black">{formatDifficultyLabel(config.difficulty)}</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-white/6 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Inicio</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-sky-200 uppercase">Inicio</p>
 						<p class="mt-2 text-3xl font-black">{config.startLength}</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-white/6 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Maximo</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-sky-200 uppercase">Maximo</p>
 						<p class="mt-2 text-3xl font-black">{config.maxLength}</p>
 					</div>
 				</div>
@@ -419,7 +428,7 @@
 			</div>
 
 			<div class="rounded-[2rem] border border-white/10 bg-white/6 p-6 shadow-xl">
-				<p class="text-sm font-semibold uppercase tracking-[0.22em] text-sky-200">Como funciona</p>
+				<p class="text-sm font-semibold tracking-[0.22em] text-sky-200 uppercase">Como funciona</p>
 				<div class="mt-6 space-y-4">
 					<div class="rounded-3xl border border-white/10 bg-slate-950/35 p-5">
 						<h4 class="text-xl font-semibold">Presentacion secuencial</h4>
@@ -442,8 +451,12 @@
 		</div>
 	{:else if phase === 'practice-complete'}
 		<div class="flex min-h-[70vh] items-center justify-center px-6 py-8">
-			<div class="max-w-2xl rounded-[2rem] border border-white/10 bg-white/6 p-8 text-center shadow-xl">
-				<p class="text-sm font-semibold uppercase tracking-[0.28em] text-sky-200">Practica completada</p>
+			<div
+				class="max-w-2xl rounded-[2rem] border border-white/10 bg-white/6 p-8 text-center shadow-xl"
+			>
+				<p class="text-sm font-semibold tracking-[0.28em] text-sky-200 uppercase">
+					Practica completada
+				</p>
 				<h3 class="mt-4 text-4xl font-black">Empieza la prueba principal</h3>
 				<p class="mt-4 text-lg leading-8 text-slate-200">
 					Ahora se calculara tu span maximo y la precision por longitud.
@@ -461,19 +474,19 @@
 		<div class="flex min-h-[76vh] flex-col px-4 py-4 sm:px-6 sm:py-6">
 			<div class="grid gap-3 sm:grid-cols-4">
 				<div class="rounded-3xl border border-white/10 bg-white/6 px-4 py-3">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Fase</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-sky-200 uppercase">Fase</p>
 					<p class="mt-2 text-2xl font-black">{phase === 'practice' ? 'Practica' : 'Principal'}</p>
 				</div>
 				<div class="rounded-3xl border border-white/10 bg-white/6 px-4 py-3">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Modo</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-sky-200 uppercase">Modo</p>
 					<p class="mt-2 text-2xl font-black">{currentModeLabel}</p>
 				</div>
 				<div class="rounded-3xl border border-white/10 bg-white/6 px-4 py-3">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Longitud</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-sky-200 uppercase">Longitud</p>
 					<p class="mt-2 text-2xl font-black">{currentTrial?.length ?? '-'}</p>
 				</div>
 				<div class="rounded-3xl border border-white/10 bg-white/6 px-4 py-3">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Intento</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-sky-200 uppercase">Intento</p>
 					<p class="mt-2 text-2xl font-black">
 						{phase === 'practice'
 							? `${practiceIndex + 1}/${config.practiceTrials.length}`
@@ -482,16 +495,22 @@
 				</div>
 			</div>
 
-			<div class="mt-4 flex min-h-0 flex-1 flex-col gap-6 rounded-[2rem] border border-white/10 bg-black/20 p-4 sm:p-6">
-				<div class="flex min-h-[34vh] items-center justify-center rounded-[1.8rem] border border-white/10 bg-slate-950/35 text-center">
+			<div
+				class="mt-4 flex min-h-0 flex-1 flex-col gap-6 rounded-[2rem] border border-white/10 bg-black/20 p-4 sm:p-6"
+			>
+				<div
+					class="flex min-h-[34vh] items-center justify-center rounded-[1.8rem] border border-white/10 bg-slate-950/35 text-center"
+				>
 					{#if stage === 'showing'}
 						<div>
-							<p class="text-xs font-semibold uppercase tracking-[0.28em] text-sky-200">Memoriza</p>
+							<p class="text-xs font-semibold tracking-[0.28em] text-sky-200 uppercase">Memoriza</p>
 							<div class="mt-4 text-7xl font-black sm:text-9xl">{displayedDigit ?? '•'}</div>
 						</div>
 					{:else if stage === 'input'}
 						<div class="w-full max-w-2xl px-4">
-							<p class="text-xs font-semibold uppercase tracking-[0.28em] text-sky-200">Respuesta</p>
+							<p class="text-xs font-semibold tracking-[0.28em] text-sky-200 uppercase">
+								Respuesta
+							</p>
 							<h3 class="mt-4 text-4xl font-black sm:text-6xl">
 								{inputDigits.length > 0 ? inputDigits.join(' ') : '____'}
 							</h3>
@@ -503,7 +522,7 @@
 						</div>
 					{:else}
 						<div class="px-4">
-							<p class="text-xs font-semibold uppercase tracking-[0.28em] text-sky-200">Feedback</p>
+							<p class="text-xs font-semibold tracking-[0.28em] text-sky-200 uppercase">Feedback</p>
 							<h3 class="mt-4 text-4xl font-black sm:text-6xl">
 								{lastResult?.outcome === 'correct' ? 'Correcto' : 'Intentalo de nuevo'}
 							</h3>
@@ -557,33 +576,42 @@
 	{:else}
 		<div class="grid min-h-[70vh] gap-6 px-6 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-10 lg:py-10">
 			<div class="rounded-[2rem] border border-white/10 bg-white/6 p-6 shadow-xl">
-				<p class="text-sm font-semibold uppercase tracking-[0.28em] text-sky-200">Resultados</p>
+				<p class="text-sm font-semibold tracking-[0.28em] text-sky-200 uppercase">Resultados</p>
 				<h3 class="mt-4 text-4xl font-black">{config.title}</h3>
 				<p class="mt-4 text-lg leading-8 text-slate-200">
-					Score {formatPercent(effectivePayload.score)} con span directo {effectivePayload.summary.maxForwardSpan} y span inverso {effectivePayload.summary.maxBackwardSpan}.
+					Score {formatPercent(effectivePayload.score)} con span directo {effectivePayload.summary
+						.maxForwardSpan} y span inverso {effectivePayload.summary.maxBackwardSpan}.
 				</p>
 
 				<div class="mt-8 grid gap-3 sm:grid-cols-2">
 					<div class="rounded-3xl border border-white/10 bg-slate-950/30 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Precision</p>
-						<p class="mt-2 text-3xl font-black">{formatPercent(effectivePayload.summary.accuracy)}</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-sky-200 uppercase">Precision</p>
+						<p class="mt-2 text-3xl font-black">
+							{formatPercent(effectivePayload.summary.accuracy)}
+						</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-slate-950/30 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Trials</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-sky-200 uppercase">Trials</p>
 						<p class="mt-2 text-3xl font-black">{effectivePayload.summary.totalTrials}</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-slate-950/30 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Span directo</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-sky-200 uppercase">
+							Span directo
+						</p>
 						<p class="mt-2 text-3xl font-black">{effectivePayload.summary.maxForwardSpan}</p>
 					</div>
 					<div class="rounded-3xl border border-white/10 bg-slate-950/30 p-4">
-						<p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Span inverso</p>
+						<p class="text-xs font-semibold tracking-[0.18em] text-sky-200 uppercase">
+							Span inverso
+						</p>
 						<p class="mt-2 text-3xl font-black">{effectivePayload.summary.maxBackwardSpan}</p>
 					</div>
 				</div>
 
 				{#if submitError}
-					<div class="mt-6 rounded-2xl border border-rose-300/30 bg-rose-500/12 p-4 text-sm text-rose-100">
+					<div
+						class="mt-6 rounded-2xl border border-rose-300/30 bg-rose-500/12 p-4 text-sm text-rose-100"
+					>
 						<p>{submitError}</p>
 						<button
 							type="button"
@@ -597,7 +625,7 @@
 			</div>
 
 			<div class="rounded-[2rem] border border-white/10 bg-white/6 p-6 shadow-xl">
-				<p class="text-sm font-semibold uppercase tracking-[0.22em] text-sky-200">Resumen</p>
+				<p class="text-sm font-semibold tracking-[0.22em] text-sky-200 uppercase">Resumen</p>
 				<div class="mt-6 space-y-4">
 					<div class="rounded-3xl border border-white/10 bg-slate-950/35 p-5">
 						<h4 class="text-xl font-semibold">Modos completados</h4>

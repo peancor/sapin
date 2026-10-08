@@ -219,7 +219,7 @@
 			id={handle.id}
 			type="source"
 			position={Position.Bottom}
- 			class={`!h-4.5 !w-4.5 !rounded-full !border-[3px] ${cfg.handle} ${cfg.handleRing} shadow-[0_4px_14px_-5px_rgba(15,37,55,0.35)] !ring-2 transition-transform hover:scale-125`}
+			class={`!h-4.5 !w-4.5 !rounded-full !border-[3px] ${cfg.handle} ${cfg.handleRing} shadow-[0_4px_14px_-5px_rgba(15,37,55,0.35)] !ring-2 transition-transform hover:scale-125`}
 			style={`left:${handleOffset(index, data.outgoingHandles.length)};bottom:0;transform:translate(-50%,50%);`}
 		/>
 	{/each}

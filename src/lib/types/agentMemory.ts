@@ -1,10 +1,7 @@
 import type { AgentContext } from '$lib/types/agent';
 
 export type MemoryCanvasScopeType =
-	| 'student_activity'
-	| 'student_course'
-	| 'course_shared'
-	| 'system_global';
+	'student_activity' | 'student_course' | 'course_shared' | 'system_global';
 
 export type MemoryCanvasVisibility = 'student_private' | 'course_internal' | 'system_internal';
 

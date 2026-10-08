@@ -15,7 +15,9 @@ export const load = (async ({ parent, locals, url }) => {
 	const threads = await DBStaffAgentUtils.listThreadsForWorkspace(workspace.id);
 	const requestedThreadId = url.searchParams.get('thread');
 	const selectedThreadSummary =
-		(requestedThreadId ? threads.find((thread) => thread.id === requestedThreadId) : null) ?? threads[0] ?? null;
+		(requestedThreadId ? threads.find((thread) => thread.id === requestedThreadId) : null) ??
+		threads[0] ??
+		null;
 
 	const selectedThread = selectedThreadSummary
 		? {

@@ -157,14 +157,18 @@
 	<Button
 		pill
 		color="light"
-		class="!p-2.5 bg-transparent border-none hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300 relative"
+		class="relative border-none bg-transparent !p-2.5 transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-800"
 		onclick={toggleDropdown}
 	>
 		<Bell size={18} class="text-gray-600 dark:text-gray-300" />
 		{#if unreadCount > 0}
 			<span class="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center">
-				<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
-				<span class="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+				<span
+					class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"
+				></span>
+				<span
+					class="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white"
+				>
 					{unreadCount > 9 ? '9+' : unreadCount}
 				</span>
 			</span>

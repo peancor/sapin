@@ -53,8 +53,7 @@ export async function findStuckSessions(
 	} catch (error) {
 		return {
 			success: false,
-			errorMessage:
-				error instanceof Error ? error.message : 'Error al detectar sesiones atascadas',
+			errorMessage: error instanceof Error ? error.message : 'Error al detectar sesiones atascadas',
 			durationMs: Date.now() - start
 		};
 	}

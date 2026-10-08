@@ -82,7 +82,10 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 		'manageUsers'
 	);
 	if (!hasPermission) {
-		return json({ error: 'No tienes permisos para importar estudiantes en este curso' }, { status: 403 });
+		return json(
+			{ error: 'No tienes permisos para importar estudiantes en este curso' },
+			{ status: 403 }
+		);
 	}
 
 	try {
@@ -108,7 +111,8 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 			return json(
 				{
 					error: 'Empty CSV',
-					message: 'El archivo CSV está vacío. Por favor, proporciona un archivo con al menos una fila de datos.'
+					message:
+						'El archivo CSV está vacío. Por favor, proporciona un archivo con al menos una fila de datos.'
 				},
 				{ status: 400 }
 			);
@@ -214,4 +218,4 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 			{ status: 500 }
 		);
 	}
-}
+};

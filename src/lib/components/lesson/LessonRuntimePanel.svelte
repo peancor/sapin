@@ -115,7 +115,8 @@
 			: checkQuestions.length
 	);
 	const checkAnsweredCount = $derived.by(
-		() => checkQuestions.filter((question: LessonCheckQuestion) => questionHasAnswer(question)).length
+		() =>
+			checkQuestions.filter((question: LessonCheckQuestion) => questionHasAnswer(question)).length
 	);
 	const agentConfig = $derived.by(() =>
 		data.resolvedCurrentBlock.kind === 'agent' ? data.resolvedCurrentBlock.agentConfig : null
@@ -758,7 +759,9 @@
 					{#if resolvedCheckBlock.checkConfig.presentationMode === 'step_by_step' && !checkSubmitted}
 						{@const currentQuestion = checkQuestions[checkStepIndex]}
 						{#if currentQuestion}
-							<div class="flex items-center justify-between gap-3 text-sm text-gray-500 dark:text-gray-400">
+							<div
+								class="flex items-center justify-between gap-3 text-sm text-gray-500 dark:text-gray-400"
+							>
 								<span>Pregunta {checkStepIndex + 1} de {checkQuestions.length}</span>
 								<span>{checkAnsweredCount}/{checkQuestions.length} respondidas</span>
 							</div>
@@ -824,7 +827,9 @@
 								<span
 									class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
 								>
-									Correctas: {Number.isFinite(checkCorrectCount) ? checkCorrectCount : 0}/{checkTotalQuestions}
+									Correctas: {Number.isFinite(checkCorrectCount)
+										? checkCorrectCount
+										: 0}/{checkTotalQuestions}
 								</span>
 							</div>
 

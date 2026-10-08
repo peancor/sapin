@@ -6,40 +6,42 @@ import { eq } from 'drizzle-orm';
 import { ROLE_LEVELS } from '$lib/server/roles';
 
 export const load = (async ({ locals }) => {
-    const user = locals.user;
-    
-    // Cualquier usuario autenticado puede acceder a sus cursos como estudiante
-    if (!user || user.highestRoleLevel < ROLE_LEVELS.STUDENT) {
-        throw redirect(303, '/login');
-    }
+	const user = locals.user;
 
-    // Obtener cursos del usuario usando el nuevo sistema de roles por curso
-    const userCourses = await CourseRoleUtils.getUserCourses(user.id);
-    const studentCourses = userCourses.map(c => ({
-        id: c.courseId,
-        name: c.courseName,
-        description: c.courseDescription,
-        image: c.courseImage
-    }));
+	// Cualquier usuario autenticado puede acceder a sus cursos como estudiante
+	if (!user || user.highestRoleLevel < ROLE_LEVELS.STUDENT) {
+		throw redirect(303, '/login');
+	}
 
-    // For each course, get the number of activities
-    const coursesWithStats = await Promise.all(studentCourses.map(async (course) => {
-        const activities = await db
-            .select()
-            .from(interactiveLearning)
-            .innerJoin(
-                courseInteractiveLearning,
-                eq(courseInteractiveLearning.interactiveLearningId, interactiveLearning.id)
-            )
-            .where(eq(courseInteractiveLearning.courseId, course.id));
+	// Obtener cursos del usuario usando el nuevo sistema de roles por curso
+	const userCourses = await CourseRoleUtils.getUserCourses(user.id);
+	const studentCourses = userCourses.map((c) => ({
+		id: c.courseId,
+		name: c.courseName,
+		description: c.courseDescription,
+		image: c.courseImage
+	}));
 
-        return {
-            ...course,
-            activityCount: activities.length
-        };
-    }));
+	// For each course, get the number of activities
+	const coursesWithStats = await Promise.all(
+		studentCourses.map(async (course) => {
+			const activities = await db
+				.select()
+				.from(interactiveLearning)
+				.innerJoin(
+					courseInteractiveLearning,
+					eq(courseInteractiveLearning.interactiveLearningId, interactiveLearning.id)
+				)
+				.where(eq(courseInteractiveLearning.courseId, course.id));
 
-    return {
-        courses: coursesWithStats
-    };
+			return {
+				...course,
+				activityCount: activities.length
+			};
+		})
+	);
+
+	return {
+		courses: coursesWithStats
+	};
 }) satisfies PageServerLoad;

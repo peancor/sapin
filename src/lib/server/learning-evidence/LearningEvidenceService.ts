@@ -35,8 +35,13 @@ const INPUT_METRIC_NUMBER_KEYS = [
 ] as const;
 
 type EvidenceProvider = {
-	getActivityContext(activity: ActivityRecord, courseId: string | null): Promise<LearningEvidenceActivityContext>;
-	getTranscripts(query: LearningEvidenceTranscriptQuery): Promise<LearningEvidenceTranscriptSession[]>;
+	getActivityContext(
+		activity: ActivityRecord,
+		courseId: string | null
+	): Promise<LearningEvidenceActivityContext>;
+	getTranscripts(
+		query: LearningEvidenceTranscriptQuery
+	): Promise<LearningEvidenceTranscriptSession[]>;
 };
 
 function toIsoString(value: Date | string | number | null | undefined): string | null {
@@ -92,7 +97,9 @@ function readInputMetricNumber(
 	return parseFiniteNumber(metadata[key]) ?? 0;
 }
 
-function parseInputMetrics(value: string | null | undefined): LearningEvidenceInputMetrics | undefined {
+function parseInputMetrics(
+	value: string | null | undefined
+): LearningEvidenceInputMetrics | undefined {
 	const metadata = safeJsonParse(value);
 	const hasMetricNumbers = INPUT_METRIC_NUMBER_KEYS.some(
 		(key) => parseFiniteNumber(metadata[key]) !== null
@@ -101,7 +108,9 @@ function parseInputMetrics(value: string | null | undefined): LearningEvidenceIn
 	if (!hasMetricNumbers) return undefined;
 
 	const deviceInfo =
-		metadata.deviceInfo && typeof metadata.deviceInfo === 'object' && !Array.isArray(metadata.deviceInfo)
+		metadata.deviceInfo &&
+		typeof metadata.deviceInfo === 'object' &&
+		!Array.isArray(metadata.deviceInfo)
 			? (metadata.deviceInfo as Record<string, unknown>)
 			: {};
 
@@ -130,7 +139,10 @@ function safeUnknownJsonParse(value: string | null | undefined): unknown {
 	}
 }
 
-function buildDisplayText(parts: LearningEvidenceMessagePart[], fallback: string | null = null): string {
+function buildDisplayText(
+	parts: LearningEvidenceMessagePart[],
+	fallback: string | null = null
+): string {
 	const chunks: string[] = [];
 
 	for (const part of parts) {
@@ -153,7 +165,7 @@ function buildDisplayText(parts: LearningEvidenceMessagePart[], fallback: string
 					? part.result
 					: part.result
 						? JSON.stringify(part.result)
-						: part.errorMessage ?? '';
+						: (part.errorMessage ?? '');
 			chunks.push(
 				`[Tool result: ${part.toolDisplayName || part.toolName}]${summary ? ` ${summary}` : ''}`
 			);
@@ -194,7 +206,11 @@ function matchesSearch(session: LearningEvidenceTranscriptSession, search: strin
 	const needle = search.trim().toLowerCase();
 	if (!needle) return true;
 
-	const studentFields = [session.student.username, session.student.email, session.student.alias ?? ''];
+	const studentFields = [
+		session.student.username,
+		session.student.email,
+		session.student.alias ?? ''
+	];
 	if (studentFields.some((value) => value.toLowerCase().includes(needle))) return true;
 
 	return session.messages.some((message) => message.displayText.toLowerCase().includes(needle));
@@ -221,7 +237,8 @@ function filterSessionMessages(
 		messages: filteredMessages,
 		messageCount: filteredMessages.length,
 		learnerMessageCount: filteredMessages.filter((message) => message.role === 'user').length,
-		assistantMessageCount: filteredMessages.filter((message) => message.role === 'assistant').length,
+		assistantMessageCount: filteredMessages.filter((message) => message.role === 'assistant')
+			.length,
 		sessionUpdatedAt: latestMessage?.createdAt ?? session.sessionUpdatedAt
 	};
 }
@@ -248,7 +265,9 @@ class ChatEvidenceProvider implements EvidenceProvider {
 		};
 	}
 
-	async getTranscripts(query: LearningEvidenceTranscriptQuery): Promise<LearningEvidenceTranscriptSession[]> {
+	async getTranscripts(
+		query: LearningEvidenceTranscriptQuery
+	): Promise<LearningEvidenceTranscriptSession[]> {
 		const filterUserId = query.studentIds?.length === 1 ? query.studentIds[0] : undefined;
 		const filterOptions = {
 			userId: filterUserId,
@@ -349,8 +368,12 @@ class AgentEvidenceProvider implements EvidenceProvider {
 		};
 	}
 
-	async getTranscripts(query: LearningEvidenceTranscriptQuery): Promise<LearningEvidenceTranscriptSession[]> {
-		const conditions = [eq(schema.userInteractiveLearningChat.interactiveLearningChatId, query.activityId)];
+	async getTranscripts(
+		query: LearningEvidenceTranscriptQuery
+	): Promise<LearningEvidenceTranscriptSession[]> {
+		const conditions = [
+			eq(schema.userInteractiveLearningChat.interactiveLearningChatId, query.activityId)
+		];
 
 		if (query.studentIds && query.studentIds.length > 0) {
 			conditions.push(inArray(schema.userInteractiveLearningChat.userId, query.studentIds));
@@ -562,7 +585,8 @@ class AgentEvidenceProvider implements EvidenceProvider {
 			const toolCallCount = messages.reduce(
 				(sum, message) =>
 					sum +
-					message.parts.filter((part) => part.kind === 'tool-call' || part.kind === 'tool-result').length,
+					message.parts.filter((part) => part.kind === 'tool-call' || part.kind === 'tool-result')
+						.length,
 				0
 			);
 			const uiResponseCount = messages.reduce(
@@ -764,7 +788,8 @@ export class LearningEvidenceService {
 				toIsoString(progress?.lastInteractionAt),
 				completedAt
 			]);
-			const progressStatus = progress?.status ?? (sessions.length > 0 ? 'in_progress' : 'not_started');
+			const progressStatus =
+				progress?.status ?? (sessions.length > 0 ? 'in_progress' : 'not_started');
 
 			return {
 				...student,

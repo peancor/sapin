@@ -485,7 +485,7 @@
 					onpaste={handlePaste}
 					oncut={handleCut}
 					onselect={handleSelect}
-					class="scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent max-h-[120px] min-h-[40px] w-full resize-none overflow-y-auto bg-transparent px-3 py-2 focus:outline-none dark:text-gray-100 dark:placeholder-gray-400"
+					class="max-h-[120px] min-h-[40px] w-full resize-none scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent overflow-y-auto bg-transparent px-3 py-2 focus:outline-none dark:scrollbar-thumb-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
 					style="overflow-y: auto;"
 				></textarea>
 			</div>

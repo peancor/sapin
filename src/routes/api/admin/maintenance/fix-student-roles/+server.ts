@@ -13,7 +13,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const body = await request.json().catch(() => null);
 	const mode = body?.mode;
 	if (mode !== 'preview' && mode !== 'execute')
-		return json({ error: 'Parámetro "mode" inválido. Use "preview" o "execute".' }, { status: 400 });
+		return json(
+			{ error: 'Parámetro "mode" inválido. Use "preview" o "execute".' },
+			{ status: 400 }
+		);
 
 	// 1. Obtener distinct userIds enrolados como estudiantes en algún curso (activos)
 	const courseStudents = await db
@@ -36,10 +39,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const usersWithSufficientRole = await db
 		.selectDistinct({ userId: userRoleAssignment.userId })
 		.from(userRoleAssignment)
-		.innerJoin(
-			role,
-			and(eq(userRoleAssignment.roleId, role.id), eq(role.isActive, true))
-		)
+		.innerJoin(role, and(eq(userRoleAssignment.roleId, role.id), eq(role.isActive, true)))
 		.where(
 			and(
 				inArray(userRoleAssignment.userId, allCourseStudentIds),

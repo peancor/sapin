@@ -52,9 +52,16 @@
 	data-instance-id={instanceId}
 	data-resource-id={resourceId}
 >
-	<div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-700">
+	<div
+		class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-700"
+	>
 		<div class="flex min-w-0 items-center gap-2">
-			<svg class="h-4 w-4 shrink-0 text-sky-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+			<svg
+				class="h-4 w-4 shrink-0 text-sky-500"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+			>
 				<path
 					stroke-linecap="round"
 					stroke-linejoin="round"
@@ -62,7 +69,9 @@
 					d="M4 16l4.5-4.5a2 2 0 012.8 0L16 16m-1-1 1.5-1.5a2 2 0 012.8 0L20 14m-14 6h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
 				/>
 			</svg>
-			<span class="truncate text-sm font-semibold text-gray-900 dark:text-white">{displayTitle}</span>
+			<span class="truncate text-sm font-semibold text-gray-900 dark:text-white"
+				>{displayTitle}</span
+			>
 		</div>
 		<span
 			class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-sky-700 dark:bg-sky-900/50 dark:text-sky-300"
@@ -77,7 +86,9 @@
 				class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
 			>
 				No se pudo cargar la imagen.
-				<button type="button" onclick={openOriginalFile} class="ml-1 underline">Abrir archivo</button>
+				<button type="button" onclick={openOriginalFile} class="ml-1 underline"
+					>Abrir archivo</button
+				>
 			</div>
 		{:else}
 			<button
@@ -115,19 +126,20 @@
 			<div class="relative z-10 w-full">
 				<button
 					type="button"
-					class="absolute right-2 top-2 z-10 rounded-full bg-black/60 p-2 text-white hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-white"
+					class="absolute top-2 right-2 z-10 rounded-full bg-black/60 p-2 text-white hover:bg-black/80 focus:ring-2 focus:ring-white focus:outline-none"
 					onclick={closePreview}
 					aria-label="Cerrar vista ampliada"
 				>
 					<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M6 18L18 6M6 6l12 12"
+						/>
 					</svg>
 				</button>
-				<img
-					src={imageUrl}
-					alt={altText}
-					class="max-h-[90vh] w-full rounded-lg object-contain"
-				/>
+				<img src={imageUrl} alt={altText} class="max-h-[90vh] w-full rounded-lg object-contain" />
 				{#if caption?.trim()}
 					<p class="mt-2 text-center text-xs text-gray-200">{caption}</p>
 				{/if}

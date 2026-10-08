@@ -258,7 +258,7 @@ function createAttempt(input: {
 		lastActiveAt: new Date(input.lastActiveAt),
 		completedAt: input.reviewStatus === 'completed' ? new Date(input.lastActiveAt) : null,
 		visitedBlocksCount: input.visitedBlocksCount ?? 3,
-		completedBlocksCount: input.reviewStatus === 'completed' ? input.visitedBlocksCount ?? 3 : 1,
+		completedBlocksCount: input.reviewStatus === 'completed' ? (input.visitedBlocksCount ?? 3) : 1,
 		totalBlocks: input.totalBlocks ?? 5,
 		totalVisits: input.visitedBlocksCount ?? 3,
 		branchCount: input.branchCount ?? 0,
@@ -341,10 +341,7 @@ test('buildLessonReviewStudentDirectory keeps only alumnado rows and summarizes 
 	assert.equal(directory.summary.studentsCompleted, 1);
 	assert.equal(directory.summary.studentsWithAlerts, 0);
 	assert.equal(directory.summary.totalAttempts, 3);
-	assert.equal(
-		directory.summary.lastActivityAt?.toISOString(),
-		'2026-04-19T11:00:00.000Z'
-	);
+	assert.equal(directory.summary.lastActivityAt?.toISOString(), '2026-04-19T11:00:00.000Z');
 });
 
 test('buildLessonReviewStudentDetail orders attempts and aggregates summary metrics', () => {
@@ -388,7 +385,10 @@ test('buildLessonReviewStudentDetail orders attempts and aggregates summary metr
 		]
 	});
 
-	assert.deepEqual(detail.attempts.map((attempt) => attempt.sessionId), ['s-new', 's-mid', 's-old']);
+	assert.deepEqual(
+		detail.attempts.map((attempt) => attempt.sessionId),
+		['s-new', 's-mid', 's-old']
+	);
 	assert.equal(detail.latestAttempt?.sessionId, 's-new');
 	assert.equal(detail.summary.totalAttempts, 3);
 	assert.equal(detail.summary.completedAttempts, 1);
@@ -410,16 +410,10 @@ test('requireLessonReviewStudent rejects missing or staff participants with 404'
 
 	assert.throws(
 		() => requireLessonReviewStudent([student, staff], 'missing'),
-		(error) =>
-			error instanceof Error &&
-			'status' in error &&
-			error.status === 404
+		(error) => error instanceof Error && 'status' in error && error.status === 404
 	);
 	assert.throws(
 		() => requireLessonReviewStudent([student, staff], staff.id),
-		(error) =>
-			error instanceof Error &&
-			'status' in error &&
-			error.status === 404
+		(error) => error instanceof Error && 'status' in error && error.status === 404
 	);
 });

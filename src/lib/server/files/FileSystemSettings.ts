@@ -108,12 +108,7 @@ class FileSystemSettings {
 	 * @param userId - User ID who is updating the setting (optional)
 	 * @param description - Description of the setting (optional)
 	 */
-	async set(
-		key: string,
-		value: string,
-		userId?: string,
-		description?: string
-	): Promise<void> {
+	async set(key: string, value: string, userId?: string, description?: string): Promise<void> {
 		const now = new Date();
 
 		try {

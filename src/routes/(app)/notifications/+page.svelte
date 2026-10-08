@@ -6,7 +6,7 @@
 	import { Button, Badge, Select, Toggle, Spinner } from 'flowbite-svelte';
 	import { Bell, CheckCheck, Trash2, Filter, ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import NotificationItem from '$lib/components/notifications/NotificationItem.svelte';
-	import { SvelteURLSearchParams } from 'svelte/reactivity';	
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 
 	let { data }: { data: PageData } = $props();
 
@@ -82,15 +82,15 @@
 	const unreadCount = $derived(data.notifications.filter((n) => !n.read).length);
 </script>
 
-<div class="container mx-auto p-6 max-w-4xl">
+<div class="container mx-auto max-w-4xl p-6">
 	<!-- Header -->
-	<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+	<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-				<Bell class="h-7 w-7 text-primary-600 dark:text-primary-400" />
+			<h1 class="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white">
+				<Bell class="text-primary-600 dark:text-primary-400 h-7 w-7" />
 				Notificaciones
 			</h1>
-			<p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
 				{data.total} notificaciones en total
 				{#if unreadCount > 0}
 					<Badge color="blue" class="ml-2">{unreadCount} sin leer</Badge>
@@ -103,7 +103,7 @@
 				{#if isLoading}
 					<Spinner size="4" class="mr-2" />
 				{:else}
-					<CheckCheck class="w-4 h-4 mr-2" />
+					<CheckCheck class="mr-2 h-4 w-4" />
 				{/if}
 				Marcar todas como leídas
 			</Button>
@@ -111,48 +111,45 @@
 	</div>
 
 	<!-- Filters -->
-	<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6">
-		<div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+	<div
+		class="mb-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+	>
+		<div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
 			<div class="flex items-center gap-2">
 				<Filter class="h-4 w-4 text-gray-500" />
 				<span class="text-sm font-medium text-gray-700 dark:text-gray-300">Filtros:</span>
 			</div>
 
-			<div class="flex flex-wrap gap-4 flex-1">
-				<Select
-					size="sm"
-					items={typeOptions}
-					bind:value={selectedType}
-					class="w-48"
-				/>
+			<div class="flex flex-1 flex-wrap gap-4">
+				<Select size="sm" items={typeOptions} bind:value={selectedType} class="w-48" />
 
-				<label class="flex items-center gap-2 cursor-pointer">
+				<label class="flex cursor-pointer items-center gap-2">
 					<input
 						type="checkbox"
 						bind:checked={unreadOnly}
-						class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+						class="text-primary-600 focus:ring-primary-500 h-4 w-4 rounded border-gray-300"
 					/>
 					<span class="text-sm text-gray-700 dark:text-gray-300">Solo sin leer</span>
 				</label>
 			</div>
 
-			<Button size="sm" color="primary" onclick={applyFilters}>
-				Aplicar
-			</Button>
+			<Button size="sm" color="primary" onclick={applyFilters}>Aplicar</Button>
 		</div>
 	</div>
 
 	<!-- Notifications List -->
-	<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+	<div
+		class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+	>
 		{#if data.notifications.length === 0}
-			<div class="flex flex-col items-center justify-center py-16 px-4">
-				<div class="p-4 rounded-full bg-gray-100 dark:bg-gray-700 mb-4">
+			<div class="flex flex-col items-center justify-center px-4 py-16">
+				<div class="mb-4 rounded-full bg-gray-100 p-4 dark:bg-gray-700">
 					<Bell class="h-10 w-10 text-gray-400 dark:text-gray-500" />
 				</div>
-				<h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
+				<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-white">
 					No hay notificaciones
 				</h3>
-				<p class="text-sm text-gray-500 dark:text-gray-400 text-center max-w-sm">
+				<p class="max-w-sm text-center text-sm text-gray-500 dark:text-gray-400">
 					{#if data.filters.unreadOnly || data.filters.type}
 						No se encontraron notificaciones con los filtros aplicados.
 					{:else}
@@ -162,18 +159,14 @@
 			</div>
 		{:else}
 			{#each data.notifications as notification (notification.id)}
-				<NotificationItem
-					{notification}
-					onMarkRead={handleMarkRead}
-					onDelete={handleDelete}
-				/>
+				<NotificationItem {notification} onMarkRead={handleMarkRead} onDelete={handleDelete} />
 			{/each}
 		{/if}
 	</div>
 
 	<!-- Pagination -->
 	{#if data.totalPages > 1}
-		<div class="flex items-center justify-between mt-6">
+		<div class="mt-6 flex items-center justify-between">
 			<p class="text-sm text-gray-500 dark:text-gray-400">
 				Página {data.page} de {data.totalPages}
 			</p>
@@ -185,7 +178,7 @@
 					disabled={data.page <= 1}
 					onclick={() => goToPage(data.page - 1)}
 				>
-					<ChevronLeft class="w-4 h-4 mr-1" />
+					<ChevronLeft class="mr-1 h-4 w-4" />
 					Anterior
 				</Button>
 				<Button
@@ -195,7 +188,7 @@
 					onclick={() => goToPage(data.page + 1)}
 				>
 					Siguiente
-					<ChevronRight class="w-4 h-4 ml-1" />
+					<ChevronRight class="ml-1 h-4 w-4" />
 				</Button>
 			</div>
 		</div>

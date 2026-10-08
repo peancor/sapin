@@ -22,13 +22,13 @@
 
 ## 🚀 Características Principales
 
-*   **🤖 Integración Profunda de IA**: Utiliza modelos de lenguaje (LLMs) mediante Vercel AI SDK para dar vida a personajes y tutores virtuales usando OpenAI u OpenRouter.
-*   **📚 Gestión de Cursos y Roles**: Profesores pueden diseñar cursos y definir roles específicos con instrucciones personalizadas ("system prompts").
-*   **💬 Chats Interactivos**: Interfaz de chat moderna orientada al aprendizaje para la interacción estudiante-IA.
-*   **📊 Análisis e Insights**: Herramientas para que los docentes analicen las interacciones y el progreso de los estudiantes.
-*   **🌍 Multidioma**: Soporte nativo para Español e Inglés (utilizando inlang Paraglide JS).
-*   **👥 Gestión de Usuarios**: Roles diferenciados y seguros para Administradores, Profesores y Estudiantes.
-*   **🔐 Seguridad y Privacidad**: Autenticación robusta (Lucia Auth, Argon2) y manejo seguro de datos locales o autohospedados.
+- **🤖 Integración Profunda de IA**: Utiliza modelos de lenguaje (LLMs) mediante Vercel AI SDK para dar vida a personajes y tutores virtuales usando OpenAI u OpenRouter.
+- **📚 Gestión de Cursos y Roles**: Profesores pueden diseñar cursos y definir roles específicos con instrucciones personalizadas ("system prompts").
+- **💬 Chats Interactivos**: Interfaz de chat moderna orientada al aprendizaje para la interacción estudiante-IA.
+- **📊 Análisis e Insights**: Herramientas para que los docentes analicen las interacciones y el progreso de los estudiantes.
+- **🌍 Multidioma**: Soporte nativo para Español e Inglés (utilizando inlang Paraglide JS).
+- **👥 Gestión de Usuarios**: Roles diferenciados y seguros para Administradores, Profesores y Estudiantes.
+- **🔐 Seguridad y Privacidad**: Autenticación robusta (Lucia Auth, Argon2) y manejo seguro de datos locales o autohospedados.
 
 ---
 
@@ -36,23 +36,24 @@
 
 El proyecto está construido sobre tecnologías modernas y eficientes enfocadas en rendimiento y experiencia de usuario:
 
-| Capa | Tecnologías |
-| :--- | :--- |
-| **Frontend/Framework** | [SvelteKit](https://kit.svelte.dev/) (Fullstack), TypeScript |
-| **Estilos y UI** | [Tailwind CSS v4](https://tailwindcss.com/), [Flowbite Svelte](https://flowbite-svelte.com/) |
-| **BBDD y ORM** | SQLite (`better-sqlite3`), [Drizzle ORM](https://orm.drizzle.team/) |
-| **Inteligencia Artificial** | [Vercel AI SDK](https://sdk.vercel.ai/), OpenAI API / OpenRouter, Qdrant (Vector DB) |
-| **Autenticación** | Lucia Auth (custom con `@node-rs/argon2`) |
-| **Internacionalización** | [Inlang Paraglide JS](https://inlang.com/) |
+| Capa                        | Tecnologías                                                                                  |
+| :-------------------------- | :------------------------------------------------------------------------------------------- |
+| **Frontend/Framework**      | [SvelteKit](https://kit.svelte.dev/) (Fullstack), TypeScript                                 |
+| **Estilos y UI**            | [Tailwind CSS v4](https://tailwindcss.com/), [Flowbite Svelte](https://flowbite-svelte.com/) |
+| **BBDD y ORM**              | SQLite (`better-sqlite3`), [Drizzle ORM](https://orm.drizzle.team/)                          |
+| **Inteligencia Artificial** | [Vercel AI SDK](https://sdk.vercel.ai/), OpenAI API / OpenRouter, Qdrant (Vector DB)         |
+| **Autenticación**           | Lucia Auth (custom con `@node-rs/argon2`)                                                    |
+| **Internacionalización**    | [Inlang Paraglide JS](https://inlang.com/)                                                   |
 
 ---
 
 ## 📋 Requisitos Previos
 
 Antes de comenzar, asegúrate de tener instalado en tu entorno:
-*   **Node.js**: Versión `22.14.0` o superior.
-*   **Gestor de Paquetes**: `npm`, `pnpm` o `yarn`.
-*   **Docker** (Opcional, pero recomendado para despliegues y servicios auxiliares como Qdrant).
+
+- **Node.js**: Versión `22.14.0` o superior.
+- **Gestor de Paquetes**: `npm`, `pnpm` o `yarn`.
+- **Docker** (Opcional, pero recomendado para despliegues y servicios auxiliares como Qdrant).
 
 ---
 
@@ -115,12 +116,12 @@ La forma más sencilla de instalar y probar Sapin en tu propio servidor es usar 
     ```bash
     curl -o docker-compose.yml https://raw.githubusercontent.com/peancor/sapin/main/docker-compose.prod.yml
     ```
-    *(Si no tienes `curl`, puedes descargar el archivo manualmente y guardarlo con ese nombre).*
+    _(Si no tienes `curl`, puedes descargar el archivo manualmente y guardarlo con ese nombre)._
 3.  **Crea un archivo de entorno `.env`** en la misma carpeta e incluye solo la configuración imprescindible:
     ```env
     # SECRET_KEY obligatoria de 64 caracteres. (Puedes generar una al azar).
     SECRET_KEY=INTRODUCE_AQUI_UNA_CLAVE_SECRETA_ALEATORIA_DE_64_CARACTERES_HEXA
-    
+
     # ORIGIN es tu URL base. Ej: http://localhost:3000 si pruebas en local,
     # o https://tu-sitio.com si es en un servidor público.
     ORIGIN=http://localhost:3000
@@ -136,18 +137,22 @@ La forma más sencilla de instalar y probar Sapin en tu propio servidor es usar 
 ---
 
 ### Arquitectura de la Imagen
+
 - **Base de Datos Persistente**: Volumen en `/data/sapin.db`
 - **Subidas y Archivos**: Volumen en `/data/files/uploads`
 - **Qdrant**: Integrado por defecto vía Docker Compose (`http://qdrant:6333`)
 - **Migraciones Automáticas**: Se ejecutan `npm run db:migrate` en el arranque del contenedor.
 
 ### Variables Requeridas para Docker
+
 Solo necesitas definir obligatoriamente tu clave secreta (64 caracteres hexadecimales):
+
 ```bash
 SECRET_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 ```
 
 Para entornos expuestos a internet, es **obligatorio** configurar la variable `ORIGIN` para evitar bloqueos por CORS (`403 Cross-site POST form submissions are forbidden`):
+
 ```bash
 ORIGIN=https://sapin.tu-dominio.com
 ```
@@ -171,16 +176,16 @@ La aplicación se publicará en `http://localhost:3000`.
 
 El proyecto expone varios scripts útiles en el `package.json`:
 
-| Comando | Descripción |
-| :--- | :--- |
-| `npm run dev` | Inicia el servidor de desarrollo de Vite. |
-| `npm run build` | Construye la aplicación optimizada para producción. |
-| `npm run check` | Ejecuta `svelte-check` para validación estricta de tipos e inconsistencias. |
-| `npm run lint` | Ejecuta Prettier y ESLint para mantener el estilo de código. |
-| `npm run format` | Auto-formatea el código utilizando Prettier. |
-| `npm run db:push` | Sincroniza el código del esquema con la estructura real de la base de datos (ideal para prototipado). |
-| `npm run db:studio` | Levanta Drizzle Studio, una interfaz web para inspeccionar la base de datos local. |
-| `npm run docker:up` | Levanta todo el stack localizado en `docker-compose.yml`. |
+| Comando             | Descripción                                                                                           |
+| :------------------ | :---------------------------------------------------------------------------------------------------- |
+| `npm run dev`       | Inicia el servidor de desarrollo de Vite.                                                             |
+| `npm run build`     | Construye la aplicación optimizada para producción.                                                   |
+| `npm run check`     | Ejecuta `svelte-check` para validación estricta de tipos e inconsistencias.                           |
+| `npm run lint`      | Ejecuta Prettier y ESLint para mantener el estilo de código.                                          |
+| `npm run format`    | Auto-formatea el código utilizando Prettier.                                                          |
+| `npm run db:push`   | Sincroniza el código del esquema con la estructura real de la base de datos (ideal para prototipado). |
+| `npm run db:studio` | Levanta Drizzle Studio, una interfaz web para inspeccionar la base de datos local.                    |
+| `npm run docker:up` | Levanta todo el stack localizado en `docker-compose.yml`.                                             |
 
 ---
 
@@ -188,15 +193,15 @@ El proyecto expone varios scripts útiles en el `package.json`:
 
 El código fuente principal reside en `src/`:
 
-*   **`src/lib/`**: Lógica de núcleo compartida.
-    *   `server/db/`: Configuración, esquemas y consultas a la base de datos.
-    *   `server/ai/`: Lógica central y configuración del SDK para la IA generativa.
-    *   `components/`: Componentes web reusables (Svelte).
-*   **`src/routes/`**: Rutas de la aplicación (basadas en SvelteKit Routing).
-    *   `(app)/`: Grupo de rutas protegidas y lógica del dashboard.
-    *   `api/`: Endpoints integrados para consumo externo o backend de componentes.
-*   **`drizzle/`**: Historial de migraciones SQL gestionadas por Drizzle Kit.
-*   **`messages/`**: Ficheros de traducciones nativos e integrados en i18n_paraglide.
+- **`src/lib/`**: Lógica de núcleo compartida.
+  - `server/db/`: Configuración, esquemas y consultas a la base de datos.
+  - `server/ai/`: Lógica central y configuración del SDK para la IA generativa.
+  - `components/`: Componentes web reusables (Svelte).
+- **`src/routes/`**: Rutas de la aplicación (basadas en SvelteKit Routing).
+  - `(app)/`: Grupo de rutas protegidas y lógica del dashboard.
+  - `api/`: Endpoints integrados para consumo externo o backend de componentes.
+- **`drizzle/`**: Historial de migraciones SQL gestionadas por Drizzle Kit.
+- **`messages/`**: Ficheros de traducciones nativos e integrados en i18n_paraglide.
 
 ---
 

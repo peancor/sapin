@@ -40,11 +40,7 @@ export const load = (async ({ params, locals }) => {
 	}
 
 	// Load the course data for the sidebar
-	const courseData = await db
-		.select()
-		.from(course)
-		.where(eq(course.id, cid))
-		.limit(1);
+	const courseData = await db.select().from(course).where(eq(course.id, cid)).limit(1);
 
 	if (!courseData || courseData.length === 0) {
 		throw error(404, 'Course not found');
@@ -59,4 +55,3 @@ export const load = (async ({ params, locals }) => {
 		}
 	};
 }) satisfies LayoutServerLoad;
-

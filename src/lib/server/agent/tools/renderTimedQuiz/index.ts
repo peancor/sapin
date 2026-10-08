@@ -6,4 +6,3 @@ export const renderTimedQuizPackage: BuiltinToolPackage = {
 };
 
 export { renderTimedQuizManifest } from './manifest';
-

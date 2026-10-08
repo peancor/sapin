@@ -33,9 +33,7 @@ class ImageProcessingQueue {
 					mimeType: fileStorage.mimeType
 				})
 				.from(fileStorage)
-				.where(
-					and(eq(fileStorage.processingStatus, 'pending'), eq(fileStorage.isActive, true))
-				)
+				.where(and(eq(fileStorage.processingStatus, 'pending'), eq(fileStorage.isActive, true)))
 				.limit(limit || this.batchSize);
 
 			return files;
@@ -51,11 +49,7 @@ class ImageProcessingQueue {
 	async processFile(fileId: string): Promise<{ success: boolean; error?: string }> {
 		try {
 			// Check if file is processable image
-			const files = await db
-				.select()
-				.from(fileStorage)
-				.where(eq(fileStorage.id, fileId))
-				.limit(1);
+			const files = await db.select().from(fileStorage).where(eq(fileStorage.id, fileId)).limit(1);
 
 			if (files.length === 0) {
 				return { success: false, error: 'File not found' };
@@ -166,17 +160,13 @@ class ImageProcessingQueue {
 			const result = await db
 				.update(fileStorage)
 				.set({ processingStatus: 'pending' })
-				.where(
-					and(eq(fileStorage.processingStatus, 'error'), eq(fileStorage.isActive, true))
-				);
+				.where(and(eq(fileStorage.processingStatus, 'error'), eq(fileStorage.isActive, true)));
 
 			// SQLite doesn't return count easily, count separately
 			const count = await db
 				.select({ id: fileStorage.id })
 				.from(fileStorage)
-				.where(
-					and(eq(fileStorage.processingStatus, 'pending'), eq(fileStorage.isActive, true))
-				);
+				.where(and(eq(fileStorage.processingStatus, 'pending'), eq(fileStorage.isActive, true)));
 
 			return count.length;
 		} catch (error) {
@@ -198,23 +188,17 @@ class ImageProcessingQueue {
 			const pending = await db
 				.select({ id: fileStorage.id })
 				.from(fileStorage)
-				.where(
-					and(eq(fileStorage.processingStatus, 'pending'), eq(fileStorage.isActive, true))
-				);
+				.where(and(eq(fileStorage.processingStatus, 'pending'), eq(fileStorage.isActive, true)));
 
 			const completed = await db
 				.select({ id: fileStorage.id })
 				.from(fileStorage)
-				.where(
-					and(eq(fileStorage.processingStatus, 'completed'), eq(fileStorage.isActive, true))
-				);
+				.where(and(eq(fileStorage.processingStatus, 'completed'), eq(fileStorage.isActive, true)));
 
 			const failed = await db
 				.select({ id: fileStorage.id })
 				.from(fileStorage)
-				.where(
-					and(eq(fileStorage.processingStatus, 'error'), eq(fileStorage.isActive, true))
-				);
+				.where(and(eq(fileStorage.processingStatus, 'error'), eq(fileStorage.isActive, true)));
 
 			return {
 				pending: pending.length,

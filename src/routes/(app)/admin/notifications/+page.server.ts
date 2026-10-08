@@ -32,12 +32,7 @@ export const load = (async ({ url }) => {
 				username: user.username
 			})
 			.from(user)
-			.where(
-				or(
-					like(user.email, `%${searchQuery}%`),
-					like(user.username, `%${searchQuery}%`)
-				)
-			)
+			.where(or(like(user.email, `%${searchQuery}%`), like(user.username, `%${searchQuery}%`)))
 			.limit(20);
 	}
 
@@ -65,7 +60,10 @@ export const actions = {
 		const title = data.get('title')?.toString()?.trim();
 		const message = data.get('message')?.toString()?.trim();
 		const priority = data.get('priority')?.toString() as 'low' | 'normal' | 'high' | 'urgent';
-		const roleIds = data.getAll('roles').map((r) => r.toString()).filter(Boolean);
+		const roleIds = data
+			.getAll('roles')
+			.map((r) => r.toString())
+			.filter(Boolean);
 		const sendToAll = data.get('sendToAll') === 'on';
 		const channelInApp = data.get('channel_in_app') === 'on';
 		const channelEmail = data.get('channel_email') === 'on';
@@ -127,7 +125,10 @@ export const actions = {
 		const title = data.get('title')?.toString()?.trim();
 		const message = data.get('message')?.toString()?.trim();
 		const priority = data.get('priority')?.toString() as 'low' | 'normal' | 'high' | 'urgent';
-		const userIds = data.getAll('userIds').map((u) => u.toString()).filter(Boolean);
+		const userIds = data
+			.getAll('userIds')
+			.map((u) => u.toString())
+			.filter(Boolean);
 		const channelInApp = data.get('channel_in_app') === 'on';
 		const channelEmail = data.get('channel_email') === 'on';
 

@@ -1,7 +1,8 @@
 import type { Difficulty } from './timed-quiz';
 
 export type CognitivePhase = 'practice' | 'main';
-export type ImmersiveCognitivePhase = 'intro' | 'practice' | 'practice-complete' | 'main' | 'results';
+export type ImmersiveCognitivePhase =
+	'intro' | 'practice' | 'practice-complete' | 'main' | 'results';
 
 export interface ImmersiveState {
 	canCloseSafely: boolean;
@@ -30,7 +31,9 @@ export function sanitizeChoice<T extends string>(
 }
 
 export function meanRounded(values: Array<number | null | undefined>): number | null {
-	const valid = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+	const valid = values.filter(
+		(value): value is number => typeof value === 'number' && Number.isFinite(value)
+	);
 	if (valid.length === 0) return null;
 	return Math.round(valid.reduce((sum, value) => sum + value, 0) / valid.length);
 }

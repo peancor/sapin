@@ -138,11 +138,7 @@ class ImageProcessor {
 	async processImage(fileId: string): Promise<ProcessingResult> {
 		try {
 			// Get file record
-			const files = await db
-				.select()
-				.from(fileStorage)
-				.where(eq(fileStorage.id, fileId))
-				.limit(1);
+			const files = await db.select().from(fileStorage).where(eq(fileStorage.id, fileId)).limit(1);
 
 			if (files.length === 0) {
 				return { success: false, error: 'File not found' };
@@ -242,11 +238,7 @@ class ImageProcessor {
 	 */
 	async generateThumbnailOnTheFly(fileId: string): Promise<Buffer | null> {
 		try {
-			const files = await db
-				.select()
-				.from(fileStorage)
-				.where(eq(fileStorage.id, fileId))
-				.limit(1);
+			const files = await db.select().from(fileStorage).where(eq(fileStorage.id, fileId)).limit(1);
 
 			if (files.length === 0) {
 				return null;
@@ -281,11 +273,7 @@ class ImageProcessor {
 	 */
 	async getThumbnail(fileId: string): Promise<{ buffer: Buffer; path?: string } | null> {
 		try {
-			const files = await db
-				.select()
-				.from(fileStorage)
-				.where(eq(fileStorage.id, fileId))
-				.limit(1);
+			const files = await db.select().from(fileStorage).where(eq(fileStorage.id, fileId)).limit(1);
 
 			if (files.length === 0) {
 				return null;

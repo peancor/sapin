@@ -1,7 +1,10 @@
 import { CourseInteractiveAuthUtils, CourseRoleUtils } from '$lib/server/db';
 import type { StaffAgentWorkspace } from '$lib/server/db/schema';
 import { ROLE_LEVELS } from '$lib/server/roles';
-import DBStaffAgentUtils, { STAFF_AGENT_FEATURE_KEY, STAFF_AGENT_SCOPE_TYPE } from './DBStaffAgentUtils';
+import DBStaffAgentUtils, {
+	STAFF_AGENT_FEATURE_KEY,
+	STAFF_AGENT_SCOPE_TYPE
+} from './DBStaffAgentUtils';
 
 const STAFF_ROLES = ['owner', 'admin', 'teacher', 'assistant'] as const;
 

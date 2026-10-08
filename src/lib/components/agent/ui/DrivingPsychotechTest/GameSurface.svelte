@@ -54,7 +54,9 @@
 		<div class="grid gap-3 sm:grid-cols-4">
 			{#each hudItems as item (item.label)}
 				<div class="rounded-3xl border border-white/10 bg-white/6 px-4 py-3">
-					<p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">{item.label}</p>
+					<p class="text-xs font-semibold tracking-[0.18em] text-cyan-200 uppercase">
+						{item.label}
+					</p>
 					<p class="mt-2 text-2xl font-black">{item.value}</p>
 				</div>
 			{/each}

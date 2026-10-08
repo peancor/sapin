@@ -145,9 +145,9 @@ function toThreadSummary(
 
 function buildWorkspaceKey(params: {
 	kind: StaffAgentWorkspaceKind;
-	scopeType: typeof STAFF_AGENT_SCOPE_TYPE[keyof typeof STAFF_AGENT_SCOPE_TYPE];
+	scopeType: (typeof STAFF_AGENT_SCOPE_TYPE)[keyof typeof STAFF_AGENT_SCOPE_TYPE];
 	scopeId: string;
-	visibility?: typeof STAFF_AGENT_VISIBILITY[keyof typeof STAFF_AGENT_VISIBILITY];
+	visibility?: (typeof STAFF_AGENT_VISIBILITY)[keyof typeof STAFF_AGENT_VISIBILITY];
 	ownerUserId?: string | null;
 }) {
 	return [
@@ -248,9 +248,9 @@ export default class DBStaffAgentUtils {
 
 	private static async createWorkspace(params: {
 		kind: StaffAgentWorkspaceKind;
-		scopeType: typeof STAFF_AGENT_SCOPE_TYPE[keyof typeof STAFF_AGENT_SCOPE_TYPE];
+		scopeType: (typeof STAFF_AGENT_SCOPE_TYPE)[keyof typeof STAFF_AGENT_SCOPE_TYPE];
 		scopeId: string;
-		visibility?: typeof STAFF_AGENT_VISIBILITY[keyof typeof STAFF_AGENT_VISIBILITY];
+		visibility?: (typeof STAFF_AGENT_VISIBILITY)[keyof typeof STAFF_AGENT_VISIBILITY];
 		ownerUserId?: string | null;
 	}) {
 		await DBAgentToolUtils.seedBuiltinTools();
@@ -358,7 +358,10 @@ export default class DBStaffAgentUtils {
 	static async getOrCreateCourseWorkspace(courseId: string) {
 		const existing = await this.getWorkspaceForCourse(courseId);
 		if (existing) {
-			await this.syncWorkspaceToolsWithAllowedCatalog(existing.id, existing.kind as StaffAgentWorkspaceKind);
+			await this.syncWorkspaceToolsWithAllowedCatalog(
+				existing.id,
+				existing.kind as StaffAgentWorkspaceKind
+			);
 			return existing;
 		}
 		return this.createWorkspace({
@@ -371,7 +374,10 @@ export default class DBStaffAgentUtils {
 	static async getOrCreateActivityWorkspace(activityId: string, _courseId?: string) {
 		const existing = await this.getWorkspaceForActivity(activityId);
 		if (existing) {
-			await this.syncWorkspaceToolsWithAllowedCatalog(existing.id, existing.kind as StaffAgentWorkspaceKind);
+			await this.syncWorkspaceToolsWithAllowedCatalog(
+				existing.id,
+				existing.kind as StaffAgentWorkspaceKind
+			);
 			return existing;
 		}
 		return this.createWorkspace({
@@ -395,7 +401,9 @@ export default class DBStaffAgentUtils {
 		const workspace = await this.getWorkspaceById(workspaceId);
 		if (!workspace) return [];
 
-		const allowedNames = new Set(this.getAllowedToolNames(workspace.kind as StaffAgentWorkspaceKind));
+		const allowedNames = new Set(
+			this.getAllowedToolNames(workspace.kind as StaffAgentWorkspaceKind)
+		);
 		const rows = await db
 			.select({
 				tool: schema.agentToolDefinition,
@@ -426,12 +434,16 @@ export default class DBStaffAgentUtils {
 			throw new Error('Workspace no encontrado');
 		}
 
-		const allowedNames = new Set(this.getAllowedToolNames(workspace.kind as StaffAgentWorkspaceKind));
+		const allowedNames = new Set(
+			this.getAllowedToolNames(workspace.kind as StaffAgentWorkspaceKind)
+		);
 		const activeTools = await DBAgentToolUtils.getActiveToolDefinitions();
 		const allowedToolIds = activeTools
 			.filter((tool) => allowedNames.has(tool.name))
 			.map((tool) => tool.id);
-		const normalizedToolIds = [...new Set(toolIds.filter((toolId) => allowedToolIds.includes(toolId)))];
+		const normalizedToolIds = [
+			...new Set(toolIds.filter((toolId) => allowedToolIds.includes(toolId)))
+		];
 
 		await db
 			.delete(schema.staffAgentWorkspaceTool)
@@ -459,7 +471,10 @@ export default class DBStaffAgentUtils {
 		}
 
 		const tools = await this.getEnabledToolsForWorkspace(workspaceId);
-		return toWorkspaceDTO(workspace, tools.map((tool) => tool.id));
+		return toWorkspaceDTO(
+			workspace,
+			tools.map((tool) => tool.id)
+		);
 	}
 
 	static async createThread(params: {

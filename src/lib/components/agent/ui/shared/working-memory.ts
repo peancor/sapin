@@ -150,9 +150,7 @@ export function buildDigitSpanTrial(params: {
 	};
 }
 
-export function resolveWorkingMemoryConfig(
-	input: Record<string, unknown>
-): WorkingMemoryConfig {
+export function resolveWorkingMemoryConfig(input: Record<string, unknown>): WorkingMemoryConfig {
 	const difficulty = resolveDifficulty(input.difficulty);
 	const defaults = DEFAULTS[difficulty];
 	const mode = normalizeMode(input.mode);

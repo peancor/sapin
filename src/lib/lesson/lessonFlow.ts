@@ -418,7 +418,10 @@ function collectEdgeInputs(definition: LessonDefinition): Array<{
 	return edgeInputs;
 }
 
-function getSavedRoutePoints(block: LessonBlock, edgeId: string): LessonFlowRoutePoint[] | undefined {
+function getSavedRoutePoints(
+	block: LessonBlock,
+	edgeId: string
+): LessonFlowRoutePoint[] | undefined {
 	const points = sanitizeRoutePoints(block.graph?.edgeRoutes?.[edgeId]?.points ?? []);
 	return points.length > 0 ? points : undefined;
 }
@@ -559,7 +562,8 @@ function createReturnRouteCandidate(input: {
 	]);
 	const intersections = countRouteRectIntersections(points, input.obstacleRects);
 	const length = measureRouteLength(points);
-	const laneDistance = Math.abs(input.laneX - input.sourceX) + Math.abs(input.laneX - input.targetX);
+	const laneDistance =
+		Math.abs(input.laneX - input.sourceX) + Math.abs(input.laneX - input.targetX);
 
 	return {
 		points,

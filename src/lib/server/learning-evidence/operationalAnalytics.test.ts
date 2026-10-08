@@ -239,7 +239,12 @@ test('detectMisconceptionClustersFromTranscripts groups repeated confusion', () 
 					role: 'user',
 					createdAt: '2026-04-01T08:00:00.000Z',
 					displayText: 'No entiendo por que cambia el signo cuando multiplico por negativo.',
-					parts: [{ kind: 'text', text: 'No entiendo por que cambia el signo cuando multiplico por negativo.' }],
+					parts: [
+						{
+							kind: 'text',
+							text: 'No entiendo por que cambia el signo cuando multiplico por negativo.'
+						}
+					],
 					source: 'chat_message'
 				}
 			],
@@ -255,7 +260,8 @@ test('detectMisconceptionClustersFromTranscripts groups repeated confusion', () 
 					id: 'm1',
 					role: 'user',
 					createdAt: '2026-04-01T08:05:00.000Z',
-					displayText: 'No entiendo por que cambia el signo cuando multiplico por negativo y creo que no deberia pasar.',
+					displayText:
+						'No entiendo por que cambia el signo cuando multiplico por negativo y creo que no deberia pasar.',
 					parts: [
 						{
 							kind: 'text',

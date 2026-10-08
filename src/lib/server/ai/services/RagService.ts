@@ -57,31 +57,35 @@ function parseFiniteNumber(value: unknown): number | undefined {
 	return undefined;
 }
 
-function normalizeResults(results: Array<{ id: string | number; score: number; payload?: unknown }>): RagItem[] {
-	const normalized: Array<RagItem | null> = results
-		.map((result) => {
-			const payload = (result.payload ?? null) as RagPayload | null;
-			if (!payload?.content) return null;
+function normalizeResults(
+	results: Array<{ id: string | number; score: number; payload?: unknown }>
+): RagItem[] {
+	const normalized: Array<RagItem | null> = results.map((result) => {
+		const payload = (result.payload ?? null) as RagPayload | null;
+		if (!payload?.content) return null;
 
-			const content = cleanText(String(payload.content));
-			if (!content) return null;
+		const content = cleanText(String(payload.content));
+		if (!content) return null;
 
-			const source = (payload.source ? String(payload.source) : 'Documento').trim() || 'Documento';
+		const source = (payload.source ? String(payload.source) : 'Documento').trim() || 'Documento';
 
-			return {
-				id: result.id,
-				score: result.score,
-				source,
-				chunkIndex: parseFiniteNumber(payload.chunkIndex),
-				totalChunks: parseFiniteNumber(payload.totalChunks),
-				content
-			};
-		});
+		return {
+			id: result.id,
+			score: result.score,
+			source,
+			chunkIndex: parseFiniteNumber(payload.chunkIndex),
+			totalChunks: parseFiniteNumber(payload.totalChunks),
+			content
+		};
+	});
 
 	return normalized.filter((item): item is RagItem => item !== null);
 }
 
-function buildBlocks(itemsBySource: Map<string, RagItem[]>, options: Required<RagContextOptions>): RagBlock[] {
+function buildBlocks(
+	itemsBySource: Map<string, RagItem[]>,
+	options: Required<RagContextOptions>
+): RagBlock[] {
 	const blocks: RagBlock[] = [];
 
 	for (const [source, items] of itemsBySource.entries()) {
@@ -157,7 +161,10 @@ function buildBlocks(itemsBySource: Map<string, RagItem[]>, options: Required<Ra
 	return blocks.sort((a, b) => b.scoreMax - a.scoreMax);
 }
 
-function buildContext(blocks: RagBlock[], maxChars: number): { context: string; usedChars: number } {
+function buildContext(
+	blocks: RagBlock[],
+	maxChars: number
+): { context: string; usedChars: number } {
 	const contextParts: string[] = [];
 	let used = 0;
 
@@ -173,7 +180,9 @@ function buildContext(blocks: RagBlock[], maxChars: number): { context: string; 
 		if (used + piece.length > maxChars) {
 			const remaining = maxChars - used;
 			if (remaining > header.length + 200) {
-				const truncatedBody = block.text.slice(0, Math.max(0, remaining - header.length - 20)).trimEnd();
+				const truncatedBody = block.text
+					.slice(0, Math.max(0, remaining - header.length - 20))
+					.trimEnd();
 				contextParts.push(`${header}${truncatedBody}\n...`);
 				used = maxChars;
 			}

@@ -62,7 +62,7 @@
 			>
 				<div class="flex items-start justify-between gap-4">
 					<div class="min-w-0">
-						<p class="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-300">
+						<p class="text-[11px] font-semibold tracking-[0.28em] text-cyan-300 uppercase">
 							Experiencia inmersiva
 						</p>
 						<h2 id="immersive-tool-title" class="mt-1 text-xl font-semibold sm:text-2xl">

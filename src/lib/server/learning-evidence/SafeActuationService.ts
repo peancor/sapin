@@ -1,11 +1,7 @@
 import { PedagogicalSupportService } from '$lib/server/learning-evidence/PedagogicalSupportService';
 import type { LearningEvidenceAccessContext } from '$lib/types/learningEvidence';
 
-function getDisplayName(student: {
-	username: string;
-	email: string;
-	alias?: string;
-}): string {
+function getDisplayName(student: { username: string; email: string; alias?: string }): string {
 	return student.alias?.trim() || student.username || student.email;
 }
 
@@ -83,10 +79,7 @@ export class SafeActuationService {
 				callToAction:
 					remediation.studentActions[0]?.title ??
 					'Revisa el punto donde te bloqueaste y vuelve a intentar la actividad.',
-				fullText: [
-					channel === 'email' ? `Hola ${displayName},` : null,
-					...bodyParagraphs
-				]
+				fullText: [channel === 'email' ? `Hola ${displayName},` : null, ...bodyParagraphs]
 					.filter((value): value is string => Boolean(value))
 					.join('\n\n')
 			},
@@ -119,8 +112,7 @@ export class SafeActuationService {
 		});
 
 		const priority = params.priority ?? (summary.riskLevel === 'high' ? 'high' : 'normal');
-		const purpose =
-			params.purpose ?? (summary.riskLevel === 'high' ? 'follow_up' : 'reminder');
+		const purpose = params.purpose ?? (summary.riskLevel === 'high' ? 'follow_up' : 'reminder');
 		const focus =
 			params.customFocus?.trim() ||
 			summary.supportNeeds[0] ||

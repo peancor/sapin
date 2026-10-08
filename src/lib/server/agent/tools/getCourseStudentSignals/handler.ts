@@ -41,8 +41,7 @@ export async function getCourseStudentSignals(
 	} catch (error) {
 		return {
 			success: false,
-			errorMessage:
-				error instanceof Error ? error.message : 'Error al calcular senales del curso',
+			errorMessage: error instanceof Error ? error.message : 'Error al calcular senales del curso',
 			durationMs: Date.now() - start
 		};
 	}

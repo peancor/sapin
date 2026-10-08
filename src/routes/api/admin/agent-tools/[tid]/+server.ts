@@ -5,25 +5,26 @@ import { ROLE_LEVELS } from '$lib/server/roles';
 import { isBuiltinToolUsageDomain } from '$lib/server/agent/tools/constants';
 
 function adminGuard(locals: App.Locals): Response | null {
-    if (!locals.user) return new Response('Unauthorized', { status: 401 });
-    if (locals.user.highestRoleLevel < ROLE_LEVELS.ADMIN) return new Response('Forbidden', { status: 403 });
-    return null;
+	if (!locals.user) return new Response('Unauthorized', { status: 401 });
+	if (locals.user.highestRoleLevel < ROLE_LEVELS.ADMIN)
+		return new Response('Forbidden', { status: 403 });
+	return null;
 }
 
 // GET /api/admin/agent-tools/[tid]
 export const GET: RequestHandler = async ({ locals, params }) => {
-    const guard = adminGuard(locals);
-    if (guard) return guard;
+	const guard = adminGuard(locals);
+	if (guard) return guard;
 
-    const tool = await DBAgentToolUtils.getToolDefinitionById(params.tid!);
-    if (!tool) return json({ error: 'Herramienta no encontrada' }, { status: 404 });
-    return json({ tool });
+	const tool = await DBAgentToolUtils.getToolDefinitionById(params.tid!);
+	if (!tool) return json({ error: 'Herramienta no encontrada' }, { status: 404 });
+	return json({ tool });
 };
 
 // PUT /api/admin/agent-tools/[tid]
 export const PUT: RequestHandler = async ({ locals, params, request }) => {
-    const guard = adminGuard(locals);
-    if (guard) return guard;
+	const guard = adminGuard(locals);
+	if (guard) return guard;
 
 	try {
 		const body = await request.json();
@@ -35,7 +36,8 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 		if (body.description !== undefined) updates.description = body.description;
 		if (body.category !== undefined) updates.category = body.category;
 		if (body.riskLevel !== undefined) updates.riskLevel = body.riskLevel;
-		if (body.requiresConfirmation !== undefined) updates.requiresConfirmation = body.requiresConfirmation;
+		if (body.requiresConfirmation !== undefined)
+			updates.requiresConfirmation = body.requiresConfirmation;
 		if (body.isActive !== undefined) updates.isActive = body.isActive;
 		if (body.version !== undefined) updates.version = body.version;
 		if (body.usageDomain !== undefined) {
@@ -80,7 +82,10 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 		}
 
 		// No permitir editar el name ni isSystem
-		await DBAgentToolUtils.updateToolDefinition(params.tid!, updates as Parameters<typeof DBAgentToolUtils.updateToolDefinition>[1]);
+		await DBAgentToolUtils.updateToolDefinition(
+			params.tid!,
+			updates as Parameters<typeof DBAgentToolUtils.updateToolDefinition>[1]
+		);
 		return json({ success: true });
 	} catch (err) {
 		console.error('[admin/agent-tools/[tid]] PUT error:', err);
@@ -90,18 +95,19 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 
 // DELETE /api/admin/agent-tools/[tid]
 export const DELETE: RequestHandler = async ({ locals, params }) => {
-    const guard = adminGuard(locals);
-    if (guard) return guard;
+	const guard = adminGuard(locals);
+	if (guard) return guard;
 
-    try {
-        const tool = await DBAgentToolUtils.getToolDefinitionById(params.tid!);
-        if (!tool) return json({ error: 'Herramienta no encontrada' }, { status: 404 });
-        if (tool.isSystem) return json({ error: 'No se pueden eliminar herramientas del sistema' }, { status: 403 });
+	try {
+		const tool = await DBAgentToolUtils.getToolDefinitionById(params.tid!);
+		if (!tool) return json({ error: 'Herramienta no encontrada' }, { status: 404 });
+		if (tool.isSystem)
+			return json({ error: 'No se pueden eliminar herramientas del sistema' }, { status: 403 });
 
-        await DBAgentToolUtils.deleteToolDefinition(params.tid!);
-        return json({ success: true });
-    } catch (err) {
-        console.error('[admin/agent-tools/[tid]] DELETE error:', err);
-        return json({ error: 'Error al eliminar herramienta' }, { status: 500 });
-    }
+		await DBAgentToolUtils.deleteToolDefinition(params.tid!);
+		return json({ success: true });
+	} catch (err) {
+		console.error('[admin/agent-tools/[tid]] DELETE error:', err);
+		return json({ error: 'Error al eliminar herramienta' }, { status: 500 });
+	}
 };

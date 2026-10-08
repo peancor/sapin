@@ -32,8 +32,10 @@
 		Package
 	} from 'lucide-svelte';
 
-	let { data }: {
-		data: PageData & { usageDomain?: string; availableUsageDomains?: string[] }
+	let {
+		data
+	}: {
+		data: PageData & { usageDomain?: string; availableUsageDomains?: string[] };
 	} = $props();
 
 	let tools = $state<(typeof data.tools)[number][]>([]);
@@ -64,7 +66,9 @@
 	let formIsActive = $state(true);
 	let formVersion = $state('1.0.0');
 	let formUsageDomain = $state('agent_chat');
-	let formParametersSchema = $state('{\n  "type": "object",\n  "properties": {},\n  "required": []\n}');
+	let formParametersSchema = $state(
+		'{\n  "type": "object",\n  "properties": {},\n  "required": []\n}'
+	);
 	let formResponseSchema = $state('');
 	let formExecutorConfig = $state('{}');
 
@@ -168,7 +172,8 @@
 		formRequiresConfirmation = false;
 		formIsActive = true;
 		formVersion = '1.0.0';
-		formUsageDomain = domainFilter === 'all' ? (availableUsageDomainOptions[0] ?? 'agent_chat') : domainFilter;
+		formUsageDomain =
+			domainFilter === 'all' ? (availableUsageDomainOptions[0] ?? 'agent_chat') : domainFilter;
 		formParametersSchema = '{\n  "type": "object",\n  "properties": {},\n  "required": []\n}';
 		formResponseSchema = '';
 		formExecutorConfig = '{}';
@@ -394,10 +399,7 @@
 		<div class="flex flex-col gap-4 md:flex-row md:items-end">
 			<!-- Search -->
 			<div class="flex-1">
-				<label
-					for="search"
-					class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-				>
+				<label for="search" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
 					Buscar
 				</label>
 				<div class="relative">
@@ -409,7 +411,7 @@
 						type="text"
 						bind:value={searchQuery}
 						placeholder="Buscar por nombre o display name..."
-						class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 pl-10 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+						class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 pl-10 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
 					/>
 				</div>
 			</div>
@@ -425,7 +427,7 @@
 				<select
 					id="categoryFilter"
 					bind:value={categoryFilter}
-					class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+					class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				>
 					<option value="all">Todas las categorías</option>
 					<option value="knowledge">Conocimiento</option>
@@ -448,7 +450,7 @@
 				<select
 					id="executorFilter"
 					bind:value={executorFilter}
-					class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+					class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				>
 					<option value="all">Todos</option>
 					<option value="builtin">Builtin</option>
@@ -468,7 +470,7 @@
 				<select
 					id="domainFilter"
 					bind:value={domainFilter}
-					class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+					class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				>
 					<option value="all">Todos</option>
 					{#each availableUsageDomainOptions as option (option)}
@@ -500,7 +502,11 @@
 							<TableBodyCell>
 								<div class="flex items-center gap-2">
 									{#if tool.isSystem}
-										<Lock size={14} class="shrink-0 text-gray-400" aria-label="Herramienta del sistema" />
+										<Lock
+											size={14}
+											class="shrink-0 text-gray-400"
+											aria-label="Herramienta del sistema"
+										/>
 									{/if}
 									<div>
 										<p class="font-medium text-gray-900 dark:text-white">{tool.displayName}</p>
@@ -586,7 +592,9 @@
 									checked={tool.isActive}
 									onchange={() => toggleActive(tool)}
 									size="small"
-									title={tool.isActive ? 'Activa — click para desactivar' : 'Inactiva — click para activar'}
+									title={tool.isActive
+										? 'Activa — click para desactivar'
+										: 'Inactiva — click para activar'}
 								/>
 							</TableBodyCell>
 
@@ -606,7 +614,9 @@
 										color="red"
 										disabled={tool.isSystem}
 										onclick={() => deleteTool(tool.id, tool.isSystem)}
-										title={tool.isSystem ? 'Las herramientas del sistema no se pueden eliminar' : 'Eliminar'}
+										title={tool.isSystem
+											? 'Las herramientas del sistema no se pueden eliminar'
+											: 'Eliminar'}
 									>
 										<Trash2 size={14} />
 									</Button>
@@ -619,12 +629,7 @@
 								<div class="flex flex-col items-center gap-2">
 									<Wrench size={40} class="text-gray-300 dark:text-gray-600" />
 									<p class="text-gray-500 dark:text-gray-400">No se encontraron herramientas</p>
-									{#if
-										searchQuery ||
-										categoryFilter !== 'all' ||
-										executorFilter !== 'all' ||
-										domainFilter !== 'all'
-									}
+									{#if searchQuery || categoryFilter !== 'all' || executorFilter !== 'all' || domainFilter !== 'all'}
 										<Button
 											color="alternative"
 											size="xs"
@@ -651,11 +656,7 @@
 <!-- Create / Edit Modal overlay -->
 {#if isModalOpen}
 	<!-- Backdrop -->
-	<div
-		class="fixed inset-0 z-40 bg-black/50"
-		role="presentation"
-		onclick={closeModal}
-	></div>
+	<div class="fixed inset-0 z-40 bg-black/50" role="presentation" onclick={closeModal}></div>
 
 	<!-- Panel -->
 	<div
@@ -697,7 +698,7 @@
 						type="text"
 						bind:value={formDisplayName}
 						placeholder="ej. Buscar contenido del curso"
-						class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+						class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
 					/>
 				</div>
 
@@ -714,7 +715,7 @@
 						bind:value={formDescription}
 						rows={3}
 						placeholder="Describe cuándo y cómo el agente debe usar esta herramienta..."
-						class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+						class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
 					></textarea>
 				</div>
 
@@ -730,7 +731,7 @@
 						<select
 							id="formCategory"
 							bind:value={formCategory}
-							class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 						>
 							<option value="knowledge">Conocimiento</option>
 							<option value="evaluation">Evaluación</option>
@@ -751,7 +752,7 @@
 						<select
 							id="formExecutorType"
 							bind:value={formExecutorType}
-							class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 						>
 							<option value="builtin">Builtin</option>
 							<option value="http">HTTP</option>
@@ -772,7 +773,7 @@
 						<select
 							id="formRiskLevel"
 							bind:value={formRiskLevel}
-							class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 						>
 							<option value="low">Bajo</option>
 							<option value="medium">Medio</option>
@@ -792,7 +793,7 @@
 							type="text"
 							bind:value={formVersion}
 							placeholder="1.0.0"
-							class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+							class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
 						/>
 					</div>
 				</div>
@@ -807,7 +808,7 @@
 					<select
 						id="formUsageDomain"
 						bind:value={formUsageDomain}
-						class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+						class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 					>
 						{#each availableUsageDomainOptions as option (option)}
 							<option value={option}>{usageDomainLabel(option)}</option>
@@ -821,7 +822,7 @@
 						<input
 							type="checkbox"
 							bind:checked={formRequiresConfirmation}
-							class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700"
+							class="text-primary-600 focus:ring-primary-500 h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
 						/>
 						<span class="text-sm font-medium text-gray-700 dark:text-gray-300">
 							Requiere confirmación humana (HITL)
@@ -831,7 +832,7 @@
 						<input
 							type="checkbox"
 							bind:checked={formIsActive}
-							class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700"
+							class="text-primary-600 focus:ring-primary-500 h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
 						/>
 						<span class="text-sm font-medium text-gray-700 dark:text-gray-300">Activa</span>
 					</label>
@@ -850,7 +851,7 @@
 						bind:value={formParametersSchema}
 						rows={6}
 						spellcheck={false}
-						class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 font-mono text-xs text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+						class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 font-mono text-xs text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 					></textarea>
 				</div>
 
@@ -868,7 +869,7 @@
 						rows={4}
 						spellcheck={false}
 						placeholder="Dejar vacío si no se define"
-						class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 font-mono text-xs text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+						class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 font-mono text-xs text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
 					></textarea>
 				</div>
 
@@ -886,11 +887,17 @@
 						rows={4}
 						spellcheck={false}
 						placeholder="&#123; &#125;"
-						class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 font-mono text-xs text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+						class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 font-mono text-xs text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
 					></textarea>
 					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-						Para <strong>builtin</strong>: <code class="rounded bg-gray-100 px-1 dark:bg-gray-800">{"{ \"handler\": \"searchCourseContent\" }"}</code> —
-						Para <strong>http</strong>: <code class="rounded bg-gray-100 px-1 dark:bg-gray-800">{"{ \"url\": \"https://...\", \"method\": \"POST\" }"}</code>
+						Para <strong>builtin</strong>:
+						<code class="rounded bg-gray-100 px-1 dark:bg-gray-800"
+							>{'{ "handler": "searchCourseContent" }'}</code
+						>
+						— Para <strong>http</strong>:
+						<code class="rounded bg-gray-100 px-1 dark:bg-gray-800"
+							>{'{ "url": "https://...", "method": "POST" }'}</code
+						>
 					</p>
 				</div>
 			</div>
@@ -903,7 +910,9 @@
 			<Button color="alternative" onclick={closeModal} disabled={isSaving}>Cancelar</Button>
 			<Button color="primary" onclick={saveTool} disabled={isSaving}>
 				{#if isSaving}
-					<span class="me-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+					<span
+						class="me-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+					></span>
 				{/if}
 				{editingTool ? 'Guardar cambios' : 'Crear herramienta'}
 			</Button>

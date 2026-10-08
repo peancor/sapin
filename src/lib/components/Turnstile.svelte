@@ -11,14 +11,7 @@
 		onError?: (error: string) => void;
 	}
 
-	let {
-		siteKey,
-		theme = 'auto',
-		size = 'normal',
-		onVerify,
-		onExpire,
-		onError
-	}: Props = $props();
+	let { siteKey, theme = 'auto', size = 'normal', onVerify, onExpire, onError }: Props = $props();
 
 	let container: HTMLDivElement;
 	let widgetId: string | undefined;
@@ -55,7 +48,7 @@
 						resolve();
 					}
 				}, 50);
-				
+
 				// Timeout después de 10 segundos
 				setTimeout(() => {
 					clearInterval(checkInterval);
@@ -80,7 +73,7 @@
 						resolve();
 					}
 				}, 50);
-				
+
 				setTimeout(() => {
 					clearInterval(checkInterval);
 					if (window.turnstile) {

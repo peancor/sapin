@@ -113,7 +113,8 @@ export class StaffAgentEngine {
 	}): AsyncGenerator<AgentStreamPart> {
 		const { context, systemPrompt, userMessage, threadId } = params;
 		const startTime = Date.now();
-		const modelName = context.activityConfig.llmModel || (await ModelResolver.getDefaultModel()) || '';
+		const modelName =
+			context.activityConfig.llmModel || (await ModelResolver.getDefaultModel()) || '';
 
 		if (!modelName) {
 			yield { type: 'error', code: 'NO_MODEL', message: 'No hay modelo configurado.' };
@@ -255,8 +256,7 @@ export class StaffAgentEngine {
 				modelName,
 				context,
 				startTime,
-				errorMessage:
-					error instanceof Error ? error.message : 'Error inesperado en el staff-agent',
+				errorMessage: error instanceof Error ? error.message : 'Error inesperado en el staff-agent',
 				metadata: { phase: 'execute_loop', toolCallsCount: accumulated.toolCallsCount }
 			});
 			await DBStaffAgentUtils.touchThread(threadId, { status: 'paused' });
@@ -275,7 +275,8 @@ export class StaffAgentEngine {
 	}): AsyncGenerator<AgentStreamPart> {
 		const { context, systemPrompt, threadId } = params;
 		const startTime = Date.now();
-		const modelName = context.activityConfig.llmModel || (await ModelResolver.getDefaultModel()) || '';
+		const modelName =
+			context.activityConfig.llmModel || (await ModelResolver.getDefaultModel()) || '';
 
 		if (!modelName) {
 			yield { type: 'error', code: 'NO_MODEL', message: 'No hay modelo configurado.' };
@@ -396,8 +397,7 @@ export class StaffAgentEngine {
 				modelName,
 				context,
 				startTime,
-				errorMessage:
-					error instanceof Error ? error.message : 'Error al reanudar el staff-agent',
+				errorMessage: error instanceof Error ? error.message : 'Error al reanudar el staff-agent',
 				metadata: {
 					phase: 'resume_loop',
 					resumed: true,

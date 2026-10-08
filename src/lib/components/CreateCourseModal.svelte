@@ -18,9 +18,9 @@
 	const courseBanners = [
 		'/images/course_banners/course_banner_1.webp',
 		'/images/course_banners/course_banner_2.webp',
-        '/images/course_banners/course_banner_3.webp',
-        '/images/course_banners/course_banner_4.webp',
-        '/images/course_banners/course_banner_5.webp'
+		'/images/course_banners/course_banner_3.webp',
+		'/images/course_banners/course_banner_4.webp',
+		'/images/course_banners/course_banner_5.webp'
 	];
 
 	function getRandomBanner(): string {
@@ -66,10 +66,18 @@
 </script>
 
 <Modal bind:open={show} size="lg" autoclose={false} class="w-full">
-	<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-6">
+	<form
+		onsubmit={(e) => {
+			e.preventDefault();
+			handleSubmit();
+		}}
+		class="space-y-6"
+	>
 		<!-- Header -->
 		<div class="flex items-center gap-4">
-			<div class="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg">
+			<div
+				class="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg"
+			>
 				<BookOpen class="h-6 w-6 text-white" />
 			</div>
 			<div>
@@ -125,9 +133,7 @@
 
 		<!-- Actions -->
 		<div class="flex justify-end gap-3 pt-2">
-			<Button color="alternative" onclick={handleClose} class="!rounded-xl">
-				Cancelar
-			</Button>
+			<Button color="alternative" onclick={handleClose} class="!rounded-xl">Cancelar</Button>
 			<Button
 				type="submit"
 				disabled={isSubmitting || !name.trim()}

@@ -27,8 +27,7 @@ function formatContext(kind: StaffAgentWorkspaceKind, value: Record<string, unkn
 			return `${key}: ${String(current)}`;
 		});
 
-	const header =
-		kind === 'course_staff' ? '## Contexto del curso' : '## Contexto de la actividad';
+	const header = kind === 'course_staff' ? '## Contexto del curso' : '## Contexto de la actividad';
 
 	return `${header}\n${entries.join('\n')}`;
 }

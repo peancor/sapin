@@ -175,9 +175,7 @@ export const GET: RequestHandler = async ({ url, params, locals }) => {
 				finalizationEnabled: agentActivity.finalizationEnabled ?? true,
 				finalizationToolName: agentActivity.finalizationToolName ?? 'finalize_activity',
 				finalizationHandler: (agentActivity.finalizationHandler ?? 'mark_complete_and_notify') as
-					| 'mark_complete_and_notify'
-					| 'mark_complete_only'
-					| 'notify_only',
+					'mark_complete_and_notify' | 'mark_complete_only' | 'notify_only',
 				finalizationConfig: agentActivity.finalizationConfig as string | null,
 				requireFinalizationToolCall: agentActivity.requireFinalizationToolCall ?? true,
 				ragEnabled: agentActivity.ragEnabled,

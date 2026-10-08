@@ -1,9 +1,5 @@
 import type { AgentDisplayMessage } from './agent';
-import type {
-	LessonBlock,
-	LessonBlockGraphSummary,
-	LessonBlockKind
-} from './lesson';
+import type { LessonBlock, LessonBlockGraphSummary, LessonBlockKind } from './lesson';
 
 export type LessonDebugPreviewMode = 'draft' | 'published';
 export type LessonDebugVisualState = 'current' | 'completed' | 'visited' | 'pending';

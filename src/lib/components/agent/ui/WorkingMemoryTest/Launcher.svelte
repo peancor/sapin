@@ -40,12 +40,12 @@
 		: 'Abre una prueba inmersiva de memoria de trabajo para repetir secuencias numericas en orden directo o inverso.'}
 	badge="Memoria de trabajo"
 	completed={!!payload}
-	summaryItems={summaryItems}
+	{summaryItems}
 	statusText={payload
 		? 'Disponible para consulta en modo solo lectura.'
 		: 'Pulsa para abrir el test. La sesion empieza cuando pulses Empezar.'}
 	actionLabel="Abrir test"
 	reopenLabel="Reabrir metricas"
 	accentClass="from-cyan-400 via-sky-500 to-blue-600"
-	onopen={onopen}
+	{onopen}
 />

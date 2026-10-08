@@ -48,7 +48,9 @@ export function setStoredCourseAdminInteractiveViewMode(
 	writeStoredViewPreference(adminViewPreferenceKeys.interactivesIndexViewMode, value);
 }
 
-export function parseAgentReviewViewMode(value: string | null | undefined): AgentReviewViewMode | null {
+export function parseAgentReviewViewMode(
+	value: string | null | undefined
+): AgentReviewViewMode | null {
 	switch (value) {
 		case 'compact':
 		case 'mini':

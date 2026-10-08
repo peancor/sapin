@@ -38,9 +38,7 @@ export const agentWorkspace = sqliteTable(
 		llmContext: text('llm_context'),
 		systemPrompt: text('system_prompt'),
 		maxToolRoundtrips: integer('max_tool_roundtrips').notNull().default(8),
-		parallelToolCalls: integer('parallel_tool_calls', { mode: 'boolean' })
-			.notNull()
-			.default(false),
+		parallelToolCalls: integer('parallel_tool_calls', { mode: 'boolean' }).notNull().default(false),
 		toolChoice: text('tool_choice').notNull().default('auto'),
 		metadata: text('metadata'),
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),

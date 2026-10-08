@@ -123,7 +123,9 @@
 						<span>Expandir para ver el chat completo</span>
 					</div>
 					<a
-						href={resolve(`${("/interactive-chat")}/${interactiveChat.interactive_learning_chat.id}/view/${chatInstance.chat.id}`)}
+						href={resolve(
+							`${'/interactive-chat'}/${interactiveChat.interactive_learning_chat.id}/view/${chatInstance.chat.id}`
+						)}
 						class="flex items-center hover:underline"
 						on:click|stopPropagation
 					>
@@ -151,7 +153,7 @@
 	<!-- Mensajes expandidos -->
 	{#if isExpanded}
 		<div class="mt-4 space-y-3">
-			{#each chatInstance.messages as message ( message.id )}
+			{#each chatInstance.messages as message (message.id)}
 				<div
 					class="rounded-lg p-2 sm:p-3 {message.type === 'USER'
 						? 'ml-2 bg-blue-50 sm:ml-4 dark:bg-blue-900/30'
@@ -177,7 +179,9 @@
 			{/each}
 			<div class="mt-4 flex items-center justify-between">
 				<a
-					href={resolve(`${("/interactive-chat")}/${interactiveChat.interactive_learning_chat.id}/view/${chatInstance.chat.id}`)}
+					href={resolve(
+						`${'/interactive-chat'}/${interactiveChat.interactive_learning_chat.id}/view/${chatInstance.chat.id}`
+					)}
 					class="flex items-center p-2 text-xs text-blue-600 hover:underline dark:text-blue-400"
 					on:click|stopPropagation
 				>

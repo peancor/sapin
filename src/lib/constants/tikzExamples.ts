@@ -122,7 +122,8 @@ export const tikzExamples = [
 		category: 'fundamentals',
 		priority: 'core',
 		description: 'Fuente de corriente con dos ramas resistivas en paralelo.',
-		learningGoal: 'Introducir corrientes de rama, caidas de tension y lectura basica de circuitikz.',
+		learningGoal:
+			'Introducir corrientes de rama, caidas de tension y lectura basica de circuitikz.',
 		runtimeSupport: { server: true, browser: 'supported' },
 		source: String.raw`\usepackage{circuitikz}
 \begin{document}

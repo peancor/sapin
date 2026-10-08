@@ -1,16 +1,22 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
-	import { PencilLine, ArrowLeft, Mail, Calendar, Shield, BookOpen, GraduationCap } from 'lucide-svelte';
+	import {
+		PencilLine,
+		ArrowLeft,
+		Mail,
+		Calendar,
+		Shield,
+		BookOpen,
+		GraduationCap
+	} from 'lucide-svelte';
 	import { Avatar, Badge, Button } from 'flowbite-svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	// Obtener el nivel de rol más alto del nuevo sistema
 	const userHighestLevel = $derived(
-		data.roles && data.roles.length > 0
-			? Math.max(...data.roles.map(r => r.level))
-			: 0
+		data.roles && data.roles.length > 0 ? Math.max(...data.roles.map((r) => r.level)) : 0
 	);
 
 	// Determinar si el usuario es estudiante o profesor según el nuevo sistema
@@ -87,9 +93,7 @@
 		</a>
 		<div class="flex-1">
 			<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Detalles del Usuario</h1>
-			<p class="text-sm text-gray-500 dark:text-gray-400">
-				Información completa del usuario
-			</p>
+			<p class="text-sm text-gray-500 dark:text-gray-400">Información completa del usuario</p>
 		</div>
 		<a href="/admin/users/{data.user.id}/edit">
 			<Button color="primary" class="flex items-center gap-2">
@@ -117,7 +121,7 @@
 					<h2 class="text-xl font-bold text-gray-900 dark:text-white">
 						{data.user.username || 'Sin nombre'}
 					</h2>
-					                    <div class="flex flex-wrap gap-1">
+					<div class="flex flex-wrap gap-1">
 						{#if data.roles && data.roles.length > 0}
 							{#each data.roles.sort((a, b) => b.level - a.level) as r (r.id)}
 								<Badge color={getRoleBadgeColorByLevel(r.level)} class="font-medium">
@@ -125,9 +129,7 @@
 								</Badge>
 							{/each}
 						{:else}
-							<Badge color="green" class="font-medium">
-								Usuario
-							</Badge>
+							<Badge color="green" class="font-medium">Usuario</Badge>
 						{/if}
 					</div>
 				</div>
@@ -155,9 +157,13 @@
 	<!-- Stats Cards -->
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 		<!-- Roles Card -->
-		<div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+		<div
+			class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"
+		>
 			<div class="flex items-start gap-4">
-				<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+				<div
+					class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
+				>
 					<Shield size={24} />
 				</div>
 				<div class="min-w-0 flex-1">
@@ -171,9 +177,7 @@
 							{/each}
 						</div>
 					{:else}
-						<p class="text-lg font-semibold text-gray-900 dark:text-white">
-							Usuario
-						</p>
+						<p class="text-lg font-semibold text-gray-900 dark:text-white">Usuario</p>
 					{/if}
 				</div>
 			</div>
@@ -181,9 +185,13 @@
 
 		{#if isStudentLevel}
 			<!-- Courses Enrolled -->
-			<div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+			<div
+				class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"
+			>
 				<div class="flex items-center gap-4">
-					<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">
+					<div
+						class="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+					>
 						<BookOpen size={24} />
 					</div>
 					<div>
@@ -198,9 +206,13 @@
 
 		{#if isTeacherLevel}
 			<!-- Courses Teaching -->
-			<div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+			<div
+				class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"
+			>
 				<div class="flex items-center gap-4">
-					<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+					<div
+						class="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+					>
 						<GraduationCap size={24} />
 					</div>
 					<div>
@@ -214,10 +226,15 @@
 		{/if}
 
 		<!-- User ID -->
-		<div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+		<div
+			class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"
+		>
 			<div>
 				<p class="text-sm font-medium text-gray-500 dark:text-gray-400">ID de usuario</p>
-				<p class="mt-1 truncate font-mono text-sm text-gray-900 dark:text-white" title={data.user.id}>
+				<p
+					class="mt-1 truncate font-mono text-sm text-gray-900 dark:text-white"
+					title={data.user.id}
+				>
 					{data.user.id}
 				</p>
 			</div>

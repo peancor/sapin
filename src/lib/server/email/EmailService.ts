@@ -28,10 +28,7 @@ class EmailService {
 	 */
 	async loadConfig(): Promise<EmailConfig> {
 		try {
-			const result = await db
-				.select()
-				.from(appSetting)
-				.where(eq(appSetting.key, 'emailConfig'));
+			const result = await db.select().from(appSetting).where(eq(appSetting.key, 'emailConfig'));
 
 			if (result[0]?.value) {
 				this.config = JSON.parse(result[0].value) as EmailConfig;
@@ -57,10 +54,7 @@ class EmailService {
 	 */
 	async saveConfig(config: EmailConfig): Promise<boolean> {
 		try {
-			const existing = await db
-				.select()
-				.from(appSetting)
-				.where(eq(appSetting.key, 'emailConfig'));
+			const existing = await db.select().from(appSetting).where(eq(appSetting.key, 'emailConfig'));
 
 			const configJson = JSON.stringify(config);
 
@@ -221,10 +215,7 @@ class EmailService {
 	/**
 	 * Send email via SMTP
 	 */
-	private async sendViaSmtp(
-		options: EmailSendOptions,
-		html?: string
-	): Promise<EmailSendResult> {
+	private async sendViaSmtp(options: EmailSendOptions, html?: string): Promise<EmailSendResult> {
 		if (!this.smtpTransporter || !this.config?.smtp) {
 			return {
 				success: false,
@@ -263,10 +254,7 @@ class EmailService {
 	/**
 	 * Send email via Resend (placeholder for future implementation)
 	 */
-	private async sendViaResend(
-		options: EmailSendOptions,
-		html?: string
-	): Promise<EmailSendResult> {
+	private async sendViaResend(options: EmailSendOptions, html?: string): Promise<EmailSendResult> {
 		// Future: Implement Resend sending
 		return {
 			success: false,

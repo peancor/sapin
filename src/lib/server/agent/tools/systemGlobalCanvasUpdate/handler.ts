@@ -1,6 +1,9 @@
 import type { AgentContext, ToolResult } from '$lib/types/agent';
 import type { MemoryCanvasUpdateInput } from '$lib/types/agentMemory';
-import { AgentMemoryService, SYSTEM_GLOBAL_CANVAS_UPDATE_TOOL_NAME } from '$lib/server/agent/memory';
+import {
+	AgentMemoryService,
+	SYSTEM_GLOBAL_CANVAS_UPDATE_TOOL_NAME
+} from '$lib/server/agent/memory';
 
 export async function systemGlobalCanvasUpdate(
 	params: MemoryCanvasUpdateInput,

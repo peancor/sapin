@@ -89,12 +89,12 @@
 				: 'Abre una prueba inmersiva de reaccion y frenado ante peligros y distractores.'}
 	badge="Psicotecnico de conduccion"
 	completed={!!payload}
-	summaryItems={summaryItems}
+	{summaryItems}
 	statusText={payload
 		? 'Disponible para consulta en modo solo lectura.'
 		: 'Pulsa para abrir la experiencia. El test empieza cuando pulses Empezar.'}
 	actionLabel="Abrir test"
 	reopenLabel="Reabrir metricas"
 	accentClass="from-sky-500 via-cyan-500 to-emerald-500"
-	onopen={onopen}
+	{onopen}
 />

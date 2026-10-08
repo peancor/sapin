@@ -164,25 +164,28 @@ class FileStorageService {
 				const fileId = nanoid();
 				const now = new Date();
 
-				const newRecord = await db.insert(fileStorage).values({
-					id: fileId,
-					name: file.name,
-					displayName: displayName || file.name,
-					internalPath: duplicate.internalPath,
-					mimeType: file.type,
-					size: file.size,
-					hash,
-					category,
-					entityType,
-					entityId,
-					visibility: visibility || this.getDefaultVisibility(category),
-					processingStatus: 'completed',
-					uploadedBy,
-					uploadedAt: now,
-					isActive: true,
-					isOrphan: false,
-					accessCount: 0
-				}).returning();
+				const newRecord = await db
+					.insert(fileStorage)
+					.values({
+						id: fileId,
+						name: file.name,
+						displayName: displayName || file.name,
+						internalPath: duplicate.internalPath,
+						mimeType: file.type,
+						size: file.size,
+						hash,
+						category,
+						entityType,
+						entityId,
+						visibility: visibility || this.getDefaultVisibility(category),
+						processingStatus: 'completed',
+						uploadedBy,
+						uploadedAt: now,
+						isActive: true,
+						isOrphan: false,
+						accessCount: 0
+					})
+					.returning();
 
 				return {
 					success: true,
@@ -206,25 +209,28 @@ class FileStorageService {
 			const fileId = nanoid();
 			const now = new Date();
 
-			const newRecord = await db.insert(fileStorage).values({
-				id: fileId,
-				name: file.name,
-				displayName: displayName || file.name,
-				internalPath,
-				mimeType: file.type,
-				size: file.size,
-				hash,
-				category,
-				entityType,
-				entityId,
-				visibility: visibility || this.getDefaultVisibility(category),
-				processingStatus: 'pending',
-				uploadedBy,
-				uploadedAt: now,
-				isActive: true,
-				isOrphan: false,
-				accessCount: 0
-			}).returning();
+			const newRecord = await db
+				.insert(fileStorage)
+				.values({
+					id: fileId,
+					name: file.name,
+					displayName: displayName || file.name,
+					internalPath,
+					mimeType: file.type,
+					size: file.size,
+					hash,
+					category,
+					entityType,
+					entityId,
+					visibility: visibility || this.getDefaultVisibility(category),
+					processingStatus: 'pending',
+					uploadedBy,
+					uploadedAt: now,
+					isActive: true,
+					isOrphan: false,
+					accessCount: 0
+				})
+				.returning();
 
 			// Queue image processing if applicable (non-blocking)
 			if (imageProcessor.isProcessableImage(file.type)) {

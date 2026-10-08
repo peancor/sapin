@@ -5,7 +5,9 @@ import { StaffAgentAnalyticsService } from './StaffAgentAnalyticsService';
 import { StaffAgentPromptBuilder } from './StaffAgentPromptBuilder';
 import type { AgentContext, ToolDefinitionResolved } from '$lib/types/agent';
 
-function mapAvailableTool(tool: Awaited<ReturnType<typeof DBAgentToolUtils.getActiveToolDefinitions>>[number]) {
+function mapAvailableTool(
+	tool: Awaited<ReturnType<typeof DBAgentToolUtils.getActiveToolDefinitions>>[number]
+) {
 	return {
 		id: tool.id,
 		name: tool.name,

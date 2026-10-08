@@ -800,10 +800,10 @@ export async function getActiveUsers(options: {
 	// Construir condiciones de búsqueda
 	const searchConditions = search
 		? or(
-			like(user.email, `%${search}%`),
-			like(user.username, `%${search}%`),
-			like(user.alias, `%${search}%`)
-		)
+				like(user.email, `%${search}%`),
+				like(user.username, `%${search}%`),
+				like(user.alias, `%${search}%`)
+			)
 		: undefined;
 
 	// Obtener usuarios con actividad en el período
@@ -851,34 +851,34 @@ export async function getActiveUsers(options: {
 	const sessionStats =
 		userIds.length > 0
 			? await db
-				.select({
-					userId: analyticsSession.userId,
-					totalSessions: count(),
-					totalDuration: sql<number>`COALESCE(SUM(${analyticsSession.duration}), 0)`,
-					device: sql<string>`(
+					.select({
+						userId: analyticsSession.userId,
+						totalSessions: count(),
+						totalDuration: sql<number>`COALESCE(SUM(${analyticsSession.duration}), 0)`,
+						device: sql<string>`(
 				SELECT ${analyticsSession.device}
 				FROM ${analyticsSession} AS s2
 				WHERE s2.user_id = ${analyticsSession.userId}
 				ORDER BY s2.started_at DESC
 				LIMIT 1
 			)`,
-					browser: sql<string>`(
+						browser: sql<string>`(
 				SELECT ${analyticsSession.browser}
 				FROM ${analyticsSession} AS s2
 				WHERE s2.user_id = ${analyticsSession.userId}
 				ORDER BY s2.started_at DESC
 				LIMIT 1
 			)`
-				})
-				.from(analyticsSession)
-				.where(
-					and(
-						gte(analyticsSession.startedAt, periodStart),
-						isNotNull(analyticsSession.userId),
-						sql`${analyticsSession.userId} IN (${sql.raw(userIds.map((id) => `'${id}'`).join(','))})`
+					})
+					.from(analyticsSession)
+					.where(
+						and(
+							gte(analyticsSession.startedAt, periodStart),
+							isNotNull(analyticsSession.userId),
+							sql`${analyticsSession.userId} IN (${sql.raw(userIds.map((id) => `'${id}'`).join(','))})`
+						)
 					)
-				)
-				.groupBy(analyticsSession.userId)
+					.groupBy(analyticsSession.userId)
 			: [];
 
 	// Combinar datos
@@ -923,9 +923,9 @@ export async function getRecentEvents(options: {
 		userId ? eq(analyticsEvent.userId, userId) : undefined,
 		type
 			? eq(
-				analyticsEvent.type,
-				type as (typeof analyticsEventType)[keyof typeof analyticsEventType]
-			)
+					analyticsEvent.type,
+					type as (typeof analyticsEventType)[keyof typeof analyticsEventType]
+				)
 			: undefined
 	].filter(Boolean);
 

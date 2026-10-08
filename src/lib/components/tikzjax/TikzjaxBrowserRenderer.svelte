@@ -85,8 +85,8 @@
 					data-disable-cache={String(request.disableCache)}
 					data-tex-packages={request.texPackagesJson || undefined}
 					data-tikz-libraries={request.tikzLibraries || undefined}
-					data-add-to-preamble={request.addToPreamble || undefined}
-				>{request.source}</svelte:element>
+					data-add-to-preamble={request.addToPreamble || undefined}>{request.source}</svelte:element
+				>
 			</div>
 		{/key}
 	{:else}

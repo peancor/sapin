@@ -1,8 +1,5 @@
 export type ActivityDebuggerFieldOrigin =
-	| 'stored'
-	| 'derived_current'
-	| 'usage_log'
-	| 'unavailable';
+	'stored' | 'derived_current' | 'usage_log' | 'unavailable';
 
 export type ActivityDebuggerActivityType = 'chat' | 'agent';
 export type ActivityDebuggerSessionStatus = 'completed' | 'pending' | 'attention';

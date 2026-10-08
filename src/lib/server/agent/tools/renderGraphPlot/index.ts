@@ -6,4 +6,3 @@ export const renderGraphPlotPackage: BuiltinToolPackage = {
 };
 
 export { renderGraphPlotManifest } from './manifest';
-

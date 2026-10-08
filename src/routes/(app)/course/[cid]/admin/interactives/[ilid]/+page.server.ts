@@ -26,7 +26,10 @@ export const load = (async ({ params, locals }) => {
 
 	const { cid, ilid } = params;
 	const access = await CourseInteractiveAuthUtils.userCanAdminCourseInteractive(
-		locals.user.id, cid, ilid, locals.user.highestRoleLevel
+		locals.user.id,
+		cid,
+		ilid,
+		locals.user.highestRoleLevel
 	);
 
 	if (!access.allowed) {
@@ -73,8 +76,7 @@ export const load = (async ({ params, locals }) => {
 			totalStudents > 0 ? Math.round((studentsCompleted / totalStudents) * 100) : 0;
 		const participationRate =
 			totalStudents > 0 ? Math.round((studentsWithActivity / totalStudents) * 100) : 0;
-		const averageMessagesPerChat =
-			totalChats > 0 ? Math.round(totalMessages / totalChats) : 0;
+		const averageMessagesPerChat = totalChats > 0 ? Math.round(totalMessages / totalChats) : 0;
 
 		return {
 			interactive,
@@ -138,22 +140,22 @@ export const load = (async ({ params, locals }) => {
 			? await db
 					.select()
 					.from(interactiveLessonBlockState)
-					.where(inArray(interactiveLessonBlockState.sessionId, sessions.map((session) => session.id)))
+					.where(
+						inArray(
+							interactiveLessonBlockState.sessionId,
+							sessions.map((session) => session.id)
+						)
+					)
 					.all()
 			: [];
 		const chatIds = blockStates.map((state) => state.chatId).filter(Boolean) as string[];
 		const totalMessages = chatIds.length
-			? (
-					await db
-						.select()
-						.from(message)
-						.where(inArray(message.chatId, chatIds))
-						.all()
-			  ).length
+			? (await db.select().from(message).where(inArray(message.chatId, chatIds)).all()).length
 			: 0;
-		const lastActivityDate = sessions
-			.map((session) => session.lastActiveAt)
-			.sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+		const lastActivityDate =
+			sessions
+				.map((session) => session.lastActiveAt)
+				.sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
 		const participationRate =
 			totalStudents > 0 ? Math.round((sessionUserIds.length / totalStudents) * 100) : 0;
 		const completionRate =
@@ -175,7 +177,8 @@ export const load = (async ({ params, locals }) => {
 				totalMessages,
 				participationRate,
 				completionRate,
-				averageMessagesPerChat: sessions.length > 0 ? Math.round(totalMessages / sessions.length) : 0,
+				averageMessagesPerChat:
+					sessions.length > 0 ? Math.round(totalMessages / sessions.length) : 0,
 				lastActivityDate,
 				requiresMinMessages: 0
 			}
@@ -189,7 +192,9 @@ export const load = (async ({ params, locals }) => {
 		.where(eq(interactiveLearningChat.id, ilid))
 		.get();
 
-	const interactiveChat = await DBChatUtils.loadInteractiveChatFromInteractiveId(ilid, { bypassStatusCheck: true });
+	const interactiveChat = await DBChatUtils.loadInteractiveChatFromInteractiveId(ilid, {
+		bypassStatusCheck: true
+	});
 
 	let totalChats = 0;
 	let totalMessages = 0;
@@ -226,7 +231,11 @@ export const load = (async ({ params, locals }) => {
 				}
 			}
 
-			if (messageCount >= ACTIVITY_COMPLETION_MIN_MESSAGES && hasCompletionMarker && chat.chat.userId) {
+			if (
+				messageCount >= ACTIVITY_COMPLETION_MIN_MESSAGES &&
+				hasCompletionMarker &&
+				chat.chat.userId
+			) {
 				completedStudentIds.add(chat.chat.userId);
 			}
 
@@ -238,8 +247,10 @@ export const load = (async ({ params, locals }) => {
 		studentsCompleted = completedStudentIds.size;
 	}
 
-	const participationRate = totalStudents > 0 ? Math.round((studentsWithActivity / totalStudents) * 100) : 0;
-	const completionRate = totalStudents > 0 ? Math.round((studentsCompleted / totalStudents) * 100) : 0;
+	const participationRate =
+		totalStudents > 0 ? Math.round((studentsWithActivity / totalStudents) * 100) : 0;
+	const completionRate =
+		totalStudents > 0 ? Math.round((studentsCompleted / totalStudents) * 100) : 0;
 	const averageMessagesPerChat = totalChats > 0 ? Math.round(totalMessages / totalChats) : 0;
 
 	return {

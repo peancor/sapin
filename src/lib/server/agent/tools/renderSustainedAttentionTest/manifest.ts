@@ -44,7 +44,11 @@ export const renderSustainedAttentionTestManifest: ToolManifest = {
 		}
 	},
 	executorType: 'builtin',
-	executorConfig: { handler: 'ui_renderer', componentKey: 'SustainedAttentionTest', interactive: true },
+	executorConfig: {
+		handler: 'ui_renderer',
+		componentKey: 'SustainedAttentionTest',
+		interactive: true
+	},
 	requiresConfirmation: false,
 	riskLevel: 'low',
 	isSystem: true,

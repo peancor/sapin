@@ -54,7 +54,11 @@ export class ActivityMicroAnalyticsService {
 		}
 	) {
 		const [overview, activityMeta] = await Promise.all([
-			LearningEvidenceService.getActivityEvidenceOverview(access, params.activityId, params.studentIds),
+			LearningEvidenceService.getActivityEvidenceOverview(
+				access,
+				params.activityId,
+				params.studentIds
+			),
 			getActivityMeta(params.activityId)
 		]);
 
@@ -110,7 +114,8 @@ export class ActivityMicroAnalyticsService {
 				let priorityScore = startedElsewhere > 0 ? 45 : 25;
 				if (completedElsewhere > 0) priorityScore += 15;
 				if ((activityAgeDays ?? 0) >= (params.daysSincePublished ?? 7)) priorityScore += 20;
-				if (lastCourseActivityAt && (daysSince(lastCourseActivityAt) ?? 999) <= 7) priorityScore += 15;
+				if (lastCourseActivityAt && (daysSince(lastCourseActivityAt) ?? 999) <= 7)
+					priorityScore += 15;
 
 				return {
 					student: {
@@ -132,7 +137,10 @@ export class ActivityMicroAnalyticsService {
 					]
 				};
 			})
-			.sort((a, b) => b.priorityScore - a.priorityScore || a.student.username.localeCompare(b.student.username));
+			.sort(
+				(a, b) =>
+					b.priorityScore - a.priorityScore || a.student.username.localeCompare(b.student.username)
+			);
 
 		const highPriorityCount = items.filter((item) => item.priority === 'high').length;
 		const nonStarterRate =
@@ -166,10 +174,14 @@ export class ActivityMicroAnalyticsService {
 			alerts,
 			recommendedActions: [
 				...(highPriorityCount > 0
-					? ['Contactar primero con quienes sí avanzan en el curso pero no han arrancado esta actividad.']
+					? [
+							'Contactar primero con quienes sí avanzan en el curso pero no han arrancado esta actividad.'
+						]
 					: []),
 				...(nonStarterRate >= 35
-					? ['Revisar consigna, visibilidad y fricción inicial de la actividad antes de insistir individualmente.']
+					? [
+							'Revisar consigna, visibilidad y fricción inicial de la actividad antes de insistir individualmente.'
+						]
 					: ['Mantener seguimiento ligero y reactivar tras la siguiente ventana de trabajo.'])
 			],
 			limitations: [
@@ -187,7 +199,11 @@ export class ActivityMicroAnalyticsService {
 		}
 	) {
 		const [overview, activityMeta] = await Promise.all([
-			LearningEvidenceService.getActivityEvidenceOverview(access, params.activityId, params.studentIds),
+			LearningEvidenceService.getActivityEvidenceOverview(
+				access,
+				params.activityId,
+				params.studentIds
+			),
 			getActivityMeta(params.activityId)
 		]);
 
@@ -216,8 +232,10 @@ export class ActivityMicroAnalyticsService {
 		const abandonedRate = funnel.stages.find((stage) => stage.key === 'abandoned')?.rate ?? 0;
 
 		const alerts: string[] = [];
-		if (startedRate < 60) alerts.push('La principal fuga ocurre antes del primer arranque de la actividad.');
-		if (completedRate < 50) alerts.push('Menos de la mitad de la cohorte llega a completar la actividad.');
+		if (startedRate < 60)
+			alerts.push('La principal fuga ocurre antes del primer arranque de la actividad.');
+		if (completedRate < 50)
+			alerts.push('Menos de la mitad de la cohorte llega a completar la actividad.');
 		if (abandonedRate >= 20) alerts.push('El abandono registrado es alto para esta actividad.');
 
 		return {
@@ -235,7 +253,9 @@ export class ActivityMicroAnalyticsService {
 			transitions: funnel.transitions,
 			alerts,
 			recommendedActions: [
-				...(startedRate < 60 ? ['Simplificar el arranque y visibilizar mejor la primera accion esperada.'] : []),
+				...(startedRate < 60
+					? ['Simplificar el arranque y visibilizar mejor la primera accion esperada.']
+					: []),
 				...(abandonedRate >= 20
 					? ['Revisar el punto medio de la actividad para localizar fricciones de abandono.']
 					: []),
@@ -262,7 +282,9 @@ export class ActivityMicroAnalyticsService {
 		}
 	) {
 		const [overview, transcripts] = await Promise.all([
-			LearningEvidenceService.getActivityEvidenceOverview(access, params.activityId, [params.studentId]),
+			LearningEvidenceService.getActivityEvidenceOverview(access, params.activityId, [
+				params.studentId
+			]),
 			LearningEvidenceService.getActivityTranscripts(access, {
 				activityId: params.activityId,
 				studentIds: [params.studentId],
@@ -271,25 +293,33 @@ export class ActivityMicroAnalyticsService {
 			})
 		]);
 
-		const studentSummary = overview.studentSummaries.find((student) => student.userId === params.studentId);
+		const studentSummary = overview.studentSummaries.find(
+			(student) => student.userId === params.studentId
+		);
 		if (!studentSummary) {
 			throw new Error('No se encontro al estudiante solicitado en la actividad.');
 		}
 
 		const timeline = [...transcripts]
-			.sort((a, b) => new Date(a.sessionStartedAt).getTime() - new Date(b.sessionStartedAt).getTime())
+			.sort(
+				(a, b) => new Date(a.sessionStartedAt).getTime() - new Date(b.sessionStartedAt).getTime()
+			)
 			.map((session, index, sessions) => {
 				const previous = sessions[index - 1];
 				const repeatedLearnerTurns = extractRepeatedLearnerTurns(session.messages);
 				const toolFailureCount = session.messages.reduce((count, message) => {
 					for (const part of message.parts) {
-						if (part.kind === 'tool-result' && (part.status === 'failed' || Boolean(part.errorMessage))) {
+						if (
+							part.kind === 'tool-result' &&
+							(part.status === 'failed' || Boolean(part.errorMessage))
+						) {
 							return count + 1;
 						}
 					}
 					return count;
 				}, 0);
-				const endedWithoutAssistant = (session.messages.at(-1)?.role ?? 'assistant') !== 'assistant';
+				const endedWithoutAssistant =
+					(session.messages.at(-1)?.role ?? 'assistant') !== 'assistant';
 
 				const deltaLearnerMessages = previous
 					? session.learnerMessageCount - previous.learnerMessageCount
@@ -297,7 +327,10 @@ export class ActivityMicroAnalyticsService {
 				const previousToolFailureCount = previous
 					? previous.messages.reduce((count, message) => {
 							for (const part of message.parts) {
-								if (part.kind === 'tool-result' && (part.status === 'failed' || Boolean(part.errorMessage))) {
+								if (
+									part.kind === 'tool-result' &&
+									(part.status === 'failed' || Boolean(part.errorMessage))
+								) {
 									return count + 1;
 								}
 							}
@@ -330,7 +363,9 @@ export class ActivityMicroAnalyticsService {
 			alerts.push('Hay intentos con fallos de herramienta.');
 		}
 		if (timeline.filter((attempt) => attempt.repeatedLearnerTurns > 0).length >= 2) {
-			alerts.push('Se repiten reformulaciones en varios intentos, posible estancamiento conceptual.');
+			alerts.push(
+				'Se repiten reformulaciones en varios intentos, posible estancamiento conceptual.'
+			);
 		}
 		if (timeline.at(-1)?.endedWithoutAssistant) {
 			alerts.push('El ultimo intento termina sin cierre claro del asistente.');
@@ -416,7 +451,9 @@ export class ActivityMicroAnalyticsService {
 			alerts,
 			recommendedActions: [
 				...(hotspots.items.some((item) => item.kind === 'tool' && item.failureRate >= 25)
-					? ['Priorizar la revision de herramientas con fallo frecuente antes de retocar la consigna.']
+					? [
+							'Priorizar la revision de herramientas con fallo frecuente antes de retocar la consigna.'
+						]
 					: []),
 				...(hotspots.items.some((item) => item.kind === 'ui' && item.pendingRate >= 40)
 					? ['Revisar componentes renderizados sin respuesta o con baja respuesta del alumnado.']

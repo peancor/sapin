@@ -51,17 +51,12 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 
 		// 6. Validar que el modelo esté disponible en el sistema
 		const availableModels = await AIUtils.getAvailableModels();
-		const isModelAvailable = availableModels.some(m => m.name === options.model);
+		const isModelAvailable = availableModels.some((m) => m.name === options.model);
 		const defaultModel = await AIUtils.getDefaultModel();
 		const selectedModel = isModelAvailable ? options.model : defaultModel;
 
 		// 7. Verificar cuotas antes de proceder
-		const quotaCheck = await AIUtils.checkQuota(
-			selectedModel,
-			user.id,
-			courseId,
-			ilid
-		);
+		const quotaCheck = await AIUtils.checkQuota(selectedModel, user.id, courseId, ilid);
 
 		if (!quotaCheck.allowed) {
 			return new Response(`Cuota excedida: ${quotaCheck.reason}`, { status: 429 });
@@ -96,7 +91,6 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 				'Content-Type': 'text/plain; charset=utf-8'
 			}
 		});
-
 	} catch (error) {
 		console.error('Error generando insights:', error);
 		return new Response(

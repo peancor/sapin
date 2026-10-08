@@ -56,17 +56,33 @@ export class InsightsAgentEngine {
 		const withScopeDefaults = (input: Record<string, unknown>): Record<string, unknown> => {
 			const scopedInput = { ...input };
 
-			if (scope.mode === 'students' && scopedInput.studentIds === undefined && scope.studentIds.length > 0) {
+			if (
+				scope.mode === 'students' &&
+				scopedInput.studentIds === undefined &&
+				scope.studentIds.length > 0
+			) {
 				scopedInput.studentIds = scope.studentIds;
 			}
-			if (scope.mode === 'students' && scopedInput.studentId === undefined && scope.studentIds.length === 1) {
+			if (
+				scope.mode === 'students' &&
+				scopedInput.studentId === undefined &&
+				scope.studentIds.length === 1
+			) {
 				scopedInput.studentId = scope.studentIds[0];
 			}
 
-			if (scope.mode === 'sessions' && scopedInput.chatIds === undefined && scope.chatIds.length > 0) {
+			if (
+				scope.mode === 'sessions' &&
+				scopedInput.chatIds === undefined &&
+				scope.chatIds.length > 0
+			) {
 				scopedInput.chatIds = scope.chatIds;
 			}
-			if (scope.mode === 'sessions' && scopedInput.chatId === undefined && scope.chatIds.length === 1) {
+			if (
+				scope.mode === 'sessions' &&
+				scopedInput.chatId === undefined &&
+				scope.chatIds.length === 1
+			) {
 				scopedInput.chatId = scope.chatIds[0];
 			}
 
@@ -146,7 +162,8 @@ export class InsightsAgentEngine {
 	}): AsyncGenerator<AgentStreamPart> {
 		const { context, systemPrompt, userMessage, runId, scope } = params;
 		const startTime = Date.now();
-		const modelName = context.activityConfig.llmModel || (await ModelResolver.getDefaultModel()) || '';
+		const modelName =
+			context.activityConfig.llmModel || (await ModelResolver.getDefaultModel()) || '';
 
 		if (!modelName) {
 			yield { type: 'error', code: 'NO_MODEL', message: 'No hay modelo configurado.' };
@@ -304,7 +321,8 @@ export class InsightsAgentEngine {
 			yield {
 				type: 'error',
 				code: 'ENGINE_ERROR',
-				message: error instanceof Error ? error.message : 'Error inesperado en el agente de insights'
+				message:
+					error instanceof Error ? error.message : 'Error inesperado en el agente de insights'
 			};
 		}
 	}
@@ -317,7 +335,8 @@ export class InsightsAgentEngine {
 	}): AsyncGenerator<AgentStreamPart> {
 		const { context, systemPrompt, runId, scope } = params;
 		const startTime = Date.now();
-		const modelName = context.activityConfig.llmModel || (await ModelResolver.getDefaultModel()) || '';
+		const modelName =
+			context.activityConfig.llmModel || (await ModelResolver.getDefaultModel()) || '';
 
 		if (!modelName) {
 			yield { type: 'error', code: 'NO_MODEL', message: 'No hay modelo configurado.' };

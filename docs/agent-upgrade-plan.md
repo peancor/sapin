@@ -20,14 +20,14 @@
 
 El sistema actual (`type: 'chat'` → `interactiveLearningChat`) permanece **intacto**. Se crea un sistema paralelo:
 
-| Concepto | Sistema Actual | Sistema Nuevo |
-|----------|---------------|---------------|
-| Tipo de actividad | `chat` | `agent` |
-| Tabla de config | `interactiveLearningChat` | `interactiveLearningAgent` |
-| Componente frontend | `ChatComponent.svelte` | `AgentChatComponent.svelte` |
-| Motor backend | `AIUtils.streamChatResponse()` | `AgentEngine.executeLoop()` |
-| API endpoints | `/api/interactive-chat/` | `/api/agent-chat/` |
-| Formato de mensaje | `{ content: string, type }` | `AgentMessage` (multipart) |
+| Concepto            | Sistema Actual                 | Sistema Nuevo               |
+| ------------------- | ------------------------------ | --------------------------- |
+| Tipo de actividad   | `chat`                         | `agent`                     |
+| Tabla de config     | `interactiveLearningChat`      | `interactiveLearningAgent`  |
+| Componente frontend | `ChatComponent.svelte`         | `AgentChatComponent.svelte` |
+| Motor backend       | `AIUtils.streamChatResponse()` | `AgentEngine.executeLoop()` |
+| API endpoints       | `/api/interactive-chat/`       | `/api/agent-chat/`          |
+| Formato de mensaje  | `{ content: string, type }`    | `AgentMessage` (multipart)  |
 
 ### 1.2 Arquitectura General (Mermaid)
 
@@ -93,6 +93,7 @@ graph TB
 El motor agéntico es **agnóstico al tipo de actividad**. Se instancia con un `AgentContext` que proporciona las herramientas disponibles, y una implementación de `AgentPersistence` que determina dónde se almacenan los resultados.
 
 **Punto clave de reutilización:** Para integrar el motor en otra área, solo se necesita:
+
 1. Crear una nueva implementación de `AgentPersistence`
 2. Construir un `AgentContext` con las herramientas relevantes
 3. Conectar los endpoints SSE al `AgentEngine`
@@ -155,6 +156,7 @@ sequenceDiagram
 #### Tablas principales:
 
 **`agent_tool_definition`** — Catálogo global de herramientas
+
 - `name` (unique): Identificador técnico (`search_course_content`)
 - `displayName`: Nombre para mostrar al usuario
 - `description`: Para el LLM (describe cuándo usar la herramienta)
@@ -167,16 +169,19 @@ sequenceDiagram
 - `riskLevel`: `low` | `medium` | `high`
 
 **`interactive_learning_agent`** — Config de actividad tipo agente (1:1 con `interactiveLearning`)
+
 - Mismos campos LLM que `interactiveLearningChat`
 - `maxToolRoundtrips`: Límite del loop (default: 5)
 - `parallelToolCalls`: Ejecución paralela
 - `toolChoice`: `auto` | `required` | `none`
 
 **`agent_activity_tool`** — Herramientas habilitadas por actividad
+
 - FK a `interactiveLearningAgent` + FK a `agentToolDefinition`
 - `configOverride`: JSON para override por actividad
 
 **`agent_ui_component`** — Catálogo global de componentes UI
+
 - `componentKey`: Clave en `UIComponentRegistry` frontend
 - `propsSchema`: JSON Schema que el LLM debe generar
 - `responseSchema`: JSON Schema del payload que emite el componente
@@ -184,18 +189,21 @@ sequenceDiagram
 **`agent_activity_ui_component`** — Componentes UI habilitados por actividad
 
 **`agent_message`** — Mensajes agénticos (reemplaza `message` para type=agent)
+
 - `role`: `user` | `assistant` | `system` | `tool`
 - `textContent`: Contenido textual
 - `toolCallId`: Referencia al toolCall que generó este mensaje (para role=tool)
 - `sequenceOrder`: Orden dentro del mensaje compuesto
 
 **`agent_tool_call`** — Tool calls del assistant
+
 - `arguments`: JSON de args enviados
 - `result`: JSON del resultado
 - `status`: `pending` | `awaiting_confirmation` | `executing` | `completed` | `failed` | `rejected`
 - `confirmedBy` / `confirmedAt`: Para HITL
 
 **`agent_ui_instance`** — Instancias de componentes UI en mensajes
+
 - `props`: JSON generado por el LLM
 - `state`: JSON del estado persistente (actualizado por el usuario)
 - `userResponse`: JSON del payload emitido por el componente
@@ -221,15 +229,62 @@ Cada evento SSE tiene la forma: `data: {"type": "<part-type>", ...payload}\n\n`
 
 ```typescript
 type AgentStreamPart =
-    | { type: 'text-delta'; text: string }
-    | { type: 'tool-call-start'; toolCallId: string; toolName: string; toolDisplayName: string; args: Record<string, unknown> }
-    | { type: 'tool-call-delta'; toolCallId: string; status: 'executing' | 'streaming'; progressText?: string }
-    | { type: 'tool-result'; toolCallId: string; toolName: string; result: unknown; displayResult?: string; status: 'completed' | 'failed'; durationMs: number }
-    | { type: 'tool-confirm-required'; toolCallId: string; toolName: string; toolDisplayName: string; args: Record<string, unknown>; riskLevel: 'low' | 'medium' | 'high'; confirmationMessage: string }
-    | { type: 'ui-component'; instanceId: string; componentKey: string; props: Record<string, unknown>; interactive: boolean }
-    | { type: 'status'; status: 'thinking' | 'calling-tools' | 'generating-ui' | 'finalizing'; message?: string }
-    | { type: 'error'; code: string; message: string }
-    | { type: 'done'; usage: { inputTokens: number; outputTokens: number; totalTokens: number; toolCallsCount: number; estimatedCost: number }; finishReason: string };
+	| { type: 'text-delta'; text: string }
+	| {
+			type: 'tool-call-start';
+			toolCallId: string;
+			toolName: string;
+			toolDisplayName: string;
+			args: Record<string, unknown>;
+	  }
+	| {
+			type: 'tool-call-delta';
+			toolCallId: string;
+			status: 'executing' | 'streaming';
+			progressText?: string;
+	  }
+	| {
+			type: 'tool-result';
+			toolCallId: string;
+			toolName: string;
+			result: unknown;
+			displayResult?: string;
+			status: 'completed' | 'failed';
+			durationMs: number;
+	  }
+	| {
+			type: 'tool-confirm-required';
+			toolCallId: string;
+			toolName: string;
+			toolDisplayName: string;
+			args: Record<string, unknown>;
+			riskLevel: 'low' | 'medium' | 'high';
+			confirmationMessage: string;
+	  }
+	| {
+			type: 'ui-component';
+			instanceId: string;
+			componentKey: string;
+			props: Record<string, unknown>;
+			interactive: boolean;
+	  }
+	| {
+			type: 'status';
+			status: 'thinking' | 'calling-tools' | 'generating-ui' | 'finalizing';
+			message?: string;
+	  }
+	| { type: 'error'; code: string; message: string }
+	| {
+			type: 'done';
+			usage: {
+				inputTokens: number;
+				outputTokens: number;
+				totalTokens: number;
+				toolCallsCount: number;
+				estimatedCost: number;
+			};
+			finishReason: string;
+	  };
 ```
 
 ### 3.2 Mensajes Cliente → Servidor
@@ -237,16 +292,16 @@ type AgentStreamPart =
 ```typescript
 // POST /api/agent-chat/{id}/confirm-tool
 interface ToolConfirmationRequest {
-    toolCallId: string;
-    approved: boolean;
-    rejectionReason?: string;
+	toolCallId: string;
+	approved: boolean;
+	rejectionReason?: string;
 }
 
 // POST /api/agent-chat/{id}/ui-response
 interface UIComponentResponse {
-    instanceId: string;
-    componentKey: string;
-    payload: Record<string, unknown>;
+	instanceId: string;
+	componentKey: string;
+	payload: Record<string, unknown>;
 }
 ```
 
@@ -284,6 +339,7 @@ Las UI generativas se modelan como **herramientas especiales** con `executorType
 **Objetivo:** Motor agéntico funcional con tool calling básico (sin UI components, sin HITL)
 
 #### Backend
+
 - [ ] `src/lib/server/db/schema/agent.ts` — tablas: `agentToolDefinition`, `interactiveLearningAgent`, `agentActivityTool`, `agentMessage`, `agentToolCall`
 - [ ] Migración de BD (`npm run db:push`)
 - [ ] Añadir `AGENT: 'agent'` a `interactiveLearningTypes` en `constants.ts`
@@ -304,6 +360,7 @@ Las UI generativas se modelan como **herramientas especiales** con `executorType
 - [ ] Seed de herramientas builtin iniciales en BD
 
 #### Frontend
+
 - [ ] `src/lib/components/AgentChatComponent.svelte` — nuevo componente que parsea `AgentStreamPart`
 - [ ] Renderizado: texto streameado + bloques de tool call (start → executing → result)
 - [ ] Páginas de chat agéntico:
@@ -311,6 +368,7 @@ Las UI generativas se modelan como **herramientas especiales** con `executorType
   - `src/routes/(app)/agent-chat/[ilid]/c/[cid]/+page.svelte`
 
 #### Admin (básico)
+
 - [ ] Formulario de creación de actividad agéntica (extensión del existente)
 
 **Entregable Fase 1:** Un profesor puede crear una actividad tipo "agente", un estudiante puede chatear con el agente, y el agente puede invocar herramientas automáticamente (RAG, progreso, cálculos).
@@ -353,12 +411,12 @@ Las UI generativas se modelan como **herramientas especiales** con `executorType
 
 ## 6. Riesgos y Mitigaciones
 
-| # | Riesgo | Mitigación |
-|---|--------|------------|
-| 1 | Token consumption explosion | `maxToolRoundtrips` configurable (default: 5). Sistema de quotas existente activo. |
-| 2 | Latencia del loop | Streaming desde el inicio. Indicadores de progreso por step. Timeout por herramienta (10s). |
-| 3 | Hallucinated tool calls | Validación Zod de `parametersSchema` antes de ejecución. Retry con feedback al LLM. |
-| 4 | Seguridad de herramientas | `AgentContext` con userId/courseId filtra todas las queries. Sin eval de código arbitrario. HITL obligatorio para riesgo ≥ medium. |
-| 5 | Complejidad HITL | Stream se cierra al requerir confirmación. POST separado para confirmar. Nuevo stream para retomar. Estado persiste en BD. |
-| 6 | Proveedor sin tool calling | Campo `supportsToolCalling` en `aiModel`. Formulario filtra modelos incompatibles. |
-| 7 | Concurrencia confirmaciones | Tool calls en `awaiting_confirmation` persisten. Al recargar, frontend restaura modal. Timeout de 10 min auto-rechaza. |
+| #   | Riesgo                      | Mitigación                                                                                                                         |
+| --- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Token consumption explosion | `maxToolRoundtrips` configurable (default: 5). Sistema de quotas existente activo.                                                 |
+| 2   | Latencia del loop           | Streaming desde el inicio. Indicadores de progreso por step. Timeout por herramienta (10s).                                        |
+| 3   | Hallucinated tool calls     | Validación Zod de `parametersSchema` antes de ejecución. Retry con feedback al LLM.                                                |
+| 4   | Seguridad de herramientas   | `AgentContext` con userId/courseId filtra todas las queries. Sin eval de código arbitrario. HITL obligatorio para riesgo ≥ medium. |
+| 5   | Complejidad HITL            | Stream se cierra al requerir confirmación. POST separado para confirmar. Nuevo stream para retomar. Estado persiste en BD.         |
+| 6   | Proveedor sin tool calling  | Campo `supportsToolCalling` en `aiModel`. Formulario filtra modelos incompatibles.                                                 |
+| 7   | Concurrencia confirmaciones | Tool calls en `awaiting_confirmation` persisten. Al recargar, frontend restaura modal. Timeout de 10 min auto-rechaza.             |

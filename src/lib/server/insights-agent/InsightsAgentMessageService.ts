@@ -15,7 +15,7 @@ export class InsightsAgentMessageService {
 			.filter((message) => message.role === 'assistant')
 			.map((message) => message.id);
 
-		const toolCallsMap = new Map<string, typeof schema.agentToolCall.$inferSelect[]>();
+		const toolCallsMap = new Map<string, (typeof schema.agentToolCall.$inferSelect)[]>();
 		if (assistantMessageIds.length > 0) {
 			const toolCalls = await db
 				.select()
@@ -63,9 +63,7 @@ export class InsightsAgentMessageService {
 					}
 
 					const safeResult =
-						result && typeof result === 'object'
-							? (result as Record<string, unknown>)
-							: null;
+						result && typeof result === 'object' ? (result as Record<string, unknown>) : null;
 					if (safeResult?.rendered === true) continue;
 
 					parts.push({

@@ -228,8 +228,8 @@
 							: isAgent
 								? 'Modificar la configuración del agente'
 								: 'Modificar la configuración del chat'}
-						</p>
-					</a>
+					</p>
+				</a>
 
 				{#if isLesson}
 					<a
@@ -359,10 +359,10 @@
 										{data.revisionSummary.draft.revisionNumber}
 									</p>
 									<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-										{data.revisionSummary.impact.activeAttemptsOnOlderRevisions} intentos activos
-										continúan en revisiones anteriores y {data.revisionSummary.diff.totalChangedBlocks}
-										bloque{data.revisionSummary.diff.totalChangedBlocks === 1 ? '' : 's'} tienen
-										cambios visibles en el borrador.
+										{data.revisionSummary.impact.activeAttemptsOnOlderRevisions} intentos activos continúan
+										en revisiones anteriores y {data.revisionSummary.diff.totalChangedBlocks}
+										bloque{data.revisionSummary.diff.totalChangedBlocks === 1 ? '' : 's'} tienen cambios
+										visibles en el borrador.
 									</p>
 								</div>
 							</div>

@@ -2,7 +2,10 @@ import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db } from '..';
 import * as schema from '../schema';
 import { nanoid } from 'nanoid';
-import { getBuiltinToolManifestsByDomain, getAllBuiltinToolManifests } from '$lib/server/agent/tools/registry';
+import {
+	getBuiltinToolManifestsByDomain,
+	getAllBuiltinToolManifests
+} from '$lib/server/agent/tools/registry';
 import {
 	BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT,
 	BUILTIN_TOOL_USAGE_DOMAIN_INSIGHTS,
@@ -98,7 +101,9 @@ export default class DBAgentToolUtils {
 	static async deleteToolDefinition(id: string) {
 		await db
 			.delete(schema.agentToolDefinition)
-			.where(and(eq(schema.agentToolDefinition.id, id), eq(schema.agentToolDefinition.isSystem, false)));
+			.where(
+				and(eq(schema.agentToolDefinition.id, id), eq(schema.agentToolDefinition.isSystem, false))
+			);
 	}
 
 	private static manifestToDbPayload(manifest: ToolManifest) {
@@ -162,7 +167,8 @@ export default class DBAgentToolUtils {
 			conflicts: 0,
 			domains: Object.fromEntries(
 				toolManifests.reduce(
-					(acc, manifest) => acc.set(manifest.usageDomain, (acc.get(manifest.usageDomain) ?? 0) + 1),
+					(acc, manifest) =>
+						acc.set(manifest.usageDomain, (acc.get(manifest.usageDomain) ?? 0) + 1),
 					new Map<string, number>()
 				)
 			),

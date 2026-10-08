@@ -110,29 +110,29 @@
 
 	const canSendBroadcast = $derived(
 		broadcastTitle.length >= 3 &&
-		broadcastMessage.length >= 10 &&
-		(sendToAll || selectedRoles.length > 0) &&
-		channelInApp &&
-		data.notificationConfig.enabled
+			broadcastMessage.length >= 10 &&
+			(sendToAll || selectedRoles.length > 0) &&
+			channelInApp &&
+			data.notificationConfig.enabled
 	);
 
 	const canSendIndividual = $derived(
 		individualTitle.length >= 3 &&
-		individualMessage.length >= 10 &&
-		selectedUsers.length > 0 &&
-		(individualChannelInApp || individualChannelEmail) &&
-		data.notificationConfig.enabled
+			individualMessage.length >= 10 &&
+			selectedUsers.length > 0 &&
+			(individualChannelInApp || individualChannelEmail) &&
+			data.notificationConfig.enabled
 	);
 </script>
 
 <div class="p-6">
 	<!-- Header -->
 	<div class="mb-6">
-		<h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-			<Bell class="h-7 w-7 text-primary-600 dark:text-primary-400" />
+		<h1 class="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white">
+			<Bell class="text-primary-600 dark:text-primary-400 h-7 w-7" />
 			Enviar Notificaciones
 		</h1>
-		<p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+		<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
 			Envía notificaciones manuales a grupos de usuarios o usuarios específicos
 		</p>
 	</div>
@@ -162,8 +162,9 @@
 			{#snippet icon()}
 				<AlertTriangle class="h-5 w-5" />
 			{/snippet}
-			El sistema de notificaciones está deshabilitado. Las notificaciones no se enviarán hasta que lo actives en
-			<a href="/admin/settings" class="underline font-medium">Configuración</a>.
+			El sistema de notificaciones está deshabilitado. Las notificaciones no se enviarán hasta que lo
+			actives en
+			<a href="/admin/settings" class="font-medium underline">Configuración</a>.
 		</Alert>
 	{/if}
 
@@ -172,9 +173,10 @@
 		<nav class="flex gap-4">
 			<button
 				type="button"
-				class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors outline-none border-b-2 {activeTab === 'broadcast'
+				class="flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors outline-none {activeTab ===
+				'broadcast'
 					? 'text-primary-600 border-primary-600 dark:text-primary-400 dark:border-primary-400'
-					: 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white border-transparent'}"
+					: 'border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}"
 				onclick={() => (activeTab = 'broadcast')}
 			>
 				<Users class="h-4 w-4" />
@@ -182,9 +184,10 @@
 			</button>
 			<button
 				type="button"
-				class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors outline-none border-b-2 {activeTab === 'individual'
+				class="flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors outline-none {activeTab ===
+				'individual'
 					? 'text-primary-600 border-primary-600 dark:text-primary-400 dark:border-primary-400'
-					: 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white border-transparent'}"
+					: 'border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}"
 				onclick={() => (activeTab = 'individual')}
 			>
 				<User class="h-4 w-4" />
@@ -206,11 +209,15 @@
 				};
 			}}
 		>
-			<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+			<div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
 				<!-- Left Column: Message Content -->
-				<div class="xl:col-span-2 space-y-6">
-					<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-						<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Contenido del Mensaje</h3>
+				<div class="space-y-6 xl:col-span-2">
+					<div
+						class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+					>
+						<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+							Contenido del Mensaje
+						</h3>
 
 						<div class="space-y-4">
 							<div>
@@ -235,24 +242,29 @@
 									bind:value={broadcastMessage}
 									required
 								/>
-								<p class="text-xs text-gray-500 mt-1">{broadcastMessage.length} caracteres</p>
+								<p class="mt-1 text-xs text-gray-500">{broadcastMessage.length} caracteres</p>
 							</div>
 
-							<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<div>
 									<Label for="priority" class="mb-2">Prioridad</Label>
-									<Select id="priority" name="priority" items={priorityOptions} bind:value={broadcastPriority} />
+									<Select
+										id="priority"
+										name="priority"
+										items={priorityOptions}
+										bind:value={broadcastPriority}
+									/>
 								</div>
 								<div>
 									<Label class="mb-2">Canal de Envío</Label>
-									<div class="flex gap-4 mt-2">
-										<label class="flex items-center gap-2 cursor-pointer">
+									<div class="mt-2 flex gap-4">
+										<label class="flex cursor-pointer items-center gap-2">
 											<input
 												type="checkbox"
 												name="channel_in_app"
 												checked={channelInApp}
 												onchange={(e) => (channelInApp = e.currentTarget.checked)}
-												class="h-4 w-4 rounded border-gray-300 text-primary-600"
+												class="text-primary-600 h-4 w-4 rounded border-gray-300"
 											/>
 											<BellRing class="h-4 w-4 text-blue-500" />
 											<span class="text-sm">In-App</span>
@@ -267,11 +279,13 @@
 
 				<!-- Right Column: Target Audience -->
 				<div class="space-y-6">
-					<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-						<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Destinatarios</h3>
+					<div
+						class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+					>
+						<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Destinatarios</h3>
 
 						<div class="space-y-4">
-							<div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+							<div class="flex items-center gap-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
 								<Toggle name="sendToAll" bind:checked={sendToAll} />
 								<span class="text-sm font-medium text-gray-700 dark:text-gray-300">
 									Enviar a todos los usuarios
@@ -280,12 +294,12 @@
 
 							{#if !sendToAll}
 								<div>
-									<div class="flex items-center justify-between mb-2">
+									<div class="mb-2 flex items-center justify-between">
 										<Label>Selecciona los roles</Label>
 										<div class="flex gap-2">
 											<button
 												type="button"
-												class="text-xs text-primary-600 hover:underline"
+												class="text-primary-600 text-xs hover:underline"
 												onclick={selectAllRoles}
 											>
 												Todos
@@ -300,14 +314,14 @@
 											</button>
 										</div>
 									</div>
-									<div class="space-y-2 max-h-64 overflow-y-auto">
+									<div class="max-h-64 space-y-2 overflow-y-auto">
 										{#each data.roles as role}
 											{@const isSelected = selectedRoles.includes(role.id)}
 											<button
 												type="button"
-												class="w-full flex items-center justify-between p-3 rounded-lg border transition-colors text-left {isSelected
+												class="flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors {isSelected
 													? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-													: 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'}"
+													: 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'}"
 												onclick={() => toggleRole(role.id)}
 											>
 												<div class="flex items-center gap-2">
@@ -316,7 +330,7 @@
 														name="roles"
 														value={role.id}
 														checked={isSelected}
-														class="h-4 w-4 rounded border-gray-300 text-primary-600"
+														class="text-primary-600 h-4 w-4 rounded border-gray-300"
 														onchange={() => {}}
 													/>
 													<span class="text-sm font-medium text-gray-900 dark:text-white">
@@ -330,7 +344,7 @@
 										{/each}
 									</div>
 									{#if selectedRoles.length > 0}
-										<p class="text-xs text-gray-500 mt-2">
+										<p class="mt-2 text-xs text-gray-500">
 											{selectedRoles.length} rol(es) seleccionado(s)
 										</p>
 									{/if}
@@ -350,7 +364,7 @@
 							<Spinner size="4" class="mr-2" />
 							Enviando...
 						{:else}
-							<Send class="h-4 w-4 mr-2" />
+							<Send class="mr-2 h-4 w-4" />
 							Enviar Notificación
 						{/if}
 					</Button>
@@ -373,11 +387,15 @@
 				};
 			}}
 		>
-			<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+			<div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
 				<!-- Left Column: Message Content -->
-				<div class="xl:col-span-2 space-y-6">
-					<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-						<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Contenido del Mensaje</h3>
+				<div class="space-y-6 xl:col-span-2">
+					<div
+						class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+					>
+						<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+							Contenido del Mensaje
+						</h3>
 
 						<div class="space-y-4">
 							<div>
@@ -402,29 +420,34 @@
 									bind:value={individualMessage}
 									required
 								/>
-								<p class="text-xs text-gray-500 mt-1">{individualMessage.length} caracteres</p>
+								<p class="mt-1 text-xs text-gray-500">{individualMessage.length} caracteres</p>
 							</div>
 
-							<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<div>
 									<Label for="ind-priority" class="mb-2">Prioridad</Label>
-									<Select id="ind-priority" name="priority" items={priorityOptions} bind:value={individualPriority} />
+									<Select
+										id="ind-priority"
+										name="priority"
+										items={priorityOptions}
+										bind:value={individualPriority}
+									/>
 								</div>
 								<div>
 									<Label class="mb-2">Canales de Envío</Label>
-									<div class="flex gap-4 mt-2">
-										<label class="flex items-center gap-2 cursor-pointer">
+									<div class="mt-2 flex gap-4">
+										<label class="flex cursor-pointer items-center gap-2">
 											<input
 												type="checkbox"
 												name="channel_in_app"
 												checked={individualChannelInApp}
 												onchange={(e) => (individualChannelInApp = e.currentTarget.checked)}
-												class="h-4 w-4 rounded border-gray-300 text-primary-600"
+												class="text-primary-600 h-4 w-4 rounded border-gray-300"
 											/>
 											<BellRing class="h-4 w-4 text-blue-500" />
 											<span class="text-sm">In-App</span>
 										</label>
-										<label class="flex items-center gap-2 cursor-pointer">
+										<label class="flex cursor-pointer items-center gap-2">
 											<input
 												type="checkbox"
 												name="channel_email"
@@ -444,11 +467,15 @@
 
 				<!-- Right Column: User Selection -->
 				<div class="space-y-6">
-					<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-						<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Seleccionar Usuarios</h3>
+					<div
+						class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+					>
+						<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+							Seleccionar Usuarios
+						</h3>
 
 						<!-- Search -->
-						<div class="flex gap-2 mb-4">
+						<div class="mb-4 flex gap-2">
 							<Input
 								type="text"
 								placeholder="Buscar por email o nombre..."
@@ -463,12 +490,16 @@
 
 						<!-- Search Results -->
 						{#if data.users.length > 0}
-							<div class="mb-4 border border-gray-200 dark:border-gray-700 rounded-lg max-h-48 overflow-y-auto">
+							<div
+								class="mb-4 max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700"
+							>
 								{#each data.users as user}
 									{@const isSelected = selectedUsers.some((u) => u.id === user.id)}
 									<button
 										type="button"
-										class="w-full flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b last:border-b-0 border-gray-100 dark:border-gray-700 transition-colors text-left {isSelected ? 'bg-primary-50 dark:bg-primary-900/20' : ''}"
+										class="flex w-full items-center justify-between border-b border-gray-100 p-3 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700 {isSelected
+											? 'bg-primary-50 dark:bg-primary-900/20'
+											: ''}"
 										onclick={() => addUser(user)}
 										disabled={isSelected}
 									>
@@ -485,11 +516,11 @@
 								{/each}
 							</div>
 						{:else if data.searchQuery}
-							<p class="text-sm text-gray-500 dark:text-gray-400 mb-4 text-center py-4">
+							<p class="mb-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
 								No se encontraron usuarios para "{data.searchQuery}"
 							</p>
 						{:else}
-							<p class="text-sm text-gray-500 dark:text-gray-400 mb-4 text-center py-4">
+							<p class="mb-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
 								Escribe al menos 2 caracteres para buscar
 							</p>
 						{/if}
@@ -498,21 +529,23 @@
 						{#if selectedUsers.length > 0}
 							<div>
 								<Label class="mb-2">Usuarios seleccionados ({selectedUsers.length})</Label>
-								<div class="space-y-2 max-h-40 overflow-y-auto">
+								<div class="max-h-40 space-y-2 overflow-y-auto">
 									{#each selectedUsers as user}
 										<input type="hidden" name="userIds" value={user.id} />
-										<div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+										<div
+											class="flex items-center justify-between rounded-lg bg-gray-50 p-2 dark:bg-gray-700"
+										>
 											<div class="min-w-0">
-												<p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+												<p class="truncate text-sm font-medium text-gray-900 dark:text-white">
 													{user.username || user.email}
 												</p>
 												{#if user.username}
-													<p class="text-xs text-gray-500 truncate">{user.email}</p>
+													<p class="truncate text-xs text-gray-500">{user.email}</p>
 												{/if}
 											</div>
 											<button
 												type="button"
-												class="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-gray-400 hover:text-red-500 transition-colors"
+												class="rounded p-1 text-gray-400 transition-colors hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/30"
 												onclick={() => removeUser(user.id)}
 											>
 												<X class="h-4 w-4" />
@@ -535,7 +568,7 @@
 							<Spinner size="4" class="mr-2" />
 							Enviando...
 						{:else}
-							<Send class="h-4 w-4 mr-2" />
+							<Send class="mr-2 h-4 w-4" />
 							Enviar a {selectedUsers.length} usuario(s)
 						{/if}
 					</Button>

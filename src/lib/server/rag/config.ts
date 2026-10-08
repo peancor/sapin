@@ -67,12 +67,18 @@ export function resolveRagConfig(ragConfig: unknown): RagConfig {
 		chunkOverlap: pickFiniteNumber(parsedConfig.chunkOverlap, DEFAULT_RAG_CONFIG.chunkOverlap),
 		topK: pickFiniteNumber(parsedConfig.topK, DEFAULT_RAG_CONFIG.topK),
 		minScore: pickFiniteNumber(parsedConfig.minScore, DEFAULT_RAG_CONFIG.minScore),
-		contextMaxChars: pickFiniteNumber(parsedConfig.contextMaxChars, DEFAULT_RAG_CONFIG.contextMaxChars),
+		contextMaxChars: pickFiniteNumber(
+			parsedConfig.contextMaxChars,
+			DEFAULT_RAG_CONFIG.contextMaxChars
+		),
 		mergeAdjacentChunks: pickBoolean(
 			parsedConfig.mergeAdjacentChunks,
 			DEFAULT_RAG_CONFIG.mergeAdjacentChunks
 		),
-		adjacencyWindow: pickFiniteNumber(parsedConfig.adjacencyWindow, DEFAULT_RAG_CONFIG.adjacencyWindow),
+		adjacencyWindow: pickFiniteNumber(
+			parsedConfig.adjacencyWindow,
+			DEFAULT_RAG_CONFIG.adjacencyWindow
+		),
 		perSourceMaxBlocks: pickFiniteNumber(
 			parsedConfig.perSourceMaxBlocks,
 			DEFAULT_RAG_CONFIG.perSourceMaxBlocks

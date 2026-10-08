@@ -9,4 +9,3 @@ export const sendNotificationPackage: BuiltinToolPackage = {
 
 export { sendNotification } from './handler';
 export { sendNotificationManifest } from './manifest';
-

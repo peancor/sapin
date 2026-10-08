@@ -254,7 +254,7 @@ export class RadarWorker {
 			if ((pending.length || run.synthesisPending) && !model)
 				throw new Error('El modelo seleccionado está deshabilitado o ya no está disponible.');
 			// Cap work per cycle so large backlogs do not monopolize the two process slots.
-			for (let start = 0; start < pending.length && batches < 4; ) {
+			for (let start = 0; start < pending.length && batches < 4;) {
 				const catalog = repo
 					.topics(id)
 					.map((t) => ({ id: t.id, title: t.title, description: t.description }));

@@ -1,9 +1,5 @@
 export type LessonFlowQuickMenuContext =
-	| 'closed'
-	| 'canvas'
-	| 'node'
-	| 'edge'
-	| 'connect-from-handle';
+	'closed' | 'canvas' | 'node' | 'edge' | 'connect-from-handle';
 
 export type LessonFlowQuickMenuItemTone = 'default' | 'accent' | 'danger';
 

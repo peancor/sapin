@@ -40,7 +40,11 @@ export const renderDrivingPsychotechTestManifest: ToolManifest = {
 		}
 	},
 	executorType: 'builtin',
-	executorConfig: { handler: 'ui_renderer', componentKey: 'DrivingPsychotechTest', interactive: true },
+	executorConfig: {
+		handler: 'ui_renderer',
+		componentKey: 'DrivingPsychotechTest',
+		interactive: true
+	},
 	requiresConfirmation: false,
 	riskLevel: 'low',
 	isSystem: true,

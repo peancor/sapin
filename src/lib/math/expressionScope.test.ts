@@ -1,10 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-	compileScopedExpression,
-	EDUCATIONAL_EXPRESSION_SCOPE
-} from './expressionScope.ts';
+import { compileScopedExpression, EDUCATIONAL_EXPRESSION_SCOPE } from './expressionScope.ts';
 
 test('randInt returns integers within the inclusive range', () => {
 	const evaluate = compileScopedExpression('randInt(1, 6)', {

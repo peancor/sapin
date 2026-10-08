@@ -113,11 +113,14 @@
 							selectedType = 'chat';
 							markDirty();
 						}}
-						class="flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-colors {selectedType === 'chat'
+						class="flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-colors {selectedType ===
+						'chat'
 							? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20'
 							: 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'}"
 					>
-						<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
+						<div
+							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40"
+						>
 							<MessageSquare class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 						</div>
 						<div>
@@ -134,11 +137,14 @@
 							selectedType = 'agent';
 							markDirty();
 						}}
-						class="flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-colors {selectedType === 'agent'
+						class="flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-colors {selectedType ===
+						'agent'
 							? 'border-green-500 bg-green-50 dark:border-green-400 dark:bg-green-900/20'
 							: 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'}"
 					>
-						<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/40">
+						<div
+							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/40"
+						>
 							<Bot class="h-5 w-5 text-green-600 dark:text-green-400" />
 						</div>
 						<div>
@@ -155,11 +161,14 @@
 							selectedType = 'lesson';
 							markDirty();
 						}}
-						class="flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-colors {selectedType === 'lesson'
+						class="flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-colors {selectedType ===
+						'lesson'
 							? 'border-amber-500 bg-amber-50 dark:border-amber-400 dark:bg-amber-900/20'
 							: 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'}"
 					>
-						<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
+						<div
+							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40"
+						>
 							<Route class="h-5 w-5 text-amber-600 dark:text-amber-400" />
 						</div>
 						<div>
@@ -176,7 +185,9 @@
 				<div class="space-y-4">
 					<div class="grid gap-4 md:grid-cols-2">
 						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre</span>
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Nombre</span
+							>
 							<input
 								name="name"
 								bind:value={name}
@@ -188,7 +199,9 @@
 						</label>
 
 						<label class="block">
-							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Estado inicial</span>
+							<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Estado inicial</span
+							>
 							<select
 								name="status"
 								bind:value={status}
@@ -204,7 +217,9 @@
 					</div>
 
 					<label class="block">
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Descripción</span>
+						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Descripción</span
+						>
 						<textarea
 							name="description"
 							bind:value={description}
@@ -216,11 +231,14 @@
 					</label>
 				</div>
 
-				<aside class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+				<aside
+					class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40"
+				>
 					<h3 class="text-sm font-semibold text-gray-900 dark:text-white">Siguiente paso</h3>
 					<p class="mt-2 text-sm text-gray-600 dark:text-gray-300">{nextStepCopy}</p>
 					<p class="mt-4 text-xs text-gray-500 dark:text-gray-400">
-						La actividad se crea con una configuracion minima valida para que el editor especifico pueda completarla despues.
+						La actividad se crea con una configuracion minima valida para que el editor especifico
+						pueda completarla despues.
 					</p>
 				</aside>
 			</section>

@@ -9,15 +9,17 @@
  * @returns Slug generado
  */
 export function generateSlug(text: string, maxLength: number = 60): string {
-    return text
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') // Elimina acentos
-        .replace(/[^a-z0-9\s-]/g, '') // Solo alfanumérico, espacios y guiones
-        .replace(/\s+/g, '-') // Espacios a guiones
-        .replace(/-+/g, '-') // Múltiples guiones a uno
-        .replace(/^-|-$/g, '') // Elimina guiones al inicio/fin
-        .substring(0, maxLength) || 'item';
+	return (
+		text
+			.toLowerCase()
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '') // Elimina acentos
+			.replace(/[^a-z0-9\s-]/g, '') // Solo alfanumérico, espacios y guiones
+			.replace(/\s+/g, '-') // Espacios a guiones
+			.replace(/-+/g, '-') // Múltiples guiones a uno
+			.replace(/^-|-$/g, '') // Elimina guiones al inicio/fin
+			.substring(0, maxLength) || 'item'
+	);
 }
 
 /**
@@ -28,20 +30,20 @@ export function generateSlug(text: string, maxLength: number = 60): string {
  * @returns Slug único generado
  */
 export function generateUniqueSlug(
-    text: string,
-    existingSlugs: Set<string> | string[],
-    maxLength: number = 60
+	text: string,
+	existingSlugs: Set<string> | string[],
+	maxLength: number = 60
 ): string {
-    const slugSet = existingSlugs instanceof Set ? existingSlugs : new Set(existingSlugs);
-    const baseSlug = generateSlug(text, maxLength);
+	const slugSet = existingSlugs instanceof Set ? existingSlugs : new Set(existingSlugs);
+	const baseSlug = generateSlug(text, maxLength);
 
-    let finalSlug = baseSlug;
-    let counter = 1;
+	let finalSlug = baseSlug;
+	let counter = 1;
 
-    while (slugSet.has(finalSlug)) {
-        finalSlug = `${baseSlug}-${counter}`;
-        counter++;
-    }
+	while (slugSet.has(finalSlug)) {
+		finalSlug = `${baseSlug}-${counter}`;
+		counter++;
+	}
 
-    return finalSlug;
+	return finalSlug;
 }

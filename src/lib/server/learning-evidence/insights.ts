@@ -91,10 +91,14 @@ function generateRecommendedActions(riskFactors: RiskFactor[]): string[] {
 
 	for (const factor of riskFactors) {
 		if (factor.type === 'no_activity') {
-			actions.add('Contactar con el estudiante para comprobar bloqueos y reactivar su participación.');
+			actions.add(
+				'Contactar con el estudiante para comprobar bloqueos y reactivar su participación.'
+			);
 		}
 		if (factor.type === 'low_engagement') {
-			actions.add('Revisar si la actividad necesita andamiaje adicional o instrucciones más concretas.');
+			actions.add(
+				'Revisar si la actividad necesita andamiaje adicional o instrucciones más concretas.'
+			);
 		}
 		if (factor.type === 'incomplete') {
 			actions.add('Programar un seguimiento para cerrar la actividad o redefinir expectativas.');
@@ -239,10 +243,8 @@ export function toInsightsConsolidatedMetrics(
 	const overallScore =
 		activeStudents.length > 0
 			? Math.round(
-					activeStudents.reduce(
-						(sum, student) => sum + (student.metrics.engagementScore ?? 0),
-						0
-					) / activeStudents.length
+					activeStudents.reduce((sum, student) => sum + (student.metrics.engagementScore ?? 0), 0) /
+						activeStudents.length
 				)
 			: 0;
 
@@ -252,8 +254,7 @@ export function toInsightsConsolidatedMetrics(
 					(sum, student) =>
 						sum + student.summary.learnerMessageCount + student.summary.uiResponseCount,
 					0
-				) /
-				activeStudents.length
+				) / activeStudents.length
 			: 0;
 
 	const studentsAtRisk: StudentAtRisk[] = students
@@ -315,9 +316,12 @@ export function toInsightsConsolidatedMetrics(
 			riskDistribution
 		},
 		participation: {
-			completed: students.filter((student) => student.metrics.completionStatus === 'completed').length,
-			inProgress: students.filter((student) => student.metrics.completionStatus === 'in_progress').length,
-			notStarted: students.filter((student) => student.metrics.completionStatus === 'not_started').length
+			completed: students.filter((student) => student.metrics.completionStatus === 'completed')
+				.length,
+			inProgress: students.filter((student) => student.metrics.completionStatus === 'in_progress')
+				.length,
+			notStarted: students.filter((student) => student.metrics.completionStatus === 'not_started')
+				.length
 		}
 	};
 }

@@ -181,7 +181,10 @@ export function getLatestIso(values: Array<string | null | undefined>): string |
 	}, null);
 }
 
-export function daysBetween(from: string | null | undefined, to: string | null | undefined): number | null {
+export function daysBetween(
+	from: string | null | undefined,
+	to: string | null | undefined
+): number | null {
 	if (!from || !to) return null;
 	const diffMs = new Date(to).getTime() - new Date(from).getTime();
 	if (Number.isNaN(diffMs)) return null;
@@ -240,7 +243,9 @@ function countMarkers(text: string, markers: readonly string[]): number {
 	);
 }
 
-function getUserMessages(session: LearningEvidenceTranscriptSession): LearningEvidenceTranscriptMessage[] {
+function getUserMessages(
+	session: LearningEvidenceTranscriptSession
+): LearningEvidenceTranscriptMessage[] {
 	return session.messages.filter((message) => message.role === 'user');
 }
 
@@ -284,7 +289,9 @@ export function buildDropoutFunnel(
 	const enrolled = studentSummaries.length;
 	const startedStudents = studentSummaries.filter(
 		(student) =>
-			student.progressStatus !== 'not_started' || student.sessionCount > 0 || student.startedAt !== null
+			student.progressStatus !== 'not_started' ||
+			student.sessionCount > 0 ||
+			student.startedAt !== null
 	);
 	const activeStudents = studentSummaries.filter((student) => {
 		if (student.progressStatus === 'completed') return true;
@@ -292,8 +299,12 @@ export function buildDropoutFunnel(
 		const inactivityDays = daysSince(student.lastActivityAt);
 		return student.sessionCount > 0 && inactivityDays !== null && inactivityDays <= 14;
 	});
-	const completedStudents = studentSummaries.filter((student) => student.progressStatus === 'completed');
-	const abandonedStudents = studentSummaries.filter((student) => student.progressStatus === 'abandoned');
+	const completedStudents = studentSummaries.filter(
+		(student) => student.progressStatus === 'completed'
+	);
+	const abandonedStudents = studentSummaries.filter(
+		(student) => student.progressStatus === 'abandoned'
+	);
 
 	const stages: DropoutStageSummary[] = [
 		{ key: 'enrolled', label: 'Matriculados', count: enrolled, rate: enrolled > 0 ? 100 : 0 },
@@ -333,7 +344,10 @@ export function buildDropoutFunnel(
 		{
 			from: 'started',
 			to: 'active',
-			rate: startedStudents.length > 0 ? Math.round((activeStudents.length / startedStudents.length) * 100) : 0,
+			rate:
+				startedStudents.length > 0
+					? Math.round((activeStudents.length / startedStudents.length) * 100)
+					: 0,
 			lostCount: Math.max(startedStudents.length - activeStudents.length, 0)
 		},
 		{
@@ -572,7 +586,9 @@ export function analyzeToolFrictionHotspotsFromTranscripts(
 					...(signals?.repeatedLearnerTurns
 						? [`Se detectaron ${signals.repeatedLearnerTurns} reformulaciones del estudiante.`]
 						: []),
-					...(signals?.endedWithoutAssistant ? ['La sesion termina sin cierre claro del asistente.'] : [])
+					...(signals?.endedWithoutAssistant
+						? ['La sesion termina sin cierre claro del asistente.']
+						: [])
 				],
 				excerpt: call.excerpt
 			});
@@ -581,8 +597,10 @@ export function analyzeToolFrictionHotspotsFromTranscripts(
 
 	const items = [...hotspots.values()]
 		.map<ToolFrictionHotspotItem>((hotspot) => {
-			const failureRate = hotspot.totalUses > 0 ? Math.round((hotspot.failedUses / hotspot.totalUses) * 100) : 0;
-			const pendingRate = hotspot.totalUses > 0 ? Math.round((hotspot.pendingUses / hotspot.totalUses) * 100) : 0;
+			const failureRate =
+				hotspot.totalUses > 0 ? Math.round((hotspot.failedUses / hotspot.totalUses) * 100) : 0;
+			const pendingRate =
+				hotspot.totalUses > 0 ? Math.round((hotspot.pendingUses / hotspot.totalUses) * 100) : 0;
 			const frictionScore = clamp(
 				Math.round(
 					failureRate * 0.5 +
@@ -614,7 +632,12 @@ export function analyzeToolFrictionHotspotsFromTranscripts(
 				examples: hotspot.examples.slice(0, 3)
 			};
 		})
-		.sort((a, b) => b.frictionScore - a.frictionScore || b.totalUses - a.totalUses || a.label.localeCompare(b.label))
+		.sort(
+			(a, b) =>
+				b.frictionScore - a.frictionScore ||
+				b.totalUses - a.totalUses ||
+				a.label.localeCompare(b.label)
+		)
 		.slice(0, maxResults);
 
 	return {
@@ -708,7 +731,7 @@ export function measureResponseDepthFromTranscripts(
 						? 'deep'
 						: depthScore >= 40
 							? 'developing'
-							: 'shallow' as 'shallow' | 'developing' | 'deep',
+							: ('shallow' as 'shallow' | 'developing' | 'deep'),
 				representativeExcerpt: metrics.excerpts[0] ?? null
 			};
 		})

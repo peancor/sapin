@@ -147,9 +147,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 							targetMode,
 							graphSummary,
 							retryReasons:
-								attempt === 0
-									? undefined
-									: rejected.slice(-6).map((item) => `- ${item.reason}`)
+								attempt === 0 ? undefined : rejected.slice(-6).map((item) => `- ${item.reason}`)
 						})
 					}
 				],

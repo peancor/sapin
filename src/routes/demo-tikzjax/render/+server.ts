@@ -23,7 +23,8 @@ const supportedPackages = new Set([
 	'tikz-3dplot'
 ]);
 
-const preambleLinePattern = /^\\(?:usepackage|usetikzlibrary|pgfplotsset|ctikzset|tikzset|definecolor|colorlet|def|newcommand|renewcommand|providecommand|input)\b/;
+const preambleLinePattern =
+	/^\\(?:usepackage|usetikzlibrary|pgfplotsset|ctikzset|tikzset|definecolor|colorlet|def|newcommand|renewcommand|providecommand|input)\b/;
 let renderQueue = Promise.resolve();
 const tikzjaxRenderOptions: TikzjaxRenderOptions = {
 	embedFontCss: true,
@@ -50,7 +51,10 @@ function normalizeSource(source: string): {
 		throw new Error('Pega una fuente TeX antes de renderizar.');
 	}
 
-	const withoutDocumentClass = trimmedSource.replace(/\\documentclass(?:\[[^\]]*\])?\{[^}]*\}\s*/g, '');
+	const withoutDocumentClass = trimmedSource.replace(
+		/\\documentclass(?:\[[^\]]*\])?\{[^}]*\}\s*/g,
+		''
+	);
 	if (withoutDocumentClass !== trimmedSource) {
 		notes.push('Se eliminó \\documentclass porque node-tikzjax ya usa standalone internamente.');
 	}
@@ -58,7 +62,9 @@ function normalizeSource(source: string): {
 	const detectedPackages = [...new Set(getDetectedPackages(withoutDocumentClass))];
 	const unsupportedPackages = detectedPackages.filter((pkg) => !supportedPackages.has(pkg));
 	if (unsupportedPackages.length) {
-		notes.push(`Se detectaron paquetes fuera de la lista documentada: ${unsupportedPackages.join(', ')}.`);
+		notes.push(
+			`Se detectaron paquetes fuera de la lista documentada: ${unsupportedPackages.join(', ')}.`
+		);
 	}
 
 	if (/\\begin\{document\}/.test(withoutDocumentClass)) {
@@ -100,7 +106,10 @@ async function renderSerially<T>(callback: () => Promise<T>): Promise<T> {
 		release = resolve;
 	});
 	const run = previous.then(callback);
-	renderQueue = run.then(() => next, () => next);
+	renderQueue = run.then(
+		() => next,
+		() => next
+	);
 
 	try {
 		return await run;
@@ -117,7 +126,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		const { normalizedSource, notes, detectedPackages } = normalizeSource(parsedBody.data.source);
-		const svg = await renderSerially(() => renderTikzInSubprocess(normalizedSource, tikzjaxRenderOptions));
+		const svg = await renderSerially(() =>
+			renderTikzInSubprocess(normalizedSource, tikzjaxRenderOptions)
+		);
 
 		return json({
 			svg,

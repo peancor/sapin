@@ -9,12 +9,12 @@
 		showPreview?: boolean;
 	}
 
-	let { 
-		currentImage = null, 
-		onchange, 
+	let {
+		currentImage = null,
+		onchange,
 		onremove,
 		size = 'lg',
-		showPreview = true 
+		showPreview = true
 	}: Props = $props();
 
 	let fileInput = $state<HTMLInputElement | null>(null);
@@ -76,22 +76,20 @@
 <div class="flex flex-col items-center gap-3">
 	<!-- Preview -->
 	{#if showPreview}
-		<div class="relative group">
-			<div 
-				class="relative {sizeClasses[size]} overflow-hidden rounded-full bg-gray-100 ring-4 ring-gray-200 dark:bg-gray-700 dark:ring-gray-600"
+		<div class="group relative">
+			<div
+				class="relative {sizeClasses[
+					size
+				]} overflow-hidden rounded-full bg-gray-100 ring-4 ring-gray-200 dark:bg-gray-700 dark:ring-gray-600"
 			>
 				{#if previewUrl}
-					<img
-						src={previewUrl}
-						alt="Preview"
-						class="h-full w-full object-cover"
-					/>
+					<img src={previewUrl} alt="Preview" class="h-full w-full object-cover" />
 				{:else}
 					<div class="flex h-full w-full items-center justify-center">
 						<Image class="h-1/2 w-1/2 text-gray-400" />
 					</div>
 				{/if}
-				
+
 				<!-- Overlay on hover -->
 				<button
 					type="button"
@@ -107,7 +105,7 @@
 				<button
 					type="button"
 					onclick={handleRemove}
-					class="absolute -right-1 -top-1 rounded-full bg-red-500 p-1.5 text-white shadow-lg transition-transform hover:scale-110 hover:bg-red-600"
+					class="absolute -top-1 -right-1 rounded-full bg-red-500 p-1.5 text-white shadow-lg transition-transform hover:scale-110 hover:bg-red-600"
 					title="Eliminar imagen"
 				>
 					<Trash2 class="h-3.5 w-3.5" />
@@ -119,7 +117,9 @@
 	<!-- Buttons -->
 	<div class="flex items-center gap-2">
 		<label class="cursor-pointer">
-			<div class="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+			<div
+				class="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+			>
 				<Upload size={16} />
 				<span>{previewUrl ? 'Cambiar' : 'Subir imagen'}</span>
 			</div>
@@ -146,12 +146,8 @@
 
 	<!-- Status text -->
 	{#if hasNewFile}
-		<p class="text-xs text-green-600 dark:text-green-400">
-			✓ Nueva imagen seleccionada
-		</p>
+		<p class="text-xs text-green-600 dark:text-green-400">✓ Nueva imagen seleccionada</p>
 	{:else if isRemoved}
-		<p class="text-xs text-red-600 dark:text-red-400">
-			✗ Imagen eliminada (se guardará al enviar)
-		</p>
+		<p class="text-xs text-red-600 dark:text-red-400">✗ Imagen eliminada (se guardará al enviar)</p>
 	{/if}
 </div>

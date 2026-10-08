@@ -145,7 +145,9 @@
 			<!-- Course Image Section -->
 			<div class="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-800">
 				<div class="mb-4 flex items-center gap-3">
-					<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30">
+					<div
+						class="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30"
+					>
 						<ImageIcon class="h-5 w-5 text-purple-600 dark:text-purple-400" />
 					</div>
 					<div>
@@ -199,8 +201,12 @@
 					>
 						{#if isUploadingImage}
 							<div class="flex flex-col items-center">
-								<div class="mb-3 h-10 w-10 animate-spin rounded-full border-4 border-purple-200 border-t-purple-600"></div>
-								<p class="text-sm font-medium text-gray-600 dark:text-gray-400">Subiendo imagen...</p>
+								<div
+									class="mb-3 h-10 w-10 animate-spin rounded-full border-4 border-purple-200 border-t-purple-600"
+								></div>
+								<p class="text-sm font-medium text-gray-600 dark:text-gray-400">
+									Subiendo imagen...
+								</p>
 							</div>
 						{:else}
 							<Upload class="mb-3 h-10 w-10 text-gray-400" />
@@ -226,7 +232,9 @@
 			<!-- Course Details Form -->
 			<div class="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-800">
 				<div class="mb-6 flex items-center gap-3">
-					<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30">
+					<div
+						class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30"
+					>
 						<FileText class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 					</div>
 					<div>
@@ -310,7 +318,8 @@
 									<div>
 										<p class="font-medium text-gray-900 dark:text-white">Modo borrador</p>
 										<p class="text-sm text-gray-500 dark:text-gray-400">
-											El curso no será visible para los estudiantes. Solo los administradores y profesores asignados pueden verlo.
+											El curso no será visible para los estudiantes. Solo los administradores y
+											profesores asignados pueden verlo.
 										</p>
 									</div>
 								</div>
@@ -330,7 +339,8 @@
 									<div>
 										<p class="font-medium text-gray-900 dark:text-white">Curso archivado</p>
 										<p class="text-sm text-gray-500 dark:text-gray-400">
-											El curso está archivado y no es accesible. Los datos se conservan pero no está disponible.
+											El curso está archivado y no es accesible. Los datos se conservan pero no está
+											disponible.
 										</p>
 									</div>
 								</div>
@@ -345,7 +355,9 @@
 						</Button>
 						<Button type="submit" color="primary" disabled={isSaving} class="!rounded-xl !px-6">
 							{#if isSaving}
-								<div class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+								<div
+									class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
+								></div>
 								Guardando...
 							{:else}
 								<Save class="mr-2 h-4 w-4" />
@@ -364,7 +376,9 @@
 				<h3 class="mb-4 font-semibold text-gray-900 dark:text-white">Información del sistema</h3>
 				<div class="space-y-4">
 					<div class="flex items-center gap-3">
-						<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
+						<div
+							class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700"
+						>
 							<Hash class="h-4 w-4 text-gray-500 dark:text-gray-400" />
 						</div>
 						<div class="min-w-0 flex-1">
@@ -376,7 +390,9 @@
 					</div>
 
 					<div class="flex items-center gap-3">
-						<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
+						<div
+							class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700"
+						>
 							<Calendar class="h-4 w-4 text-gray-500 dark:text-gray-400" />
 						</div>
 						<div>
@@ -394,11 +410,15 @@
 					</div>
 
 					<div class="flex items-center gap-3">
-						<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
+						<div
+							class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700"
+						>
 							<Clock class="h-4 w-4 text-gray-500 dark:text-gray-400" />
 						</div>
 						<div>
-							<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Última modificación</p>
+							<p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+								Última modificación
+							</p>
 							<p class="text-sm text-gray-900 dark:text-white">
 								{data.course.updatedAt
 									? new Date(data.course.updatedAt).toLocaleDateString('es-ES', {
@@ -416,7 +436,9 @@
 			</div>
 
 			<!-- Quick Stats Card -->
-			<div class="rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 p-6 text-white shadow-sm">
+			<div
+				class="rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 p-6 text-white shadow-sm"
+			>
 				<h3 class="mb-4 font-semibold">Resumen del curso</h3>
 				<div class="grid grid-cols-2 gap-4">
 					<div class="rounded-xl bg-white/20 p-3 backdrop-blur-sm">
@@ -442,28 +464,39 @@
 						href="/admin/courses/{data.course.id}/teachers"
 						class="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
 					>
-						<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+						<div
+							class="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30"
+						>
 							<span class="text-sm font-bold text-blue-600 dark:text-blue-400">P</span>
 						</div>
-						<span class="text-sm font-medium text-gray-700 dark:text-gray-300">Gestionar profesores</span>
+						<span class="text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Gestionar profesores</span
+						>
 					</a>
 					<a
 						href="/admin/courses/{data.course.id}/students"
 						class="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
 					>
-						<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+						<div
+							class="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30"
+						>
 							<span class="text-sm font-bold text-green-600 dark:text-green-400">E</span>
 						</div>
-						<span class="text-sm font-medium text-gray-700 dark:text-gray-300">Gestionar estudiantes</span>
+						<span class="text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Gestionar estudiantes</span
+						>
 					</a>
 					<a
 						href="/admin/courses/{data.course.id}/interactives"
 						class="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
 					>
-						<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
+						<div
+							class="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30"
+						>
 							<span class="text-sm font-bold text-purple-600 dark:text-purple-400">A</span>
 						</div>
-						<span class="text-sm font-medium text-gray-700 dark:text-gray-300">Ver actividades</span>
+						<span class="text-sm font-medium text-gray-700 dark:text-gray-300">Ver actividades</span
+						>
 					</a>
 				</div>
 			</div>

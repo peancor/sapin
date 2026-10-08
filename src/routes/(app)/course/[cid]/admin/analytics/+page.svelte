@@ -23,7 +23,10 @@
 		themeObserver = new MutationObserver(() => {
 			isDark = document.documentElement.classList.contains('dark');
 		});
-		themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+		themeObserver.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ['class']
+		});
 	});
 
 	onDestroy(() => {
@@ -117,7 +120,9 @@
 		studentHeatmapPage = 1;
 	}
 
-	const calendarHeatmapData = $derived(data.analytics.calendarHeatmap180d.slice(-calendarRangeDays));
+	const calendarHeatmapData = $derived(
+		data.analytics.calendarHeatmap180d.slice(-calendarRangeDays)
+	);
 	const stackedTrendData = $derived(data.analytics.stackedTrend30d.slice(-stackedRangeDays));
 	const studentHeatmapDates = $derived(
 		data.analytics.studentActivityHeatmap28d.dates.slice(-studentHeatmapRangeDays)
@@ -125,12 +130,20 @@
 	const heatmapStudents = $derived(data.analytics.studentActivityHeatmap28d.students);
 	const studentHeatmapValues = $derived(
 		data.analytics.studentActivityHeatmap28d.values
-			.filter((value) => value[0] >= data.analytics.studentActivityHeatmap28d.dates.length - studentHeatmapRangeDays)
-			.map((value) => [
-				value[0] - (data.analytics.studentActivityHeatmap28d.dates.length - studentHeatmapRangeDays),
-				value[1],
-				value[2]
-			] as [number, number, number])
+			.filter(
+				(value) =>
+					value[0] >=
+					data.analytics.studentActivityHeatmap28d.dates.length - studentHeatmapRangeDays
+			)
+			.map(
+				(value) =>
+					[
+						value[0] -
+							(data.analytics.studentActivityHeatmap28d.dates.length - studentHeatmapRangeDays),
+						value[1],
+						value[2]
+					] as [number, number, number]
+			)
 	);
 	const studentActivityTotalsByIndex = $derived.by(() => {
 		const totals = Array.from({ length: heatmapStudents.length }, () => 0);
@@ -174,7 +187,9 @@
 
 		return rows.map((entry) => entry.index);
 	});
-	const filteredHeatmapStudents = $derived(filteredStudentIndexes.map((index) => heatmapStudents[index]));
+	const filteredHeatmapStudents = $derived(
+		filteredStudentIndexes.map((index) => heatmapStudents[index])
+	);
 	const filteredIndexByOriginalIndex = $derived.by(() => {
 		const lookup = Array.from({ length: heatmapStudents.length }, () => -1);
 		filteredStudentIndexes.forEach((originalIndex, filteredIndex) => {
@@ -185,7 +200,10 @@
 	const filteredStudentHeatmapValues = $derived(
 		studentHeatmapValues
 			.filter((value) => (filteredIndexByOriginalIndex[value[1]] ?? -1) >= 0)
-			.map((value) => [value[0], filteredIndexByOriginalIndex[value[1]], value[2]] as [number, number, number])
+			.map(
+				(value) =>
+					[value[0], filteredIndexByOriginalIndex[value[1]], value[2]] as [number, number, number]
+			)
 	);
 	const filteredStudentsCount = $derived(filteredHeatmapStudents.length);
 	const studentHeatmapTotalPages = $derived(
@@ -194,7 +212,9 @@
 	const studentHeatmapEffectivePage = $derived(
 		Math.min(studentHeatmapTotalPages, Math.max(1, studentHeatmapPage))
 	);
-	const pagedStudentStartIndex = $derived((studentHeatmapEffectivePage - 1) * studentHeatmapRowsPerPage);
+	const pagedStudentStartIndex = $derived(
+		(studentHeatmapEffectivePage - 1) * studentHeatmapRowsPerPage
+	);
 	const pagedStudentEndIndex = $derived(
 		Math.min(filteredStudentsCount, pagedStudentStartIndex + studentHeatmapRowsPerPage)
 	);
@@ -205,19 +225,17 @@
 	);
 	const pagedStudentHeatmapValues = $derived(
 		filteredStudentHeatmapValues
-			.filter(
-				(value) => value[1] >= pagedStudentStartIndex && value[1] < pagedStudentEndIndex
+			.filter((value) => value[1] >= pagedStudentStartIndex && value[1] < pagedStudentEndIndex)
+			.map(
+				(value) =>
+					[value[0], value[1] - pagedStudentStartIndex, value[2]] as [number, number, number]
 			)
-			.map((value) => [value[0], value[1] - pagedStudentStartIndex, value[2]] as [number, number, number])
 	);
 	const studentHeatmapMaxValue = $derived(
 		Math.max(1, ...pagedStudentHeatmapValues.map((value) => value[2]))
 	);
 	const studentHeatmapChartHeight = $derived(
-		`${Math.min(
-			980,
-			Math.max(360, pagedHeatmapStudents.length * 28 + 140)
-		)}px`
+		`${Math.min(980, Math.max(360, pagedHeatmapStudents.length * 28 + 140))}px`
 	);
 
 	const calendarHeatmapOptions = $derived({
@@ -454,32 +472,50 @@
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
 		<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800">
 			<p class="text-sm text-gray-500 dark:text-gray-400">Participación</p>
-			<p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{data.analytics.participationRate}%</p>
-			<p class="text-xs text-gray-500 dark:text-gray-400">{data.analytics.participants}/{data.analytics.totalStudents} estudiantes</p>
+			<p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+				{data.analytics.participationRate}%
+			</p>
+			<p class="text-xs text-gray-500 dark:text-gray-400">
+				{data.analytics.participants}/{data.analytics.totalStudents} estudiantes
+			</p>
 		</div>
 		<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800">
 			<p class="text-sm text-gray-500 dark:text-gray-400">Completitud global</p>
-			<p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{data.analytics.overallCompletionRate}%</p>
-			<p class="text-xs text-gray-500 dark:text-gray-400">{data.analytics.totalCompletedPairs} pares completados</p>
+			<p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+				{data.analytics.overallCompletionRate}%
+			</p>
+			<p class="text-xs text-gray-500 dark:text-gray-400">
+				{data.analytics.totalCompletedPairs} pares completados
+			</p>
 		</div>
 		<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800">
 			<p class="text-sm text-gray-500 dark:text-gray-400">Media por estudiante</p>
-			<p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{data.analytics.avgCompletionRateByStudent}%</p>
+			<p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+				{data.analytics.avgCompletionRateByStudent}%
+			</p>
 			<p class="text-xs text-gray-500 dark:text-gray-400">Sobre summaries del curso</p>
 		</div>
 		<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800">
 			<p class="text-sm text-gray-500 dark:text-gray-400">Tiempo medio participante</p>
-			<p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{formatDuration(data.analytics.avgTimeSpentPerParticipantSeconds)}</p>
-			<p class="text-xs text-gray-500 dark:text-gray-400">Última actividad: {formatDateTime(data.analytics.lastActivityAt)}</p>
+			<p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+				{formatDuration(data.analytics.avgTimeSpentPerParticipantSeconds)}
+			</p>
+			<p class="text-xs text-gray-500 dark:text-gray-400">
+				Última actividad: {formatDateTime(data.analytics.lastActivityAt)}
+			</p>
 		</div>
 	</div>
 
 	<div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-		<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800 xl:col-span-2">
+		<div class="rounded-xl bg-white p-5 shadow-sm xl:col-span-2 dark:bg-gray-800">
 			<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
 				<div>
-					<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Calendar heatmap · {calendarRangeDays}d</h2>
-					<p class="text-sm text-gray-500 dark:text-gray-400">Constancia de actividad diaria del curso, estilo GitHub</p>
+					<h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+						Calendar heatmap · {calendarRangeDays}d
+					</h2>
+					<p class="text-sm text-gray-500 dark:text-gray-400">
+						Constancia de actividad diaria del curso, estilo GitHub
+					</p>
 				</div>
 				<div class="inline-flex rounded-lg border border-gray-200 p-1 dark:border-gray-700">
 					<button
@@ -522,8 +558,12 @@
 		<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800">
 			<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
 				<div>
-					<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Evolución apilada · {stackedRangeDays}d</h2>
-					<p class="text-sm text-gray-500 dark:text-gray-400">Volumen por tipo de evento para detectar cambios de dinámica</p>
+					<h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+						Evolución apilada · {stackedRangeDays}d
+					</h2>
+					<p class="text-sm text-gray-500 dark:text-gray-400">
+						Volumen por tipo de evento para detectar cambios de dinámica
+					</p>
 				</div>
 				<div class="inline-flex rounded-lg border border-gray-200 p-1 dark:border-gray-700">
 					<button
@@ -555,23 +595,39 @@
 
 		<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800">
 			<div class="mb-3">
-				<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Punch card horario (60 días)</h2>
-				<p class="text-sm text-gray-500 dark:text-gray-400">Patrones de actividad por día de semana y hora</p>
+				<h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+					Punch card horario (60 días)
+				</h2>
+				<p class="text-sm text-gray-500 dark:text-gray-400">
+					Patrones de actividad por día de semana y hora
+				</p>
 			</div>
 			{#key `punch-${isDark ? 'dark' : 'light'}`}
 				<EChart options={punchCardOptions} height="260px" theme={isDark ? 'dark' : 'light'} />
 			{/key}
 		</div>
 
-		<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800 xl:col-span-2">
+		<div class="rounded-xl bg-white p-5 shadow-sm xl:col-span-2 dark:bg-gray-800">
 			<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
 				<div>
-					<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Heatmap estudiantes vs tiempo · {studentHeatmapRangeDays}d</h2>
-					<p class="text-sm text-gray-500 dark:text-gray-400">Comparativa de intensidad de actividad para todo el alumnado del curso</p>
-					<p class="text-xs text-gray-500 dark:text-gray-400">Mostrando {pagedDisplayStart}-{pagedDisplayEnd} de {filteredStudentsCount} (total curso: {heatmapStudents.length})</p>
+					<h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+						Heatmap estudiantes vs tiempo · {studentHeatmapRangeDays}d
+					</h2>
+					<p class="text-sm text-gray-500 dark:text-gray-400">
+						Comparativa de intensidad de actividad para todo el alumnado del curso
+					</p>
+					<p class="text-xs text-gray-500 dark:text-gray-400">
+						Mostrando {pagedDisplayStart}-{pagedDisplayEnd} de {filteredStudentsCount} (total curso: {heatmapStudents.length})
+					</p>
 				</div>
-				<div class="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700 dark:border-blue-800/70 dark:bg-blue-900/20 dark:text-blue-300" title="Haz clic en el nombre del eje Y para abrir la ficha del estudiante">
-					<span class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-current text-[10px] font-semibold">i</span>
+				<div
+					class="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700 dark:border-blue-800/70 dark:bg-blue-900/20 dark:text-blue-300"
+					title="Haz clic en el nombre del eje Y para abrir la ficha del estudiante"
+				>
+					<span
+						class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-current text-[10px] font-semibold"
+						>i</span
+					>
 					<span>Eje Y clicable</span>
 				</div>
 				<div class="inline-flex rounded-lg border border-gray-200 p-1 dark:border-gray-700">
@@ -647,12 +703,18 @@
 					>
 						Anterior
 					</button>
-					<span class="text-xs text-gray-500 dark:text-gray-400">Página {studentHeatmapEffectivePage}/{studentHeatmapTotalPages}</span>
+					<span class="text-xs text-gray-500 dark:text-gray-400"
+						>Página {studentHeatmapEffectivePage}/{studentHeatmapTotalPages}</span
+					>
 					<button
 						type="button"
 						disabled={studentHeatmapEffectivePage >= studentHeatmapTotalPages}
 						class="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 enabled:hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:enabled:hover:bg-gray-700"
-						onclick={() => (studentHeatmapPage = Math.min(studentHeatmapTotalPages, studentHeatmapEffectivePage + 1))}
+						onclick={() =>
+							(studentHeatmapPage = Math.min(
+								studentHeatmapTotalPages,
+								studentHeatmapEffectivePage + 1
+							))}
 					>
 						Siguiente
 					</button>
@@ -669,10 +731,14 @@
 		</div>
 
 		<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800">
-			<h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Actividad por estudiante (Top 10)</h2>
+			<h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+				Actividad por estudiante (Top 10)
+			</h2>
 			<div class="space-y-3">
 				{#each data.analytics.topStudents as student, index (student.userId)}
-					<div class="flex items-center justify-between rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+					<div
+						class="flex items-center justify-between rounded-lg border border-gray-200 p-3 dark:border-gray-700"
+					>
 						<div>
 							<p class="text-sm font-medium text-gray-900 dark:text-white">
 								#{index + 1} ·
@@ -684,35 +750,53 @@
 								</a>
 							</p>
 							<p class="text-xs text-gray-500 dark:text-gray-400">
-								{student.completedActivities} completadas · {student.inProgressActivities} en progreso · {formatDuration(student.totalTimeSpentSeconds)}
+								{student.completedActivities} completadas · {student.inProgressActivities} en progreso
+								· {formatDuration(student.totalTimeSpentSeconds)}
 							</p>
 							{#if student.email}
 								<p class="text-xs text-gray-400 dark:text-gray-500">{student.email}</p>
 							{/if}
 						</div>
-						<Badge color={student.completionRate >= 70 ? 'green' : student.completionRate >= 30 ? 'yellow' : 'red'}>
+						<Badge
+							color={student.completionRate >= 70
+								? 'green'
+								: student.completionRate >= 30
+									? 'yellow'
+									: 'red'}
+						>
 							{student.completionRate}%
 						</Badge>
 					</div>
 				{:else}
-					<p class="text-sm text-gray-500 dark:text-gray-400">No hay estudiantes con progreso registrado.</p>
+					<p class="text-sm text-gray-500 dark:text-gray-400">
+						No hay estudiantes con progreso registrado.
+					</p>
 				{/each}
 			</div>
 		</div>
 
 		<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800">
-			<h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Rendimiento por actividad</h2>
+			<h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+				Rendimiento por actividad
+			</h2>
 			<div class="space-y-3">
 				{#each data.analytics.activityAnalytics as activity (activity.activityId)}
 					<div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
 						<div class="mb-2 flex items-center justify-between">
 							<p class="font-medium text-gray-900 dark:text-white">{activity.name}</p>
-							<Badge color={activity.completionRate >= 70 ? 'green' : activity.completionRate >= 30 ? 'yellow' : 'red'}>
+							<Badge
+								color={activity.completionRate >= 70
+									? 'green'
+									: activity.completionRate >= 30
+										? 'yellow'
+										: 'red'}
+							>
 								{activity.completionRate}%
 							</Badge>
 						</div>
 						<p class="text-xs text-gray-500 dark:text-gray-400">
-							{activity.completedStudents} completadas · {activity.inProgressStudents} en progreso · {activity.notStartedStudents} sin iniciar
+							{activity.completedStudents} completadas · {activity.inProgressStudents} en progreso · {activity.notStartedStudents}
+							sin iniciar
 						</p>
 					</div>
 				{:else}

@@ -25,10 +25,7 @@ export interface LearningEvidenceStudentRef {
 }
 
 export type LearningEvidenceProgressStatus =
-	| 'not_started'
-	| 'in_progress'
-	| 'completed'
-	| 'abandoned';
+	'not_started' | 'in_progress' | 'completed' | 'abandoned';
 
 export interface LearningEvidenceRosterEntry extends LearningEvidenceStudentRef {
 	role: string;

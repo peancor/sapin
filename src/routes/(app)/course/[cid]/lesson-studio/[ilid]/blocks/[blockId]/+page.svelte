@@ -258,11 +258,7 @@
 
 	function applyAgentPreset(
 		preset:
-			| 'feedback'
-			| 'socratic_question'
-			| 'adaptive_generation'
-			| 'guided_practice'
-			| 'ui_evaluation'
+			'feedback' | 'socratic_question' | 'adaptive_generation' | 'guided_practice' | 'ui_evaluation'
 	) {
 		if (workingBlock.kind !== 'agent') return;
 
@@ -1564,7 +1560,7 @@
 						</div>
 
 						<div
-							class="grid gap-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-800 lg:grid-cols-[1.1fr_0.9fr]"
+							class="grid gap-4 rounded-2xl border border-gray-200 p-4 lg:grid-cols-[1.1fr_0.9fr] dark:border-gray-800"
 						>
 							<div>
 								<div class="flex items-center gap-2">
@@ -1787,8 +1783,8 @@
 										Banco de preguntas
 									</h2>
 									<p class="text-sm text-gray-500 dark:text-gray-400">
-										{workingBlock.checkConfig.questions.length} pregunta{workingBlock
-											.checkConfig.questions.length === 1
+										{workingBlock.checkConfig.questions.length} pregunta{workingBlock.checkConfig
+											.questions.length === 1
 											? ''
 											: 's'} configurada{workingBlock.checkConfig.questions.length === 1
 											? ''
@@ -1829,23 +1825,42 @@
 											{/each}
 										</select>
 										<div class="flex gap-2">
-											<button type="button" class="rounded-xl border border-gray-300 p-2" onclick={() => moveCheckQuestion(questionIndex, -1)} disabled={questionIndex === 0}>
+											<button
+												type="button"
+												class="rounded-xl border border-gray-300 p-2"
+												onclick={() => moveCheckQuestion(questionIndex, -1)}
+												disabled={questionIndex === 0}
+											>
 												<ArrowUp class="h-4 w-4" />
 											</button>
-											<button type="button" class="rounded-xl border border-gray-300 p-2" onclick={() => moveCheckQuestion(questionIndex, 1)} disabled={questionIndex === workingBlock.checkConfig.questions.length - 1}>
+											<button
+												type="button"
+												class="rounded-xl border border-gray-300 p-2"
+												onclick={() => moveCheckQuestion(questionIndex, 1)}
+												disabled={questionIndex === workingBlock.checkConfig.questions.length - 1}
+											>
 												<ArrowDown class="h-4 w-4" />
 											</button>
-											<button type="button" class="rounded-xl border border-gray-300 p-2" onclick={() => duplicateCheckQuestion(questionIndex)}>
+											<button
+												type="button"
+												class="rounded-xl border border-gray-300 p-2"
+												onclick={() => duplicateCheckQuestion(questionIndex)}
+											>
 												<Copy class="h-4 w-4" />
 											</button>
-											<button type="button" class="rounded-xl border border-red-200 p-2 text-red-700" onclick={() => removeCheckQuestion(questionIndex)}>
+											<button
+												type="button"
+												class="rounded-xl border border-red-200 p-2 text-red-700"
+												onclick={() => removeCheckQuestion(questionIndex)}
+											>
 												<Trash2 class="h-4 w-4" />
 											</button>
 										</div>
 									</div>
 									<label class="mt-4 block">
 										<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-											>Enunciado</span>
+											>Enunciado</span
+										>
 										<textarea
 											class="min-h-24 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
 											bind:value={question.prompt}
@@ -1856,17 +1871,21 @@
 									{#if question.mode === 'single_choice' || question.mode === 'multiple_choice' || question.mode === 'true_false'}
 										<div class="mt-4 space-y-3">
 											<div class="flex items-center justify-between gap-2">
-												<p class="text-sm font-medium text-gray-900 dark:text-white">
-													Opciones
-												</p>
+												<p class="text-sm font-medium text-gray-900 dark:text-white">Opciones</p>
 												{#if question.mode !== 'true_false'}
-													<button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-sm" onclick={() => addCheckQuestionOption(questionIndex)}>
+													<button
+														type="button"
+														class="rounded-xl border border-gray-300 px-3 py-2 text-sm"
+														onclick={() => addCheckQuestionOption(questionIndex)}
+													>
 														<Plus class="mr-1 inline h-4 w-4" /> Añadir opción
 													</button>
 												{/if}
 											</div>
 											{#each question.options as option, optionIndex (option.id)}
-												<div class="grid gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 md:grid-cols-[auto_1fr_1fr_auto]">
+												<div
+													class="grid gap-3 rounded-xl border border-gray-200 p-3 md:grid-cols-[auto_1fr_1fr_auto] dark:border-gray-800"
+												>
 													<label class="flex items-center gap-2 text-sm">
 														<input
 															type={question.mode === 'multiple_choice' ? 'checkbox' : 'radio'}
@@ -1882,82 +1901,212 @@
 														/>
 														Correcta
 													</label>
-													<input class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" bind:value={option.label} oninput={markDirty} />
-													<input class="rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" bind:value={option.id} oninput={markDirty} disabled={question.mode === 'true_false'} />
+													<input
+														class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+														bind:value={option.label}
+														oninput={markDirty}
+													/>
+													<input
+														class="rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+														bind:value={option.id}
+														oninput={markDirty}
+														disabled={question.mode === 'true_false'}
+													/>
 													{#if question.mode !== 'true_false'}
-														<button type="button" class="rounded-xl border border-red-200 px-3 py-2 text-sm text-red-700" onclick={() => removeCheckQuestionOption(questionIndex, optionIndex)}>
+														<button
+															type="button"
+															class="rounded-xl border border-red-200 px-3 py-2 text-sm text-red-700"
+															onclick={() => removeCheckQuestionOption(questionIndex, optionIndex)}
+														>
 															Eliminar
 														</button>
 													{/if}
-													<textarea class="md:col-span-4 min-h-20 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" bind:value={option.description} oninput={markDirty} placeholder="Descripción opcional"></textarea>
-								</div>
-							{/each}
-							{#if workingBlock.checkConfig.questions.length === 0}
-								<div
-									class="rounded-xl border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
-								>
-									El banco está vacío. Añade una pregunta manualmente o genera propuestas con IA antes de publicar o previsualizar este bloque.
-								</div>
-							{/if}
-						</div>
+													<textarea
+														class="min-h-20 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm md:col-span-4 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+														bind:value={option.description}
+														oninput={markDirty}
+														placeholder="Descripción opcional"
+													></textarea>
+												</div>
+											{/each}
+											{#if workingBlock.checkConfig.questions.length === 0}
+												<div
+													class="rounded-xl border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
+												>
+													El banco está vacío. Añade una pregunta manualmente o genera propuestas
+													con IA antes de publicar o previsualizar este bloque.
+												</div>
+											{/if}
+										</div>
 									{:else if question.mode === 'numeric'}
 										<div class="mt-4 grid gap-4 md:grid-cols-4">
 											<label class="block">
-												<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Valor exacto</span>
-												<input type="number" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" value={question.acceptedExact ?? ''} oninput={(event) => { const value = (event.currentTarget as HTMLInputElement).value; question.acceptedExact = value ? Number(value) : null; markDirty(); }} />
+												<span
+													class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+													>Valor exacto</span
+												>
+												<input
+													type="number"
+													class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+													value={question.acceptedExact ?? ''}
+													oninput={(event) => {
+														const value = (event.currentTarget as HTMLInputElement).value;
+														question.acceptedExact = value ? Number(value) : null;
+														markDirty();
+													}}
+												/>
 											</label>
 											<label class="block">
-												<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Tolerancia</span>
-												<input type="number" min="0" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" value={question.tolerance ?? ''} oninput={(event) => { const value = (event.currentTarget as HTMLInputElement).value; question.tolerance = value ? Number(value) : null; markDirty(); }} />
+												<span
+													class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+													>Tolerancia</span
+												>
+												<input
+													type="number"
+													min="0"
+													class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+													value={question.tolerance ?? ''}
+													oninput={(event) => {
+														const value = (event.currentTarget as HTMLInputElement).value;
+														question.tolerance = value ? Number(value) : null;
+														markDirty();
+													}}
+												/>
 											</label>
 											<label class="block">
-												<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Mínimo</span>
-												<input type="number" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" value={question.acceptedRange?.min ?? ''} oninput={(event) => { const value = (event.currentTarget as HTMLInputElement).value; question.acceptedRange = { ...(question.acceptedRange ?? {}), min: value ? Number(value) : undefined }; markDirty(); }} />
+												<span
+													class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+													>Mínimo</span
+												>
+												<input
+													type="number"
+													class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+													value={question.acceptedRange?.min ?? ''}
+													oninput={(event) => {
+														const value = (event.currentTarget as HTMLInputElement).value;
+														question.acceptedRange = {
+															...(question.acceptedRange ?? {}),
+															min: value ? Number(value) : undefined
+														};
+														markDirty();
+													}}
+												/>
 											</label>
 											<label class="block">
-												<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Máximo</span>
-												<input type="number" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" value={question.acceptedRange?.max ?? ''} oninput={(event) => { const value = (event.currentTarget as HTMLInputElement).value; question.acceptedRange = { ...(question.acceptedRange ?? {}), max: value ? Number(value) : undefined }; markDirty(); }} />
+												<span
+													class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+													>Máximo</span
+												>
+												<input
+													type="number"
+													class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+													value={question.acceptedRange?.max ?? ''}
+													oninput={(event) => {
+														const value = (event.currentTarget as HTMLInputElement).value;
+														question.acceptedRange = {
+															...(question.acceptedRange ?? {}),
+															max: value ? Number(value) : undefined
+														};
+														markDirty();
+													}}
+												/>
 											</label>
 										</div>
 									{:else if question.mode === 'short_text'}
 										<div class="mt-4 grid gap-4 md:grid-cols-3">
 											<label class="block md:col-span-3">
-												<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Respuestas aceptadas</span>
-												<textarea class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" value={question.acceptedAnswers.join('\n')} oninput={(event) => { question.acceptedAnswers = (event.currentTarget as HTMLTextAreaElement).value.split('\n').map((value) => value.trim()).filter(Boolean); markDirty(); }}></textarea>
+												<span
+													class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+													>Respuestas aceptadas</span
+												>
+												<textarea
+													class="min-h-28 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+													value={question.acceptedAnswers.join('\n')}
+													oninput={(event) => {
+														question.acceptedAnswers = (
+															event.currentTarget as HTMLTextAreaElement
+														).value
+															.split('\n')
+															.map((value) => value.trim())
+															.filter(Boolean);
+														markDirty();
+													}}
+												></textarea>
 											</label>
 											<label class="block">
-												<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Coincidencia</span>
-												<select class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" bind:value={question.matchMode} onchange={markDirty}>
+												<span
+													class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+													>Coincidencia</span
+												>
+												<select
+													class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+													bind:value={question.matchMode}
+													onchange={markDirty}
+												>
 													{#each checkTextMatchModes as matchModeOption (matchModeOption.value)}
 														<option value={matchModeOption.value}>{matchModeOption.label}</option>
 													{/each}
 												</select>
 											</label>
-											<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
-												<input type="checkbox" class="text-primary-600 h-4 w-4 rounded border-gray-300" bind:checked={question.caseSensitive} onchange={markDirty} />
-												<span class="text-sm text-gray-900 dark:text-white">Distinguir mayúsculas</span>
+											<label
+												class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+											>
+												<input
+													type="checkbox"
+													class="text-primary-600 h-4 w-4 rounded border-gray-300"
+													bind:checked={question.caseSensitive}
+													onchange={markDirty}
+												/>
+												<span class="text-sm text-gray-900 dark:text-white"
+													>Distinguir mayúsculas</span
+												>
 											</label>
-											<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
-												<input type="checkbox" class="text-primary-600 h-4 w-4 rounded border-gray-300" bind:checked={question.trimWhitespace} onchange={markDirty} />
+											<label
+												class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+											>
+												<input
+													type="checkbox"
+													class="text-primary-600 h-4 w-4 rounded border-gray-300"
+													bind:checked={question.trimWhitespace}
+													onchange={markDirty}
+												/>
 												<span class="text-sm text-gray-900 dark:text-white">Recortar espacios</span>
 											</label>
 										</div>
 									{/if}
 
 									<details class="mt-4">
-										<summary class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Campos técnicos</summary>
+										<summary
+											class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300"
+											>Campos técnicos</summary
+										>
 										<label class="mt-3 block">
-											<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">ID de pregunta</span>
-											<input class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white" bind:value={question.id} oninput={markDirty} />
+											<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+												>ID de pregunta</span
+											>
+											<input
+												class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+												bind:value={question.id}
+												oninput={markDirty}
+											/>
 										</label>
 									</details>
 								</fieldset>
 							{/each}
 						</div>
 
-						<label class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
-							<input type="checkbox" class="text-primary-600 h-4 w-4 rounded border-gray-300" bind:checked={workingBlock.checkConfig.revealCorrectAnswer} onchange={markDirty} />
-							<span class="text-sm font-medium text-gray-900 dark:text-white">Revelar respuesta correcta tras corregir</span>
+						<label
+							class="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+						>
+							<input
+								type="checkbox"
+								class="text-primary-600 h-4 w-4 rounded border-gray-300"
+								bind:checked={workingBlock.checkConfig.revealCorrectAnswer}
+								onchange={markDirty}
+							/>
+							<span class="text-sm font-medium text-gray-900 dark:text-white"
+								>Revelar respuesta correcta tras corregir</span
+							>
 						</label>
 
 						<div class="grid gap-4 md:grid-cols-3">

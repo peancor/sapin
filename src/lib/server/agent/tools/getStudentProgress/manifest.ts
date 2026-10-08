@@ -1,6 +1,4 @@
-import {
-	BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
-} from '../constants';
+import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '../constants';
 import type { ToolManifest } from '../types';
 
 export const getStudentProgressManifest: ToolManifest = {
@@ -38,4 +36,3 @@ export const getStudentProgressManifest: ToolManifest = {
 	version: '1.0.0',
 	usageDomain: BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
 };
-

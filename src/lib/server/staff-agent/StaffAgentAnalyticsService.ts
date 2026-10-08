@@ -138,7 +138,9 @@ export class StaffAgentAnalyticsService {
 					progressStatus: student.progressStatus
 				};
 			})
-			.sort((a, b) => b.sessionCount - a.sessionCount || a.displayName.localeCompare(b.displayName));
+			.sort(
+				(a, b) => b.sessionCount - a.sessionCount || a.displayName.localeCompare(b.displayName)
+			);
 
 		const participantIds = new Set(participants.map((participant) => participant.student.userId));
 		const nonParticipants = overview.studentSummaries
@@ -205,7 +207,10 @@ export class StaffAgentAnalyticsService {
 
 		const summaries = await Promise.all(
 			filteredActivities.map(async (activity) => {
-				const overview = await LearningEvidenceService.getActivityEvidenceOverview(access, activity.id);
+				const overview = await LearningEvidenceService.getActivityEvidenceOverview(
+					access,
+					activity.id
+				);
 				const completionCount = overview.studentSummaries.filter(
 					(student) => student.progressStatus === 'completed'
 				).length;
@@ -289,7 +294,10 @@ export class StaffAgentAnalyticsService {
 
 		const activitySummaries = await Promise.all(
 			activityRows.map(async (activity) => {
-				const overview = await LearningEvidenceService.getActivityEvidenceOverview(access, activity.id);
+				const overview = await LearningEvidenceService.getActivityEvidenceOverview(
+					access,
+					activity.id
+				);
 				return { activity, overview };
 			})
 		);
@@ -336,14 +344,14 @@ export class StaffAgentAnalyticsService {
 				if (!summary) continue;
 
 				if (summary.progressStatus === 'completed') completedActivities++;
-				if (summary.sessionCount > 0 || summary.progressStatus !== 'not_started') startedActivities++;
+				if (summary.sessionCount > 0 || summary.progressStatus !== 'not_started')
+					startedActivities++;
 				sessionCount += summary.sessionCount;
 				totalMessages += summary.totalMessages;
 				learnerMessages += summary.learnerMessageCount;
 				recentActivity.push(summary.lastActivityAt);
 
-				const riskScore =
-					riskByActivityAndStudent.get(activity.id)?.get(student.userId) ?? null;
+				const riskScore = riskByActivityAndStudent.get(activity.id)?.get(student.userId) ?? null;
 				if (typeof riskScore === 'number') riskScores.push(riskScore);
 
 				activitySignals.push({
@@ -369,13 +377,18 @@ export class StaffAgentAnalyticsService {
 						: 0;
 			const excellenceScore = Math.max(
 				0,
-				Math.min(100, Math.round(completionRate * 0.6 + participationRate * 0.25 + sessionCount * 2))
+				Math.min(
+					100,
+					Math.round(completionRate * 0.6 + participationRate * 0.25 + sessionCount * 2)
+				)
 			);
 			const attentionScore = Math.max(
 				0,
 				Math.min(
 					100,
-					Math.round(averageRisk * 0.65 + notStartedActivities * 8 + Math.max(0, 4 - sessionCount) * 5)
+					Math.round(
+						averageRisk * 0.65 + notStartedActivities * 8 + Math.max(0, 4 - sessionCount) * 5
+					)
 				)
 			);
 
@@ -416,10 +429,16 @@ export class StaffAgentAnalyticsService {
 				(a, b) => b.attentionScore - a.attentionScore || a.displayName.localeCompare(b.displayName)
 			),
 			topStudents: [...signals]
-				.sort((a, b) => b.excellenceScore - a.excellenceScore || a.displayName.localeCompare(b.displayName))
+				.sort(
+					(a, b) =>
+						b.excellenceScore - a.excellenceScore || a.displayName.localeCompare(b.displayName)
+				)
 				.slice(0, limit),
 			attentionStudents: [...signals]
-				.sort((a, b) => b.attentionScore - a.attentionScore || a.displayName.localeCompare(b.displayName))
+				.sort(
+					(a, b) =>
+						b.attentionScore - a.attentionScore || a.displayName.localeCompare(b.displayName)
+				)
 				.slice(0, limit)
 		};
 	}

@@ -9,4 +9,3 @@ export const saveGradePackage: BuiltinToolPackage = {
 
 export { saveGrade } from './handler';
 export { saveGradeManifest } from './manifest';
-

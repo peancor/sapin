@@ -142,7 +142,11 @@ function parseConfig(value: string | null | undefined): AIRequestCaptureConfig {
 }
 
 async function saveSetting(key: string, value: string): Promise<void> {
-	const existing = await db.select().from(schema.appSetting).where(eq(schema.appSetting.key, key)).get();
+	const existing = await db
+		.select()
+		.from(schema.appSetting)
+		.where(eq(schema.appSetting.key, key))
+		.get();
 
 	if (existing) {
 		await db.update(schema.appSetting).set({ value }).where(eq(schema.appSetting.key, key));
@@ -179,9 +183,7 @@ export class AIRequestCaptureService {
 		}
 	}
 
-	static async saveConfig(
-		input: Partial<AIRequestCaptureConfig>
-	): Promise<AIRequestCaptureConfig> {
+	static async saveConfig(input: Partial<AIRequestCaptureConfig>): Promise<AIRequestCaptureConfig> {
 		const merged = {
 			...(await this.getConfig()),
 			...input
@@ -202,8 +204,10 @@ export class AIRequestCaptureService {
 		const now = new Date();
 		const conditions = [];
 
-		if (options?.targetType) conditions.push(eq(schema.aiRequestCaptureFocus.targetType, options.targetType));
-		if (options?.targetId) conditions.push(eq(schema.aiRequestCaptureFocus.targetId, options.targetId));
+		if (options?.targetType)
+			conditions.push(eq(schema.aiRequestCaptureFocus.targetType, options.targetType));
+		if (options?.targetId)
+			conditions.push(eq(schema.aiRequestCaptureFocus.targetId, options.targetId));
 		if (options?.onlyEnabled) conditions.push(eq(schema.aiRequestCaptureFocus.enabled, true));
 		if (options?.onlyActive) {
 			conditions.push(
@@ -470,7 +474,9 @@ export class AIRequestCaptureService {
 	}): Promise<(typeof schema.aiRequestRound.$inferSelect)[]> {
 		const conditions = [];
 		if (options?.interactiveLearningId) {
-			conditions.push(eq(schema.aiRequestRound.interactiveLearningId, options.interactiveLearningId));
+			conditions.push(
+				eq(schema.aiRequestRound.interactiveLearningId, options.interactiveLearningId)
+			);
 		}
 		if (options?.chatId) {
 			conditions.push(eq(schema.aiRequestRound.chatId, options.chatId));
@@ -494,7 +500,10 @@ export class AIRequestCaptureService {
 			.where(
 				or(
 					lte(schema.aiRequestRound.finishedAt, cutoff),
-					and(isNull(schema.aiRequestRound.finishedAt), lte(schema.aiRequestRound.startedAt, cutoff))
+					and(
+						isNull(schema.aiRequestRound.finishedAt),
+						lte(schema.aiRequestRound.startedAt, cutoff)
+					)
 				)!
 			);
 	}

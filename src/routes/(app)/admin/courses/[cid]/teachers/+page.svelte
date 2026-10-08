@@ -48,8 +48,7 @@
 		if (!searchTerm) return data.teachers;
 		const term = searchTerm.toLowerCase();
 		return data.teachers.filter(
-			(t) =>
-				t.username?.toLowerCase().includes(term) || t.email?.toLowerCase().includes(term)
+			(t) => t.username?.toLowerCase().includes(term) || t.email?.toLowerCase().includes(term)
 		);
 	});
 
@@ -58,8 +57,7 @@
 		if (!addSearchTerm) return data.availableTeachers;
 		const term = addSearchTerm.toLowerCase();
 		return data.availableTeachers.filter(
-			(t) =>
-				t.username?.toLowerCase().includes(term) || t.email?.toLowerCase().includes(term)
+			(t) => t.username?.toLowerCase().includes(term) || t.email?.toLowerCase().includes(term)
 		);
 	});
 
@@ -180,7 +178,7 @@
 	<div class="rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 			<!-- Search -->
-			<div class="relative flex-1 max-w-md">
+			<div class="relative max-w-md flex-1">
 				<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 					<Search class="h-4 w-4 text-gray-400" />
 				</div>
@@ -273,12 +271,7 @@
 									</Badge>
 								</TableBodyCell>
 								<TableBodyCell>
-									<Button
-										size="xs"
-										color="red"
-										outline
-										onclick={() => confirmRemove(teacher)}
-									>
+									<Button size="xs" color="red" outline onclick={() => confirmRemove(teacher)}>
 										<Trash2 class="h-4 w-4" />
 									</Button>
 								</TableBodyCell>
@@ -412,9 +405,7 @@
 <Modal bind:open={showRemoveModal} size="sm">
 	<div class="text-center">
 		<Trash2 class="mx-auto mb-4 h-12 w-12 text-red-500" />
-		<h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-			¿Eliminar profesor?
-		</h3>
+		<h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">¿Eliminar profesor?</h3>
 		<p class="mb-6 text-gray-500 dark:text-gray-400">
 			<strong>{teacherToRemove?.name}</strong> ya no tendrá acceso a este curso.
 		</p>

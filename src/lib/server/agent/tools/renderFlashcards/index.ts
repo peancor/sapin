@@ -6,4 +6,3 @@ export const renderFlashcardsPackage: BuiltinToolPackage = {
 };
 
 export { renderFlashcardsManifest } from './manifest';
-

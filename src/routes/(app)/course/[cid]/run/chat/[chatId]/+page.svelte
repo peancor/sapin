@@ -8,7 +8,6 @@
 
 	import { onMount } from 'svelte';
 	import { response } from '$lib/stores/response';
-	
 
 	let { data }: { data: PageData } = $props();
 
@@ -26,9 +25,8 @@
 		data.user ? { username: data.user.alias || data.user.username || 'Anónimo' } : undefined
 	);
 
-
 	onMount(() => {
-/* 		// Initialize with a system message if needed
+		/* 		// Initialize with a system message if needed
 		if (data.activity?.content?.systemPrompt) {
 			messages = [{ content: data.activity.content.systemPrompt, type: 'assistant' }];
 		} */
@@ -39,9 +37,9 @@
 	}
 </script>
 
-<div class="flex flex-col h-full overflow-hidden bg-gray-50 dark:bg-gray-900">
+<div class="flex h-full flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
 	<!-- Header -->
-	<div class="border-b bg-white dark:bg-gray-800 shadow-sm">
+	<div class="border-b bg-white shadow-sm dark:bg-gray-800">
 		<div class="px-4 py-4">
 			<div class="flex items-center justify-between">
 				<Button color="light" class="flex items-center gap-2" onclick={goBackToCourse}>
@@ -50,12 +48,12 @@
 				</Button>
 				<div class="text-right">
 					<h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
-            {data.interactiveLearning?.name || 'Chat'}
-          </h1>
+						{data.interactiveLearning?.name || 'Chat'}
+					</h1>
 					{#if data.interactiveLearning?.description}
 						<p class="text-sm text-gray-600 dark:text-gray-300">
-              {data.interactiveLearning.description}
-            </p>
+							{data.interactiveLearning.description}
+						</p>
 					{/if}
 				</div>
 			</div>

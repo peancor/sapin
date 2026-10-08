@@ -47,7 +47,9 @@ interface Flashcard {
 }
 
 function asStringArray(value: unknown): string[] {
-	return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+	return Array.isArray(value)
+		? value.filter((entry): entry is string => typeof entry === 'string')
+		: [];
 }
 
 function asString(value: unknown): string | undefined {
@@ -101,8 +103,7 @@ function buildTimedQuizProps(ctx: UIComponentContext) {
 				? ctx.props.difficulty
 				: undefined,
 		timerByDifficultySec:
-			typeof ctx.props.timerByDifficultySec === 'object' &&
-			ctx.props.timerByDifficultySec !== null
+			typeof ctx.props.timerByDifficultySec === 'object' && ctx.props.timerByDifficultySec !== null
 				? (ctx.props.timerByDifficultySec as { easy?: number; medium?: number; hard?: number })
 				: undefined,
 		autoAdvanceDelayMs: asNumber(ctx.props.autoAdvanceDelayMs),
@@ -178,9 +179,7 @@ function buildWorkingMemoryProps(ctx: UIComponentContext) {
 		title: asString(ctx.props.title),
 		testType: ctx.props.testType === 'digit_span' ? ctx.props.testType : undefined,
 		mode:
-			ctx.props.mode === 'forward' ||
-			ctx.props.mode === 'backward' ||
-			ctx.props.mode === 'both'
+			ctx.props.mode === 'forward' || ctx.props.mode === 'backward' || ctx.props.mode === 'both'
 				? ctx.props.mode
 				: undefined,
 		difficulty:
@@ -268,8 +267,7 @@ interface ImmersiveUIComponentRegistryEntry {
 }
 
 export type UIComponentRegistryEntry =
-	| InlineUIComponentRegistryEntry
-	| ImmersiveUIComponentRegistryEntry;
+	InlineUIComponentRegistryEntry | ImmersiveUIComponentRegistryEntry;
 
 const uiComponentRegistry = {
 	QuizCard: {

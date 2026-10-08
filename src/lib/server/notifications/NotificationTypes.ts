@@ -7,7 +7,8 @@ import type { notificationType, notificationPriority } from '$lib/server/db/sche
 export type NotificationChannel = 'in_app' | 'email';
 
 export type NotificationTypeKey = (typeof notificationType)[keyof typeof notificationType];
-export type NotificationPriorityKey = (typeof notificationPriority)[keyof typeof notificationPriority];
+export type NotificationPriorityKey =
+	(typeof notificationPriority)[keyof typeof notificationPriority];
 
 export interface NotificationTypeConfig {
 	enabled: boolean;

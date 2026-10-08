@@ -32,10 +32,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						deletedFreedBytes: result.deletedPurge.freedBytes,
 						orphansPurged: result.orphanPurge.deletedCount,
 						orphansFreedBytes: result.orphanPurge.freedBytes,
-						errors: [
-							...result.deletedPurge.errors,
-							...result.orphanPurge.errors
-						]
+						errors: [...result.deletedPurge.errors, ...result.orphanPurge.errors]
 					}
 				});
 			}
@@ -84,10 +81,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 
 			default:
-				return json(
-					{ error: `Unknown action: ${action}` },
-					{ status: 400 }
-				);
+				return json({ error: `Unknown action: ${action}` }, { status: 400 });
 		}
 	} catch (error) {
 		console.error('Maintenance endpoint error:', error);

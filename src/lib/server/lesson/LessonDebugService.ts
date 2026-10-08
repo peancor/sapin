@@ -149,15 +149,18 @@ export class LessonDebugService {
 				status: runtimeView.activity.status
 			},
 			previewMode: input.previewMode,
-			sessionOptions: previewSessions.map((previewSession) => ({
-				id: previewSession.id,
-				attemptNumber: previewSession.attemptNumber,
-				status: previewSession.status,
-				startedAt: previewSession.startedAt,
-				lastActiveAt: previewSession.lastActiveAt,
-				completedAt: previewSession.completedAt ?? null,
-				isSelected: previewSession.id === runtimeView.session.id
-			} satisfies LessonDebugSessionOption)),
+			sessionOptions: previewSessions.map(
+				(previewSession) =>
+					({
+						id: previewSession.id,
+						attemptNumber: previewSession.attemptNumber,
+						status: previewSession.status,
+						startedAt: previewSession.startedAt,
+						lastActiveAt: previewSession.lastActiveAt,
+						completedAt: previewSession.completedAt ?? null,
+						isSelected: previewSession.id === runtimeView.session.id
+					}) satisfies LessonDebugSessionOption
+			),
 			currentBlockId: runtimeView.currentBlock.id,
 			selectedBlockId: selectedBlock.id,
 			blockSummaries: buildLessonDebugBlockSummaries({

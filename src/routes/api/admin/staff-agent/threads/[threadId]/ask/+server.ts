@@ -95,8 +95,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 							`data: ${JSON.stringify({
 								type: 'error',
 								code: 'INTERNAL_ERROR',
-								message:
-									error instanceof Error ? error.message : 'Error interno del servidor'
+								message: error instanceof Error ? error.message : 'Error interno del servidor'
 							})}\n\n`
 						)
 					);

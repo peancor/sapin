@@ -386,13 +386,13 @@
 			</p>
 		</div>
 		<div class="flex gap-2">
-			<a href={resolve("/admin/analytics/realtime")}>
+			<a href={resolve('/admin/analytics/realtime')}>
 				<Button color="alternative" class="flex items-center gap-2">
 					<Radio class="h-4 w-4" />
 					Tiempo Real
 				</Button>
 			</a>
-			<a href={resolve("/admin/settings")}>
+			<a href={resolve('/admin/settings')}>
 				<Button color="light" class="flex items-center gap-2">
 					<Settings class="h-4 w-4" />
 					Configuración
@@ -410,7 +410,7 @@
 			<div>
 				<span class="font-medium">El sistema de analítica está desactivado.</span>
 				Los datos mostrados son históricos.
-				<a href={resolve("/admin/settings")} class="ml-2 font-medium underline hover:no-underline">
+				<a href={resolve('/admin/settings')} class="ml-2 font-medium underline hover:no-underline">
 					Ir a Configuración para activarlo
 				</a>
 			</div>

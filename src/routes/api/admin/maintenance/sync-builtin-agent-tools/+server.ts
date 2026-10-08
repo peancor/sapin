@@ -10,7 +10,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const body = await request.json().catch(() => null);
 	const mode = body?.mode;
 	if (mode !== 'preview' && mode !== 'execute') {
-		return json({ error: 'Parámetro "mode" inválido. Use "preview" o "execute".' }, { status: 400 });
+		return json(
+			{ error: 'Parámetro "mode" inválido. Use "preview" o "execute".' },
+			{ status: 400 }
+		);
 	}
 
 	try {

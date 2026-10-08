@@ -87,12 +87,17 @@ export const load = (async ({ params, locals }) => {
 					.groupBy(interactiveLessonSession.interactiveLearningId)
 			: [];
 
-	const allParticipationCounts = [...chatParticipationCounts, ...agentParticipationCounts, ...lessonParticipationCounts];
+	const allParticipationCounts = [
+		...chatParticipationCounts,
+		...agentParticipationCounts,
+		...lessonParticipationCounts
+	];
 
 	// Combinar datos
 	const interactivesWithStats = interactives.map((interactive) => ({
 		...interactive,
-		participations: allParticipationCounts.find((p) => p.interactiveLearningId === interactive.id)?.count || 0
+		participations:
+			allParticipationCounts.find((p) => p.interactiveLearningId === interactive.id)?.count || 0
 	}));
 
 	return {

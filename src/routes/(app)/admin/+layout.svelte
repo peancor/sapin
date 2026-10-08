@@ -52,8 +52,20 @@
 
 	// Menu items for admin sidebar - ahora usando niveles de rol
 	const menuItems = [
-		{ id: 'dashboard', label: 'Dashboard', href: '/admin', icon: LayoutDashboard, minLevel: ROLE_LEVELS.ADMIN },
-		{ id: 'users', label: 'Usuarios', href: '/admin/users', icon: Users, minLevel: ROLE_LEVELS.ADMIN },
+		{
+			id: 'dashboard',
+			label: 'Dashboard',
+			href: '/admin',
+			icon: LayoutDashboard,
+			minLevel: ROLE_LEVELS.ADMIN
+		},
+		{
+			id: 'users',
+			label: 'Usuarios',
+			href: '/admin/users',
+			icon: Users,
+			minLevel: ROLE_LEVELS.ADMIN
+		},
 		{
 			id: 'courses',
 			label: 'Cursos',

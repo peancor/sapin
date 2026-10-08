@@ -29,7 +29,11 @@ export const renderAttentionControlTestManifest: ToolManifest = {
 		}
 	},
 	executorType: 'builtin',
-	executorConfig: { handler: 'ui_renderer', componentKey: 'AttentionControlTest', interactive: true },
+	executorConfig: {
+		handler: 'ui_renderer',
+		componentKey: 'AttentionControlTest',
+		interactive: true
+	},
 	requiresConfirmation: false,
 	riskLevel: 'low',
 	isSystem: true,

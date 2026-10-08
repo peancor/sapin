@@ -26,7 +26,8 @@ export const compareStudentGroupsManifest: ToolManifest = {
 			},
 			groupBStudentIds: {
 				type: 'array',
-				description: 'Lista explicita de estudiantes del grupo B. Si se omite, usa el resto del curso.',
+				description:
+					'Lista explicita de estudiantes del grupo B. Si se omite, usa el resto del curso.',
 				items: { type: 'string' }
 			},
 			chatIds: {

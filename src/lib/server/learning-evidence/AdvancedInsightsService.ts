@@ -39,7 +39,9 @@ function splitSentences(value: string): string[] {
 }
 
 function extractKeywords(criterion: RubricCriterionInput): string[] {
-	const source = [criterion.title, criterion.description ?? '', ...(criterion.keywords ?? [])].join(' ');
+	const source = [criterion.title, criterion.description ?? '', ...(criterion.keywords ?? [])].join(
+		' '
+	);
 	const stopwords = new Set([
 		'about',
 		'como',
@@ -80,7 +82,9 @@ function getUserCorpusFromSessions(
 	sessions: LearningEvidenceTranscriptSession[],
 	chatId?: string
 ): { text: string; evidence: string[] } {
-	const selectedSessions = chatId ? sessions.filter((session) => session.chatId === chatId) : sessions;
+	const selectedSessions = chatId
+		? sessions.filter((session) => session.chatId === chatId)
+		: sessions;
 	const userMessages = selectedSessions.flatMap((session) =>
 		session.messages
 			.filter((message) => message.role === 'user')
@@ -94,8 +98,18 @@ function getUserCorpusFromSessions(
 function buildRiskFactors(
 	profile: StudentProfile,
 	stuckCount: number
-): Array<{ type: string; severity: 'low' | 'medium' | 'high'; description: string; weight: number }> {
-	const factors: Array<{ type: string; severity: 'low' | 'medium' | 'high'; description: string; weight: number }> = [];
+): Array<{
+	type: string;
+	severity: 'low' | 'medium' | 'high';
+	description: string;
+	weight: number;
+}> {
+	const factors: Array<{
+		type: string;
+		severity: 'low' | 'medium' | 'high';
+		description: string;
+		weight: number;
+	}> = [];
 	const inactivityDays = daysSince(profile.lastActivityAt);
 
 	if (profile.status === 'not_started') {
@@ -225,7 +239,10 @@ export class AdvancedInsightsService {
 		}
 
 		const normalizedCorpus = normalizeText(corpus.text);
-		const totalMaxScore = params.rubric.reduce((sum, criterion) => sum + (criterion.maxScore ?? 4), 0);
+		const totalMaxScore = params.rubric.reduce(
+			(sum, criterion) => sum + (criterion.maxScore ?? 4),
+			0
+		);
 
 		const criteria = params.rubric.map((criterion, index) => {
 			const keywords = extractKeywords(criterion);
@@ -239,7 +256,11 @@ export class AdvancedInsightsService {
 				.slice(0, 3);
 			const maxScore = criterion.maxScore ?? 4;
 			const keywordCoverage =
-				keywords.length > 0 ? matchedKeywords.length / keywords.length : corpus.text.length >= 120 ? 0.7 : 0.4;
+				keywords.length > 0
+					? matchedKeywords.length / keywords.length
+					: corpus.text.length >= 120
+						? 0.7
+						: 0.4;
 			const baseCoverage = corpus.text.length >= 240 ? 0.3 : corpus.text.length >= 120 ? 0.2 : 0.1;
 			const provisionalScore = clamp(
 				Math.round(maxScore * clamp(baseCoverage + keywordCoverage * 0.7, 0, 1)),
@@ -268,7 +289,10 @@ export class AdvancedInsightsService {
 			};
 		});
 
-		const provisionalTotalScore = criteria.reduce((sum, criterion) => sum + criterion.provisionalScore, 0);
+		const provisionalTotalScore = criteria.reduce(
+			(sum, criterion) => sum + criterion.provisionalScore,
+			0
+		);
 
 		return {
 			activityId: params.activityId,
@@ -426,7 +450,10 @@ export class AdvancedInsightsService {
 		});
 		const stuckByStudent = new Map<string, number>();
 		for (const session of stuckSessions.sessions) {
-			stuckByStudent.set(session.student.userId, (stuckByStudent.get(session.student.userId) ?? 0) + 1);
+			stuckByStudent.set(
+				session.student.userId,
+				(stuckByStudent.get(session.student.userId) ?? 0) + 1
+			);
 		}
 
 		const includeCompleted = params.includeCompleted ?? false;
@@ -458,7 +485,9 @@ export class AdvancedInsightsService {
 					factors: risk.factors
 				};
 			})
-			.sort((a, b) => b.riskScore - a.riskScore || a.student.username.localeCompare(b.student.username))
+			.sort(
+				(a, b) => b.riskScore - a.riskScore || a.student.username.localeCompare(b.student.username)
+			)
 			.slice(0, params.maxResults ?? profiles.students.length);
 
 		return {
@@ -489,7 +518,10 @@ export class AdvancedInsightsService {
 		});
 		const stuckByStudent = new Map<string, number>();
 		for (const session of stuckSessions.sessions) {
-			stuckByStudent.set(session.student.userId, (stuckByStudent.get(session.student.userId) ?? 0) + 1);
+			stuckByStudent.set(
+				session.student.userId,
+				(stuckByStudent.get(session.student.userId) ?? 0) + 1
+			);
 		}
 
 		const clusters = new Map<
@@ -567,7 +599,9 @@ export class AdvancedInsightsService {
 			activityId: params.activityId,
 			activityName: profiles.activityName,
 			totalStudents: profiles.totalStudents,
-			clusters: result.sort((a, b) => b.studentCount - a.studentCount || a.label.localeCompare(b.label))
+			clusters: result.sort(
+				(a, b) => b.studentCount - a.studentCount || a.label.localeCompare(b.label)
+			)
 		};
 	}
 }

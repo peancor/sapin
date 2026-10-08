@@ -203,10 +203,7 @@ export function prepareTikzjaxBrowserRuntimeAssets() {
 	);
 
 	const patchedTikzjaxSource = readFileSync(tikzjaxPath, 'utf8')
-		.replace(
-			'try{await r.load(e)}catch(e){console.log(e)}return r',
-			'await r.load(e);return r'
-		)
+		.replace('try{await r.load(e)}catch(e){console.log(e)}return r', 'await r.load(e);return r')
 		.replace(
 			'return r})(),"complete"==document.readyState?K():window.addEventListener("load",K),window.addEventListener("unload",Z))',
 			'return r})(),window.__tikzjaxRuntimeReady=V,window.__tikzjaxRuntimeReady.then((()=>window.dispatchEvent(new CustomEvent("tikzjax-runtime-ready")))).catch((e=>window.dispatchEvent(new CustomEvent("tikzjax-runtime-error",{detail:e})))),"complete"==document.readyState?K():window.addEventListener("load",K),window.addEventListener("unload",Z))'

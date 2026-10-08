@@ -3,25 +3,25 @@ import { Home, Settings, Users, GraduationCap, Notebook } from 'lucide-svelte';
 
 // Constantes de niveles de rol (deben coincidir con el servidor)
 export const ROLE_LEVELS = {
-    SUPER_ADMIN: 100,
-    ADMIN: 90,
-    TEACHER: 50,
-    ASSISTANT: 40,
-    STUDENT: 10
+	SUPER_ADMIN: 100,
+	ADMIN: 90,
+	TEACHER: 50,
+	ASSISTANT: 40,
+	STUDENT: 10
 } as const;
 
 export type NavigationItem = {
-    href?: string;
-    label: string;
-    icon: any;
-    roles?: string[]; // Sistema legacy (deprecated)
-    minLevel?: number; // Nuevo sistema basado en niveles
-    children?: NavigationItem[];
+	href?: string;
+	label: string;
+	icon: any;
+	roles?: string[]; // Sistema legacy (deprecated)
+	minLevel?: number; // Nuevo sistema basado en niveles
+	children?: NavigationItem[];
 };
 
 const defaultItems: NavigationItem[] = [
-    { href: '/', label: 'Home', icon: Home },
-/*     {
+	{ href: '/', label: 'Home', icon: Home }
+	/*     {
         label: 'Académico',
         icon: GraduationCap,
         children: [
@@ -29,7 +29,7 @@ const defaultItems: NavigationItem[] = [
             { href: '/course', label: 'Curso', icon: Notebook }
         ]
     }, */
-    /*{
+	/*{
         label: 'Administración',
         icon: Settings,
         children: [

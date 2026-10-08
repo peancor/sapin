@@ -13,7 +13,7 @@
 		ArrowRight,
 		History,
 		Eye,
-		Settings,
+		Settings
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { navigationItems } from '$lib/stores/navigation';
@@ -181,7 +181,9 @@
 
 				{#if data.userAccess.canViewAllChats}
 					<a
-						href={resolve(`/course/${data.userAccess.courseId}/admin/interactives/${data.interactiveLearning.id}/chatedit`)}
+						href={resolve(
+							`/course/${data.userAccess.courseId}/admin/interactives/${data.interactiveLearning.id}/chatedit`
+						)}
 						class="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-gray-200 bg-white/80 px-6 py-4 font-medium text-gray-700 backdrop-blur-sm transition-all hover:border-gray-300 hover:bg-white dark:border-gray-600 dark:bg-gray-800/80 dark:text-gray-200 dark:hover:border-gray-500"
 					>
 						<Settings class="h-5 w-5" />

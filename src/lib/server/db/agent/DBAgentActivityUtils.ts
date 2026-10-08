@@ -268,7 +268,6 @@ export default class DBAgentActivityUtils {
 				await this.setActivityTools(this.GLOBAL_TUTOR_ID, mergedToolIds);
 			}
 		}
-
 	}
 
 	static async getOrCreateTutorChat(userId: string): Promise<string> {

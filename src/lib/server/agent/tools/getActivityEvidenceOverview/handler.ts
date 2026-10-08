@@ -37,7 +37,8 @@ export async function getActivityEvidenceOverview(
 	} catch (error) {
 		return {
 			success: false,
-			errorMessage: error instanceof Error ? error.message : 'Error al obtener el resumen de evidencia',
+			errorMessage:
+				error instanceof Error ? error.message : 'Error al obtener el resumen de evidencia',
 			durationMs: Date.now() - start
 		};
 	}

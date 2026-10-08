@@ -31,7 +31,13 @@ export async function validateSessionToken(token: string) {
 	const [result] = await db
 		.select({
 			// Adjust user table here to tweak returned data
-			user: { id: table.user.id, username: table.user.username, image: table.user.image, email: table.user.email, alias: table.user.alias },
+			user: {
+				id: table.user.id,
+				username: table.user.username,
+				image: table.user.image,
+				email: table.user.email,
+				alias: table.user.alias
+			},
 			session: table.session
 		})
 		.from(table.session)
@@ -69,20 +75,16 @@ export async function validateSessionToken(token: string) {
 				eq(table.userRoleAssignment.userId, user.id),
 				eq(table.userRoleAssignment.isActive, true),
 				eq(table.role.isActive, true),
-				or(
-					isNull(table.userRoleAssignment.expiresAt),
-					gt(table.userRoleAssignment.expiresAt, now)
-				)
+				or(isNull(table.userRoleAssignment.expiresAt), gt(table.userRoleAssignment.expiresAt, now))
 			)
 		);
 
-	const roles = userRoles.map(r => r.role);
-	const highestRole = roles.length > 0 
-		? roles.reduce((max, r) => r.level > max.level ? r : max)
-		: null;
+	const roles = userRoles.map((r) => r.role);
+	const highestRole =
+		roles.length > 0 ? roles.reduce((max, r) => (r.level > max.level ? r : max)) : null;
 
-	return { 
-		session, 
+	return {
+		session,
 		user: {
 			...user,
 			roles,

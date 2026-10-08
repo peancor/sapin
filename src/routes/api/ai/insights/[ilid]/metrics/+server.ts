@@ -26,7 +26,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	} catch (error) {
 		console.error('Error obteniendo metricas:', error);
 		return new Response(
-			'Error obteniendo metricas: ' + (error instanceof Error ? error.message : 'Error desconocido'),
+			'Error obteniendo metricas: ' +
+				(error instanceof Error ? error.message : 'Error desconocido'),
 			{ status: 500 }
 		);
 	}

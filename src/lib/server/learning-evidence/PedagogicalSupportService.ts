@@ -149,7 +149,9 @@ function buildObservations(context: StudentSupportContext): string[] {
 	}
 
 	if (context.currentProgress?.attemptsCount) {
-		observations.push(`Acumula ${context.currentProgress.attemptsCount} intento(s) en la actividad.`);
+		observations.push(
+			`Acumula ${context.currentProgress.attemptsCount} intento(s) en la actividad.`
+		);
 	}
 
 	if (context.studentSummary.averageLearnerMessageLength > 0) {
@@ -211,14 +213,19 @@ function buildSupportNeeds(context: StudentSupportContext): string[] {
 	}
 
 	if ((context.currentProgress?.attemptsCount ?? 0) >= 2) {
-		needs.push('Necesita reducir reintentos improductivos y avanzar con una estrategia mas guiada.');
+		needs.push(
+			'Necesita reducir reintentos improductivos y avanzar con una estrategia mas guiada.'
+		);
 	}
 
 	if (context.stuckSessions.length > 0) {
 		needs.push('Necesita desbloquear puntos de atasco detectados en sus sesiones.');
 	}
 
-	if (context.studentSummary.averageLearnerMessageLength > 0 && context.studentSummary.averageLearnerMessageLength < 50) {
+	if (
+		context.studentSummary.averageLearnerMessageLength > 0 &&
+		context.studentSummary.averageLearnerMessageLength < 50
+	) {
 		needs.push('Necesita desarrollar respuestas mas justificadas y menos telegraficas.');
 	}
 
@@ -256,7 +263,9 @@ async function loadStudentSupportContext(
 	const studentFromRoster =
 		activity.courseId !== null
 			? (
-					await LearningEvidenceService.getCourseStudentRoster(access, activity.courseId, [params.studentId])
+					await LearningEvidenceService.getCourseStudentRoster(access, activity.courseId, [
+						params.studentId
+					])
 				)[0]
 			: null;
 	const student = studentFromRoster ?? transcripts[0]?.student;
@@ -273,7 +282,10 @@ async function loadStudentSupportContext(
 		sessionCount: transcripts.length,
 		totalMessages: transcripts.reduce((sum, session) => sum + session.messageCount, 0),
 		learnerMessageCount: transcripts.reduce((sum, session) => sum + session.learnerMessageCount, 0),
-		assistantMessageCount: transcripts.reduce((sum, session) => sum + session.assistantMessageCount, 0),
+		assistantMessageCount: transcripts.reduce(
+			(sum, session) => sum + session.assistantMessageCount,
+			0
+		),
 		toolCallCount: transcripts.reduce((sum, session) => sum + session.toolCallCount, 0),
 		uiResponseCount: transcripts.reduce((sum, session) => sum + session.uiResponseCount, 0),
 		averageLearnerMessageLength: average(
@@ -289,7 +301,7 @@ async function loadStudentSupportContext(
 
 	const currentProgress =
 		activity.courseId !== null
-			? (await db
+			? ((await db
 					.select()
 					.from(schema.learningActivityProgress)
 					.where(
@@ -299,7 +311,7 @@ async function loadStudentSupportContext(
 							eq(schema.learningActivityProgress.userId, params.studentId)
 						)
 					)
-					.get()) ?? null
+					.get()) ?? null)
 			: null;
 
 	const courseActivities =
@@ -398,8 +410,12 @@ export class PedagogicalSupportService {
 	) {
 		const context = await loadStudentSupportContext(access, params);
 		const riskLevel = computeRiskLevel(context);
-		const completedActivities = context.courseProgressRows.filter((row) => row.status === 'completed').length;
-		const inProgressActivities = context.courseProgressRows.filter((row) => row.status === 'in_progress').length;
+		const completedActivities = context.courseProgressRows.filter(
+			(row) => row.status === 'completed'
+		).length;
+		const inProgressActivities = context.courseProgressRows.filter(
+			(row) => row.status === 'in_progress'
+		).length;
 
 		return {
 			activityId: params.activityId,
@@ -486,9 +502,12 @@ export class PedagogicalSupportService {
 		} as const;
 
 		const closingByTone = {
-			supportive: 'Si lo necesitas, podemos revisar juntos el siguiente paso para que avances con mas seguridad.',
-			direct: 'Conviene actuar sobre estos puntos en la siguiente iteracion para evitar mas friccion.',
-			celebratory: 'Si mantienes este ritmo y corriges el punto de friccion detectado, el avance deberia ser solido.'
+			supportive:
+				'Si lo necesitas, podemos revisar juntos el siguiente paso para que avances con mas seguridad.',
+			direct:
+				'Conviene actuar sobre estos puntos en la siguiente iteracion para evitar mas friccion.',
+			celebratory:
+				'Si mantienes este ritmo y corriges el punto de friccion detectado, el avance deberia ser solido.'
 		} as const;
 
 		const bodyParagraphs = [
@@ -550,7 +569,7 @@ export class PedagogicalSupportService {
 				title: 'Rehacer el tramo donde se atasca',
 				rationale:
 					context.stuckSessions.length > 0
-						? context.stuckSessions[0].reasons[0] ?? 'Hay evidencia de atasco en la sesion.'
+						? (context.stuckSessions[0].reasons[0] ?? 'Hay evidencia de atasco en la sesion.')
 						: 'Conviene revisar el tramo central de la actividad con apoyo.'
 			},
 			{
@@ -593,7 +612,8 @@ export class PedagogicalSupportService {
 			activityName: context.activity.name,
 			student: context.student,
 			riskLevel: computeRiskLevel(context),
-			targetOutcomes: supportNeeds.length > 0 ? supportNeeds : ['Consolidar el aprendizaje ya evidenciado.'],
+			targetOutcomes:
+				supportNeeds.length > 0 ? supportNeeds : ['Consolidar el aprendizaje ya evidenciado.'],
 			evidenceSignals: buildObservations(context),
 			suggestedFocusTerms: frequentTerms,
 			studentActions,
@@ -615,8 +635,11 @@ export class PedagogicalSupportService {
 			studentId: params.studentId
 		});
 		const preferPublishedOnly = params.preferPublishedOnly ?? true;
-		const currentActivity = context.courseActivities.find((item) => item.id === params.activityId) ?? null;
-		const progressByActivityId = new Map(context.courseProgressRows.map((row) => [row.activityId, row]));
+		const currentActivity =
+			context.courseActivities.find((item) => item.id === params.activityId) ?? null;
+		const progressByActivityId = new Map(
+			context.courseProgressRows.map((row) => [row.activityId, row])
+		);
 		const eligibleActivities = context.courseActivities.filter((activity) =>
 			preferPublishedOnly
 				? activity.status === 'published' || activity.status === 'closed'
@@ -664,7 +687,9 @@ export class PedagogicalSupportService {
 
 		const recommended = nextIncomplete ?? fallbackIncomplete ?? null;
 		const alternativeActivities = eligibleActivities
-			.filter((activity) => activity.id !== recommended?.id && activity.order > currentActivity.order)
+			.filter(
+				(activity) => activity.id !== recommended?.id && activity.order > currentActivity.order
+			)
 			.filter((activity) => progressByActivityId.get(activity.id)?.status !== 'completed')
 			.slice(0, 3)
 			.map((activity) => ({
@@ -692,7 +717,9 @@ export class PedagogicalSupportService {
 			activityId: params.activityId,
 			student: context.student,
 			recommendationType:
-				nextIncomplete !== null && nextIncomplete !== undefined ? 'next_in_sequence' : 'resume_incomplete',
+				nextIncomplete !== null && nextIncomplete !== undefined
+					? 'next_in_sequence'
+					: 'resume_incomplete',
 			reason:
 				nextIncomplete !== null && nextIncomplete !== undefined
 					? 'Ha completado la actividad actual y la siguiente pendiente en la secuencia es la recomendacion natural.'

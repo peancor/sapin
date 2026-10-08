@@ -9,4 +9,3 @@ export const searchCourseContentPackage: BuiltinToolPackage = {
 
 export { searchCourseContent } from './handler';
 export { searchCourseContentManifest } from './manifest';
-

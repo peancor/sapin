@@ -23,17 +23,27 @@ const dbPath = env.DATABASE_URL;
 const dbDir = path.dirname(dbPath);
 
 if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+	fs.mkdirSync(dbDir, { recursive: true });
 }
 
 const client = new Database(env.DATABASE_URL);
 export const db = drizzle(client, { schema });
 
 export {
-  DBUserUtils, DBCourseUtils,
-  LoginUtils, DBChatUtils, RoleUtils, CourseRoleUtils, InteractiveChatAuthUtils, CourseInteractiveAuthUtils,
-  InvitationUtils,
-  DBStaffAgentUtils, StaffAgentAuthUtils,
-  type ChatInstanceInterface, type InteractiveChatInterface,
-  type Permission, type Permissions, type UserWithRoles
+	DBUserUtils,
+	DBCourseUtils,
+	LoginUtils,
+	DBChatUtils,
+	RoleUtils,
+	CourseRoleUtils,
+	InteractiveChatAuthUtils,
+	CourseInteractiveAuthUtils,
+	InvitationUtils,
+	DBStaffAgentUtils,
+	StaffAgentAuthUtils,
+	type ChatInstanceInterface,
+	type InteractiveChatInterface,
+	type Permission,
+	type Permissions,
+	type UserWithRoles
 };

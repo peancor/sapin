@@ -9,4 +9,3 @@ export const getStudentProgressPackage: BuiltinToolPackage = {
 
 export { getStudentProgress } from './handler';
 export { getStudentProgressManifest } from './manifest';
-

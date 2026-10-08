@@ -59,9 +59,7 @@ function parseJsonObject(value: string | null | undefined): Record<string, unkno
 	return null;
 }
 
-function parseUserMessageMetrics(
-	value: string | null | undefined
-): AgentUserMessageMetrics | null {
+function parseUserMessageMetrics(value: string | null | undefined): AgentUserMessageMetrics | null {
 	const parsed = parseJsonObject(value);
 	if (!parsed) return null;
 
@@ -71,17 +69,14 @@ function parseUserMessageMetrics(
 			: {};
 
 	return {
-		keystrokeCount:
-			typeof parsed.keystrokeCount === 'number' ? parsed.keystrokeCount : 0,
+		keystrokeCount: typeof parsed.keystrokeCount === 'number' ? parsed.keystrokeCount : 0,
 		pasteCount: typeof parsed.pasteCount === 'number' ? parsed.pasteCount : 0,
 		charCount: typeof parsed.charCount === 'number' ? parsed.charCount : 0,
 		wordCount: typeof parsed.wordCount === 'number' ? parsed.wordCount : 0,
-		timeSpentSeconds:
-			typeof parsed.timeSpentSeconds === 'number' ? parsed.timeSpentSeconds : 0,
+		timeSpentSeconds: typeof parsed.timeSpentSeconds === 'number' ? parsed.timeSpentSeconds : 0,
 		editCount: typeof parsed.editCount === 'number' ? parsed.editCount : 0,
 		deleteCount: typeof parsed.deleteCount === 'number' ? parsed.deleteCount : 0,
-		startTimestamp:
-			typeof parsed.startTimestamp === 'number' ? parsed.startTimestamp : 0,
+		startTimestamp: typeof parsed.startTimestamp === 'number' ? parsed.startTimestamp : 0,
 		deviceInfo: {
 			isMobile: deviceInfo.isMobile === true,
 			userAgent: typeof deviceInfo.userAgent === 'string' ? deviceInfo.userAgent : '',
@@ -123,9 +118,7 @@ function parseFinalizationMetadata(
 		toolCallId: typeof finalization.toolCallId === 'string' ? finalization.toolCallId : '',
 		toolName: typeof finalization.toolName === 'string' ? finalization.toolName : '',
 		assistantMessageId:
-			typeof finalization.assistantMessageId === 'string'
-				? finalization.assistantMessageId
-				: '',
+			typeof finalization.assistantMessageId === 'string' ? finalization.assistantMessageId : '',
 		payload: {
 			summary: typeof payload.summary === 'string' ? payload.summary : '',
 			result:
@@ -234,9 +227,7 @@ function buildSummary(params: {
 		(allUiInstances[0] ? `Componente ${allUiInstances[0].componentKey}` : undefined);
 	const latestMeaningfulText = truncateText(meaningfulTexts[meaningfulTexts.length - 1]);
 	const latestText =
-		latestMeaningfulText && latestMeaningfulText !== previewText
-			? latestMeaningfulText
-			: undefined;
+		latestMeaningfulText && latestMeaningfulText !== previewText ? latestMeaningfulText : undefined;
 	const lastActivityAt = chat.updatedAt ?? chat.createdAt;
 	const sessionDurationSeconds = Math.max(
 		0,

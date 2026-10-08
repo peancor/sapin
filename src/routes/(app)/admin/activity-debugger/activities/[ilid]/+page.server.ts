@@ -55,7 +55,8 @@ export const actions = {
 				targetId: params.ilid,
 				enabled: true,
 				reason:
-					data.get('reason')?.toString().trim() || 'Activado desde la vista de actividad del debugger',
+					data.get('reason')?.toString().trim() ||
+					'Activado desde la vista de actividad del debugger',
 				expiresAt: parseOptionalDate(data.get('expiresAt')),
 				createdBy: user.id
 			});

@@ -39,20 +39,34 @@ export function loadTikzjaxBrowserRuntime(): Promise<void> {
 			const currentRuntimeReadyPromise = runtimeWindow.__tikzjaxRuntimeReady;
 
 			if (!currentRuntimeReadyPromise) {
-				reject(new Error('TikZJax cargó el script principal, pero no expuso su promesa de inicialización.'));
+				reject(
+					new Error(
+						'TikZJax cargó el script principal, pero no expuso su promesa de inicialización.'
+					)
+				);
 				return;
 			}
 
-			currentRuntimeReadyPromise.then(() => resolve()).catch((error) => {
-				reject(error instanceof Error ? error : new Error('No se pudo inicializar el runtime de TikZJax.'));
-			});
+			currentRuntimeReadyPromise
+				.then(() => resolve())
+				.catch((error) => {
+					reject(
+						error instanceof Error
+							? error
+							: new Error('No se pudo inicializar el runtime de TikZJax.')
+					);
+				});
 		};
 
 		if (existingScript) {
 			existingScript.addEventListener('load', resolveWhenRuntimeReady, { once: true });
-			existingScript.addEventListener('error', () => reject(new Error('No se pudo cargar tikzjax.js.')), {
-				once: true
-			});
+			existingScript.addEventListener(
+				'error',
+				() => reject(new Error('No se pudo cargar tikzjax.js.')),
+				{
+					once: true
+				}
+			);
 
 			if (runtimeWindow.TikzJax && runtimeWindow.__tikzjaxRuntimeReady) {
 				resolveWhenRuntimeReady();

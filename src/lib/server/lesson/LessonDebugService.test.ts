@@ -109,7 +109,9 @@ const activity: InteractiveLearning = {
 	metadata: null
 };
 
-function createSession(overrides: Partial<InteractiveLessonSession> = {}): InteractiveLessonSession {
+function createSession(
+	overrides: Partial<InteractiveLessonSession> = {}
+): InteractiveLessonSession {
 	return {
 		id: 'session-1',
 		interactiveLearningId: 'lesson-1',
@@ -133,7 +135,9 @@ function createSession(overrides: Partial<InteractiveLessonSession> = {}): Inter
 	};
 }
 
-function createBlockState(overrides: Partial<InteractiveLessonBlockState>): InteractiveLessonBlockState {
+function createBlockState(
+	overrides: Partial<InteractiveLessonBlockState>
+): InteractiveLessonBlockState {
 	return {
 		id: 'state',
 		sessionId: 'session-1',
@@ -309,8 +313,10 @@ test('buildLessonDebugBlockSummaries marks current, completed and revisited bloc
 			],
 			contracts: {
 				blockId,
-				blockTitle: currentDefinition.blocks.find((block) => block.id === blockId)?.title ?? blockId,
-				blockKind: currentDefinition.blocks.find((block) => block.id === blockId)?.kind ?? 'content',
+				blockTitle:
+					currentDefinition.blocks.find((block) => block.id === blockId)?.title ?? blockId,
+				blockKind:
+					currentDefinition.blocks.find((block) => block.id === blockId)?.kind ?? 'content',
 				state: [],
 				outputs: []
 			}

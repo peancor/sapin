@@ -42,7 +42,11 @@ const DEFAULT_TOOL_NAMES = [
 	'system_global_canvas_read',
 	'system_global_canvas_update'
 ];
-const ALLOWED_GENERAL_TOOL_NAMES = ['get_student_progress', 'search_course_content', 'calculate_expression'];
+const ALLOWED_GENERAL_TOOL_NAMES = [
+	'get_student_progress',
+	'search_course_content',
+	'calculate_expression'
+];
 
 const DEFAULT_SCOPE: InsightsAgentRunScope = {
 	mode: 'cohort',
@@ -202,23 +206,26 @@ export default class DBInsightsAgentUtils {
 		const enabledTools = rows
 			.filter(({ tool }) => this.isToolAllowedForInsightsAgent(tool))
 			.map(({ tool, activityTool }) => ({
-			id: tool.id,
-			name: tool.name,
-			displayName: tool.displayName,
-			description: tool.description,
-			category: tool.category,
-			parametersSchema: parseJson(tool.parametersSchema, {}),
-			responseSchema: parseJson<Record<string, unknown> | undefined>(tool.responseSchema, undefined),
-			executorType: tool.executorType as 'builtin' | 'http' | 'script',
-			executorConfig: parseJson(tool.executorConfig, {}),
-			requiresConfirmation: tool.requiresConfirmation,
-			riskLevel: tool.riskLevel as 'low' | 'medium' | 'high',
-			usageDomain: tool.usageDomain,
-			configOverride: parseJson<Record<string, unknown> | undefined>(
-				activityTool.configOverride,
-				undefined
-			)
-		}));
+				id: tool.id,
+				name: tool.name,
+				displayName: tool.displayName,
+				description: tool.description,
+				category: tool.category,
+				parametersSchema: parseJson(tool.parametersSchema, {}),
+				responseSchema: parseJson<Record<string, unknown> | undefined>(
+					tool.responseSchema,
+					undefined
+				),
+				executorType: tool.executorType as 'builtin' | 'http' | 'script',
+				executorConfig: parseJson(tool.executorConfig, {}),
+				requiresConfirmation: tool.requiresConfirmation,
+				riskLevel: tool.riskLevel as 'low' | 'medium' | 'high',
+				usageDomain: tool.usageDomain,
+				configOverride: parseJson<Record<string, unknown> | undefined>(
+					activityTool.configOverride,
+					undefined
+				)
+			}));
 
 		const activeTools = (await DBAgentToolUtils.getActiveToolDefinitions())
 			.filter((tool) => this.isToolAllowedForInsightsAgent(tool))
@@ -229,7 +236,10 @@ export default class DBInsightsAgentUtils {
 				description: tool.description,
 				category: tool.category,
 				parametersSchema: parseJson(tool.parametersSchema, {}),
-				responseSchema: parseJson<Record<string, unknown> | undefined>(tool.responseSchema, undefined),
+				responseSchema: parseJson<Record<string, unknown> | undefined>(
+					tool.responseSchema,
+					undefined
+				),
 				executorType: tool.executorType as 'builtin' | 'http' | 'script',
 				executorConfig: parseJson(tool.executorConfig, {}),
 				requiresConfirmation: tool.requiresConfirmation,
@@ -311,10 +321,15 @@ export default class DBInsightsAgentUtils {
 		await DBAgentToolUtils.seedBuiltinTools();
 		const config = await this.getOrCreateConfig(activityId);
 		const tools = await this.getEnabledToolsForActivity(activityId);
-		return this.toConfigDTO(config, tools.map((tool) => tool.id));
+		return this.toConfigDTO(
+			config,
+			tools.map((tool) => tool.id)
+		);
 	}
 
-	static normalizeScope(scope: Partial<InsightsAgentRunScope> | null | undefined): InsightsAgentRunScope {
+	static normalizeScope(
+		scope: Partial<InsightsAgentRunScope> | null | undefined
+	): InsightsAgentRunScope {
 		return {
 			mode:
 				scope?.mode === 'students' || scope?.mode === 'sessions' || scope?.mode === 'cohort'
@@ -328,7 +343,8 @@ export default class DBInsightsAgentUtils {
 				: [],
 			dateFrom: typeof scope?.dateFrom === 'string' ? scope.dateFrom : null,
 			dateTo: typeof scope?.dateTo === 'string' ? scope.dateTo : null,
-			search: typeof scope?.search === 'string' && scope.search.trim().length > 0 ? scope.search : null
+			search:
+				typeof scope?.search === 'string' && scope.search.trim().length > 0 ? scope.search : null
 		};
 	}
 
@@ -397,7 +413,9 @@ export default class DBInsightsAgentUtils {
 		return record ?? null;
 	}
 
-	static toRunSummary(record: typeof schema.insightsAgentRun.$inferSelect): InsightsAgentRunSummary {
+	static toRunSummary(
+		record: typeof schema.insightsAgentRun.$inferSelect
+	): InsightsAgentRunSummary {
 		return {
 			id: record.id,
 			interactiveLearningId: record.interactiveLearningId,
@@ -433,7 +451,10 @@ export default class DBInsightsAgentUtils {
 			.where(eq(schema.insightsAgentRun.id, runId));
 	}
 
-	static async touchRun(runId: string, updates?: Partial<typeof schema.insightsAgentRun.$inferInsert>) {
+	static async touchRun(
+		runId: string,
+		updates?: Partial<typeof schema.insightsAgentRun.$inferInsert>
+	) {
 		await this.updateRun(runId, {
 			lastMessageAt: new Date(),
 			...updates

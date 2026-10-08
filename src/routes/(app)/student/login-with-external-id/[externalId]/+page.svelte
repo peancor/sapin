@@ -8,9 +8,9 @@
 	onMount(() => {
 		//invalidateAll();
 		if (data.loginSuccess === true) {
-			console.log('Login success with external ID');            
-			setTimeout(() => {                
-				goto('/student', {invalidateAll: true});
+			console.log('Login success with external ID');
+			setTimeout(() => {
+				goto('/student', { invalidateAll: true });
 			}, 2000);
 		}
 	});

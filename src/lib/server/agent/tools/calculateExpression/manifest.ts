@@ -1,6 +1,4 @@
-import {
-	BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
-} from '../constants';
+import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '../constants';
 import type { ToolManifest } from '../types';
 
 export const calculateExpressionManifest: ToolManifest = {
@@ -37,4 +35,3 @@ export const calculateExpressionManifest: ToolManifest = {
 	version: '1.1.0',
 	usageDomain: BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
 };
-

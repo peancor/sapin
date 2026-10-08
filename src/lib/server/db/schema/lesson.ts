@@ -45,8 +45,7 @@ export const lessonSessionScope = {
 	PREVIEW_DRAFT: 'preview_draft'
 } as const;
 
-export type LessonSessionScopeType =
-	(typeof lessonSessionScope)[keyof typeof lessonSessionScope];
+export type LessonSessionScopeType = (typeof lessonSessionScope)[keyof typeof lessonSessionScope];
 
 export const lessonAttemptStatus = {
 	ACTIVE: 'active',
@@ -466,7 +465,9 @@ export const insertInteractiveLessonBlockStateSchema = createInsertSchema(
 		scope: z.enum(['learner', 'preview_published', 'preview_draft']).default('learner')
 	}
 );
-export const selectInteractiveLessonBlockStateSchema = createSelectSchema(interactiveLessonBlockState);
+export const selectInteractiveLessonBlockStateSchema = createSelectSchema(
+	interactiveLessonBlockState
+);
 
 export const insertInteractiveLessonBlockVisitSchema = createInsertSchema(
 	interactiveLessonBlockVisit,
@@ -475,7 +476,9 @@ export const insertInteractiveLessonBlockVisitSchema = createInsertSchema(
 		scope: z.enum(['learner', 'preview_published', 'preview_draft']).default('learner')
 	}
 );
-export const selectInteractiveLessonBlockVisitSchema = createSelectSchema(interactiveLessonBlockVisit);
+export const selectInteractiveLessonBlockVisitSchema = createSelectSchema(
+	interactiveLessonBlockVisit
+);
 
 export const insertInteractiveLessonEventSchema = createInsertSchema(interactiveLessonEvent, {
 	scope: z.enum(['learner', 'preview_published', 'preview_draft']).default('learner'),
@@ -491,7 +494,8 @@ export const insertInteractiveLessonEventSchema = createInsertSchema(interactive
 export const selectInteractiveLessonEventSchema = createSelectSchema(interactiveLessonEvent);
 
 export type InteractiveLearningLesson = typeof interactiveLearningLesson.$inferSelect;
-export type InteractiveLearningLessonRevision = typeof interactiveLearningLessonRevision.$inferSelect;
+export type InteractiveLearningLessonRevision =
+	typeof interactiveLearningLessonRevision.$inferSelect;
 export type InteractiveLessonSession = typeof interactiveLessonSession.$inferSelect;
 export type InteractiveLessonBlockState = typeof interactiveLessonBlockState.$inferSelect;
 export type InteractiveLessonBlockVisit = typeof interactiveLessonBlockVisit.$inferSelect;

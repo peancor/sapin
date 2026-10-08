@@ -164,14 +164,14 @@
 			title="Recursos de la actividad (imágenes y documentos)"
 			description="Sube imágenes para mostrarlas durante la actividad y documentos para enlazarlos desde las instrucciones."
 			warningMessage="Importante: el modelo de IA no tiene acceso directo al contenido interno de estas imágenes o documentos. Estos recursos se usan para mostrarse al estudiante o para enlazarse desde las instrucciones de la actividad."
-			copyHint='En imágenes usa "Copiar nombre" para que la tool pueda localizar el recurso.'
+			copyHint="En imágenes usa &quot;Copiar nombre&quot; para que la tool pueda localizar el recurso."
 			emptyMessage="Aún no hay recursos. Sube imágenes o documentos para reutilizarlos en la actividad."
 		/>
 	</div>
 </div>
 
 {#if showToast}
-	<div class="fixed bottom-4 right-4 z-50">
+	<div class="fixed right-4 bottom-4 z-50">
 		<Toast color={toastType === 'success' ? 'green' : 'red'}>
 			{toastMessage}
 		</Toast>

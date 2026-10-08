@@ -15,28 +15,39 @@
 		onClose?: () => void;
 	}
 
-	const { notifications, loading = false, onMarkRead, onMarkAllRead, onDelete, onClose }: Props = $props();
+	const {
+		notifications,
+		loading = false,
+		onMarkRead,
+		onMarkAllRead,
+		onDelete,
+		onClose
+	}: Props = $props();
 
 	const unreadCount = $derived(notifications.filter((n) => !n.read).length);
 </script>
 
 <div
 	transition:fly={{ y: -5, duration: 200, easing: quintOut }}
-	class="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 overflow-hidden z-50"
+	class="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black/5 sm:w-96 dark:bg-gray-800 dark:ring-white/10"
 >
 	<!-- Header -->
-	<div class="p-3 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+	<div
+		class="flex items-center justify-between border-b border-gray-100 bg-gray-50/50 p-3 dark:border-gray-700 dark:bg-gray-800/50"
+	>
 		<div class="flex items-center gap-2">
 			<Bell size={16} class="text-gray-600 dark:text-gray-400" />
 			<h3 class="text-sm font-bold text-gray-900 dark:text-white">Notificaciones</h3>
 			{#if unreadCount > 0}
-				<span class="px-1.5 py-0.5 text-[10px] font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full">
+				<span
+					class="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-900/50 dark:text-blue-400"
+				>
 					{unreadCount}
 				</span>
 			{/if}
 		</div>
 		{#if unreadCount > 0 && onMarkAllRead}
-			<Button size="xs" color="light" class="text-xs gap-1" onclick={onMarkAllRead}>
+			<Button size="xs" color="light" class="gap-1 text-xs" onclick={onMarkAllRead}>
 				<CheckCheck size={12} />
 				Marcar todas
 			</Button>
@@ -50,32 +61,27 @@
 				<Spinner size="6" />
 			</div>
 		{:else if notifications.length === 0}
-			<div class="flex flex-col items-center justify-center py-8 px-4">
-				<div class="p-3 rounded-full bg-gray-100 dark:bg-gray-700 mb-3">
+			<div class="flex flex-col items-center justify-center px-4 py-8">
+				<div class="mb-3 rounded-full bg-gray-100 p-3 dark:bg-gray-700">
 					<Bell size={24} class="text-gray-400 dark:text-gray-500" />
 				</div>
-				<p class="text-sm text-gray-500 dark:text-gray-400 text-center">
-					No tienes notificaciones
-				</p>
+				<p class="text-center text-sm text-gray-500 dark:text-gray-400">No tienes notificaciones</p>
 			</div>
 		{:else}
 			{#each notifications.slice(0, 5) as notification (notification.id)}
-				<NotificationItem
-					{notification}
-					{onMarkRead}
-					{onDelete}
-					compact
-				/>
+				<NotificationItem {notification} {onMarkRead} {onDelete} compact />
 			{/each}
 		{/if}
 	</div>
 
 	<!-- Footer -->
 	{#if notifications.length > 0}
-		<div class="p-2 text-center border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+		<div
+			class="border-t border-gray-100 bg-gray-50/50 p-2 text-center dark:border-gray-700 dark:bg-gray-800/50"
+		>
 			<a
 				href="/notifications"
-				class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
+				class="text-primary-600 dark:text-primary-400 text-xs font-medium hover:underline"
 				onclick={onClose}
 			>
 				Ver todas las notificaciones

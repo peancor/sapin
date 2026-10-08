@@ -88,7 +88,7 @@
 <div class="bg-gray-50 dark:bg-gray-900">
 	<!-- Mobile sidebar toggle -->
 	<div
-		class="sticky top-16 z-30 flex items-center gap-4 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800 lg:hidden"
+		class="sticky top-16 z-30 flex items-center gap-4 border-b border-gray-200 bg-white px-4 py-3 lg:hidden dark:border-gray-700 dark:bg-gray-800"
 	>
 		<SidebarButton
 			onclick={sidebarUi.toggle}
@@ -112,7 +112,7 @@
 			{activeUrl}
 			isOpen={isSidebarOpen}
 			closeSidebar={sidebarUi.close}
-			class="fixed left-0 top-16 z-40 h-[calc(100dvh-4rem)] w-64 overflow-y-auto border-r border-gray-200 bg-white transition-transform dark:border-gray-700 dark:bg-gray-800 lg:translate-x-0"
+			class="fixed top-16 left-0 z-40 h-[calc(100dvh-4rem)] w-64 overflow-y-auto border-r border-gray-200 bg-white transition-transform lg:translate-x-0 dark:border-gray-700 dark:bg-gray-800"
 			position="fixed"
 			backdrop={true}
 			backdropClass="!top-16"
@@ -129,7 +129,7 @@
 				<div class="mb-6">
 					<a
 						href={resolve('/teacher')}
-						class="mb-4 flex items-center gap-2 text-sm text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
+						class="hover:text-primary-600 dark:hover:text-primary-400 mb-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400"
 					>
 						<ChevronLeft class="h-4 w-4" />
 						Volver a cursos
@@ -155,7 +155,9 @@
 
 				<!-- Navigation -->
 				<SidebarGroup>
-					<p class="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+					<p
+						class="mb-2 px-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
+					>
 						Gestión
 					</p>
 					{#each managementItems as item (item.id)}
@@ -168,7 +170,9 @@
 				</SidebarGroup>
 
 				<SidebarGroup border class="mt-4">
-					<p class="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+					<p
+						class="mb-2 px-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
+					>
 						Seguimiento docente
 					</p>
 					{#each operationalItems as item (item.id)}
@@ -182,7 +186,8 @@
 						<div class="flex items-start gap-2">
 							<ShieldAlert class="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
 							<p class="text-xs leading-5 text-amber-800 dark:text-amber-200">
-								Usa esta sección para detectar cuellos de botella, priorizar intervenciones y abrir hilos de trabajo del agente del curso.
+								Usa esta sección para detectar cuellos de botella, priorizar intervenciones y abrir
+								hilos de trabajo del agente del curso.
 							</p>
 						</div>
 					</div>
@@ -190,7 +195,9 @@
 
 				<!-- Quick Actions -->
 				<SidebarGroup border class="mt-4">
-					<p class="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+					<p
+						class="mb-2 px-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
+					>
 						Acciones rápidas
 					</p>
 					<a

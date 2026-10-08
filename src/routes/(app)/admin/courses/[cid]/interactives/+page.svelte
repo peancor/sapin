@@ -120,10 +120,14 @@
 	</div>
 
 	<!-- Info Banner -->
-	<div class="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+	<div
+		class="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20"
+	>
 		<p class="text-sm text-blue-700 dark:text-blue-300">
-			Esta es una vista de solo lectura. Para gestionar actividades (crear, editar, eliminar),
-			usa el <a href="/course/{data.courseId}/admin/interactives" class="font-medium underline">Panel de Administración del Curso</a>.
+			Esta es una vista de solo lectura. Para gestionar actividades (crear, editar, eliminar), usa
+			el <a href="/course/{data.courseId}/admin/interactives" class="font-medium underline"
+				>Panel de Administración del Curso</a
+			>.
 		</p>
 	</div>
 
@@ -135,10 +139,10 @@
 					class="rounded-xl bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800"
 				>
 					<div class="mb-3 flex items-start justify-between">
-						<h3 class="font-semibold text-gray-900 dark:text-white line-clamp-2">
+						<h3 class="line-clamp-2 font-semibold text-gray-900 dark:text-white">
 							{activity.name}
 						</h3>
-						<Badge color={getStatusColor(activity.status)} class="shrink-0 ml-2">
+						<Badge color={getStatusColor(activity.status)} class="ml-2 shrink-0">
 							{getStatusLabel(activity.status)}
 						</Badge>
 					</div>
@@ -153,12 +157,7 @@
 						</Badge>
 
 						<div class="flex gap-2">
-							<Button
-								href="/interactive-chat/{activity.id}"
-								size="xs"
-								color="light"
-								class="!p-2"
-							>
+							<Button href="/interactive-chat/{activity.id}" size="xs" color="light" class="!p-2">
 								<Eye class="h-4 w-4" />
 							</Button>
 							<Button
@@ -185,9 +184,7 @@
 					Limpiar búsqueda
 				</Button>
 			{:else}
-				<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-white">
-					Sin actividades
-				</h3>
+				<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-white">Sin actividades</h3>
 				<p class="mb-4 text-gray-500 dark:text-gray-400">
 					Este curso aún no tiene actividades de aprendizaje
 				</p>
@@ -221,7 +218,8 @@
 				</div>
 				<div>
 					<p class="text-2xl font-bold text-gray-600 dark:text-gray-400">
-						{data.interactives.filter((i) => i.status === 'archived' || i.status === 'closed').length}
+						{data.interactives.filter((i) => i.status === 'archived' || i.status === 'closed')
+							.length}
 					</p>
 					<p class="text-sm text-gray-500 dark:text-gray-400">Archivadas/Cerradas</p>
 				</div>

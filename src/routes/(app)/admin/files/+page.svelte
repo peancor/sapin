@@ -128,7 +128,9 @@
 				data: Object.entries(data.stats.byCategory).map(([name, info], i) => ({
 					value: (info as { count: number }).count,
 					name: getCategoryName(name),
-					itemStyle: { color: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'][i] || '#6b7280' }
+					itemStyle: {
+						color: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'][i] || '#6b7280'
+					}
 				}))
 			}
 		]
@@ -196,7 +198,10 @@
 		return names[category] || category;
 	}
 
-	function getStatusBadge(status: string): { color: 'green' | 'yellow' | 'red' | 'gray'; text: string } {
+	function getStatusBadge(status: string): {
+		color: 'green' | 'yellow' | 'red' | 'gray';
+		text: string;
+	} {
 		switch (status) {
 			case 'completed':
 				return { color: 'green', text: 'Completado' };
@@ -352,11 +357,19 @@
 			</p>
 		</div>
 		<div class="flex gap-2">
-			<Button color="alternative" class="flex items-center gap-2" onclick={() => (isProcessingModalOpen = true)}>
+			<Button
+				color="alternative"
+				class="flex items-center gap-2"
+				onclick={() => (isProcessingModalOpen = true)}
+			>
 				<Play class="h-4 w-4" />
 				Procesamiento
 			</Button>
-			<Button color="primary" class="flex items-center gap-2" onclick={() => (isMaintenanceModalOpen = true)}>
+			<Button
+				color="primary"
+				class="flex items-center gap-2"
+				onclick={() => (isMaintenanceModalOpen = true)}
+			>
 				<Wrench class="h-4 w-4" />
 				Mantenimiento
 			</Button>
@@ -366,7 +379,9 @@
 	<!-- Stats Cards -->
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 		{#each statCards as card (card.title)}
-			<div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+			<div
+				class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"
+			>
 				<div class="flex items-center justify-between">
 					<div>
 						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">{card.title}</p>
@@ -385,7 +400,9 @@
 	<!-- Charts Row -->
 	<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 		<!-- Category Distribution -->
-		<div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+		<div
+			class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"
+		>
 			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
 				Distribución por Categoría
 			</h3>
@@ -399,7 +416,9 @@
 		</div>
 
 		<!-- Space by Category -->
-		<div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+		<div
+			class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"
+		>
 			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
 				Espacio por Categoría
 			</h3>
@@ -415,29 +434,41 @@
 
 	<!-- Processing Stats -->
 	<div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Estado de Procesamiento</h3>
+		<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+			Estado de Procesamiento
+		</h3>
 		<div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
 			<div class="text-center">
-				<p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{data.processingStats.pending}</p>
+				<p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+					{data.processingStats.pending}
+				</p>
 				<p class="text-sm text-gray-500 dark:text-gray-400">Pendientes</p>
 			</div>
 			<div class="text-center">
-				<p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{data.processingStats.processing}</p>
+				<p class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+					{data.processingStats.processing}
+				</p>
 				<p class="text-sm text-gray-500 dark:text-gray-400">Procesando</p>
 			</div>
 			<div class="text-center">
-				<p class="text-2xl font-bold text-green-600 dark:text-green-400">{data.processingStats.completed}</p>
+				<p class="text-2xl font-bold text-green-600 dark:text-green-400">
+					{data.processingStats.completed}
+				</p>
 				<p class="text-sm text-gray-500 dark:text-gray-400">Completados</p>
 			</div>
 			<div class="text-center">
-				<p class="text-2xl font-bold text-red-600 dark:text-red-400">{data.processingStats.failed}</p>
+				<p class="text-2xl font-bold text-red-600 dark:text-red-400">
+					{data.processingStats.failed}
+				</p>
 				<p class="text-sm text-gray-500 dark:text-gray-400">Fallidos</p>
 			</div>
 		</div>
 	</div>
 
 	<!-- Filters and Search -->
-	<div class="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 sm:flex-row sm:items-center dark:border-gray-700 dark:bg-gray-800">
+	<div
+		class="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 sm:flex-row sm:items-center dark:border-gray-700 dark:bg-gray-800"
+	>
 		<form
 			onsubmit={(e) => {
 				e.preventDefault();
@@ -481,7 +512,8 @@
 			<label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
 				<Checkbox
 					checked={data.filters.showDeleted}
-					onchange={(e) => handleFilterChange('showDeleted', (e.target as HTMLInputElement).checked)}
+					onchange={(e) =>
+						handleFilterChange('showDeleted', (e.target as HTMLInputElement).checked)}
 				/>
 				Eliminados
 			</label>
@@ -489,7 +521,8 @@
 			<label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
 				<Checkbox
 					checked={data.filters.showOrphans}
-					onchange={(e) => handleFilterChange('showOrphans', (e.target as HTMLInputElement).checked)}
+					onchange={(e) =>
+						handleFilterChange('showOrphans', (e.target as HTMLInputElement).checked)}
 				/>
 				Huérfanos
 			</label>
@@ -522,7 +555,9 @@
 	{/if}
 
 	<!-- Files Table -->
-	<div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+	<div
+		class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+	>
 		<div class="overflow-x-auto">
 			<Table hoverable={true}>
 				<TableHead>
@@ -552,7 +587,9 @@
 							</TableBodyCell>
 							<TableBodyCell>
 								<div class="flex items-center gap-3">
-									<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
+									<div
+										class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700"
+									>
 										{#if file.mimeType.startsWith('image/') && file.processingStatus === 'completed'}
 											<img
 												src="/api/files/{file.id}/thumbnail"
@@ -560,7 +597,9 @@
 												class="h-10 w-10 rounded-lg object-cover"
 												onerror={(e) => {
 													(e.target as HTMLImageElement).style.display = 'none';
-													(e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+													(e.target as HTMLImageElement).nextElementSibling?.classList.remove(
+														'hidden'
+													);
 												}}
 											/>
 											<FileIcon class="hidden h-5 w-5 text-gray-500" />
@@ -569,7 +608,10 @@
 										{/if}
 									</div>
 									<div class="min-w-0">
-										<p class="truncate font-medium text-gray-900 dark:text-white" title={file.displayName || file.name}>
+										<p
+											class="truncate font-medium text-gray-900 dark:text-white"
+											title={file.displayName || file.name}
+										>
 											{file.displayName || file.name}
 										</p>
 										<p class="truncate text-xs text-gray-500 dark:text-gray-400">
@@ -634,7 +676,9 @@
 
 		<!-- Pagination -->
 		{#if data.pagination.totalPages > 1}
-			<div class="flex items-center justify-between border-t border-gray-200 px-5 py-4 dark:border-gray-700">
+			<div
+				class="flex items-center justify-between border-t border-gray-200 px-5 py-4 dark:border-gray-700"
+			>
 				<p class="text-sm text-gray-500 dark:text-gray-400">
 					Mostrando {(data.pagination.page - 1) * data.pagination.limit + 1} a{' '}
 					{Math.min(data.pagination.page * data.pagination.limit, data.pagination.total)} de{' '}

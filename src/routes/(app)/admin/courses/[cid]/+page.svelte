@@ -191,10 +191,11 @@
 				alt={data.course.name}
 				class="h-full w-full object-cover"
 			/>
-			<div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"
+			<div
+				class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"
 			></div>
 			<div class="absolute right-0 bottom-0 left-0 p-6">
-				<div class="flex items-center gap-3 mb-2">
+				<div class="mb-2 flex items-center gap-3">
 					<Badge color={getStatusBadgeColor(data.course.status)} class="text-sm">
 						{getStatusLabel(data.course.status)}
 					</Badge>
@@ -530,16 +531,16 @@
 
 <Modal bind:open={showRebuildModal} size="sm" class="backdrop-blur-sm">
 	<div class="p-2">
-		<h3 class="mb-2 text-xl font-bold text-gray-900 dark:text-white text-center">
+		<h3 class="mb-2 text-center text-xl font-bold text-gray-900 dark:text-white">
 			Regenerar progreso
 		</h3>
-		<p class="mb-4 text-sm text-gray-500 dark:text-gray-400 text-center">
+		<p class="mb-4 text-center text-sm text-gray-500 dark:text-gray-400">
 			Curso: <span class="font-semibold text-gray-900 dark:text-white">{data.course.name}</span>
 		</p>
 
 		<div class="mb-4 space-y-2">
 			<label
-				class="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 dark:border-gray-700 p-3"
+				class="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700"
 			>
 				<input type="radio" bind:group={rebuildMode} value="fill_missing" class="mt-1" />
 				<span class="text-sm text-gray-700 dark:text-gray-300">
@@ -548,7 +549,7 @@
 				</span>
 			</label>
 			<label
-				class="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 dark:border-gray-700 p-3"
+				class="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700"
 			>
 				<input type="radio" bind:group={rebuildMode} value="rebuild_all" class="mt-1" />
 				<span class="text-sm text-gray-700 dark:text-gray-300">
@@ -568,7 +569,7 @@
 			</p>
 		{/if}
 
-		<div class="flex flex-col sm:flex-row justify-center gap-3">
+		<div class="flex flex-col justify-center gap-3 sm:flex-row">
 			<Button
 				color="alternative"
 				onclick={() => {

@@ -119,8 +119,7 @@
 		if (!teacherSearchTerm) return data.teachers;
 		const term = teacherSearchTerm.toLowerCase();
 		return data.teachers.filter(
-			(t) =>
-				t.username?.toLowerCase().includes(term) || t.email?.toLowerCase().includes(term)
+			(t) => t.username?.toLowerCase().includes(term) || t.email?.toLowerCase().includes(term)
 		);
 	});
 
@@ -325,10 +324,10 @@
 
 							<div class="lg:col-span-2">
 								<Label for="course-desc" class="mb-2 text-base font-semibold">Descripción</Label>
-								<Textarea								
+								<Textarea
 									id="course-desc"
 									placeholder="Describe los objetivos, metodología y lo que aprenderán los estudiantes..."
-									rows={6}									
+									rows={6}
 									bind:value={courseData.description}
 									class="w-full resize-none !rounded-xl border-2 !px-5 !py-4 transition-all focus:!ring-2 focus:!ring-blue-500/20"
 								/>
@@ -384,7 +383,7 @@
 									type="text"
 									placeholder="Buscar profesor por nombre o email..."
 									bind:value={teacherSearchTerm}
-									class="w-full rounded-xl border border-gray-200 bg-white py-3 pl-12 pr-10 text-gray-900 placeholder-gray-400 transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+									class="w-full rounded-xl border border-gray-200 bg-white py-3 pr-10 pl-12 text-gray-900 placeholder-gray-400 transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
 								/>
 								{#if teacherSearchTerm}
 									<button
@@ -529,7 +528,7 @@
 							<!-- Icon Selection -->
 							<div>
 								<Label class="mb-4 block text-base font-semibold">Elige un icono</Label>
-								<div class="grid gap-3 grid-cols-[repeat(auto-fit,minmax(96px,1fr))]">
+								<div class="grid grid-cols-[repeat(auto-fit,minmax(96px,1fr))] gap-3">
 									{#each iconOptions as iconOpt (iconOpt.id)}
 										<button
 											type="button"
@@ -615,7 +614,7 @@
 			</div>
 
 			<!-- Sidebar derecho - Preview del curso (solo visible en xl+) -->
-			<div class="hidden xl:block xl:col-span-1">
+			<div class="hidden xl:col-span-1 xl:block">
 				<div class="space-y-6 xl:sticky xl:top-24">
 					<!-- Preview -->
 					<div

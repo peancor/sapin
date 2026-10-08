@@ -1,6 +1,4 @@
-import {
-	BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
-} from '../constants';
+import { BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT } from '../constants';
 import type { ToolManifest } from '../types';
 
 export const renderTimedQuizManifest: ToolManifest = {
@@ -38,12 +36,19 @@ export const renderTimedQuizManifest: ToolManifest = {
 					type: 'object',
 					properties: {
 						question: { type: 'string', description: 'Texto de la pregunta' },
-						options: { type: 'array', description: 'Opciones de respuesta', items: { type: 'string' } },
+						options: {
+							type: 'array',
+							description: 'Opciones de respuesta',
+							items: { type: 'string' }
+						},
 						correctIndex: {
 							type: 'integer',
 							description: 'Índice de la respuesta correcta (0-based)'
 						},
-						explanation: { type: 'string', description: 'Explicación opcional de la respuesta correcta' }
+						explanation: {
+							type: 'string',
+							description: 'Explicación opcional de la respuesta correcta'
+						}
 					},
 					required: ['question', 'options', 'correctIndex']
 				}
@@ -59,4 +64,3 @@ export const renderTimedQuizManifest: ToolManifest = {
 	version: '1.0.0',
 	usageDomain: BUILTIN_TOOL_USAGE_DOMAIN_AGENT_CHAT
 };
-

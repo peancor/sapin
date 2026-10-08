@@ -39,7 +39,16 @@ export const getStudentAttemptHistoryManifest: ToolManifest = {
 			recommendedActions: { type: 'array' },
 			limitations: { type: 'array' }
 		},
-		required: ['activityId', 'activityName', 'student', 'summary', 'items', 'alerts', 'recommendedActions', 'limitations']
+		required: [
+			'activityId',
+			'activityName',
+			'student',
+			'summary',
+			'items',
+			'alerts',
+			'recommendedActions',
+			'limitations'
+		]
 	},
 	executorType: 'builtin',
 	executorConfig: { handler: 'getStudentAttemptHistory' },

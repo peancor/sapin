@@ -8,9 +8,7 @@ import {
 } from './cognitive-tests';
 
 export type DrivingPsychotechTestType =
-	| 'bimanual_coordination'
-	| 'time_to_contact'
-	| 'multiple_reaction_braking';
+	'bimanual_coordination' | 'time_to_contact' | 'multiple_reaction_braking';
 export type ReactionResponseMode = 'brake_only' | 'selective';
 export type ReactionResponse = 'brake' | 'left' | 'right' | null;
 export type ReactionStimulusKind = 'hazard' | 'distractor';
@@ -165,10 +163,7 @@ export interface ReactionBrakingConfig extends DrivingPsychotechCommonConfig {
 	responseMode: ReactionResponseMode;
 }
 
-export type DrivingPsychotechConfig =
-	| BimanualConfig
-	| TimeToContactConfig
-	| ReactionBrakingConfig;
+export type DrivingPsychotechConfig = BimanualConfig | TimeToContactConfig | ReactionBrakingConfig;
 
 export interface BimanualSummaryInput {
 	totalDurationMs: number;
@@ -241,9 +236,27 @@ const TTC_DEFAULTS: Record<
 		onTimeThresholdMs: number;
 	}
 > = {
-	easy: { practiceTrials: 4, mainTrials: 10, baseVisibleMs: 1200, baseOcclusionMs: 900, onTimeThresholdMs: 180 },
-	medium: { practiceTrials: 5, mainTrials: 12, baseVisibleMs: 1100, baseOcclusionMs: 1050, onTimeThresholdMs: 140 },
-	hard: { practiceTrials: 6, mainTrials: 14, baseVisibleMs: 1000, baseOcclusionMs: 1200, onTimeThresholdMs: 110 }
+	easy: {
+		practiceTrials: 4,
+		mainTrials: 10,
+		baseVisibleMs: 1200,
+		baseOcclusionMs: 900,
+		onTimeThresholdMs: 180
+	},
+	medium: {
+		practiceTrials: 5,
+		mainTrials: 12,
+		baseVisibleMs: 1100,
+		baseOcclusionMs: 1050,
+		onTimeThresholdMs: 140
+	},
+	hard: {
+		practiceTrials: 6,
+		mainTrials: 14,
+		baseVisibleMs: 1000,
+		baseOcclusionMs: 1200,
+		onTimeThresholdMs: 110
+	}
 };
 
 const REACTION_DEFAULTS: Record<
@@ -291,7 +304,11 @@ function buildTimeToContactTrials(params: {
 	difficulty: Difficulty;
 }): TimeToContactTrial[] {
 	return Array.from({ length: params.count }, (_, index) => {
-		const speedNorm = clampNorm(0.56 + (index % 5) * 0.08 + (params.difficulty === 'hard' ? 0.08 : 0), 0.45, 1);
+		const speedNorm = clampNorm(
+			0.56 + (index % 5) * 0.08 + (params.difficulty === 'hard' ? 0.08 : 0),
+			0.45,
+			1
+		);
 		const occlusionMs = Math.round(
 			params.baseOcclusionMs + ((index % 4) - 1.5) * (params.difficulty === 'easy' ? 80 : 110)
 		);
@@ -318,13 +335,18 @@ function buildReactionTrials(params: {
 	return Array.from({ length: params.count }, (_, index) => {
 		const stimulusKind: ReactionStimulusKind = index % 4 === 1 ? 'distractor' : 'hazard';
 		const sideCycle: Array<'left' | 'right' | 'center'> =
-			params.responseMode === 'selective' ? ['left', 'right', 'left', 'right'] : ['center', 'center', 'center', 'center'];
+			params.responseMode === 'selective'
+				? ['left', 'right', 'left', 'right']
+				: ['center', 'center', 'center', 'center'];
 		return {
 			id: `${params.phase}-${index + 1}`,
 			phase: params.phase,
 			index,
 			stimulusKind,
-			stimulusSide: stimulusKind === 'distractor' && params.responseMode === 'brake_only' ? 'center' : sideCycle[index % sideCycle.length],
+			stimulusSide:
+				stimulusKind === 'distractor' && params.responseMode === 'brake_only'
+					? 'center'
+					: sideCycle[index % sideCycle.length],
 			responseMode: params.responseMode,
 			preStimulusMs: params.preStimulusMs + (index % 3) * 120,
 			responseWindowMs: params.responseWindowMs
@@ -374,7 +396,12 @@ export function resolveDrivingPsychotechConfig(
 
 	if (testType === 'time_to_contact') {
 		const defaults = TTC_DEFAULTS[difficulty];
-		const practiceTrials = sanitizePositiveInteger(input.practiceTrials, defaults.practiceTrials, 0, 12);
+		const practiceTrials = sanitizePositiveInteger(
+			input.practiceTrials,
+			defaults.practiceTrials,
+			0,
+			12
+		);
 		const mainTrials = sanitizePositiveInteger(input.mainTrials, defaults.mainTrials, 4, 24);
 		return {
 			title:
@@ -411,7 +438,12 @@ export function resolveDrivingPsychotechConfig(
 		['brake_only', 'selective'],
 		defaults.responseMode
 	);
-	const practiceTrials = sanitizePositiveInteger(input.practiceTrials, defaults.practiceTrials, 0, 12);
+	const practiceTrials = sanitizePositiveInteger(
+		input.practiceTrials,
+		defaults.practiceTrials,
+		0,
+		12
+	);
 	const mainTrials = sanitizePositiveInteger(input.mainTrials, defaults.mainTrials, 4, 28);
 	return {
 		title:
@@ -454,8 +486,12 @@ export function buildBimanualPayload(params: {
 	summaryInput: BimanualSummaryInput;
 }): DrivingPsychotechPayload {
 	const totalDurationMs = Math.max(1, Math.round(params.summaryInput.totalDurationMs));
-	const percentOnTrackLeft = Math.round((params.summaryInput.onTrackLeftMs / totalDurationMs) * 100);
-	const percentOnTrackRight = Math.round((params.summaryInput.onTrackRightMs / totalDurationMs) * 100);
+	const percentOnTrackLeft = Math.round(
+		(params.summaryInput.onTrackLeftMs / totalDurationMs) * 100
+	);
+	const percentOnTrackRight = Math.round(
+		(params.summaryInput.onTrackRightMs / totalDurationMs) * 100
+	);
 	const simultaneousOffTrackMs = Math.round(params.summaryInput.simultaneousOffTrackMs);
 	const meanAbsoluteOffsetLeft = Number(params.summaryInput.meanAbsoluteOffsetLeft.toFixed(3));
 	const meanAbsoluteOffsetRight = Number(params.summaryInput.meanAbsoluteOffsetRight.toFixed(3));
@@ -503,7 +539,13 @@ export function buildTimeToContactPayload(params: {
 	const score = Number(
 		Math.max(
 			0,
-			Math.min(1, scoreRatio(onTimeCount + mainLogs.filter((entry) => entry.outcome === 'late').length * 0.4, Math.max(1, mainLogs.length)))
+			Math.min(
+				1,
+				scoreRatio(
+					onTimeCount + mainLogs.filter((entry) => entry.outcome === 'late').length * 0.4,
+					Math.max(1, mainLogs.length)
+				)
+			)
 		).toFixed(3)
 	);
 	return {
@@ -533,14 +575,20 @@ export function buildReactionBrakingPayload(params: {
 	const misses = mainLogs.filter((entry) => entry.outcome === 'miss').length;
 	const falseAlarms = mainLogs.filter((entry) => entry.outcome === 'false_alarm').length;
 	const wrongSide = mainLogs.filter((entry) => entry.outcome === 'wrong_side').length;
-	const correctRejections = mainLogs.filter((entry) => entry.outcome === 'correct_rejection').length;
+	const correctRejections = mainLogs.filter(
+		(entry) => entry.outcome === 'correct_rejection'
+	).length;
 	const meanReactionMs = meanRounded(
 		mainLogs.map((entry) => (entry.outcome === 'hit' ? entry.reactionMs : null))
 	);
 	const score = Number(
 		Math.max(
 			0,
-			Math.min(1, (hits + correctRejections * 0.5 - falseAlarms * 0.5 - wrongSide * 0.75) / Math.max(1, mainLogs.length))
+			Math.min(
+				1,
+				(hits + correctRejections * 0.5 - falseAlarms * 0.5 - wrongSide * 0.75) /
+					Math.max(1, mainLogs.length)
+			)
 		).toFixed(3)
 	);
 	return {
@@ -585,11 +633,7 @@ export function buildTimeToContactTrialLog(params: {
 	const errorMs = Math.round(params.responseAtMs - predictedExitAtMs);
 	const absErrorMs = Math.abs(errorMs);
 	const outcome =
-		absErrorMs <= params.onTimeThresholdMs
-			? 'on_time'
-			: errorMs < 0
-				? 'early'
-				: 'late';
+		absErrorMs <= params.onTimeThresholdMs ? 'on_time' : errorMs < 0 ? 'early' : 'late';
 	return {
 		trialId: params.trial.id,
 		phase: params.trial.phase,
@@ -642,14 +686,18 @@ export function getDrivingPsychotechLabel(testType: DrivingPsychotechTestType): 
 
 export function getDrivingPsychotechInterpretation(payload: DrivingPsychotechPayload): string {
 	if (payload.testType === 'bimanual_coordination') {
-		if (payload.score >= 0.82) return 'Control simultaneo estable y buena disociacion motora durante la fase principal.';
-		if (payload.score >= 0.62) return 'Control funcional, con salidas puntuales de pista en los momentos de mayor asimetria.';
+		if (payload.score >= 0.82)
+			return 'Control simultaneo estable y buena disociacion motora durante la fase principal.';
+		if (payload.score >= 0.62)
+			return 'Control funcional, con salidas puntuales de pista en los momentos de mayor asimetria.';
 		return 'La coordinacion simultanea cae en los cambios de curva o velocidad; conviene repetir en ritmo moderado.';
 	}
 
 	if (payload.testType === 'time_to_contact') {
-		if ((payload.summary.meanAbsoluteErrorMs ?? 999) <= 140) return 'Estimacion temporal consistente y ajustada durante la oclusion.';
-		if ((payload.summary.meanAbsoluteErrorMs ?? 999) <= 240) return 'Estimacion util, aunque con variaciones en tuneles mas largos o velocidades altas.';
+		if ((payload.summary.meanAbsoluteErrorMs ?? 999) <= 140)
+			return 'Estimacion temporal consistente y ajustada durante la oclusion.';
+		if ((payload.summary.meanAbsoluteErrorMs ?? 999) <= 240)
+			return 'Estimacion util, aunque con variaciones en tuneles mas largos o velocidades altas.';
 		return 'La anticipacion temporal muestra bastante dispersion; conviene reforzar el ritmo interno y la consistencia.';
 	}
 

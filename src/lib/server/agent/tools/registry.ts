@@ -116,14 +116,17 @@ const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
 	renderWorkingMemoryTestPackage,
 	getTeacherInterventionQueuePackage,
 	recommendGroupInterventionsPackage,
-	sendNotificationPackage,
+	sendNotificationPackage
 ];
 
-export const BUILTIN_TOOL_MANIFESTS: ToolManifest[] = ALL_TOOL_PACKAGES.map((item) => item.manifest);
+export const BUILTIN_TOOL_MANIFESTS: ToolManifest[] = ALL_TOOL_PACKAGES.map(
+	(item) => item.manifest
+);
 
 export const BUILTIN_TOOL_HANDLER_REGISTRY = Object.fromEntries(
-	ALL_TOOL_PACKAGES.filter((entry): entry is BuiltinToolPackage & { handler: BuiltinToolHandler } =>
-		typeof entry.handler === 'function'
+	ALL_TOOL_PACKAGES.filter(
+		(entry): entry is BuiltinToolPackage & { handler: BuiltinToolHandler } =>
+			typeof entry.handler === 'function'
 	).map((entry) => [entry.manifest.executorConfig.handler, entry.handler])
 ) as Record<string, BuiltinToolHandler>;
 

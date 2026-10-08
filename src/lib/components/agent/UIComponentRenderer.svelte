@@ -64,18 +64,14 @@
 	);
 
 	let ResolvedSvelteComponent = $derived(
-		ResolvedComponent
-			? (ResolvedComponent as unknown as Component<Record<string, unknown>>)
-			: null
+		ResolvedComponent ? (ResolvedComponent as unknown as Component<Record<string, unknown>>) : null
 	);
 
 	let resolvedComponentProps = $derived(
 		resolvedProps
 			? ({
 					...(resolvedProps as Record<string, unknown>),
-					...(registryEntry &&
-					isImmersiveUIComponentEntry(registryEntry) &&
-					renderMode === 'inline'
+					...(registryEntry && isImmersiveUIComponentEntry(registryEntry) && renderMode === 'inline'
 						? { onopen: onOpenImmersive }
 						: {})
 				} satisfies Record<string, unknown>)

@@ -1,6 +1,9 @@
 import type { AgentContext, ToolResult } from '$lib/types/agent';
 import type { MemoryCanvasUpdateInput } from '$lib/types/agentMemory';
-import { AgentMemoryService, STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME } from '$lib/server/agent/memory';
+import {
+	AgentMemoryService,
+	STUDENT_COURSE_CANVAS_UPDATE_TOOL_NAME
+} from '$lib/server/agent/memory';
 
 export async function studentCourseCanvasUpdate(
 	params: MemoryCanvasUpdateInput,

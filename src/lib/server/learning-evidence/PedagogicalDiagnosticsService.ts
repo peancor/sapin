@@ -1,4 +1,7 @@
-import type { LearningEvidenceAccessContext, LearningEvidenceTranscriptSession } from '$lib/types/learningEvidence';
+import type {
+	LearningEvidenceAccessContext,
+	LearningEvidenceTranscriptSession
+} from '$lib/types/learningEvidence';
 import { LearningEvidenceService } from './LearningEvidenceService';
 import {
 	detectMisconceptionClustersFromTranscripts,
@@ -23,7 +26,9 @@ function splitSentences(value: string): string[] {
 }
 
 function extractKeywords(criterion: RubricCriterionInput): string[] {
-	const source = [criterion.title, criterion.description ?? '', ...(criterion.keywords ?? [])].join(' ');
+	const source = [criterion.title, criterion.description ?? '', ...(criterion.keywords ?? [])].join(
+		' '
+	);
 	const stopwords = new Set([
 		'about',
 		'como',
@@ -50,7 +55,9 @@ function extractKeywords(criterion: RubricCriterionInput): string[] {
 
 function getStudentCorpus(sessions: LearningEvidenceTranscriptSession[]) {
 	const userMessages = sessions.flatMap((session) =>
-		session.messages.filter((message) => message.role === 'user').map((message) => message.displayText)
+		session.messages
+			.filter((message) => message.role === 'user')
+			.map((message) => message.displayText)
 	);
 	const text = userMessages.join('\n\n').trim();
 	return {
@@ -109,7 +116,9 @@ export class PedagogicalDiagnosticsService {
 					? ['Revisar primero los clusters con mas estudiantes afectados y mayor confianza.']
 					: []),
 				...(clusters.some((cluster) => cluster.confidence === 'high')
-					? ['Convertir los errores recurrentes en una mini-aclaracion o ejemplo guiado dentro de la actividad.']
+					? [
+							'Convertir los errores recurrentes en una mini-aclaracion o ejemplo guiado dentro de la actividad.'
+						]
 					: [])
 			],
 			limitations: [
@@ -130,7 +139,11 @@ export class PedagogicalDiagnosticsService {
 		}
 	) {
 		const [overview, transcripts] = await Promise.all([
-			LearningEvidenceService.getActivityEvidenceOverview(access, params.activityId, params.studentIds),
+			LearningEvidenceService.getActivityEvidenceOverview(
+				access,
+				params.activityId,
+				params.studentIds
+			),
 			LearningEvidenceService.getActivityTranscripts(access, {
 				activityId: params.activityId,
 				studentIds: params.studentIds,
@@ -166,7 +179,10 @@ export class PedagogicalDiagnosticsService {
 						params.includeEvidenceExcerpts === false ? null : (depth?.representativeExcerpt ?? null)
 				};
 			})
-			.sort((a, b) => a.depthScore - b.depthScore || a.student.username.localeCompare(b.student.username));
+			.sort(
+				(a, b) =>
+					a.depthScore - b.depthScore || a.student.username.localeCompare(b.student.username)
+			);
 
 		const depthDistribution = {
 			shallow: items.filter((item) => item.depthBand === 'shallow').length,
@@ -181,7 +197,9 @@ export class PedagogicalDiagnosticsService {
 				totalStudents: overview.totalEnrolledStudents,
 				studentsWithResponses: items.filter((item) => item.totalLearnerMessages > 0).length,
 				averageDepthScore:
-					items.length > 0 ? Math.round(items.reduce((sum, item) => sum + item.depthScore, 0) / items.length) : 0,
+					items.length > 0
+						? Math.round(items.reduce((sum, item) => sum + item.depthScore, 0) / items.length)
+						: 0,
 				depthDistribution
 			},
 			items,
@@ -191,7 +209,9 @@ export class PedagogicalDiagnosticsService {
 					: [],
 			recommendedActions: [
 				...(depthDistribution.shallow > 0
-					? ['Pedir explicitamente justificacion, ejemplo o razonamiento en la siguiente iteracion de la actividad.']
+					? [
+							'Pedir explicitamente justificacion, ejemplo o razonamiento en la siguiente iteracion de la actividad.'
+						]
 					: []),
 				...(depthDistribution.deep > 0
 					? ['Usar respuestas profundas como modelos anonimizados para elevar el nivel esperado.']
@@ -218,7 +238,11 @@ export class PedagogicalDiagnosticsService {
 		}
 
 		const [overview, transcripts] = await Promise.all([
-			LearningEvidenceService.getActivityEvidenceOverview(access, params.activityId, params.studentIds),
+			LearningEvidenceService.getActivityEvidenceOverview(
+				access,
+				params.activityId,
+				params.studentIds
+			),
 			LearningEvidenceService.getActivityTranscripts(access, {
 				activityId: params.activityId,
 				studentIds: params.studentIds
@@ -232,7 +256,9 @@ export class PedagogicalDiagnosticsService {
 			sessionsByStudent.set(session.student.userId, bucket);
 		}
 
-		const activeStudents = overview.studentSummaries.filter((student) => student.learnerMessageCount > 0);
+		const activeStudents = overview.studentSummaries.filter(
+			(student) => student.learnerMessageCount > 0
+		);
 		const items = params.rubric.map((criterion, index) => {
 			const keywords = extractKeywords(criterion);
 			const coveredStudents: Array<{
@@ -271,7 +297,9 @@ export class PedagogicalDiagnosticsService {
 			}
 
 			const coverageRate =
-				activeStudents.length > 0 ? Math.round((coveredStudents.length / activeStudents.length) * 100) : 0;
+				activeStudents.length > 0
+					? Math.round((coveredStudents.length / activeStudents.length) * 100)
+					: 0;
 			return {
 				id: criterion.id ?? `criterion_${index + 1}`,
 				title: criterion.title,
@@ -298,9 +326,13 @@ export class PedagogicalDiagnosticsService {
 				activeStudents: activeStudents.length,
 				criteriaWithHighGap: items.filter((item) => item.gapSeverity === 'high').length,
 				averageCoverageRate:
-					items.length > 0 ? Math.round(items.reduce((sum, item) => sum + item.coverageRate, 0) / items.length) : 0
+					items.length > 0
+						? Math.round(items.reduce((sum, item) => sum + item.coverageRate, 0) / items.length)
+						: 0
 			},
-			items: items.sort((a, b) => a.coverageRate - b.coverageRate || a.title.localeCompare(b.title)),
+			items: items.sort(
+				(a, b) => a.coverageRate - b.coverageRate || a.title.localeCompare(b.title)
+			),
 			alerts: items
 				.filter((item) => item.gapSeverity === 'high')
 				.slice(0, 3)

@@ -11,7 +11,7 @@ export interface TurnstileValidationResult {
 
 /**
  * Validates a Cloudflare Turnstile token on the server side.
- * 
+ *
  * @param token - The turnstile response token from the client
  * @param remoteIp - Optional IP address of the client for additional validation
  * @returns The validation result from Cloudflare
@@ -59,7 +59,7 @@ export async function validateTurnstileToken(
 			};
 		}
 
-		const result = await response.json() as TurnstileValidationResult;
+		const result = (await response.json()) as TurnstileValidationResult;
 		return result;
 	} catch (error) {
 		console.error('Turnstile verification error:', error);

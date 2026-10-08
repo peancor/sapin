@@ -14,7 +14,9 @@
 	const supportedPackages = tikzServerSupportedPackages;
 
 	let selectedExampleId = $state<TikzExampleId>(examples[0].id);
-	let selectedExample = $derived(examples.find((candidate) => candidate.id === selectedExampleId) ?? examples[0]);
+	let selectedExample = $derived(
+		examples.find((candidate) => candidate.id === selectedExampleId) ?? examples[0]
+	);
 	let editorText = $state(examples[0].source);
 	let svgMarkup = $state('');
 	let normalizedSource = $state('');
@@ -122,10 +124,12 @@
 
 <div class="space-y-6">
 	<div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-		<p class="text-sm font-semibold uppercase tracking-[0.28em] text-sky-700">Demo</p>
+		<p class="text-sm font-semibold tracking-[0.28em] text-sky-700 uppercase">Demo</p>
 		<h1 class="mt-2 text-3xl font-semibold text-slate-900">Node-TikZJax En Servidor</h1>
 		<p class="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-			Esta version renderiza en servidor con <code>node-tikzjax</code> y comparte el mismo catalogo de ejemplos que la demo de navegador. La idea ahora es usar estas dos rutas como banco comun para circuitos didacticos, plots, optica y otros diagramas cientificos.
+			Esta version renderiza en servidor con <code>node-tikzjax</code> y comparte el mismo catalogo de
+			ejemplos que la demo de navegador. La idea ahora es usar estas dos rutas como banco comun para circuitos
+			didacticos, plots, optica y otros diagramas cientificos.
 		</p>
 	</div>
 
@@ -135,9 +139,16 @@
 				<div>
 					<h2 class="text-lg font-semibold text-slate-900">Editor TeX</h2>
 					<p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-						Pega un ejemplo completo con <code>\usepackage</code> y <code>\begin&#123;document&#125;</code>, o usa uno de los presets. El render ocurre en el servidor. Usa <kbd class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600">Ctrl</kbd>
+						Pega un ejemplo completo con <code>\usepackage</code> y
+						<code>\begin&#123;document&#125;</code>, o usa uno de los presets. El render ocurre en
+						el servidor. Usa
+						<kbd class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600"
+							>Ctrl</kbd
+						>
 						+
-						<kbd class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600">Enter</kbd>
+						<kbd class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600"
+							>Enter</kbd
+						>
 						para renderizar.
 					</p>
 				</div>
@@ -164,7 +175,9 @@
 				{#each exampleGroups as group (group.category)}
 					<div>
 						<div class="mb-3 flex items-center justify-between gap-3">
-							<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{group.label}</p>
+							<p class="text-xs font-semibold tracking-[0.24em] text-slate-500 uppercase">
+								{group.label}
+							</p>
 							<p class="text-xs text-slate-400">{group.examples.length} ejemplos</p>
 						</div>
 						<div class="flex flex-wrap gap-2">
@@ -184,13 +197,19 @@
 				{/each}
 			</div>
 
-			<div class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+			<div
+				class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600"
+			>
 				<div class="flex flex-wrap items-center gap-2">
 					<p class="font-semibold text-slate-900">{selectedExample.label}</p>
-					<span class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+					<span
+						class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold tracking-[0.2em] text-sky-700 uppercase"
+					>
 						{tikzExampleCategories[selectedExample.category]}
 					</span>
-					<span class="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700">
+					<span
+						class="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold tracking-[0.2em] text-slate-700 uppercase"
+					>
 						{selectedExample.priority === 'core' ? 'Base' : 'Ampliado'}
 					</span>
 				</div>
@@ -198,13 +217,15 @@
 				<p class="mt-2 text-slate-500">Objetivo didáctico: {selectedExample.learningGoal}</p>
 			</div>
 
-			<label for="tikz-editor" class="mt-6 block text-sm font-medium text-slate-800">Fuente TeX</label>
+			<label for="tikz-editor" class="mt-6 block text-sm font-medium text-slate-800"
+				>Fuente TeX</label
+			>
 			<textarea
 				id="tikz-editor"
 				bind:value={editorText}
 				onkeydown={handleEditorKeydown}
 				spellcheck="false"
-				class="mt-3 min-h-112 w-full rounded-2xl border border-slate-300 bg-slate-950 p-4 font-mono text-sm leading-6 text-emerald-200 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+				class="mt-3 min-h-112 w-full rounded-2xl border border-slate-300 bg-slate-950 p-4 font-mono text-sm leading-6 text-emerald-200 transition outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
 			></textarea>
 
 			<div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
@@ -214,7 +235,9 @@
 				<p class="text-slate-500">{editorText.length} caracteres</p>
 			</div>
 
-			<div class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+			<div
+				class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600"
+			>
 				<p class="font-semibold text-slate-900">Paquetes declarados por node-tikzjax</p>
 				<p class="mt-2">{supportedPackages.join(', ')}</p>
 			</div>
@@ -224,7 +247,13 @@
 			<div class="flex items-center justify-between gap-4">
 				<h2 class="text-lg font-semibold text-slate-900">SVG renderizado</h2>
 				<p class="text-sm text-slate-500">
-					{renderState === 'ready' ? 'Listo' : renderState === 'rendering' ? 'Renderizando...' : renderState === 'error' ? 'Error' : 'Esperando'}
+					{renderState === 'ready'
+						? 'Listo'
+						: renderState === 'rendering'
+							? 'Renderizando...'
+							: renderState === 'error'
+								? 'Error'
+								: 'Esperando'}
 				</p>
 			</div>
 
@@ -240,11 +269,17 @@
 			</div>
 
 			<div class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
-				<h3 class="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Fuente normalizada enviada al servidor</h3>
+				<h3 class="text-sm font-semibold tracking-[0.24em] text-slate-500 uppercase">
+					Fuente normalizada enviada al servidor
+				</h3>
 				<p class="mt-2 text-sm leading-6 text-slate-600">
-					El endpoint ajusta algunos casos mínimos, como fuentes sin <code>{'\\begin{document}'}</code>. El resto se compila tal cual con <code>node-tikzjax</code>.
+					El endpoint ajusta algunos casos mínimos, como fuentes sin <code
+						>{'\\begin{document}'}</code
+					>. El resto se compila tal cual con <code>node-tikzjax</code>.
 				</p>
-				<pre class="mt-4 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-emerald-200">{normalizedSource || 'Sin render todavía.'}</pre>
+				<pre
+					class="mt-4 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-emerald-200">{normalizedSource ||
+						'Sin render todavía.'}</pre>
 				<div class="mt-4 grid gap-3 text-xs leading-6 text-slate-600 md:grid-cols-2">
 					<div class="rounded-2xl bg-white p-3">
 						<p class="font-semibold text-slate-900">Paquetes detectados</p>
@@ -266,23 +301,35 @@
 			</div>
 		</section>
 
-		<aside class="rounded-3xl border border-slate-200 bg-slate-950 p-6 text-slate-100 shadow-sm xl:col-span-2">
+		<aside
+			class="rounded-3xl border border-slate-200 bg-slate-950 p-6 text-slate-100 shadow-sm xl:col-span-2"
+		>
 			<h2 class="text-lg font-semibold">Qué Cambió</h2>
 			<p class="mt-3 text-sm leading-6 text-slate-300">
-				La ruta de servidor ya no es solo una prueba tecnica. Ahora actua como referencia principal del catalogo compartido, con ejemplos organizados por bloques didacticos para leyes basicas, filtros, conversion, medida y optica.
+				La ruta de servidor ya no es solo una prueba tecnica. Ahora actua como referencia principal
+				del catalogo compartido, con ejemplos organizados por bloques didacticos para leyes basicas,
+				filtros, conversion, medida y optica.
 			</p>
 			<div class="mt-4 grid gap-4 md:grid-cols-3">
 				<div class="rounded-2xl bg-black/30 p-4 text-sm leading-6 text-slate-300">
 					<p class="font-semibold text-white">1. Catalogo comun</p>
-					<p class="mt-2">La seleccion de ejemplos sale del mismo modulo que usa la demo de navegador.</p>
+					<p class="mt-2">
+						La seleccion de ejemplos sale del mismo modulo que usa la demo de navegador.
+					</p>
 				</div>
 				<div class="rounded-2xl bg-black/30 p-4 text-sm leading-6 text-slate-300">
 					<p class="font-semibold text-white">2. Cobertura amplia</p>
-					<p class="mt-2">El catalogo ya incluye desde leyes de Kirchhoff hasta puentes, filtros, Bode y optica geometrica.</p>
+					<p class="mt-2">
+						El catalogo ya incluye desde leyes de Kirchhoff hasta puentes, filtros, Bode y optica
+						geometrica.
+					</p>
 				</div>
 				<div class="rounded-2xl bg-black/30 p-4 text-sm leading-6 text-slate-300">
 					<p class="font-semibold text-white">3. Pegado libre</p>
-					<p class="mt-2">Sigues pudiendo sustituir cualquier preset por tu propio TeX completo y renderizarlo directamente.</p>
+					<p class="mt-2">
+						Sigues pudiendo sustituir cualquier preset por tu propio TeX completo y renderizarlo
+						directamente.
+					</p>
 				</div>
 			</div>
 		</aside>

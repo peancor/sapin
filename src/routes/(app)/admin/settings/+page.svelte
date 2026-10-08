@@ -46,7 +46,6 @@
 		{ id: 'notifications', label: 'Notificaciones' }
 	];
 
-
 	let analyticsFormValues = $state({
 		enabled: false,
 		trackPageViews: false,
@@ -171,9 +170,13 @@
 	function toggleRecipient(userId: string) {
 		const idx = notificationFormValues.contactFormRecipients.indexOf(userId);
 		if (idx >= 0) {
-			notificationFormValues.contactFormRecipients = notificationFormValues.contactFormRecipients.filter(id => id !== userId);
+			notificationFormValues.contactFormRecipients =
+				notificationFormValues.contactFormRecipients.filter((id) => id !== userId);
 		} else {
-			notificationFormValues.contactFormRecipients = [...notificationFormValues.contactFormRecipients, userId];
+			notificationFormValues.contactFormRecipients = [
+				...notificationFormValues.contactFormRecipients,
+				userId
+			];
 		}
 	}
 
@@ -229,7 +232,6 @@
 			{/each}
 		</nav>
 	</div>
-
 
 	<!-- Email Settings Tab -->
 	<div class={activeTab === 'email' ? '' : 'hidden'}>
@@ -574,8 +576,8 @@
 								<option value={365}>1 año</option>
 							</select>
 							<Helper class="mt-2 text-xs">
-								Los eventos más antiguos serán eliminados automáticamente. Las estadísticas diarias se
-								conservan indefinidamente.
+								Los eventos más antiguos serán eliminados automáticamente. Las estadísticas diarias
+								se conservan indefinidamente.
 							</Helper>
 						</div>
 					</div>
@@ -612,7 +614,10 @@
 			use:enhance={() => {
 				return async ({ result }) => {
 					if (result.type === 'success') {
-						showNotificationMessage('Configuración de notificaciones guardada correctamente', 'success');
+						showNotificationMessage(
+							'Configuración de notificaciones guardada correctamente',
+							'success'
+						);
 					} else {
 						showNotificationMessage('Error al guardar la configuración', 'error');
 					}
@@ -647,8 +652,8 @@
 
 						<div class="space-y-4">
 							<!-- In-App Channel -->
-							<div class="flex items-start gap-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-								<BellRing class="h-5 w-5 text-blue-500 mt-0.5" />
+							<div class="flex items-start gap-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+								<BellRing class="mt-0.5 h-5 w-5 text-blue-500" />
 								<div class="flex-1">
 									<div class="flex items-center justify-between">
 										<div>
@@ -660,17 +665,18 @@
 										<Toggle
 											name="inAppEnabled"
 											checked={notificationFormValues.inAppEnabled}
-											onchange={(e) => (notificationFormValues.inAppEnabled = e.currentTarget.checked)}
+											onchange={(e) =>
+												(notificationFormValues.inAppEnabled = e.currentTarget.checked)}
 										/>
 									</div>
 									{#if notificationFormValues.inAppEnabled}
 										<div class="mt-3">
-											<Label for="inAppRetentionDays" class="text-xs mb-1">Retención (días)</Label>
+											<Label for="inAppRetentionDays" class="mb-1 text-xs">Retención (días)</Label>
 											<select
 												id="inAppRetentionDays"
 												name="inAppRetentionDays"
 												bind:value={notificationFormValues.inAppRetentionDays}
-												class="w-32 p-2 text-sm rounded-lg border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+												class="w-32 rounded-lg border border-gray-300 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 											>
 												<option value={7}>7 días</option>
 												<option value={14}>14 días</option>
@@ -684,8 +690,8 @@
 							</div>
 
 							<!-- Email Channel -->
-							<div class="flex items-start gap-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-								<Mail class="h-5 w-5 text-green-500 mt-0.5" />
+							<div class="flex items-start gap-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+								<Mail class="mt-0.5 h-5 w-5 text-green-500" />
 								<div class="flex-1">
 									<div class="flex items-center justify-between">
 										<div>
@@ -697,7 +703,8 @@
 										<Toggle
 											name="emailEnabled"
 											checked={notificationFormValues.emailEnabled}
-											onchange={(e) => (notificationFormValues.emailEnabled = e.currentTarget.checked)}
+											onchange={(e) =>
+												(notificationFormValues.emailEnabled = e.currentTarget.checked)}
 										/>
 									</div>
 									{#if notificationFormValues.emailEnabled && !data.settings.email.enabled}
@@ -715,23 +722,27 @@
 						class="space-y-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-600 dark:bg-gray-800"
 					>
 						<h3 class="font-medium text-gray-900 dark:text-white">Tipos de Notificación</h3>
-						<p class="text-xs text-gray-500 dark:text-gray-400 -mt-2">
+						<p class="-mt-2 text-xs text-gray-500 dark:text-gray-400">
 							Configura qué tipos de notificaciones enviar y por qué canales.
 						</p>
 
 						<div class="space-y-3">
 							{#each Object.entries(notificationFormValues.types) as [key, typeConfig]}
-								<div class="flex items-center gap-4 p-3 rounded-lg border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-									<div class="flex-1 min-w-0">
+								<div
+									class="flex items-center gap-4 rounded-lg border border-gray-100 p-3 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/30"
+								>
+									<div class="min-w-0 flex-1">
 										<div class="flex items-center gap-3">
 											<input
 												type="checkbox"
 												name={`type_${key}`}
 												checked={typeConfig.enabled}
 												onchange={(e) => {
-													notificationFormValues.types[key as keyof typeof notificationFormValues.types].enabled = e.currentTarget.checked;
+													notificationFormValues.types[
+														key as keyof typeof notificationFormValues.types
+													].enabled = e.currentTarget.checked;
 												}}
-												class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+												class="text-primary-600 focus:ring-primary-500 h-4 w-4 rounded border-gray-300"
 											/>
 											<span class="text-sm font-medium text-gray-900 dark:text-white">
 												{notificationTypeLabels[key]}
@@ -740,26 +751,30 @@
 									</div>
 									{#if typeConfig.enabled}
 										<div class="flex items-center gap-4 text-xs">
-											<label class="flex items-center gap-1.5 cursor-pointer">
+											<label class="flex cursor-pointer items-center gap-1.5">
 												<input
 													type="checkbox"
 													name={`${key}_channel_in_app`}
 													checked={typeConfig.channels.in_app}
 													onchange={(e) => {
-														notificationFormValues.types[key as keyof typeof notificationFormValues.types].channels.in_app = e.currentTarget.checked;
+														notificationFormValues.types[
+															key as keyof typeof notificationFormValues.types
+														].channels.in_app = e.currentTarget.checked;
 													}}
 													disabled={!notificationFormValues.inAppEnabled}
 													class="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 												/>
 												<span class="text-gray-600 dark:text-gray-400">In-App</span>
 											</label>
-											<label class="flex items-center gap-1.5 cursor-pointer">
+											<label class="flex cursor-pointer items-center gap-1.5">
 												<input
 													type="checkbox"
 													name={`${key}_channel_email`}
 													checked={typeConfig.channels.email}
 													onchange={(e) => {
-														notificationFormValues.types[key as keyof typeof notificationFormValues.types].channels.email = e.currentTarget.checked;
+														notificationFormValues.types[
+															key as keyof typeof notificationFormValues.types
+														].channels.email = e.currentTarget.checked;
 													}}
 													disabled={!notificationFormValues.emailEnabled}
 													class="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
@@ -777,40 +792,50 @@
 					<div
 						class="space-y-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-600 dark:bg-gray-800"
 					>
-						<div class="flex items-center gap-2 mb-2">
+						<div class="mb-2 flex items-center gap-2">
 							<Users class="h-5 w-5 text-gray-500 dark:text-gray-300" />
-							<h3 class="font-medium text-gray-900 dark:text-white">Destinatarios del Formulario de Contacto</h3>
+							<h3 class="font-medium text-gray-900 dark:text-white">
+								Destinatarios del Formulario de Contacto
+							</h3>
 						</div>
-						<p class="text-xs text-gray-500 dark:text-gray-400 -mt-2">
-							Selecciona los usuarios que recibirán las notificaciones cuando alguien envíe un mensaje a través del formulario de contacto. Si no seleccionas ninguno, se notificará a todos los administradores.
+						<p class="-mt-2 text-xs text-gray-500 dark:text-gray-400">
+							Selecciona los usuarios que recibirán las notificaciones cuando alguien envíe un
+							mensaje a través del formulario de contacto. Si no seleccionas ninguno, se notificará
+							a todos los administradores.
 						</p>
 
-						<input type="hidden" name="contactFormRecipients" value={notificationFormValues.contactFormRecipients.join(',')} />
+						<input
+							type="hidden"
+							name="contactFormRecipients"
+							value={notificationFormValues.contactFormRecipients.join(',')}
+						/>
 
-						<div class="grid gap-2 max-h-48 overflow-y-auto">
+						<div class="grid max-h-48 gap-2 overflow-y-auto">
 							{#each data.adminUsers as adminUser}
-								<label class="flex items-center gap-3 p-2 rounded-lg border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer">
+								<label
+									class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-100 p-2 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/30"
+								>
 									<input
 										type="checkbox"
 										checked={notificationFormValues.contactFormRecipients.includes(adminUser.id)}
 										onchange={() => toggleRecipient(adminUser.id)}
-										class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+										class="text-primary-600 focus:ring-primary-500 h-4 w-4 rounded border-gray-300"
 									/>
-									<div class="flex-1 min-w-0">
+									<div class="min-w-0 flex-1">
 										<span class="text-sm font-medium text-gray-900 dark:text-white">
 											{adminUser.username || adminUser.email}
 										</span>
-										<span class="text-xs text-gray-500 dark:text-gray-400 ml-2">
+										<span class="ml-2 text-xs text-gray-500 dark:text-gray-400">
 											({adminUser.roleName})
 										</span>
 									</div>
-									<span class="text-xs text-gray-400 dark:text-gray-500 truncate max-w-[200px]">
+									<span class="max-w-[200px] truncate text-xs text-gray-400 dark:text-gray-500">
 										{adminUser.email}
 									</span>
 								</label>
 							{/each}
 							{#if data.adminUsers.length === 0}
-								<p class="text-sm text-gray-500 dark:text-gray-400 italic py-2">
+								<p class="py-2 text-sm text-gray-500 italic dark:text-gray-400">
 									No hay usuarios con rol de profesor o administrador.
 								</p>
 							{/if}
@@ -818,7 +843,8 @@
 
 						{#if notificationFormValues.contactFormRecipients.length === 0}
 							<Helper class="mt-2">
-								Sin destinatarios seleccionados, las notificaciones se enviarán a todos los administradores del sistema.
+								Sin destinatarios seleccionados, las notificaciones se enviarán a todos los
+								administradores del sistema.
 							</Helper>
 						{:else}
 							<Helper class="mt-2" color="green">
