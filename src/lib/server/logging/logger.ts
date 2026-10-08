@@ -1,4 +1,5 @@
 import pino from 'pino';
+import { createRequire } from 'node:module';
 import { dev } from '$app/environment';
 
 // Configuración base de pino
@@ -6,7 +7,8 @@ const pinoConfig: pino.LoggerOptions = {
 	level: dev ? 'debug' : 'info',
 	...(dev && {
 		transport: {
-			target: 'pino-pretty',
+			// Vite's SSR runner does not always expose a resolvable caller to Pino.
+			target: createRequire(import.meta.url).resolve('pino-pretty'),
 			options: {
 				colorize: true,
 				translateTime: 'SYS:standard',

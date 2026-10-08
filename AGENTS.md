@@ -33,21 +33,30 @@ Perfiles principales:
 
 ### Plataforma
 
-- `SvelteKit 2.50.1` con `@sveltejs/adapter-node`
-- `Svelte 5.48.0`
+- `SvelteKit 2.70.3` con `@sveltejs/adapter-node`
+- `Svelte 5.57.2`
 - `TypeScript 5.9.3`
-- `Vite 7.3.1`
+- `Vite 7.3.7`
 - `Node.js >= 22.14.0`
 
 ### UI y frontend
 
-- `Tailwind CSS 4.1.18`
-- `Flowbite Svelte 1.31.0`
+- `Tailwind CSS 4.3.3`
+- `Flowbite Svelte 1.33.1`
 - `lucide-svelte`
 - `ECharts`
-- `TipTap 3`
+- `TipTap 3.31.4` (todos los paquetes directos fijados a esa versión exacta)
 - `KaTeX`, `JSXGraph`, `TikzJax`
 - `@ai-sdk/svelte`
+
+### Compatibilidad de dependencias
+
+- Se mantienen Node.js `>=22.14.0`, TypeScript `5.9.3`, SvelteKit 2, Vite 7 y AI SDK 6.
+- Docker sigue usando `node:22.14-alpine`; no se ha cambiado la versión de Node.
+- Los paquetes `@tiptap/*` deben actualizarse conjuntamente y conservar versiones exactas alineadas.
+- Qdrant JS se limita a `~1.18.0`: conserva `client.search`; 1.19.0 elimina esa API y fija undici 7.29.0, señalado por la auditoría de seguridad.
+- KaTeX permanece en la rama `0.16`, compatible con `marked-katex-extension`.
+- `package-lock.json` es la referencia reproducible; instalar con `npm ci`.
 
 ### Datos e IA
 
