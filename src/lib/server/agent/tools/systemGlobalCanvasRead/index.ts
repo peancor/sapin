@@ -1,11 +1,11 @@
 import { systemGlobalCanvasRead } from './handler';
 import { systemGlobalCanvasReadManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const systemGlobalCanvasReadPackage: BuiltinToolPackage = {
+export const systemGlobalCanvasReadPackage = defineBuiltinToolPackage({
 	manifest: systemGlobalCanvasReadManifest,
 	handler: systemGlobalCanvasRead
-};
+});
 
 export { systemGlobalCanvasRead } from './handler';
 export { systemGlobalCanvasReadManifest } from './manifest';

@@ -1,8 +1,8 @@
 import { draftStudentNotification } from './handler';
 import { draftStudentNotificationManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const draftStudentNotificationPackage: BuiltinToolPackage = {
+export const draftStudentNotificationPackage = defineBuiltinToolPackage({
 	manifest: draftStudentNotificationManifest,
 	handler: draftStudentNotification
-};
+});

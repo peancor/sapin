@@ -1,8 +1,8 @@
 import { findInconsistentGradingCases } from './handler';
 import { findInconsistentGradingCasesManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const findInconsistentGradingCasesPackage: BuiltinToolPackage = {
+export const findInconsistentGradingCasesPackage = defineBuiltinToolPackage({
 	manifest: findInconsistentGradingCasesManifest,
 	handler: findInconsistentGradingCases
-};
+});

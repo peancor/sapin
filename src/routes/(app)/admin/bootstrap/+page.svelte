@@ -53,7 +53,7 @@
 			uppercase: /[A-Z]/.test(password),
 			number: /[0-9]/.test(password),
 			special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password),
-			noCommonPatterns: !/(password|admin|qwerty|letmein|^(.)\1+$)/i.test(password)
+			noCommonPatterns: !/(?:password|admin|qwerty|letmein|^(.)\1+$)/i.test(password)
 		};
 	});
 

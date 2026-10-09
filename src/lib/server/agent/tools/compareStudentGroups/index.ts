@@ -1,8 +1,8 @@
 import { compareStudentGroups } from './handler';
 import { compareStudentGroupsManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const compareStudentGroupsPackage: BuiltinToolPackage = {
+export const compareStudentGroupsPackage = defineBuiltinToolPackage({
 	manifest: compareStudentGroupsManifest,
 	handler: compareStudentGroups
-};
+});

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { formatDate } from '$lib/helpers/dateUtils';
 	import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-svelte';
 	import type { ChatInstanceInterface, InteractiveChatInterface } from '$lib/server/db/';
@@ -113,7 +114,7 @@
 				<div
 					class="markdown prose dark:prose-invert line-clamp-3 max-w-none text-xs text-gray-600 sm:line-clamp-2 sm:text-sm dark:text-gray-400"
 				>
-					{@html marked(processContent(excerpt || ''))}
+					<SafeHtml html={marked(processContent(excerpt || ''), { async: false })} />
 				</div>
 				<div
 					class="mt-2 flex items-center justify-between text-xs text-blue-600 dark:text-blue-400"
@@ -173,7 +174,7 @@
 					<div
 						class="markdown prose prose-sm sm:prose dark:prose-invert max-w-none break-words text-gray-700 dark:text-gray-300"
 					>
-						{@html marked(processContent(message.content))}
+						<SafeHtml html={marked(processContent(message.content), { async: false })} />
 					</div>
 				</div>
 			{/each}

@@ -1,8 +1,8 @@
 import { recommendNextActivity } from './handler';
 import { recommendNextActivityManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const recommendNextActivityPackage: BuiltinToolPackage = {
+export const recommendNextActivityPackage = defineBuiltinToolPackage({
 	manifest: recommendNextActivityManifest,
 	handler: recommendNextActivity
-};
+});

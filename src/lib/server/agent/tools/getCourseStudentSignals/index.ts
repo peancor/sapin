@@ -1,11 +1,11 @@
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 import { getCourseStudentSignals } from './handler';
 import { getCourseStudentSignalsManifest } from './manifest';
 
-export const getCourseStudentSignalsPackage: BuiltinToolPackage = {
+export const getCourseStudentSignalsPackage = defineBuiltinToolPackage({
 	manifest: getCourseStudentSignalsManifest,
 	handler: getCourseStudentSignals
-};
+});
 
 export { getCourseStudentSignals } from './handler';
 export { getCourseStudentSignalsManifest } from './manifest';

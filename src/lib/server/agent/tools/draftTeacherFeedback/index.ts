@@ -1,8 +1,8 @@
 import { draftTeacherFeedback } from './handler';
 import { draftTeacherFeedbackManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const draftTeacherFeedbackPackage: BuiltinToolPackage = {
+export const draftTeacherFeedbackPackage = defineBuiltinToolPackage({
 	manifest: draftTeacherFeedbackManifest,
 	handler: draftTeacherFeedback
-};
+});

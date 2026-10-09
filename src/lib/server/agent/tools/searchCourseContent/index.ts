@@ -1,11 +1,11 @@
 import { searchCourseContent } from './handler';
 import { searchCourseContentManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const searchCourseContentPackage: BuiltinToolPackage = {
+export const searchCourseContentPackage = defineBuiltinToolPackage({
 	manifest: searchCourseContentManifest,
 	handler: searchCourseContent
-};
+});
 
 export { searchCourseContent } from './handler';
 export { searchCourseContentManifest } from './manifest';

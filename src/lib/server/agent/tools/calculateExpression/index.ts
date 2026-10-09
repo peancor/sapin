@@ -1,11 +1,11 @@
 import { calculateExpression } from './handler';
 import { calculateExpressionManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const calculateExpressionPackage: BuiltinToolPackage = {
+export const calculateExpressionPackage = defineBuiltinToolPackage({
 	manifest: calculateExpressionManifest,
 	handler: calculateExpression
-};
+});
 
 export { calculateExpression } from './handler';
 export { calculateExpressionManifest } from './manifest';

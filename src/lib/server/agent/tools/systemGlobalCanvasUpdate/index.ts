@@ -1,11 +1,11 @@
 import { systemGlobalCanvasUpdate } from './handler';
 import { systemGlobalCanvasUpdateManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const systemGlobalCanvasUpdatePackage: BuiltinToolPackage = {
+export const systemGlobalCanvasUpdatePackage = defineBuiltinToolPackage({
 	manifest: systemGlobalCanvasUpdateManifest,
 	handler: systemGlobalCanvasUpdate
-};
+});
 
 export { systemGlobalCanvasUpdate } from './handler';
 export { systemGlobalCanvasUpdateManifest } from './manifest';

@@ -1,8 +1,8 @@
 import { draftOutreachMessage } from './handler';
 import { draftOutreachMessageManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const draftOutreachMessagePackage: BuiltinToolPackage = {
+export const draftOutreachMessagePackage = defineBuiltinToolPackage({
 	manifest: draftOutreachMessageManifest,
 	handler: draftOutreachMessage
-};
+});

@@ -23,8 +23,8 @@ export interface ToolManifest {
 	version?: string;
 }
 
-export type BuiltinToolHandler = (
-	args: any,
+export type BuiltinToolHandler<Args = Record<string, unknown>> = (
+	args: Args,
 	context: AgentContext,
 	toolCallId?: string
 ) => Promise<ToolResult>;

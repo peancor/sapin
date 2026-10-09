@@ -1,8 +1,8 @@
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 import { getCourseSequenceBottlenecks } from './handler';
 import { getCourseSequenceBottlenecksManifest } from './manifest';
 
-export const getCourseSequenceBottlenecksPackage: BuiltinToolPackage = {
+export const getCourseSequenceBottlenecksPackage = defineBuiltinToolPackage({
 	manifest: getCourseSequenceBottlenecksManifest,
 	handler: getCourseSequenceBottlenecks
-};
+});

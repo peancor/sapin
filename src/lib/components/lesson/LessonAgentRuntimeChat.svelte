@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import 'katex/dist/katex.min.css';
 	import type { AgentDisplayMessage, AgentDisplayPart, AgentStreamPart } from '$lib/types/agent';
@@ -381,8 +382,7 @@
 									? 'prose-invert'
 									: 'dark:prose-invert'}"
 							>
-								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-								{@html renderMarkdown(part.content)}
+								<SafeHtml html={renderMarkdown(part.content)} />
 							</div>
 						{:else if part.kind === 'tool-call'}
 							<div

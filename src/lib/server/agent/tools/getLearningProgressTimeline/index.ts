@@ -1,8 +1,8 @@
 import { getLearningProgressTimeline } from './handler';
 import { getLearningProgressTimelineManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const getLearningProgressTimelinePackage: BuiltinToolPackage = {
+export const getLearningProgressTimelinePackage = defineBuiltinToolPackage({
 	manifest: getLearningProgressTimelineManifest,
 	handler: getLearningProgressTimeline
-};
+});

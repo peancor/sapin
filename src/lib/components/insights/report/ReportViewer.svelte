@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { Card, Button } from 'flowbite-svelte';
 	import { marked } from 'marked';
 	import { createDocxFromMarkdown } from '$lib/utils/docx-export';
@@ -176,7 +177,7 @@
 				<div
 					class="prose dark:prose-invert prose-sm md:prose-base lg:prose-lg max-w-none overflow-x-auto"
 				>
-					{@html marked.parse(content)}
+					<SafeHtml html={marked.parse(content, { async: false })} />
 				</div>
 			</div>
 		</Card>

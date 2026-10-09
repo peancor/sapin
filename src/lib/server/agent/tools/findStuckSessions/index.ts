@@ -1,8 +1,8 @@
 import { findStuckSessions } from './handler';
 import { findStuckSessionsManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const findStuckSessionsPackage: BuiltinToolPackage = {
+export const findStuckSessionsPackage = defineBuiltinToolPackage({
 	manifest: findStuckSessionsManifest,
 	handler: findStuckSessions
-};
+});

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { Bot, Clock3, Copy, Keyboard, PencilLine, User, Wrench } from 'lucide-svelte';
 	import AgentImageAttachmentPreview from './AgentImageAttachmentPreview.svelte';
 	import UIComponentRenderer from './UIComponentRenderer.svelte';
@@ -201,8 +202,7 @@
 											message.role === 'user' ? 'prose-sky dark:prose-invert' : 'dark:prose-invert'
 										}`}
 									>
-										<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-										{@html renderMarkdown(part.content)}
+										<SafeHtml html={renderMarkdown(part.content)} />
 									</div>
 								{:else if part.kind === 'image'}
 									<AgentImageAttachmentPreview attachment={part} variant="review" />

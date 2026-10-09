@@ -1,11 +1,11 @@
 import { sendNotification } from './handler';
 import { sendNotificationManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const sendNotificationPackage: BuiltinToolPackage = {
+export const sendNotificationPackage = defineBuiltinToolPackage({
 	manifest: sendNotificationManifest,
 	handler: sendNotification
-};
+});
 
 export { sendNotification } from './handler';
 export { sendNotificationManifest } from './manifest';

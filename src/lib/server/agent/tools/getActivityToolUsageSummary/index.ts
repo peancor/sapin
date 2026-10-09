@@ -1,8 +1,8 @@
 import { getActivityToolUsageSummary } from './handler';
 import { getActivityToolUsageSummaryManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const getActivityToolUsageSummaryPackage: BuiltinToolPackage = {
+export const getActivityToolUsageSummaryPackage = defineBuiltinToolPackage({
 	manifest: getActivityToolUsageSummaryManifest,
 	handler: getActivityToolUsageSummary
-};
+});

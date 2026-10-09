@@ -1,8 +1,8 @@
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 import { getStudentAttemptHistory } from './handler';
 import { getStudentAttemptHistoryManifest } from './manifest';
 
-export const getStudentAttemptHistoryPackage: BuiltinToolPackage = {
+export const getStudentAttemptHistoryPackage = defineBuiltinToolPackage({
 	manifest: getStudentAttemptHistoryManifest,
 	handler: getStudentAttemptHistory
-};
+});

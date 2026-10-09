@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import LessonAgentChat from '$lib/components/lesson/LessonAgentChat.svelte';
@@ -690,8 +691,7 @@
 		{/if}
 
 		<div class="prose dark:prose-invert max-w-none">
-			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-			{@html bodyHtml}
+			<SafeHtml html={bodyHtml} />
 		</div>
 
 		{#if data.currentAssets.length > 0}

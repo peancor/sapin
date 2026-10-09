@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import 'katex/dist/katex.min.css';
 	import { renderMarkdownMath } from '$lib/utils';
 
@@ -163,7 +164,7 @@
 		{#each questions as q, qIdx (`${instanceId}:question:${qIdx}`)}
 			<div class="px-4 py-3">
 				<p class="mb-2.5 text-sm font-medium text-gray-900 dark:text-white">
-					{qIdx + 1}. {@html renderInline(q.question)}
+					{qIdx + 1}. <SafeHtml html={renderInline(q.question)} />
 				</p>
 				<div class="space-y-1.5">
 					{#each q.options as opt, optIdx (`${instanceId}:${qIdx}:option:${optIdx}`)}
@@ -174,13 +175,13 @@
 							disabled={!interactive || submitted}
 						>
 							<span class="mr-1.5 font-medium">{String.fromCharCode(65 + optIdx)}.</span>
-							<span class="[&_p]:inline">{@html renderInline(opt)}</span>
+							<span class="[&_p]:inline"><SafeHtml html={renderInline(opt)} /></span>
 						</button>
 					{/each}
 				</div>
 				{#if submitted && q.explanation}
 					<div class="mt-2 text-xs text-gray-500 italic dark:text-gray-400 [&_p]:m-0">
-						{@html renderBlock(q.explanation)}
+						<SafeHtml html={renderBlock(q.explanation)} />
 					</div>
 				{/if}
 			</div>

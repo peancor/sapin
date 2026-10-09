@@ -1,8 +1,8 @@
 import { summarizeEvidenceForStudent } from './handler';
 import { summarizeEvidenceForStudentManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const summarizeEvidenceForStudentPackage: BuiltinToolPackage = {
+export const summarizeEvidenceForStudentPackage = defineBuiltinToolPackage({
 	manifest: summarizeEvidenceForStudentManifest,
 	handler: summarizeEvidenceForStudent
-};
+});

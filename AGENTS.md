@@ -48,6 +48,7 @@ Perfiles principales:
 - `TipTap 3.31.4` (todos los paquetes directos fijados a esa versión exacta)
 - `KaTeX`, `JSXGraph`, `TikzJax`
 - `@ai-sdk/svelte`
+- `isomorphic-dompurify 2.26.0`, fijado por compatibilidad con Node 22.14; el lockfile resuelve DOMPurify 3.4.16 y jsdom 26.1.0. `SafeHtml.svelte` limpia el HTML final de chats, informes, asistentes de edición y ejercicios, también en SSR; conserva Markdown y KaTeX. La única excepción local a `svelte/no-at-html-tags` de estos componentes está en esa frontera sanitizada.
 
 ### Compatibilidad de dependencias
 
@@ -442,6 +443,8 @@ Piezas principales del subsistema:
 
 ### Herramientas del agente
 
+Los paquetes con handler se registran mediante `defineBuiltinToolPackage`: conservan el tipo de argumentos del handler y validan la entrada con el mismo conversor JSON Schema–Zod que `ToolManager`, extraído a `toolParameterSchema.ts`. Los parámetros inválidos se rechazan antes de ejecutar el handler; se mantienen el contexto de permisos y el identificador de llamada.
+
 Bajo `src/lib/server/agent/tools/` hay tools para:
 
 - búsqueda de contenido
@@ -665,6 +668,7 @@ La configuración de notificaciones se guarda en `app_setting`.
 
 ## Estado actual de testing
 
+- La sanitización HTML tiene pruebas de scripts, eventos, URLs ejecutables y conservación de Markdown/KaTeX. Playwright verifica también HTML malicioso dentro de un quiz y su explicación. El registro de herramientas prueba el rechazo de parámetros inválidos antes de invocar el handler y la ejecución válida de la calculadora.
 - Las pruebas de navegador cubren la edición del código de invitación tras un error de registro y la apertura, cierre con Escape y reapertura del menú de curso en móvil.
 
 - El exportador DOCX tiene pruebas de Markdown y tablas legacy. La suite de navegador comprueba también la descarga WebP de adjuntos y el contador de fallidos en el resultado de procesamiento de imágenes (respuesta simulada, sin procesar ficheros reales).

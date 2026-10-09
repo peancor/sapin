@@ -1,11 +1,11 @@
 import { studentActivityCanvasRead } from './handler';
 import { studentActivityCanvasReadManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const studentActivityCanvasReadPackage: BuiltinToolPackage = {
+export const studentActivityCanvasReadPackage = defineBuiltinToolPackage({
 	manifest: studentActivityCanvasReadManifest,
 	handler: studentActivityCanvasRead
-};
+});
 
 export { studentActivityCanvasRead } from './handler';
 export { studentActivityCanvasReadManifest } from './manifest';

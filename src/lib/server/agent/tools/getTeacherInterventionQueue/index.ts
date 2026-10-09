@@ -1,8 +1,8 @@
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 import { getTeacherInterventionQueue } from './handler';
 import { getTeacherInterventionQueueManifest } from './manifest';
 
-export const getTeacherInterventionQueuePackage: BuiltinToolPackage = {
+export const getTeacherInterventionQueuePackage = defineBuiltinToolPackage({
 	manifest: getTeacherInterventionQueueManifest,
 	handler: getTeacherInterventionQueue
-};
+});

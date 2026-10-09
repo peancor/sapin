@@ -1,8 +1,8 @@
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 import { getRubricCoverageGaps } from './handler';
 import { getRubricCoverageGapsManifest } from './manifest';
 
-export const getRubricCoverageGapsPackage: BuiltinToolPackage = {
+export const getRubricCoverageGapsPackage = defineBuiltinToolPackage({
 	manifest: getRubricCoverageGapsManifest,
 	handler: getRubricCoverageGaps
-};
+});

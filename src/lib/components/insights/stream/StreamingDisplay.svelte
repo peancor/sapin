@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { Card } from 'flowbite-svelte';
 	import { marked } from 'marked';
 	import { streamingPhases } from '$lib/stores/insights';
@@ -157,7 +158,7 @@
 					<div
 						class="prose dark:prose-invert prose-sm max-h-[calc(100vh-320px)] max-w-none overflow-y-auto pr-2"
 					>
-						{@html marked.parse(content)}
+						<SafeHtml html={marked.parse(content, { async: false })} />
 					</div>
 				{:else}
 					<div class="flex flex-col items-center justify-center py-16 text-center">

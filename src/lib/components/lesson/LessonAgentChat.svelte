@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { renderMarkdownMath } from '$lib/utils';
 	import type { LessonAgentConfig } from '$lib/types/lesson';
@@ -358,8 +359,7 @@
 						: 'mr-10 bg-white text-gray-900 dark:bg-gray-800 dark:text-white'}"
 				>
 					<div class="prose dark:prose-invert max-w-none">
-						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-						{@html renderMarkdownMath(message.content)}
+						<SafeHtml html={renderMarkdownMath(message.content)} />
 					</div>
 				</div>
 			{/each}

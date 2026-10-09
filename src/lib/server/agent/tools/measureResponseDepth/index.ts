@@ -1,8 +1,8 @@
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 import { measureResponseDepth } from './handler';
 import { measureResponseDepthManifest } from './manifest';
 
-export const measureResponseDepthPackage: BuiltinToolPackage = {
+export const measureResponseDepthPackage = defineBuiltinToolPackage({
 	manifest: measureResponseDepthManifest,
 	handler: measureResponseDepth
-};
+});

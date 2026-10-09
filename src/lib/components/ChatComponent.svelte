@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import 'katex/dist/katex.min.css';
 	import { AlertTriangle, ChevronsUp, KeyRound } from 'lucide-svelte';
@@ -427,9 +428,9 @@
 							{:else}
 								<div class="prose dark:prose-invert max-w-none">
 									{#if message.type === 'user'}
-										{@html processContent(message.content.replace(/\n/g, '<br>'))}
+										<SafeHtml html={processContent(message.content.replace(/\n/g, '<br>'))} />
 									{:else}
-										{@html processContent(message.content)}
+										<SafeHtml html={processContent(message.content)} />
 									{/if}
 								</div>
 							{/if}

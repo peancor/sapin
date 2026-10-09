@@ -1,8 +1,8 @@
 import { draftRemediationPlan } from './handler';
 import { draftRemediationPlanManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const draftRemediationPlanPackage: BuiltinToolPackage = {
+export const draftRemediationPlanPackage = defineBuiltinToolPackage({
 	manifest: draftRemediationPlanManifest,
 	handler: draftRemediationPlan
-};
+});

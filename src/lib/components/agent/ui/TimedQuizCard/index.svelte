@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import 'katex/dist/katex.min.css';
 	import { renderMarkdownMath } from '$lib/utils';
@@ -578,7 +579,7 @@
 				<p class="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
 					{safeCurrentIndex + 1}.
 					<span class="[&_.katex-display]:m-0 [&_.katex-display]:inline [&_p]:inline">
-						{@html renderInline(currentQuestion.question)}
+						<SafeHtml html={renderInline(currentQuestion.question)} />
 					</span>
 				</p>
 
@@ -593,7 +594,7 @@
 							disabled={isAdvancing || isSubmitting || feedbackState !== null}
 						>
 							<span class="mr-2 font-semibold">{String.fromCharCode(65 + optionIndex)}.</span>
-							<span class="[&_p]:inline">{@html renderInline(option)}</span>
+							<span class="[&_p]:inline"><SafeHtml html={renderInline(option)} /></span>
 						</button>
 					{/each}
 				</div>
@@ -665,7 +666,7 @@
 							<p class="font-semibold text-slate-800 dark:text-slate-100">
 								{i + 1}.
 								<span class="[&_.katex-display]:m-0 [&_.katex-display]:inline [&_p]:inline">
-									{@html renderInline(question.question)}
+									<SafeHtml html={renderInline(question.question)} />
 								</span>
 							</p>
 							{#if result.timedOut}
@@ -696,7 +697,7 @@
 									{#if result.selectedIndex >= 0}
 										{String.fromCharCode(65 + result.selectedIndex)}.
 										<span class="[&_.katex-display]:m-0 [&_.katex-display]:inline [&_p]:inline">
-											{@html renderInline(question.options[result.selectedIndex] ?? '')}
+											<SafeHtml html={renderInline(question.options[result.selectedIndex] ?? '')} />
 										</span>
 									{:else}
 										Sin respuesta
@@ -708,7 +709,7 @@
 								<span class="font-medium text-slate-800 dark:text-slate-100">
 									{String.fromCharCode(65 + result.correctIndex)}.
 									<span class="[&_.katex-display]:m-0 [&_.katex-display]:inline [&_p]:inline">
-										{@html renderInline(question.options[result.correctIndex] ?? '')}
+										<SafeHtml html={renderInline(question.options[result.correctIndex] ?? '')} />
 									</span>
 								</span>
 							</p>
@@ -716,7 +717,7 @@
 								<div
 									class="rounded-lg bg-slate-50 px-2.5 py-2 text-[11px] text-slate-600 dark:bg-slate-900/50 dark:text-slate-300 [&_p]:m-0"
 								>
-									{@html renderBlock(question.explanation)}
+									<SafeHtml html={renderBlock(question.explanation)} />
 								</div>
 							{/if}
 						</div>

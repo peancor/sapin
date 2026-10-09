@@ -1,8 +1,8 @@
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 import { recommendGroupInterventions } from './handler';
 import { recommendGroupInterventionsManifest } from './manifest';
 
-export const recommendGroupInterventionsPackage: BuiltinToolPackage = {
+export const recommendGroupInterventionsPackage = defineBuiltinToolPackage({
 	manifest: recommendGroupInterventionsManifest,
 	handler: recommendGroupInterventions
-};
+});

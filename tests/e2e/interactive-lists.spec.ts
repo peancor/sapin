@@ -47,6 +47,41 @@ const questions = [
 	{ question: 'Pregunta repetida', options: ['Igual', 'Igual'], correctIndex: 0 }
 ];
 
+test('quiz HTML keeps formatting and formulas while blocking executable content', async ({
+	page
+}) => {
+	const attack = `<img src="/missing-test-image" onerror="document.body.dataset.xss='executed'"><a href="javascript:document.body.dataset.xss='executed'">unsafe-link</a>`;
+	const { errors } = await openComponents(page, [
+		{
+			instanceId: 'safe-quiz',
+			componentKey: 'QuizCard',
+			props: {
+				title: 'HTML de prueba',
+				questions: [
+					{
+						question: `**Formato conservado** $x^2$ ${attack}`,
+						options: ['Respuesta', 'Otra'],
+						correctIndex: 0,
+						explanation: `**Explicación conservada** ${attack}`
+					}
+				]
+			}
+		}
+	]);
+	const quiz = page
+		.locator('div.my-2')
+		.filter({ has: page.getByText('HTML de prueba', { exact: true }) });
+	await expect(quiz.locator('strong').filter({ hasText: 'Formato conservado' })).toBeVisible();
+	await expect(quiz.locator('.katex')).toHaveCount(1);
+	await expect(quiz.locator('[onerror], a[href^="javascript:"]')).toHaveCount(0);
+	await quiz.getByRole('button', { name: 'A. Respuesta', exact: true }).click();
+	await quiz.getByRole('button', { name: 'Enviar respuestas' }).click();
+	await expect(quiz.locator('strong').filter({ hasText: 'Explicación conservada' })).toBeVisible();
+	await expect(quiz.locator('[onerror], a[href^="javascript:"]')).toHaveCount(0);
+	await expect(page.locator('body')).not.toHaveAttribute('data-xss', 'executed');
+	expect(errors).toEqual([]);
+});
+
 test('quizzes distinguish repeated text and keep separate answers for each instance', async ({
 	page
 }) => {

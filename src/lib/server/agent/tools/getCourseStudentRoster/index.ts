@@ -1,11 +1,11 @@
 import { getCourseStudentRoster } from './handler';
 import { getCourseStudentRosterManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const getCourseStudentRosterPackage: BuiltinToolPackage = {
+export const getCourseStudentRosterPackage = defineBuiltinToolPackage({
 	manifest: getCourseStudentRosterManifest,
 	handler: getCourseStudentRoster
-};
+});
 
 export { getCourseStudentRoster } from './handler';
 export { getCourseStudentRosterManifest } from './manifest';

@@ -703,8 +703,8 @@
 				class="flex items-center justify-between border-t border-gray-200 px-5 py-4 dark:border-gray-700"
 			>
 				<p class="text-sm text-gray-500 dark:text-gray-400">
-					Mostrando {(data.pagination.page - 1) * data.pagination.limit + 1} a{' '}
-					{Math.min(data.pagination.page * data.pagination.limit, data.pagination.total)} de{' '}
+					Mostrando {(data.pagination.page - 1) * data.pagination.limit + 1} a
+					{Math.min(data.pagination.page * data.pagination.limit, data.pagination.total)} de
 					{data.pagination.total} archivos
 				</p>
 				<div class="flex gap-2">

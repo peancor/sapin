@@ -1,11 +1,11 @@
 import { getStudentProgress } from './handler';
 import { getStudentProgressManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const getStudentProgressPackage: BuiltinToolPackage = {
+export const getStudentProgressPackage = defineBuiltinToolPackage({
 	manifest: getStudentProgressManifest,
 	handler: getStudentProgress
-};
+});
 
 export { getStudentProgress } from './handler';
 export { getStudentProgressManifest } from './manifest';

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { onDestroy } from 'svelte';
 	import 'katex/dist/katex.min.css';
 	import { renderMarkdownMath } from '$lib/utils';
@@ -476,7 +477,7 @@
 				</p>
 				<div class="mt-4 text-3xl leading-tight font-black sm:text-5xl">
 					<span class="[&_.katex-display]:m-0 [&_.katex-display]:inline [&_p]:inline">
-						{@html renderInline(currentQuestion.question)}
+						<SafeHtml html={renderInline(currentQuestion.question)} />
 					</span>
 				</div>
 
@@ -492,7 +493,7 @@
 						>
 							<div class="flex gap-4">
 								<span class="text-cyan-200">{String.fromCharCode(65 + optionIndex)}.</span>
-								<span class="[&_p]:inline">{@html renderInline(option)}</span>
+								<span class="[&_p]:inline"><SafeHtml html={renderInline(option)} /></span>
 							</div>
 						</button>
 					{/each}
@@ -576,7 +577,7 @@
 							<p class="text-lg font-semibold text-white">
 								{index + 1}.
 								<span class="[&_.katex-display]:m-0 [&_.katex-display]:inline [&_p]:inline"
-									>{@html renderInline(question.question)}</span
+									><SafeHtml html={renderInline(question.question)} /></span
 								>
 							</p>
 
@@ -601,7 +602,9 @@
 									{#if result.selectedIndex >= 0}
 										{String.fromCharCode(65 + result.selectedIndex)}.
 										<span class="[&_p]:inline"
-											>{@html renderInline(question.options[result.selectedIndex] ?? '')}</span
+											><SafeHtml
+												html={renderInline(question.options[result.selectedIndex] ?? '')}
+											/></span
 										>
 									{:else}
 										Sin respuesta
@@ -616,7 +619,9 @@
 								<p class="mt-2 text-base text-slate-100">
 									{String.fromCharCode(65 + result.correctIndex)}.
 									<span class="[&_p]:inline"
-										>{@html renderInline(question.options[result.correctIndex] ?? '')}</span
+										><SafeHtml
+											html={renderInline(question.options[result.correctIndex] ?? '')}
+										/></span
 									>
 								</p>
 							</div>
@@ -626,7 +631,7 @@
 							<div
 								class="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200 [&_p]:m-0"
 							>
-								{@html renderBlock(question.explanation)}
+								<SafeHtml html={renderBlock(question.explanation)} />
 							</div>
 						{/if}
 					</div>

@@ -1,8 +1,8 @@
 import { clusterInteractionPatterns } from './handler';
 import { clusterInteractionPatternsManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const clusterInteractionPatternsPackage: BuiltinToolPackage = {
+export const clusterInteractionPatternsPackage = defineBuiltinToolPackage({
 	manifest: clusterInteractionPatternsManifest,
 	handler: clusterInteractionPatterns
-};
+});

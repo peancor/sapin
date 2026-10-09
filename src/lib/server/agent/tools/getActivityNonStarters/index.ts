@@ -1,8 +1,8 @@
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 import { getActivityNonStarters } from './handler';
 import { getActivityNonStartersManifest } from './manifest';
 
-export const getActivityNonStartersPackage: BuiltinToolPackage = {
+export const getActivityNonStartersPackage = defineBuiltinToolPackage({
 	manifest: getActivityNonStartersManifest,
 	handler: getActivityNonStarters
-};
+});

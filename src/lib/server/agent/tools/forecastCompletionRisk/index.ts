@@ -1,8 +1,8 @@
 import { forecastCompletionRisk } from './handler';
 import { forecastCompletionRiskManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const forecastCompletionRiskPackage: BuiltinToolPackage = {
+export const forecastCompletionRiskPackage = defineBuiltinToolPackage({
 	manifest: forecastCompletionRiskManifest,
 	handler: forecastCompletionRisk
-};
+});

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { Modal, Button, Badge } from 'flowbite-svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
@@ -856,7 +857,7 @@
 						class="max-h-96 overflow-y-auto rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
 					>
 						<div class="prose prose-sm dark:prose-invert max-w-none">
-							{@html generatedPrompt}
+							<SafeHtml html={generatedPrompt} />
 						</div>
 					</div>
 

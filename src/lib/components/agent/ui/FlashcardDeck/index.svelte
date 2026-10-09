@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import 'katex/dist/katex.min.css';
 	import { renderMarkdownMath } from '$lib/utils';
 
@@ -155,7 +156,7 @@
 				<div
 					class="prose prose-sm dark:prose-invert max-w-none text-sm text-gray-900 dark:text-white [&_p]:m-0"
 				>
-					{@html renderCardContent(isFlipped ? currentCard.back : currentCard.front)}
+					<SafeHtml html={renderCardContent(isFlipped ? currentCard.back : currentCard.front)} />
 				</div>
 				<p class="mt-2 text-right text-xs text-gray-400">
 					{isFlipped ? 'Clic para ver la pregunta' : 'Clic para ver la respuesta'}

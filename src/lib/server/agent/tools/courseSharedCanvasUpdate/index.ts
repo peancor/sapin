@@ -1,11 +1,11 @@
 import { courseSharedCanvasUpdate } from './handler';
 import { courseSharedCanvasUpdateManifest } from './manifest';
-import type { BuiltinToolPackage } from '../types';
+import { defineBuiltinToolPackage } from '../defineBuiltinToolPackage';
 
-export const courseSharedCanvasUpdatePackage: BuiltinToolPackage = {
+export const courseSharedCanvasUpdatePackage = defineBuiltinToolPackage({
 	manifest: courseSharedCanvasUpdateManifest,
 	handler: courseSharedCanvasUpdate
-};
+});
 
 export { courseSharedCanvasUpdate } from './handler';
 export { courseSharedCanvasUpdateManifest } from './manifest';
