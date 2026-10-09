@@ -1,746 +1,161 @@
 # AGENTS.md
 
-> Auditado contra el código fuente el `2026-04-20`.
-> Documento canónico para agentes y colaboradores. Si algo aquí contradice `README.md` u otra documentación antigua, prevalece `AGENTS.md` y después el código.
+Guía de trabajo para agentes y colaboradores de Sapin. Define las reglas del proyecto;
+el código y la configuración describen su comportamiento real. Si hay discrepancias,
+compruébalas y corrige la documentación; no adaptes el código a una descripción obsoleta.
 
-## Regla de mantenimiento
+## 1. Contexto
 
-- Actualiza este archivo cuando cambien `package.json`, el esquema Drizzle, auth/roles, rutas principales, variables de entorno o subsistemas importantes.
-- `CLAUDE.md` debe limitarse a apuntar aquí para evitar duplicidades.
-- Si una afirmación no se puede verificar en el código actual, no la añadas.
+Sapin es una plataforma educativa para cursos con chats, actividades agénticas y
+lecciones ramificadas. Incluye RAG, analítica, agentes docentes, memoria persistente,
+ficheros y notificaciones. Sus perfiles principales son administración, profesorado y alumnado.
 
-## Resumen
+- Aplicación: SvelteKit con adapter-node, Svelte y TypeScript.
+- Interfaz: Tailwind, Flowbite Svelte, TipTap y renderizado matemático con KaTeX.
+- Datos: SQLite con better-sqlite3 y Drizzle; Qdrant para recuperación vectorial.
+- IA: Vercel AI SDK; modelos, cuotas y trazabilidad gestionados por el backend.
+- Traducciones: Paraglide, con español como idioma base e inglés como secundario.
 
-**Sapin** es una plataforma EdTech full-stack sobre SvelteKit para cursos interactivos con IA. El producto actual incluye:
+Para los contratos entre subsistemas, consulta [Arquitectura](docs/architecture.md).
+Las versiones y comandos disponibles se consultan en [package.json](package.json).
 
-- actividades de chat
-- actividades agénticas con tools y UI estructurada
-- lecciones ramificadas
-- RAG con Qdrant
-- analítica clásica y analítica operativa/pedagógica
-- `insights-agent`
-- `staff-agent` con workspaces e hilos
-- memoria persistente para agentes
-- sistema propio de ficheros, notificaciones y auditoría
+## 2. Reglas esenciales
 
-Perfiles principales:
+### Permisos, datos y efectos externos
 
-- administración
-- profesorado y asistentes
-- estudiantes
-
-## Stack actual
-
-### Plataforma
-
-- `SvelteKit 2.70.3` con `@sveltejs/adapter-node`
-- `Svelte 5.57.2`
-- `TypeScript 5.9.3`
-- `Vite 7.3.7`
-- `Node.js >= 22.14.0`
-
-### UI y frontend
-
-- `Tailwind CSS 4.3.3`
-- `Flowbite Svelte 1.33.1`
-- `lucide-svelte`
-- `ECharts`
-- `TipTap 3.31.4` (todos los paquetes directos fijados a esa versión exacta)
-- `KaTeX`, `JSXGraph`, `TikzJax`
-- `@ai-sdk/svelte`
-- `isomorphic-dompurify 2.26.0`, fijado por compatibilidad con Node 22.14; el lockfile resuelve DOMPurify 3.4.16 y jsdom 26.1.0. `SafeHtml.svelte` limpia el HTML final de chats, informes, asistentes de edición y ejercicios, también en SSR; conserva Markdown y KaTeX. La única excepción local a `svelte/no-at-html-tags` de estos componentes está en esa frontera sanitizada.
-
-### Compatibilidad de dependencias
-
-- Se mantienen Node.js `>=22.14.0`, TypeScript `5.9.3`, SvelteKit 2, Vite 7 y AI SDK 6.
-- Docker sigue usando `node:22.14-alpine`; no se ha cambiado la versión de Node.
-- Los paquetes `@tiptap/*` deben actualizarse conjuntamente y conservar versiones exactas alineadas.
-- Qdrant JS se limita a `~1.18.0`: conserva `client.search`; 1.19.0 elimina esa API y fija undici 7.29.0, señalado por la auditoría de seguridad.
-- KaTeX permanece en la rama `0.16`, compatible con `marked-katex-extension`.
-- `package-lock.json` es la referencia reproducible; instalar con `npm ci`.
-
-### Datos e IA
-
-- `SQLite` + `better-sqlite3`
-- `Drizzle ORM` + `drizzle-kit` + `drizzle-zod`
-- Vercel AI SDK v6 (`ai`)
-- proveedores soportados: `openai`, `openrouter`, `anthropic`, `google`, `lmstudio`, `custom`
-- Qdrant para embeddings y RAG
-
-### Servicios auxiliares
-
-- `Inlang Paraglide JS`
-- `Cloudflare Turnstile`
-- `Nodemailer 10` (tipos incluidos) y `sharp 0.35` con correcciones de seguridad
-- `node-cron`
-- `Pino`
-- notificador opcional de Telegram
-
-## Configuración y entorno
-
-Variables importantes detectadas en `.env.example` y el código:
-
-- `DATABASE_URL`
-- `ORIGIN`
-- `MODERATE_PROMPTS`
-- `PUBLIC_TURNSTILE_SITE_KEY`
-- `TURNSTILE_SECRET_KEY`
-- `ENABLE_TELEGRAM_NOTIFICATIONS`
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_CHAT_ID`
-- `QDRANT_URL`
-- `QDRANT_API_KEY`
-- `EMBEDDINGS_OPENROUTER_API_KEY`
-- `FILES_STORAGE_PATH`
-- `FILES_TEMP_PATH`
-- `FILES_DELETED_PATH`
-- `OPENAI_MODERATION_API_KEY`
-
-Notas operativas:
-
-- El proyecto exige `DATABASE_URL`.
-- En local se espera `DATABASE_URL=local.db`.
-- `ORIGIN` se usa para URLs absolutas y cabeceras referer.
-- Las rutas de ficheros se resuelven relativas a `process.cwd()` si no son absolutas.
-
-## Scripts relevantes
-
-### Desarrollo
-
-- `npm run dev`
-- `npm run build`
-- `npm run preview`
-- `npm run check`
-- `npm run check:watch`
-- `npm test`
-- `npm run test:e2e` (Chromium, compilación y servidor Node con BD ficticia nueva)
-- `npm run test:integration:live` (opt-in: llamadas pequeñas de IA y embeddings; requiere `TEST_QDRANT_URL` local)
-- `npm run lint`
-- `npm run format`
+- Cada endpoint debe comprobar sesión, permisos y relación entre los recursos afectados.
+  Un layout protegido no sustituye la autorización de un `+server.ts`.
+- Reutiliza los helpers de autenticación, roles y BD; los roles de sistema y de curso
+  tienen escalas diferentes. No compares sus niveles como si fueran equivalentes.
+- Conserva la identidad de cada asignación de rol: `assignmentId` identifica la fila;
+  `userId` y `courseId` identifican los recursos. No deduzcas claves de textos visibles.
+- No uses la BD habitual, conversaciones reales ni ficheros del usuario como datos de prueba.
+  No expongas credenciales en código, documentación, logs o resultados de herramientas.
+- Las pruebas con proveedores reales, correo o servicios externos deben estar autorizadas.
+  No despliegues ni publiques cambios como consecuencia implícita de una validación local.
 
 ### Base de datos
 
-- `npm run db:push`
-- `npm run db:migrate`
-- `npm run db:generate`
-- `npm run db:studio`
-
-Regla para migraciones:
-
-- no escribir migraciones Drizzle a mano salvo instrucción explícita;
-- tras modificar el esquema Drizzle, generar la migración oficial con `npm run db:generate`;
-- conservar tanto el SQL generado en `drizzle/` como el snapshot correspondiente en `drizzle/meta/`.
-
-### Docker y utilidades
-
-- `npm run docker:build`
-- `npm run docker:up`
-- `npm run docker:down`
-- `npm run docker:restart`
-- `npm run docker:clean`
-- `npm run docker:logs`
-- `npm run docker:ps`
-- `npm run docker:secret`
-- `npm run docker:prod:up`
-- `npm run docker:prod:update`
-- `npm run docker:qdrant:debug:up`
-- `npm run docker:qdrant:debug:down`
-- `npm run machine-translate`
-- `npm run db:backfill-agent-ui-components`
-
-## Estructura del repositorio
-
-### Raíz
-
-- `src/`: aplicación principal
-- `drizzle/`: migraciones
-- `messages/`: traducciones
-- `docs/`: documentación complementaria
-- `scripts/`: scripts auxiliares
-- `uploads/`: almacenamiento local
-- `build/`: salida de producción
-
-### Documentación local útil
-
-- `docs/agent-upgrade-plan.md`
-- `docs/docker-production.md`
-- `README.md`
-
-### Scripts auxiliares detectados
-
-- `scripts/backfill-agent-ui-components.ts`
-- `scripts/legacy-interactive-learning-files-transfer.ts`
-- `scripts/migrate-course-table-upgrade.ts`
-- `scripts/prepare-tikzjax-browser-tex-files.mjs`
-- `scripts/seed-roles.ts`
-
-## Mapa de `src/`
-
-### Núcleo
-
-- `src/app.d.ts`: tipa `App.Locals` y Turnstile
-- `src/hooks.server.ts`: logging, auth y Paraglide
-- `src/routes/+layout.server.ts`: bootstrap redirect si no hay usuarios
-
-### Frontend compartido
-
-- `src/lib/components/`: `activity-debugger`, `agent`, `charts`, `insights`, `notifications`, `staff-agent`, `tikzjax`
-- `src/lib/stores/`: `analytics`, `breadcrumb`, `insights`, `navigation`, `response`, `theme`, `topbarNavigation`, `user`
-- `src/lib/helpers/`: `dateUtils.ts` y plantillas de system prompt
-- `src/lib/paraglide/`: generado; no editar a mano
-
-### Backend compartido
-
-- `src/lib/server/ai/`
-- `src/lib/server/agent/`
-- `src/lib/server/insights-agent/`
-- `src/lib/server/staff-agent/`
-- `src/lib/server/learning-evidence/`
-- `src/lib/server/db/`
-- `src/lib/server/files/`
-- `src/lib/server/qdrant/`
-- `src/lib/server/notifications/`
-- `src/lib/server/notifier/`
-- `src/lib/server/integrations/moodle/`
-- `src/lib/server/logging/`
-
-## Rutas principales
-
-### App
-
-`src/routes/(app)` contiene la mayor parte del producto:
-
-- `admin/`
-- `agent-chat/`
-- `course/`
-- `dashboard/`
-- `interactive-chat/`
-- `lesson/`
-- `notifications/`
-- `profile/`
-- `student/`
-- `teacher/`
-- `tutor/`
-- `(misc)/`
-- `login/`, `logout/`, `register/`
-
-Hay bootstrap en `/admin/bootstrap` y demos específicas como `demo-tikzjax`.
-
-### API
-
-`src/routes/api` agrupa endpoints de:
-
-- `admin`
-- `agent-chat`
-- `ai`
-- `analytics`
-- `course`
-- `courses`
-- `files`
-- `interactive`
-- `interactive-chat`
-- `invite`
-- `lesson`
-- `notifications`
-- `tutor`
-
-Además hay endpoints específicos para mantenimiento, Qdrant, playgrounds, importación Moodle, `staff-agent` e `insights-agent`.
-
-## Auth, sesión y bootstrap
-
-### Sesión
-
-- Cookie de sesión: `auth-session`
-- El token se hashea con `sha256` antes de persistirse
-- Duración: `30` días
-- Renovación automática cuando quedan `15` días o menos
-
-### Carga de `locals`
-
-`src/hooks.server.ts`:
-
-- lee la cookie
-- valida la sesión en BD
-- refresca o elimina la cookie
-- rellena `event.locals.user` y `event.locals.session`
-- aplica `paraglideMiddleware`
-
-### Bootstrap inicial
-
-`src/routes/+layout.server.ts`:
-
-- consulta si existe al menos un usuario
-- redirige a `/admin/bootstrap` cuando el sistema no está inicializado
-- exceptúa algunas rutas públicas como `/admin/bootstrap` y `/favicon.ico`
-
-## Roles y autorización
-
-### Roles de sistema
-
-Definidos en `src/lib/server/roles.ts`:
-
-- `SUPER_ADMIN = 100`
-- `ADMIN = 90`
-- `TEACHER = 50`
-- `ASSISTANT = 40`
-- `STUDENT = 10`
-
-`locals.user` incluye:
-
-- `roles`
-- `highestRole`
-- `highestRoleLevel`
-
-Los roles se cargan desde las tablas `role` y `user_role`, filtrando asignaciones activas y no expiradas.
-
-### Roles de curso
-
-- `CourseRoleUtils.getUserCourses` devuelve una fila por asignación activa, con `assignmentId` como identidad única y `courseId` como destino de navegación. Dashboard, estudiante y profesor conservan esa granularidad y usan la asignación como clave de lista; no deduplican cursos ni modifican permisos. Las pruebas E2E incluyen varios roles, un rol repetido y una asignación inactiva en un mismo curso.
-- `getCourseUsers` también expone `assignmentId`: las listas de docentes y estudiantes en administración de cursos lo usan como clave, conservando `userId` para las acciones sobre usuarios. Así admiten varias asignaciones activas de una misma persona sin colisiones al renderizar.
-
-`CourseRoleUtils.ts` define niveles propios:
-
-- `owner = 100`
-- `admin = 90`
-- `teacher = 70`
-- `assistant = 50`
-- `grader = 30`
-- `student = 10`
-
-También define permisos por defecto por rol para:
-
-- edición de curso
-- borrado
-- gestión de usuarios
-- creación de actividades
-- corrección
-- analítica
-- ejecución de actividades
-
-### Protección observada en layouts
-
-- `(app)/admin/+layout.server.ts`: requiere `highestRoleLevel >= 90`
-- `course/[cid]/admin/+layout.server.ts`: permite admin de sistema o rol de curso `>= assistant`
-- `course/[cid]/run/+layout.server.ts`: requiere usuario autenticado y algún rol activo en el curso
-
-Regla práctica:
-
-- aunque haya layouts protegidos, cada `+server.ts` debe validar auth y permisos dentro del handler
-
-## Cron jobs
-
-En `src/hooks.server.ts` se programan:
-
-- limpieza diaria de ficheros a las `03:00`
-- procesado de imágenes pendientes cada `15` minutos
-
-Servicios implicados:
-
-- `FileCleanupService`
-- `ImageProcessingQueue`
-
-## Base de datos y esquema
-
-El esquema Drizzle vive en `src/lib/server/db/schema/` y se reexporta desde `index.ts`.
-
-### Tablas principales por archivo
-
-| Archivo             | Tablas / grupos clave                                                                                                                                                                               |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `users.ts`          | `user`, `session`                                                                                                                                                                                   |
-| `roles.ts`          | `role`, `user_role`, `role_audit_log`                                                                                                                                                               |
-| `courses.ts`        | `course`, `invite`, `course_file`, `course_role`                                                                                                                                                    |
-| `chat.ts`           | `chat`, `message`                                                                                                                                                                                   |
-| `interactive.ts`    | `interactive_learning`, `course_interactive_learning`, `interactive_learning_chat`, `user_interactive_learning_chat`, `interactive_learning_file`, `interactive_learning_rag_document`              |
-| `lesson.ts`         | `interactive_learning_lesson`, `interactive_learning_lesson_revision`, `interactive_lesson_session`, `interactive_lesson_block_state`, `interactive_lesson_block_visit`, `interactive_lesson_event` |
-| `progress.ts`       | `learning_activity_progress`, `learning_progress_event`, `course_progress_summary`                                                                                                                  |
-| `files.ts`          | `file_storage`, `file_access_log`, `file_system_setting`                                                                                                                                            |
-| `notifications.ts`  | `notification`                                                                                                                                                                                      |
-| `audit.ts`          | `audit_log`                                                                                                                                                                                         |
-| `system.ts`         | `app_setting`                                                                                                                                                                                       |
-| `analytics.ts`      | `analytics_session`, `analytics_event`, `analytics_daily_stats`                                                                                                                                     |
-| `ai.ts`             | `ai_provider`, `ai_model`, `ai_request_capture_focus`, `ai_request_round`, `ai_usage_log`, `ai_quota`, `ai_usage_daily_stats`                                                                       |
-| `agent.ts`          | catálogo de tools/UI, `interactive_learning_agent`, `agent_activity_tool`, `agent_message`, `agent_message_attachment`, `agent_tool_call`, `agent_ui_instance`                                      |
-| `insightsAgent.ts`  | `interactive_learning_insights_agent`, `insights_agent_activity_tool`, `insights_agent_run`                                                                                                         |
-| `agentWorkspace.ts` | `agent_workspace`, `agent_workspace_tool`, `agent_thread`                                                                                                                                           |
-| `memory.ts`         | `agent_memory_canvas`, revisiones y eventos de sincronización                                                                                                                                       |
-
-### Helpers DB importantes
-
-En `src/lib/server/db/` ya existen utilidades reutilizables:
-
-- `DBUserUtils`
-- `DBCourseUtils`
-- `DBChatUtils`
-- `DBAgentUtils`
-- `LoginUtils`
-- `RoleUtils`
-- `CourseRoleUtils`
-- `InteractiveChatAuthUtils`
-- `CourseInteractiveAuthUtils`
-- `InvitationUtils`
-- `LearningAnalyticsUtils`
-- `ProgressUtils`
-- `ProgressWriteUtils`
-- `ProgressRebuildUtils`
-
-## Subsistema de IA
-
-### Resolver y modelos
-
-- `ModelResolver` obtiene modelos activos desde BD
-- si la BD no devuelve nada, usa fallback hardcoded
-- el modelo por defecto también se resuelve desde BD con fallback
-- las API keys de proveedor viven en `ai_provider`
-
-### `AIUtils`
-
-`src/lib/server/ai/AIUtils.ts` centraliza:
-
-- listado y resolución de modelos
-- comprobación de cuota
-- logging de uso
-- streaming y generación de texto
-- recuperación y guardado de mensajes
-- construcción de system prompt
-- obtención de contexto RAG
-- notificación al cerrar chats
-
-### Cuotas y trazabilidad
-
-El sistema ya soporta:
-
-- cuotas globales, por usuario, curso o actividad
-- costes y tokens por modelo
-- captura detallada de rondas IA (`ai_request_round`)
-- foco de captura para actividad o sesión (`ai_request_capture_focus`)
-
-### Imagen y RAG
-
-- `AIImageUtils.ts` genera imagen vía OpenRouter
-- `RagService.ts` genera embeddings, consulta Qdrant, fusiona chunks y construye contexto acotado
-- las actividades soportan `ragEnabled`, `ragCollectionName` y `ragConfig`
-
-## Agentes, tools y UI estructurada
-
-### Motor agéntico
-
-El proyecto usa `ToolLoopAgent` del AI SDK v6 en:
-
-- `StaffAgentEngine`
-- `InsightsAgentEngine`
-
-Piezas principales del subsistema:
-
-- `ToolManager`
-- `ToolExecutor`
-- `AgentStreamProcessor`
-- `AgentPromptBuilder`
-- `AgentFinalizationService`
-- `AgentUIRendererService`
-- `AgentTranscriptService`
-- `AgentSessionAnalyticsService`
-
-### Herramientas del agente
-
-Los paquetes con handler se registran mediante `defineBuiltinToolPackage`: conservan el tipo de argumentos del handler y validan la entrada con el mismo conversor JSON Schema–Zod que `ToolManager`, extraído a `toolParameterSchema.ts`. Los parámetros inválidos se rechazan antes de ejecutar el handler; se mantienen el contexto de permisos y el identificador de llamada.
-
-Bajo `src/lib/server/agent/tools/` hay tools para:
-
-- búsqueda de contenido
-- evaluación y rúbricas
-- analítica operativa
-- redacción de feedback/intervenciones
-- notificaciones
-- renderizado de quizzes, flashcards, diagramas SVG/TikzJax y tests cognitivos
-- lectura/escritura de canvases de memoria
-
-### HITL y respuestas UI
-
-El flujo ya contempla:
-
-- herramientas con `requiresConfirmation`
-- estado `awaiting_confirmation`
-- espera de respuesta UI
-- persistencia de `agent_tool_call`
-- persistencia de `agent_ui_instance`
-
-### Adjuntos de imagen en actividades agénticas
-
-El chat de actividades agénticas estándar soporta adjuntos de imagen de fase 1:
-
-- se limita a `/agent-chat/[ilid]/c/[cid]`
-- los adjuntos se suben antes del envío SSE y se enlazan después a `agent_message`
-- solo se conservan imágenes WebP sanitizadas, sin metadatos originales, en `file_storage` con `category=chat`
-- `agent_message_attachment` registra estado, tamaño, dimensiones, MIME, propietario y vínculo con mensaje
-- el agente solo recibe imágenes cuando el modelo declara capacidad `vision` o `image` en `ai_model.capabilities`
-
-### Variantes actuales
-
-- `interactive_learning_agent`: actividad agéntica dentro de cursos
-- `interactive_learning_insights_agent`: agente analítico por actividad
-- `agent_workspace` + `agent_thread`: workspaces e hilos del `staff-agent`
-
-## Memoria agéntica
-
-Existe memoria persistente/canvas en:
-
-- `agent_memory_canvas`
-- `agent_memory_canvas_revision`
-- `agent_memory_canvas_sync_event`
-
-Servicios relacionados:
-
-- `src/lib/server/agent/memory/AgentMemoryService.ts`
-- `CanvasScopeRegistry.ts`
-- `MemoryScopeResolver.ts`
-
-## Actividades y lecciones
-
-`interactive_learning` es la entidad base de actividad. Hoy el producto soporta claramente:
-
-- chat
-- actividad agéntica
-- lección
-
-### Exportación e importación
-
-- las lecciones se exportan como paquetes `.sapinlesson.zip` mediante `LessonPackageService`
-- las actividades `chat` y `agent` se exportan como paquetes `.sapinactivity.zip` mediante `ActivityPackageService`
-- los paquetes de `chat`/`agent` incluyen recursos compartidos y documentos RAG fuente; al importarlos se crean nuevos registros `file_storage` ligados a la nueva actividad
-- los documentos RAG importados quedan en estado `pending`, con `ragEnabled = false` y sin reutilizar `ragCollectionName`, hasta que el profesorado los reindexe
-
-El subsistema de lecciones soporta:
-
-- revisiones versionadas de definición (`draft` / `published`)
-- sesiones ligadas a una revisión concreta de la lesson
-- política de sesión (`resume_latest` / `always_new_attempt`)
-- reintentos
-- estado por bloque
-- visitas por bloque
-- eventos de sesión
-- chats asociados a bloques
-- bloques guiados de YouTube con progreso, puntos de pausa y finalización persistida
-- preview aislado de revisión publicada y de borrador
-
-Detalles operativos importantes:
-
-- el editor trabaja sobre la revisión `draft`
-- publicar actualiza la revisión `published` y mantiene `interactiveLearning.content` como copia compatible
-- las sesiones de alumnado usan `scope = learner`
-- los previews usan scopes separados (`preview_published` / `preview_draft`) para no contaminar progreso, review ni analítica
-- el runtime y la review resuelven la definición desde `interactive_lesson_session.definitionRevisionId`
-- las sesiones legacy sin `definitionRevisionId` ya no se reutilizan ni aparecen en la review
-- los bloques `youtube` usan la YouTube IFrame Player API en cliente; el avance se desbloquea solo cuando el endpoint de progreso marca el bloque como completado
-
-Rutas y APIs relacionadas viven en:
-
-- `src/routes/(app)/course/[cid]/run/lesson/...`
-- `src/routes/(app)/lesson/[ilid]/...`
-- `src/routes/(app)/course/[cid]/lesson-studio/[ilid]/...`
-- `src/routes/api/lesson/...`
-- `src/routes/(app)/course/[cid]/admin/interactives/[ilid]/lesson-review/...`
-
-## Ficheros, imágenes y Qdrant
-
-### Almacenamiento
-
-`FileStorageService` implementa:
-
-- validación por categoría
-- hash SHA-256
-- deduplicación
-- sharding por hash en disco
-- estadísticas de acceso
-- visibilidad `public` / `private` / `restricted`
-
-Categorías observadas:
-
-- `avatar`
-- `course`
-- `chat`
-- `lesson`
-- `rag_document`
-- `public`
-
-### Procesado
-
-- las imágenes procesables se envían a `ImageProcessor`
-- el estado de procesado se persiste en BD
-- existe cola periódica de procesado y limpieza
-
-### Qdrant
-
-`src/lib/server/qdrant/` contiene:
-
-- cliente singleton
-- comprobación de conexión
-- gestión de colecciones
-- inserción y búsqueda de puntos
-- pipeline de documentos y embeddings
-
-## Notificaciones y auditoría
-
-### Notificaciones
-
-Hay dos capas:
-
-- `NotificationService`: notificaciones in-app y email
-- `notifier`: Telegram o `VoidNotifier` para avisos rápidos de algunos flujos IA
-
-La configuración de notificaciones se guarda en `app_setting`.
-
-### Auditoría
-
-`AuditService`:
-
-- persiste en `audit_log`
-- cachea configuración desde `app_setting`
-- soporta categorías y retención
-- registra eventos relevantes del sistema
-
-## Analítica y learning evidence
-
-### Analítica clásica
-
-`analytics.ts` define:
-
-- sesiones
-- eventos
-- estadísticas diarias
-
-### Learning evidence / operativa
-
-`src/lib/server/learning-evidence/` incluye:
-
-- `LearningEvidenceService`
-- `ActivityAnalyticsService`
-- `ActivityMicroAnalyticsService`
-- `AdvancedInsightsService`
-- `PedagogicalDiagnosticsService`
-- `PedagogicalSupportService`
-- `TeacherActionQueueService`
-- `SafeActuationService`
-- `operationalAnalytics.ts`
-
-## Integraciones externas
-
-### Moodle
-
-`src/lib/server/integrations/moodle/MoodleClient.ts`:
-
-- llama a `core_enrol_get_enrolled_users`
-- filtra alumnos por rol
-- se usa en flujos de importación/preview/confirm
-
-### MCP local
-
-`mcp.json` declara:
-
-- servidor HTTP de Svelte MCP
-- servidor local de Flowbite Svelte
-
-## i18n y build
-
-### i18n
-
-- locale base: `es`
-- locale secundaria: `en`
-- Paraglide se configura en `vite.config.ts`
-- estrategia: `url`, `cookie`, `baseLocale`
-- `src/lib/paraglide/` es generado
-
-### Build
-
-- `svelte.config.js` usa `adapter-node`
-- `vite.config.ts` prepara assets de TikzJax antes de exportar la config
-- `postbuild` copia `myserver.js` dentro de `build/` con `scripts/copy-server.mjs`, sin dependencias de globbing
-- `drizzle.config.ts` apunta a `src/lib/server/db/schema/index.ts`
-
-## Convenciones prácticas
-
-- componentes Svelte en `PascalCase.svelte`
-- utilidades de servidor agrupadas en `src/lib/server/...`
-- esquema Drizzle centralizado en `src/lib/server/db/schema/`
-- auth y permisos siempre explícitos en endpoints
-- reutilizar helpers DB antes que duplicar consultas en rutas
-- en flujos IA, comprobar cuota y registrar uso antes de asumir éxito
-
-## Estado actual de testing
-
-- La sanitización HTML tiene pruebas de scripts, eventos, URLs ejecutables y conservación de Markdown/KaTeX. Playwright verifica también HTML malicioso dentro de un quiz y su explicación. El registro de herramientas prueba el rechazo de parámetros inválidos antes de invocar el handler y la ejecución válida de la calculadora.
-- Las pruebas de navegador cubren la edición del código de invitación tras un error de registro y la apertura, cierre con Escape y reapertura del menú de curso en móvil.
-
-- El exportador DOCX tiene pruebas de Markdown y tablas legacy. La suite de navegador comprueba también la descarga WebP de adjuntos y el contador de fallidos en el resultado de procesamiento de imágenes (respuesta simulada, sin procesar ficheros reales).
-
-- Las listas de analítica conservan claves del grupo SQL antes de normalizar textos; las sesiones agénticas usan el identificador de asociación. Las pruebas E2E cubren grupos con rutas/títulos visualmente iguales y opciones repetidas en quizzes normales e inmersivos.
-
-- Playwright vive en `tests/e2e/` y `playwright.config.ts`. Instalar el navegador con `npx playwright install chromium`.
-- `magicians.spec.ts` recorre los asistentes de instrucciones y roles: cambio y conservación de selecciones entre pasos, límite y deselección de rasgos, aplicación, guardado y recarga. Los catálogos locales usan sus IDs como claves; los pasos y textos de sublistas tienen valores únicos dentro de cada lista.
-- `interactive-lists.spec.ts` comprueba preguntas/opciones repetidas, respuestas independientes entre instancias, avance del quiz temporizado y navegación de tarjetas idénticas. Simula SSE y recepción de respuestas, sin probar persistencia del servidor. Estos componentes mantienen la identidad por instancia y posición, coherente con sus respuestas indexadas; los textos no son identificadores únicos.
-- `scripts/e2e-server.mjs` genera una BD nueva con las migraciones oficiales en `output/e2e/run-*`, compila en modo test y ejecuta `build/index.js` en `127.0.0.1:4187`. No reutiliza servidores ni la BD habitual; anula credenciales externas y separa ficheros. No ejecutar simultáneamente con Vite o un build en el mismo checkout.
-- La suite cubre login, persistencia de formato TipTap, navegación de lecciones, subida de imágenes y autorización/rechazo HITL. Los eventos SSE y la respuesta de confirmación HITL se simulan: no prueban por sí solos la ejecución del endpoint de confirmación.
-- Una prueba adicional llama al endpoint real de confirmación con la calculadora builtin: verifica ejecución, rechazo, repetición y rechazo de tool calls pertenecientes a otra conversación. El handler comprueba el chat del mensaje asociado antes de modificar la llamada.
-- `tests/e2e/navigation.spec.ts` comprueba enlaces de acceso/registro y pie de página, navegación del alumno al curso y al chat agéntico, conservación de filtros de notificaciones al recargar y volver atrás, y enlaces de administración con identificadores y parámetros de consulta.
-- `scripts/e2e-seed.ts` asigna roles de sistema de profesor/alumno a los usuarios ficticios matriculados y crea un administrador independiente. Así se prueban las pantallas protegidas sin alterar la autorización de la aplicación.
-- La navegación de invitaciones enlaza con `/dashboard` y la vista administrativa del curso. Se retiró `CourseMenu`, que no se renderizaba. Los enlaces RAG resuelven solo los endpoints canónicos `/api/files/...`; las URL externas y los recursos heredados conservan su dirección y se abren como documentos, fuera del router. `ragDocumentLink.test.ts` y las pruebas de navegador cubren esa distinción y las migas de navegación.
-- El servidor E2E simula Qdrant en un puerto local efímero: responde solo a las consultas de versión y listado vacío de colecciones para mostrar la biblioteca. No prueba indexación ni recuperación RAG reales; esas comprobaciones pertenecen a `test:integration:live`.
-- `scripts/integration-smoke.ts` lee solo la configuración de proveedor/modelo en la BD local; utiliza contenido ficticio para streaming, visión y una tool sin efectos secundarios. Comprueba embeddings reales y búsqueda Qdrant en una colección única que elimina al finalizar. Requiere `--live` y `TEST_QDRANT_URL` con host local; consume una pequeña cantidad de tokens. No envía correos ni modifica conversaciones reales.
-- Los informes y trazas de prueba quedan en `output/` (ignorado por Git). La comprobación del correo usa un transporte en memoria, sin entrega externa.
-
-### Auditoría de dependencias (2026-10-08)
-
-- Tras actualizar Sharp y Nodemailer y retirar `cpy-cli` y `vite-plugin-static-copy`: cero avisos críticos o altos; quedan 10 moderados y 4 bajos según `npm audit` en esa fecha.
-- Desarrollo/build: Drizzle Kit arrastra esbuild antiguo; Typography arrastra PostCSS selector parser. No exponer servidores de herramientas de desarrollo. Evitar los downgrades que propone automáticamente `npm audit fix --force`.
-- Runtime pendiente: `csv-parse` requiere evaluar la migración a v7; Mammoth arrastra argparse/sprintf-js; KaTeX mantiene la rama compatible con `marked-katex-extension`; el aviso bajo de cookie llega por Kit/adapter. Revisar esas migraciones por separado, conservando Node y sus restricciones de compatibilidad.
-- Prettier excluye explícitamente `src/lib/paraglide/`, generado en cada build. ESLint conserva sus reglas: los avisos heredados no se silencian para declarar un resultado limpio.
-
-Hay un `npm test` oficial que ejecuta los tests `node:test` con un loader local para resolver alias SvelteKit como `$lib`.
-Existen tests propios con `node:test`, por ejemplo:
-
-- `src/lib/math/expressionScope.test.ts`
-- `src/lib/server/agent/tools/operationalTools.manifest.test.ts`
-- `src/lib/server/learning-evidence/operationalAnalytics.test.ts`
-
-Conclusión práctica:
-
-- la verificación mínima hoy es `npm test` + `npm run check` + `npm run lint`
-
-## Ficheros generados o derivados
-
-No editar a mano salvo que el flujo lo requiera explícitamente:
-
-- `src/lib/paraglide/`
-- `build/`
-- `.svelte-kit/`
-- `node_modules/`
-
-## Qué mirar primero según el cambio
-
-- auth / sesión / bootstrap: `src/hooks.server.ts`, `src/lib/server/auth.ts`, `src/routes/+layout.server.ts`
-- roles y permisos: `src/lib/server/roles.ts`, `src/lib/server/db/RoleUtils.ts`, `src/lib/server/db/CourseRoleUtils.ts`
-- modelos IA y cuotas: `src/lib/server/ai/AIUtils.ts`, `src/lib/server/ai/services/ModelResolver.ts`, `UsageTracker.ts`
-- actividades agénticas: `src/lib/server/agent/`, `src/lib/server/db/schema/agent.ts`
-- insights agent: `src/lib/server/insights-agent/`, `src/lib/server/db/schema/insightsAgent.ts`
-- staff agent: `src/lib/server/staff-agent/`, `src/lib/server/db/schema/agentWorkspace.ts`
-- lecciones: `src/lib/server/db/schema/lesson.ts`, `src/lib/server/lesson/LessonService.ts`, `src/lib/server/lesson/LessonRevisionService.ts`, rutas `lesson`
-- revisión pedagógica de lessons: `src/lib/server/lesson/LessonReviewService.ts`, rutas `lesson-review`
-- ficheros y RAG: `src/lib/server/files/`, `src/lib/server/qdrant/`, `src/lib/server/ai/services/RagService.ts`
-- notificaciones: `src/lib/server/notifications/`, `src/lib/server/notifier/`
-- analítica pedagógica: `src/lib/server/learning-evidence/`
-
-## Radar de dudas durante la clase
-
-- Subsistema: `src/lib/server/radar/`; contratos compartidos en `src/lib/types/radar.ts` y componentes en `src/lib/components/radar/`.
-- Dashboard docente: `/course/[cid]/admin/interactives/[ilid]/radar`, solo para actividades `chat` y `agent`.
-- API: `/api/course/[cid]/interactives/[ilid]/radar/runs`, detalle, edición, `stop`, `analyze` y evidencias paginadas por tema. Cada endpoint comprueba sesión, permiso docente `viewAnalytics`, relación curso–actividad y ámbito del seguimiento.
-- Tablas de `schema/radar.ts`: `radar_run`, `radar_observation`, `radar_topic`, `radar_observation_topic`, `radar_analysis`. Migración oficial `0021_fancy_kabuki` y snapshot correspondientes. Se añaden índices conversación–fecha en ambos tipos de mensaje.
-- El lector usa fecha de mensaje y matrícula activa de estudiante, excluye roles docentes y disparadores internos; las respuestas del asistente solo aportan contexto. Las observaciones conservan referencias a las fuentes, sin copiar transcripciones.
-- `hooks.server.ts` inicia el planificador cada diez segundos; se deshabilita durante build, con `NODE_ENV=test` y en el contexto de `node:test`. El procesamiento continúa sin navegador, cierra intervalos vencidos, usa un arrendamiento persistente por seguimiento y admite dos trabajos concurrentes por proceso.
-- La IA clasifica incrementalmente por lotes de hasta 50 mensajes y sintetiza una vez por ciclo con cambios. Solo usa modelos activos en BD; revalida permisos del creador y aplica cuotas y trazabilidad existentes. `AIUtils.generateObjectFromMessages` admite cancelación, límite de salida, reintentos y metadatos opcionales. `ModelResolver` acepta también identificadores de modelo.
-- Los borrados de intentos, chats de lecciones y usuarios invalidan las interpretaciones dependientes y eliminan sus evidencias del radar.
-- Pruebas `node:test`: `radar.test.ts` y `load.test.ts`, SQLite aislada con la cadena oficial de migraciones, reloj y modelo sustituibles. `scripts/radar-pilot.ts` genera una BD de demostración nueva con datos ficticios y análisis simulado; uso y revisión docente en `docs/radar-pilot.md`.
-
-## Nota final
-
-Este documento sustituye a `CLAUDE.md` como guía operativa central del proyecto. Si más adelante cambian arquitectura, scripts o modelo de datos, actualiza primero `AGENTS.md` y deja `CLAUDE.md` solo como puntero.
+- El esquema está en `src/lib/server/db/schema/`, reexportado desde `index.ts`.
+- Tras modificarlo, genera la migración con `npm run db:generate`.
+- Conserva el SQL en `drizzle/` y el snapshot correspondiente en `drizzle/meta/`.
+- No escribas migraciones a mano salvo instrucción explícita.
+- No uses `db:push` como sustituto de una migración versionada ni apliques cambios
+  sobre una BD con datos reales sin revisar su alcance.
+
+### Interfaz y contenido
+
+- Usa componentes Svelte en PascalCase y reutiliza los componentes y helpers existentes.
+- El HTML dinámico de chats, informes, lecciones y ejercicios pasa por
+  `src/lib/components/SafeHtml.svelte`, que sanitiza el resultado final también en SSR.
+  No insertes HTML sin limpiar ni añadas excepciones de ESLint para omitir esa protección.
+- Mantén la compatibilidad de Markdown, fórmulas y contenido guardado al modificar renderizadores.
+- No edites a mano `src/lib/paraglide/`, `.svelte-kit/`, `build/` ni `node_modules/`.
+  Modifica sus fuentes o generadores.
+
+### IA y actividades
+
+- Reutiliza la resolución de modelos, las comprobaciones de cuota y el registro de uso.
+- Registra los handlers builtin con `defineBuiltinToolPackage`; conserva la validación
+  de argumentos, el contexto de permisos y el identificador de llamada.
+- Respeta la confirmación humana de herramientas y su pertenencia a la conversación.
+  No confundas una respuesta UI simulada con una ejecución real del backend.
+- Las sesiones de alumnado se vinculan a una revisión de lección concreta.
+  Los previews de borrador y publicación permanecen separados del progreso y la analítica.
+- Los documentos RAG importados requieren reindexación; no reutilices la colección de origen.
+
+## 3. Desarrollo y validación
+
+### Preparación
+
+- Instala desde el lockfile con `npm ci`.
+- Consulta [.env.example](.env.example) y el consumidor de cada variable antes de cambiarla.
+  `DATABASE_URL` es obligatoria; el entorno local habitual usa `local.db`.
+- Comprueba el estado de Git y los procesos existentes antes de trabajar.
+  Respeta los cambios ajenos y no detengas el servidor de desarrollo del usuario.
+- Docker es auxiliar: no supongas que reproduce el despliegue de producción.
+
+### Comandos habituales
+
+| Acción                           | Comando                         |
+| -------------------------------- | ------------------------------- |
+| Desarrollo                       | `npm run dev`                   |
+| Pruebas locales (`node:test`)    | `npm test`                      |
+| Tipos y Svelte                   | `npm run check`                 |
+| Formato y ESLint                 | `npm run lint`                  |
+| Compilación de producción        | `npm run build`                 |
+| Navegador (Playwright)           | `npm run test:e2e`              |
+| Integración con servicios reales | `npm run test:integration:live` |
+
+### Qué ejecutar
+
+- Para cambios de código: `npm test`, `npm run check` y `npm run lint`.
+- Añade una compilación cuando afectes al empaquetado, dependencias o configuración.
+- Para flujos de interfaz, navegación o integración cliente-servidor, ejecuta las pruebas
+  E2E pertinentes; ante cambios transversales, la suite completa. El servidor E2E ya compila.
+- Para cambios exclusivamente documentales, revisa formato, enlaces y coherencia con el código;
+  no es necesario repetir las pruebas de la aplicación.
+- No desactives reglas ni borres pruebas para obtener un resultado limpio.
+  Distingue los problemas nuevos de los existentes e informa de las limitaciones.
+
+### Aislamiento de pruebas
+
+- Playwright se configura en `playwright.config.ts`; las pruebas están en `tests/e2e/`.
+  Instala Chromium con `npx playwright install chromium` si falta.
+- `scripts/e2e-server.mjs` crea una BD ficticia nueva con las migraciones oficiales,
+  separa ficheros y credenciales, compila y sirve la aplicación en `127.0.0.1:4187`.
+- No ejecutes E2E, un build o tareas que regeneren `.svelte-kit/` simultáneamente con Vite
+  u otra compilación en el mismo checkout. Usa una copia aislada si el servidor está activo.
+- E2E simula algunas respuestas SSE, respuestas UI y consultas de Qdrant.
+  No demuestra por sí solo la generación con IA ni la indexación/recuperación RAG reales.
+- La integración live es opt-in, consume tokens y requiere `TEST_QDRANT_URL` local.
+  Lee configuración de proveedor/modelo de la BD local y utiliza contenido ficticio;
+  crea una colección de prueba que elimina al terminar.
+- Informes y trazas quedan en `output/`, ignorado por Git.
+
+## 4. Compatibilidad de dependencias
+
+- Mantén el mínimo Node indicado en `engines` (22.14.0); no lo eleves sin un cambio acordado.
+- Conserva TypeScript 5.9.3 y las ramas SvelteKit 2, Vite 7 y AI SDK 6 salvo migración acordada.
+- Actualiza todos los paquetes directos `@tiptap/*` conjuntamente y con versiones exactas alineadas.
+- Conserva Qdrant JS en `~1.18.0` mientras se use `client.search`; una actualización exige
+  revisar y migrar esa API.
+- KaTeX permanece en la rama `0.16`, compatible con `marked-katex-extension`.
+- `isomorphic-dompurify` está fijado por compatibilidad con el mínimo Node. Revisa también
+  los requisitos de DOMPurify y jsdom antes de actualizarlo.
+- `package-lock.json` fija la instalación reproducible. Revisa su diff al cambiar dependencias.
+- Evalúa los avisos de `npm audit`; no apliques `npm audit fix --force` indiscriminadamente.
+
+## 5. Dónde mirar primero
+
+Las rutas de esta tabla son relativas a la raíz del repositorio.
+
+| Área                         | Puntos de entrada                                                                                   |
+| ---------------------------- | --------------------------------------------------------------------------------------------------- |
+| Sesión y bootstrap           | `src/hooks.server.ts`, `src/lib/server/auth.ts`, `src/routes/+layout.server.ts`                     |
+| Roles y permisos             | `src/lib/server/roles.ts`, `src/lib/server/db/RoleUtils.ts`, `src/lib/server/db/CourseRoleUtils.ts` |
+| Esquema y migraciones        | `src/lib/server/db/schema/`, `drizzle/`, `drizzle.config.ts`                                        |
+| Modelos, cuotas y RAG        | `src/lib/server/ai/AIUtils.ts`, `src/lib/server/ai/services/`, `src/lib/server/qdrant/`             |
+| Agentes, tools y memoria     | `src/lib/server/agent/`, `src/lib/components/agent/`                                                |
+| Agentes docentes             | `src/lib/server/insights-agent/`, `src/lib/server/staff-agent/`                                     |
+| Lecciones y revisión         | `src/lib/server/lesson/`, `src/lib/components/lesson/`, `src/routes/api/lesson/`                    |
+| Analítica y radar            | `src/lib/server/learning-evidence/`, `src/lib/server/radar/`, `src/lib/types/radar.ts`              |
+| Ficheros y notificaciones    | `src/lib/server/files/`, `src/lib/server/notifications/`, `src/lib/server/notifier/`                |
+| Interfaz y estado compartido | `src/lib/components/`, `src/lib/stores/`, `src/lib/utils/`                                          |
+| Traducciones y build         | `messages/`, `project.inlang/`, `vite.config.ts`, `svelte.config.js`                                |
+
+Referencias específicas: [Arquitectura](docs/architecture.md),
+[piloto del radar](docs/radar-pilot.md), [enlaces Moodle](docs/moodle-activity-links.md)
+y [operación con Docker](docs/docker-production.md).
+El [plan agéntico](docs/agent-upgrade-plan.md) es una referencia de diseño histórica;
+comprueba su correspondencia con la implementación antes de usarlo.
+
+## 6. Mantenimiento de esta guía
+
+- Actualiza este archivo cuando cambien procedimientos, restricciones o puntos de entrada
+  necesarios para trabajar. Actualiza la referencia de arquitectura si cambia un contrato entre subsistemas.
+- Verifica las afirmaciones en el código. No declares una auditoría completa por haber revisado una parte.
+- Evita duplicar versiones de paquetes, catálogos de tablas/rutas y listas completas de variables o scripts.
+- Los resultados de pruebas, recuentos de avisos e historial de arreglos pertenecen al informe
+  del cambio o a Git, no a esta guía.
+- Mantén una única guía operativa; enlaza documentación especializada sin copiarla aquí.
