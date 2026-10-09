@@ -96,13 +96,13 @@
 		if (searchTerm) params.set('search', searchTerm);
 		if (roleFilter && roleFilter !== 'all') params.set('role', roleFilter);
 		params.set('page', '1');
-		goto(`?${params.toString()}`);
+		goto(resolve(`/admin/users?${params.toString()}`));
 	}
 
 	function handlePageChange(newPage: number) {
 		const params = new URLSearchParams($page.url.searchParams);
 		params.set('page', String(newPage));
-		goto(`?${params.toString()}`);
+		goto(resolve(`/admin/users?${params.toString()}`));
 	}
 
 	function clearFilters() {

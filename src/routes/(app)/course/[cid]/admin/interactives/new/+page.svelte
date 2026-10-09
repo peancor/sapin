@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
-	import { enhance } from '$app/forms';
-	import { beforeNavigate, goto } from '$app/navigation';
+	import { applyAction, enhance } from '$app/forms';
+	import { beforeNavigate } from '$app/navigation';
 	import { ArrowLeft, Bot, MessageSquare, Route } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
@@ -91,7 +91,7 @@
 				return async ({ result }) => {
 					if (result.type === 'redirect') {
 						isDirty = false;
-						await goto(result.location, { invalidateAll: true });
+						await applyAction(result);
 					}
 				};
 			}}

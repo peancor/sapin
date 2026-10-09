@@ -341,7 +341,7 @@
 		params.set('period', newPeriod);
 		if (searchQuery) params.set('search', searchQuery);
 		params.set('tab', activeTab);
-		goto(`?${params.toString()}`);
+		goto(resolve(`/admin/analytics?${params.toString()}`));
 	}
 
 	function handleSearch() {
@@ -349,7 +349,7 @@
 		params.set('period', data.period);
 		if (searchQuery) params.set('search', searchQuery);
 		params.set('tab', activeTab);
-		goto(`?${params.toString()}`);
+		goto(resolve(`/admin/analytics?${params.toString()}`));
 	}
 
 	function handleTabChange(tab: string) {
@@ -358,7 +358,7 @@
 		params.set('period', data.period);
 		if (searchQuery) params.set('search', searchQuery);
 		params.set('tab', tab);
-		goto(`?${params.toString()}`);
+		goto(resolve(`/admin/analytics?${params.toString()}`));
 	}
 </script>
 

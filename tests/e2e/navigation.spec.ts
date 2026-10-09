@@ -29,6 +29,45 @@ async function login(page: Page, user = 'student') {
 	await expect(page).not.toHaveURL(/\/login/);
 }
 
+test('debugger navigation preserves query filters and session identity', async ({ page }) => {
+	const errors: string[] = [];
+	page.on('pageerror', (error) => errors.push(error.message));
+	await login(page, 'admin');
+	await page.goto('/admin/activity-debugger/activities/agent?tab=sessions&search=student');
+	await page.getByRole('link', { name: 'Configuracion', exact: true }).click();
+	await expect(page).toHaveURL(/activities\/agent\?tab=config&search=student$/);
+	await page.getByRole('link', { name: 'Sesiones', exact: true }).click();
+	await page.getByRole('link', { name: 'Limpiar', exact: true }).click();
+	await expect(page).toHaveURL(/activities\/agent\?tab=sessions$/);
+	await page
+		.locator('a[href="/admin/activity-debugger/activities/agent/sessions/agent-chat?tab=timeline"]')
+		.click();
+	await page.getByRole('link', { name: 'Compact', exact: true }).click();
+	await expect(page).toHaveURL(/sessions\/agent-chat\?tab=timeline&density=compact$/);
+	await page.getByRole('link', { name: 'Raw JSON', exact: true }).click();
+	await expect(page).toHaveURL(/sessions\/agent-chat\?tab=raw&density=compact$/);
+	await page.reload();
+	await expect(page.getByRole('link', { name: 'Timeline', exact: true })).toBeVisible();
+	expect(errors).toEqual([]);
+});
+
+test('creating an activity follows the form redirect without an unsaved changes prompt', async ({
+	page
+}) => {
+	const dialogs: string[] = [];
+	page.on('dialog', async (dialog) => {
+		dialogs.push(dialog.message());
+		await dialog.dismiss();
+	});
+	await login(page, 'teacher');
+	await page.goto('/course/course/admin/interactives/new');
+	await page.locator('input[name="name"]').fill('Actividad de navegación');
+	await page.getByRole('button', { name: 'Crear y configurar', exact: true }).click();
+	await expect(page).toHaveURL(/\/course\/course\/admin\/interactives\/[^/]+\/chatedit$/);
+	await expect(page.locator('input[name="name"]')).toHaveValue('Actividad de navegación');
+	expect(dialogs).toEqual([]);
+});
+
 test('public navigation keeps login, registration and footer destinations', async ({ page }) => {
 	await page.goto('/login');
 	await page.locator('a[href="/register"]').first().click();

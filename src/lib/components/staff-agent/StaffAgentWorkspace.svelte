@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
-	import type { Pathname } from '$app/types';
+	import { base, resolve } from '$app/paths';
+	import type { Pathname, PathnameWithSearchOrHash } from '$app/types';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { ArrowRight, MessageSquarePlus, Settings2, Trash2, PencilLine } from 'lucide-svelte';
@@ -55,7 +55,7 @@
 	let isCreating = $state(false);
 	let pendingThreadId = $state<string | null>(null);
 
-	function buildThreadUrl(threadId?: string | null): URL {
+	function buildThreadUrl(threadId?: string | null): PathnameWithSearchOrHash {
 		const target =
 			typeof window !== 'undefined' ? new URL(window.location.href) : new URL(page.url);
 
@@ -65,7 +65,8 @@
 			target.searchParams.delete('thread');
 		}
 
-		return target;
+		// The browser pathname already includes the deployment base; resolve adds it once.
+		return `${target.pathname.slice(base.length) || '/'}${target.search}${target.hash}` as PathnameWithSearchOrHash;
 	}
 
 	function formatDate(value: string | null): string {
@@ -82,7 +83,7 @@
 	}
 
 	async function selectThread(threadId: string) {
-		await goto(buildThreadUrl(threadId), {
+		await goto(resolve(...([buildThreadUrl(threadId)] as Parameters<typeof resolve>)), {
 			keepFocus: true,
 			noScroll: true,
 			invalidateAll: true
@@ -105,7 +106,7 @@
 				throw new Error(payload?.error ?? `Error ${response.status}`);
 			}
 
-			await goto(buildThreadUrl(payload.thread.id), {
+			await goto(resolve(...([buildThreadUrl(payload.thread.id)] as Parameters<typeof resolve>)), {
 				keepFocus: true,
 				noScroll: true,
 				invalidateAll: true
@@ -161,11 +162,14 @@
 
 			if (selectedThread?.id === thread.id) {
 				const remaining = threads.filter((item) => item.id !== thread.id);
-				await goto(buildThreadUrl(remaining[0]?.id ?? null), {
-					keepFocus: true,
-					noScroll: true,
-					invalidateAll: true
-				});
+				await goto(
+					resolve(...([buildThreadUrl(remaining[0]?.id ?? null)] as Parameters<typeof resolve>)),
+					{
+						keepFocus: true,
+						noScroll: true,
+						invalidateAll: true
+					}
+				);
 				return;
 			}
 

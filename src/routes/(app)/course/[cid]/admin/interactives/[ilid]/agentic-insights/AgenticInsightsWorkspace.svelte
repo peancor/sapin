@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
+	import type { PathnameWithSearchOrHash } from '$app/types';
 	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import AgentChatComponent from '$lib/components/agent/AgentChatComponent.svelte';
@@ -179,12 +180,10 @@
 	const recentRunCountLabel = $derived(
 		data.runs.length === 1 ? '1 analisis reciente' : `${data.runs.length} analisis recientes`
 	);
-	const settingsHref = $derived(
-		resolve(
-			`/course/${data.courseId}/admin/interactives/${data.interactive.id}/agentic-insights/settings${
-				data.selectedRun ? `?run=${data.selectedRun.id}` : ''
-			}`
-		)
+	const settingsHref = $derived<PathnameWithSearchOrHash>(
+		`/course/${data.courseId}/admin/interactives/${data.interactive.id}/agentic-insights/settings${
+			data.selectedRun ? `?run=${data.selectedRun.id}` : ''
+		}`
 	);
 
 	const configurationSummary = $derived.by(() => {
@@ -367,7 +366,12 @@
 		if (!browser) return;
 		const nextUrl = new URL(window.location.href);
 		nextUrl.searchParams.delete('run');
-		await goto(`${nextUrl.pathname}${nextUrl.search}`, { invalidateAll: true });
+		await goto(
+			resolve(
+				`/course/${data.courseId}/admin/interactives/${data.interactive.id}/agentic-insights${nextUrl.search}`
+			),
+			{ invalidateAll: true }
+		);
 	}
 
 	async function createRun() {
@@ -400,7 +404,12 @@
 
 			const nextUrl = new URL(window.location.href);
 			nextUrl.searchParams.set('run', payload.run.id);
-			await goto(`${nextUrl.pathname}${nextUrl.search}`, { invalidateAll: true });
+			await goto(
+				resolve(
+					`/course/${data.courseId}/admin/interactives/${data.interactive.id}/agentic-insights${nextUrl.search}`
+				),
+				{ invalidateAll: true }
+			);
 		} catch (error) {
 			pageError = error instanceof Error ? error.message : 'No se pudo crear el analisis guiado.';
 		} finally {
@@ -1388,7 +1397,7 @@
 				</div>
 
 				<a
-					href={settingsHref}
+					href={resolve(...([settingsHref] as Parameters<typeof resolve>))}
 					class="mt-4 inline-flex items-center gap-2 text-sm font-medium text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
 				>
 					Ajustes avanzados
@@ -1417,7 +1426,9 @@
 					{:else}
 						{#each data.runs as run (run.id)}
 							<a
-								href={`?run=${run.id}`}
+								href={resolve(
+									`/course/${data.courseId}/admin/interactives/${data.interactive.id}/agentic-insights?run=${encodeURIComponent(run.id)}`
+								)}
 								class={`block rounded-2xl border px-4 py-3 transition ${data.selectedRun?.id === run.id ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/30' : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-800/50 dark:hover:border-slate-600 dark:hover:bg-slate-800'}`}
 							>
 								<div class="flex items-start justify-between gap-3">

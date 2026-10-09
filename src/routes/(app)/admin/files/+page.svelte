@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import {
@@ -239,7 +240,7 @@
 		if (data.filters.status) params.set('status', data.filters.status);
 		if (data.filters.showDeleted) params.set('showDeleted', 'true');
 		if (data.filters.showOrphans) params.set('showOrphans', 'true');
-		goto(`?${params.toString()}`);
+		goto(resolve(`/admin/files?${params.toString()}`));
 	}
 
 	function handleFilterChange(filter: string, value: string | boolean) {
@@ -252,13 +253,13 @@
 		if (filters.showDeleted) params.set('showDeleted', 'true');
 		if (filters.showOrphans) params.set('showOrphans', 'true');
 
-		goto(`?${params.toString()}`);
+		goto(resolve(`/admin/files?${params.toString()}`));
 	}
 
 	function handlePageChange(page: number) {
 		const params = new URLSearchParams(window.location.search);
 		params.set('page', page.toString());
-		goto(`?${params.toString()}`);
+		goto(resolve(`/admin/files?${params.toString()}`));
 	}
 
 	// Selection handlers

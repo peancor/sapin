@@ -146,7 +146,7 @@
 		if (startDate) params.set('startDate', startDate);
 		if (endDate) params.set('endDate', endDate);
 		params.set('page', '1');
-		goto(`?${params.toString()}`);
+		goto(resolve(`/admin/logs?${params.toString()}`));
 	}
 
 	function clearFilters() {
@@ -166,7 +166,7 @@
 		if (startDate) params.set('startDate', startDate);
 		if (endDate) params.set('endDate', endDate);
 		params.set('page', String(page));
-		goto(`?${params.toString()}`);
+		goto(resolve(`/admin/logs?${params.toString()}`));
 	}
 
 	async function handleCleanup() {

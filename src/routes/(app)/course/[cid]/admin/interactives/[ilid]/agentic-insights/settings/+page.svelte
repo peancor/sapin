@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import type { PathnameWithSearchOrHash } from '$app/types';
 	import { resolve } from '$app/paths';
 	import { ArrowLeft, Save, Wrench } from 'lucide-svelte';
 
@@ -32,12 +33,10 @@
 		}));
 	});
 
-	const backHref = $derived(
-		resolve(
-			`/course/${data.courseId}/admin/interactives/${data.interactive.id}/agentic-insights${
-				data.returnToRunId ? `?run=${data.returnToRunId}` : ''
-			}`
-		)
+	const backHref = $derived<PathnameWithSearchOrHash>(
+		`/course/${data.courseId}/admin/interactives/${data.interactive.id}/agentic-insights${
+			data.returnToRunId ? `?run=${data.returnToRunId}` : ''
+		}`
 	);
 
 	function toggleTool(toolId: string) {
@@ -90,7 +89,7 @@
 		<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 			<div class="max-w-3xl">
 				<a
-					href={backHref}
+					href={resolve(...([backHref] as Parameters<typeof resolve>))}
 					class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
 				>
 					<ArrowLeft class="h-4 w-4" />

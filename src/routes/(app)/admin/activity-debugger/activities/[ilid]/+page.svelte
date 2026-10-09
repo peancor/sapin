@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import type { Pathname, PathnameWithSearchOrHash } from '$app/types';
 	import { resolve } from '$app/paths';
 	import {
 		ArrowLeft,
@@ -22,8 +23,8 @@
 		{ id: 'usage', label: 'Uso IA' },
 		{ id: 'raw', label: 'Raw' }
 	] as const;
-	let activityBaseHref = $derived(
-		resolve(`/admin/activity-debugger/activities/${data.detail.activityId}`)
+	let activityBaseHref = $derived<Pathname>(
+		`/admin/activity-debugger/activities/${data.detail.activityId}`
 	);
 
 	function formatDate(value: string | null): string {
@@ -49,21 +50,21 @@
 		return (value ?? 0).toLocaleString('es-ES');
 	}
 
-	function tabHref(tabId: string): string {
+	function tabHref(tabId: string): PathnameWithSearchOrHash {
 		const params = new URLSearchParams(page.url.search);
 		params.set('tab', tabId);
 		const query = params.toString();
 		return query ? `${activityBaseHref}?${query}` : activityBaseHref;
 	}
 
-	function clearSessionsHref(): string {
+	function clearSessionsHref(): PathnameWithSearchOrHash {
 		return `${activityBaseHref}?tab=sessions`;
 	}
 
-	function sessionLink(chatId: string): string {
+	function sessionLink(chatId: string): PathnameWithSearchOrHash {
 		const params = new URLSearchParams();
 		params.set('tab', 'timeline');
-		return `${resolve(`/admin/activity-debugger/activities/${data.detail.activityId}/sessions/${chatId}`)}?${params.toString()}`;
+		return `/admin/activity-debugger/activities/${data.detail.activityId}/sessions/${chatId}?${params.toString()}`;
 	}
 
 	function statusClasses(status: string): string {
@@ -283,7 +284,7 @@
 	<nav class="flex flex-wrap gap-2">
 		{#each tabs as tab (tab.id)}
 			<a
-				href={tabHref(tab.id)}
+				href={resolve(...([tabHref(tab.id)] as Parameters<typeof resolve>))}
 				class={`rounded-2xl border px-4 py-2 text-sm font-medium transition-colors ${
 					data.tab === tab.id
 						? 'border-sky-500 bg-sky-500 text-white'
@@ -400,7 +401,7 @@
 					</label>
 					<div class="ml-auto flex items-center gap-3">
 						<a
-							href={clearSessionsHref()}
+							href={resolve(...([clearSessionsHref()] as Parameters<typeof resolve>))}
 							class="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 dark:border-slate-800 dark:text-slate-300"
 							>Limpiar</a
 						>
@@ -481,7 +482,7 @@
 								</td>
 								<td class="px-4 py-4 text-right">
 									<a
-										href={sessionLink(session.chatId)}
+										href={resolve(...([sessionLink(session.chatId)] as Parameters<typeof resolve>))}
 										class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-sky-300 hover:text-sky-700 dark:border-slate-800 dark:text-slate-300 dark:hover:border-sky-800 dark:hover:text-sky-300"
 									>
 										Abrir
@@ -733,7 +734,9 @@
 									<td class="px-4 py-4">
 										{#if round.chatId}
 											<a
-												href={sessionLink(round.chatId)}
+												href={resolve(
+													...([sessionLink(round.chatId)] as Parameters<typeof resolve>)
+												)}
 												class="text-sm font-semibold text-sky-700 hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200"
 												>{round.chatId}</a
 											>

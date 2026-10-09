@@ -4,6 +4,7 @@
 		ActivityDebuggerCourseOption,
 		ActivityDebuggerFilters
 	} from '$lib/types/activityDebugger';
+	import type { Pathname } from '$app/types';
 	import { resolve } from '$app/paths';
 	import {
 		Activity,
@@ -53,10 +54,10 @@
 			: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300';
 	}
 
-	function clearHref(): string {
+	function clearHref(): Pathname {
 		return lockedCourse?.id
-			? resolve(`/admin/activity-debugger/courses/${lockedCourse.id}`)
-			: resolve('/admin/activity-debugger');
+			? `/admin/activity-debugger/courses/${lockedCourse.id}`
+			: '/admin/activity-debugger';
 	}
 </script>
 
@@ -268,7 +269,7 @@
 
 				<div class="ml-auto flex items-center gap-3">
 					<a
-						href={clearHref()}
+						href={resolve(...([clearHref()] as Parameters<typeof resolve>))}
 						class="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:text-white"
 					>
 						Limpiar

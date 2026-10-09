@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import type { Pathname, PathnameWithSearchOrHash } from '$app/types';
 	import { resolve } from '$app/paths';
 	import {
 		AlertTriangle,
@@ -47,10 +48,8 @@
 		{ id: 'metadata', label: 'Metadata' },
 		{ id: 'raw', label: 'Raw JSON' }
 	] as const;
-	let sessionBaseHref = $derived(
-		resolve(
-			`/admin/activity-debugger/activities/${data.detail.activity.activityId}/sessions/${data.detail.chat.id}`
-		)
+	let sessionBaseHref = $derived<Pathname>(
+		`/admin/activity-debugger/activities/${data.detail.activity.activityId}/sessions/${data.detail.chat.id}`
 	);
 
 	function formatDate(value: string | null): string {
@@ -73,14 +72,14 @@
 		}).format(value);
 	}
 
-	function tabHref(tabId: string): string {
+	function tabHref(tabId: string): PathnameWithSearchOrHash {
 		const params = new URLSearchParams(page.url.search);
 		params.set('tab', tabId);
 		const query = params.toString();
 		return query ? `${sessionBaseHref}?${query}` : sessionBaseHref;
 	}
 
-	function densityHref(density: string): string {
+	function densityHref(density: string): PathnameWithSearchOrHash {
 		const params = new URLSearchParams(page.url.search);
 		params.set('density', density);
 		const query = params.toString();
@@ -222,12 +221,12 @@
 						</button>
 					</form>
 					<a
-						href={densityHref('comfortable')}
+						href={resolve(...([densityHref('comfortable')] as Parameters<typeof resolve>))}
 						class={`rounded-2xl border px-3 py-2 text-sm font-medium ${data.density === 'comfortable' ? 'border-sky-500 bg-sky-500 text-white' : 'border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300'}`}
 						>Comfortable</a
 					>
 					<a
-						href={densityHref('compact')}
+						href={resolve(...([densityHref('compact')] as Parameters<typeof resolve>))}
 						class={`rounded-2xl border px-3 py-2 text-sm font-medium ${data.density === 'compact' ? 'border-sky-500 bg-sky-500 text-white' : 'border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300'}`}
 						>Compact</a
 					>
@@ -302,7 +301,7 @@
 	<nav class="flex flex-wrap gap-2">
 		{#each tabs as tab (tab.id)}
 			<a
-				href={tabHref(tab.id)}
+				href={resolve(...([tabHref(tab.id)] as Parameters<typeof resolve>))}
 				class={`rounded-2xl border px-4 py-2 text-sm font-medium transition-colors ${
 					data.tab === tab.id
 						? 'border-sky-500 bg-sky-500 text-white'
