@@ -1,10 +1,10 @@
 <script lang="ts">
+	import ResponsiveSidebar from '$lib/components/ResponsiveSidebar.svelte';
 	import type { LayoutData } from './$types';
 	import type { Snippet } from 'svelte';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import {
-		Sidebar,
 		SidebarGroup,
 		SidebarItem,
 		SidebarWrapper,
@@ -84,12 +84,19 @@
 	const defaultCourseImage = '/images/default-course.jpg';
 </script>
 
+<svelte:head>
+	<title>{data.course.name} · Administración - SAPIN</title>
+</svelte:head>
+
 <div class="bg-gray-50 dark:bg-gray-900">
 	<!-- Mobile sidebar toggle -->
 	<div
 		class="sticky top-16 z-30 flex items-center gap-4 border-b border-gray-200 bg-white px-4 py-3 lg:hidden dark:border-gray-700 dark:bg-gray-800"
 	>
 		<SidebarButton
+			breakpoint="lg"
+			aria-expanded={isSidebarOpen}
+			aria-controls="context-sidebar"
 			onclick={sidebarUi.toggle}
 			class="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
 		/>
@@ -107,7 +114,8 @@
 
 	<div class="flex">
 		<!-- Sidebar -->
-		<Sidebar
+		<ResponsiveSidebar
+			ariaLabel="Navegación de administración"
 			{activeUrl}
 			isOpen={isSidebarOpen}
 			closeSidebar={sidebarUi.close}
@@ -239,7 +247,7 @@
 					</div>
 				</div>
 			</SidebarWrapper>
-		</Sidebar>
+		</ResponsiveSidebar>
 
 		<!-- Main content -->
 		<main class="flex-1 lg:ml-64">

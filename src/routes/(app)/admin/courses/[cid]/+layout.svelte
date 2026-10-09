@@ -1,10 +1,10 @@
 <script lang="ts">
+	import ResponsiveSidebar from '$lib/components/ResponsiveSidebar.svelte';
 	import { resolve } from '$app/paths';
 	import type { LayoutData } from './$types';
 	import type { Snippet } from 'svelte';
 	import { page } from '$app/state';
 	import {
-		Sidebar,
 		SidebarGroup,
 		SidebarItem,
 		SidebarWrapper,
@@ -72,11 +72,7 @@
 	]);
 
 	const spanClass = 'ms-3 flex-1 whitespace-nowrap';
-	const iconClass =
-		'h-5 w-5 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white';
-
-	// Default course image
-	const defaultCourseImage = '/images/default-course.jpg';
+	const iconClass = 'h-[18px] w-[18px] shrink-0 text-current';
 
 	// Get status badge color
 	function getStatusBadgeColor(status: string): 'green' | 'yellow' | 'gray' {
@@ -107,150 +103,123 @@
 	}
 </script>
 
-<div class="bg-gray-50 dark:bg-gray-900">
-	<!-- Mobile sidebar toggle -->
+<svelte:head>
+	<title>{data.course.name} · Administración - SAPIN</title>
+</svelte:head>
+
+{#snippet courseThumbnail(size: string)}
 	<div
-		class="sticky top-16 z-30 flex items-center gap-4 border-b border-gray-200 bg-white px-4 py-3 lg:hidden dark:border-gray-700 dark:bg-gray-800"
+		class="{size} flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+	>
+		{#if data.course.image}
+			<img src={data.course.image} alt="" class="h-full w-full object-cover" />
+		{:else}
+			<BookOpen class="h-5 w-5" aria-hidden="true" />
+		{/if}
+	</div>
+{/snippet}
+
+<div class="bg-gray-50 dark:bg-gray-900">
+	<!-- Keep the existing mobile drawer and breakpoint. -->
+	<div
+		class="sticky top-16 z-30 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 lg:hidden dark:border-gray-700 dark:bg-gray-800"
 	>
 		<SidebarButton
+			breakpoint="lg"
+			aria-expanded={isSidebarOpen}
+			aria-controls="context-sidebar"
 			onclick={sidebarUi.toggle}
 			class="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
 		/>
-		<div class="flex items-center gap-3 truncate">
-			<img
-				src={data.course.image || defaultCourseImage}
-				alt={data.course.name}
-				class="h-8 w-8 rounded-lg object-cover"
-			/>
-			<span class="truncate text-lg font-semibold text-gray-900 dark:text-white">
-				{data.course.name}
-			</span>
-		</div>
+		{@render courseThumbnail('h-8 w-8')}
+		<span class="truncate text-sm font-semibold text-gray-900 dark:text-white"
+			>{data.course.name}</span
+		>
 	</div>
 
 	<div class="flex">
-		<!-- Sidebar -->
-		<Sidebar
+		<ResponsiveSidebar
+			ariaLabel="Navegación de administración"
 			{activeUrl}
 			isOpen={isSidebarOpen}
 			closeSidebar={sidebarUi.close}
-			class="fixed top-16 left-0 z-40 h-[calc(100dvh-4rem)] w-64 overflow-y-auto border-r border-gray-200 bg-white transition-transform lg:translate-x-0 dark:border-gray-700 dark:bg-gray-800"
+			class="fixed top-16 left-0 z-40 h-[calc(100dvh-4rem)] w-64 border-r border-gray-200 bg-gray-50 transition-transform lg:translate-x-0 dark:border-gray-800 dark:bg-gray-900"
 			position="fixed"
 			backdrop={true}
-			backdropClass="!top-16"
 			breakpoint="lg"
 			classes={{
+				div: 'h-full overflow-y-auto bg-gray-50 p-0 dark:bg-gray-900',
+				backdrop: '!top-16',
 				nonactive:
-					'flex items-center p-2.5 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700',
+					'flex min-h-10 items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white',
 				active:
-					'flex items-center p-2.5 text-base font-normal text-white bg-primary-600 rounded-lg dark:bg-primary-700 hover:bg-primary-700 dark:hover:bg-primary-800'
+					'flex min-h-10 items-center rounded-lg bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-800 ring-1 ring-inset ring-primary-200/60 hover:bg-primary-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-900/20 dark:text-primary-200 dark:ring-primary-800/50 dark:hover:bg-primary-900/30'
 			}}
 		>
-			<SidebarWrapper class="flex h-full flex-col px-3 py-4">
-				<!-- Course Header -->
-				<div class="mb-6">
-					<a
-						href={resolve('/admin/courses')}
-						class="hover:text-primary-600 dark:hover:text-primary-400 mb-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400"
-					>
-						<ChevronLeft class="h-4 w-4" />
-						Volver a cursos
-					</a>
-					<div class="overflow-hidden rounded-xl">
-						<img
-							src={data.course.image || defaultCourseImage}
-							alt={data.course.name}
-							class="h-32 w-full object-cover"
-						/>
-					</div>
-					<div class="mt-3">
-						<div class="flex items-start justify-between gap-2">
-							<h2 class="line-clamp-2 text-lg font-bold text-gray-900 dark:text-white">
-								{data.course.name}
-							</h2>
-							<Badge color={getStatusBadgeColor(data.course.status)} class="shrink-0">
-								{getStatusLabel(data.course.status)}
-							</Badge>
-						</div>
-						{#if data.course.description}
-							<p class="mt-1 line-clamp-2 text-sm text-gray-500 dark:text-gray-400">
-								{data.course.description}
-							</p>
-						{/if}
+			<SidebarWrapper class="flex min-h-full flex-col px-3 py-4">
+				<a
+					href={resolve('/admin/courses')}
+					class="focus-visible:outline-primary-600 mb-5 flex min-h-9 items-center gap-2 rounded-lg px-2 text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-2 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+				>
+					<ChevronLeft class="h-4 w-4" aria-hidden="true" />
+					Volver a cursos
+				</a>
+
+				<div class="mb-5 flex items-start gap-3 px-2">
+					{@render courseThumbnail('h-10 w-10')}
+					<div class="min-w-0 flex-1">
+						<h2
+							class="line-clamp-2 text-sm leading-5 font-semibold break-words text-gray-950 dark:text-white"
+							title={data.course.name}
+						>
+							{data.course.name}
+						</h2>
+						<Badge
+							color={getStatusBadgeColor(data.course.status)}
+							class="mt-1.5 text-[11px] font-medium">{getStatusLabel(data.course.status)}</Badge
+						>
 					</div>
 				</div>
 
-				<!-- Navigation -->
-				<SidebarGroup>
-					<p
-						class="mb-2 px-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
-					>
-						Gestión
-					</p>
+				<p class="mb-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400">
+					Administración del curso
+				</p>
+				<SidebarGroup class="space-y-1">
 					{#each menuItems as item (item.id)}
-						<SidebarItem label={item.label} href={item.href} {spanClass}>
+						<SidebarItem
+							label={item.label}
+							href={item.href}
+							{spanClass}
+							aria-current={activeUrl === item.href ? 'page' : undefined}
+						>
 							{#snippet icon()}
-								<item.icon class={iconClass} />
+								<item.icon class={iconClass} aria-hidden="true" />
 							{/snippet}
 							{#snippet subtext()}
 								{#if item.badge !== null}
-									<Badge color="gray" class="ml-auto">{item.badge}</Badge>
+									<span
+										class="ml-auto min-w-5 text-right text-xs font-medium tabular-nums opacity-80"
+										>{item.badge}</span
+									>
 								{/if}
 							{/snippet}
 						</SidebarItem>
 					{/each}
 				</SidebarGroup>
 
-				<!-- Quick Actions -->
-				<SidebarGroup border class="mt-4">
-					<p
-						class="mb-2 px-2 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
-					>
-						Acciones rápidas
-					</p>
-					<a
-						href={resolve(`/course/${courseId}/run`)}
-						class="flex items-center gap-3 rounded-lg bg-blue-50 p-3 text-blue-700 transition-colors hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
-					>
-						<Eye class="h-5 w-5" />
-						<span class="font-medium">Vista estudiante</span>
-					</a>
-				</SidebarGroup>
-
-				<!-- Stats Summary at Bottom -->
-				<div class="mt-auto pt-4">
-					<div class="rounded-xl bg-gray-100 p-4 dark:bg-gray-700">
-						<div class="flex items-center justify-between">
-							<div class="flex items-center gap-2">
-								<Users class="h-4 w-4 text-gray-500 dark:text-gray-400" />
-								<span class="text-sm text-gray-600 dark:text-gray-300">Profesores</span>
-							</div>
-							<span class="font-bold text-gray-900 dark:text-white">
-								{data.teachers?.length || 0}
-							</span>
-						</div>
-						<div class="mt-2 flex items-center justify-between">
-							<div class="flex items-center gap-2">
-								<GraduationCap class="h-4 w-4 text-gray-500 dark:text-gray-400" />
-								<span class="text-sm text-gray-600 dark:text-gray-300">Estudiantes</span>
-							</div>
-							<span class="font-bold text-gray-900 dark:text-white">
-								{data.students?.length || 0}
-							</span>
-						</div>
-						<div class="mt-2 flex items-center justify-between">
-							<div class="flex items-center gap-2">
-								<BookOpen class="h-4 w-4 text-gray-500 dark:text-gray-400" />
-								<span class="text-sm text-gray-600 dark:text-gray-300">Actividades</span>
-							</div>
-							<span class="font-bold text-gray-900 dark:text-white">
-								{data.interactives?.length || 0}
-							</span>
-						</div>
+				<div class="mt-auto pt-6">
+					<div class="border-t border-gray-200 pt-3 dark:border-gray-800">
+						<a
+							href={resolve(`/course/${courseId}/run`)}
+							class="focus-visible:outline-primary-600 flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-2 focus-visible:outline-offset-2 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+						>
+							<Eye class="h-[18px] w-[18px]" aria-hidden="true" />
+							Vista estudiante
+						</a>
 					</div>
 				</div>
 			</SidebarWrapper>
-		</Sidebar>
+		</ResponsiveSidebar>
 
 		<!-- Main content -->
 		<main class="flex-1">

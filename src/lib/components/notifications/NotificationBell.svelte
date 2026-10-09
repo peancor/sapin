@@ -43,7 +43,7 @@
 			if (response.ok) {
 				const data = await response.json();
 				notifications = data.notifications;
-				unreadCount = notifications.filter((n: NotificationRecord) => !n.read).length;
+				await fetchUnreadCount();
 			}
 		} catch (error) {
 			console.error('Error fetching notifications:', error);
@@ -105,9 +105,6 @@
 	// Toggle dropdown
 	function toggleDropdown() {
 		isOpen = !isOpen;
-		if (isOpen) {
-			fetchNotifications();
-		}
 	}
 
 	// Close dropdown
@@ -159,6 +156,8 @@
 		color="light"
 		class="relative border-none bg-transparent !p-2.5 transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-800"
 		onclick={toggleDropdown}
+		aria-label={unreadCount > 0 ? `Notificaciones: ${unreadCount} sin leer` : 'Notificaciones'}
+		aria-expanded={isOpen}
 	>
 		<Bell size={18} class="text-gray-600 dark:text-gray-300" />
 		{#if unreadCount > 0}

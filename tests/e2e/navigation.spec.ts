@@ -66,7 +66,7 @@ test('course sidebar opens, closes with Escape and reopens on mobile', async ({ 
 	await page.setViewportSize({ width: 390, height: 844 });
 	await login(page, 'admin');
 	await page.goto('/admin/courses/course');
-	const courseLink = page.locator('aside a[href="/admin/courses/course/edit"]');
+	const courseLink = page.locator('#context-sidebar a[href="/admin/courses/course/edit"]');
 	await expect(courseLink).toBeHidden();
 	await page.getByRole('button', { name: 'Open sidebar', exact: true }).last().click();
 	await expect(courseLink).toBeVisible();
@@ -76,6 +76,110 @@ test('course sidebar opens, closes with Escape and reopens on mobile', async ({ 
 	await expect(courseLink).toBeVisible();
 	await courseLink.click();
 	await expect(page).toHaveURL(/\/admin\/courses\/course\/edit$/);
+});
+
+test('administration sidebars remain accessible across tablet and desktop sizes', async ({
+	page
+}, testInfo) => {
+	await login(page, 'admin');
+	for (const path of [
+		'/admin',
+		'/admin/courses/course',
+		'/course/course/admin',
+		'/course/course/admin/interactives/activity/chatedit'
+	]) {
+		await page.setViewportSize({ width: 900, height: 800 });
+		await page.goto(path);
+		const toggle = page.getByRole('button', { name: 'Open sidebar', exact: true });
+		await expect(toggle).toBeVisible();
+		await expect(page.locator('aside:visible')).toHaveCount(0);
+		await toggle.click();
+		await expect(page.locator('aside:visible')).toHaveCount(1);
+		await expect
+			.poll(async () => (await page.locator('#context-sidebar').boundingBox())?.x)
+			.toBe(0);
+		if (path === '/admin/courses/course') {
+			await page.screenshot({ path: testInfo.outputPath('course-sidebar-tablet.png') });
+		}
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await expect(toggle).toBeHidden();
+		await expect(page.locator('aside:visible')).toHaveCount(1);
+		await expect(page.locator('#context-sidebar-desktop')).toBeVisible();
+		if (path === '/admin/courses/course') {
+			await page.screenshot({ path: testInfo.outputPath('course-sidebar-desktop.png') });
+			const activeCourseLink = page.locator('#context-sidebar-desktop a[aria-current="page"]');
+			const lightBackground = await activeCourseLink.evaluate(
+				(element) => getComputedStyle(element).backgroundColor
+			);
+			await page.getByRole('button', { name: 'Activar tema oscuro', exact: true }).click();
+			await expect(activeCourseLink).not.toHaveCSS('background-color', lightBackground);
+			await page.screenshot({
+				path: testInfo.outputPath('course-sidebar-desktop-dark.png'),
+				animations: 'disabled'
+			});
+			await page.getByRole('button', { name: 'Activar tema claro', exact: true }).click();
+			await page.setViewportSize({ width: 390, height: 844 });
+			await toggle.click();
+			await expect
+				.poll(async () => (await page.locator('#context-sidebar').boundingBox())?.x)
+				.toBe(0);
+			await expect(
+				page.locator('#context-sidebar').getByText('Vista estudiante', { exact: true })
+			).toBeVisible();
+			await page.screenshot({ path: testInfo.outputPath('course-sidebar-mobile.png') });
+			await page.keyboard.press('Escape');
+		}
+		await page.setViewportSize({ width: 900, height: 800 });
+		await expect(page.locator('aside:visible')).toHaveCount(0);
+		await toggle.click();
+		await page.keyboard.press('Escape');
+		await expect(page.locator('aside:visible')).toHaveCount(0);
+		const response = await page.request.get(path);
+		expect(await response.text()).toContain('id="context-sidebar-desktop"');
+		await expect(page).not.toHaveTitle('Mi Espacio - SAPIN');
+	}
+});
+
+test('mobile global menu occupies the viewport and closes on Escape and navigation', async ({
+	page
+}, testInfo) => {
+	await login(page, 'admin');
+	await page.goto('/admin');
+	await page.setViewportSize({ width: 390, height: 844 });
+	const toggle = page.getByRole('button', { name: 'Menu', exact: true });
+	const menu = page.locator('#mobile-navigation');
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	await expect(menu).toBeVisible();
+	await expect.poll(async () => (await menu.boundingBox())?.height ?? 0).toBeGreaterThan(700);
+	await page.screenshot({ path: testInfo.outputPath('mobile-navigation.png') });
+	await page.keyboard.press('Escape');
+	await expect(menu).toBeHidden();
+	await toggle.click();
+	await menu.locator('a[href="/dashboard"]').click();
+	await expect(page).toHaveURL(/\/dashboard$/);
+	await expect(menu).toBeHidden();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('opening notifications preserves the total unread count and fetches the list once', async ({
+	page
+}) => {
+	let listRequests = 0;
+	await page.route('**/api/notifications/unread-count', (route) =>
+		route.fulfill({ json: { count: 25 } })
+	);
+	await page.route('**/api/notifications?limit=10', (route) => {
+		listRequests++;
+		return route.fulfill({ json: { notifications: [] } });
+	});
+	await login(page, 'admin');
+	const bell = page.getByRole('button', { name: 'Notificaciones: 25 sin leer', exact: true });
+	await bell.click();
+	await expect(bell).toHaveAttribute('aria-expanded', 'true');
+	await expect(page.getByText('No tienes notificaciones', { exact: true })).toBeVisible();
+	await expect(bell).toBeVisible();
+	expect(listRequests).toBe(1);
 });
 
 test('file processing displays the failed count returned by the batch service', async ({

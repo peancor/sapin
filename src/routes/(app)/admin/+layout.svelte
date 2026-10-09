@@ -1,10 +1,10 @@
 <script lang="ts">
+	import ResponsiveSidebar from '$lib/components/ResponsiveSidebar.svelte';
 	import { resolve } from '$app/paths';
 	import { type Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 	import { page } from '$app/state';
 	import {
-		Sidebar,
 		SidebarGroup,
 		SidebarItem,
 		SidebarWrapper,
@@ -32,6 +32,10 @@
 	} from 'lucide-svelte';
 
 	let { data, children }: { data: LayoutData; children: Snippet } = $props();
+
+	const hasCourseSidebar = $derived(
+		page.route.id?.startsWith('/(app)/admin/courses/[cid]') ?? false
+	);
 
 	// Sidebar state
 	const sidebarUi = uiHelpers();
@@ -171,82 +175,97 @@
 		'h-5 w-5 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white';
 </script>
 
-<div class="bg-gray-50 dark:bg-gray-900">
-	<!-- Mobile sidebar toggle - positioned below main navbar -->
-	<div
-		class="sticky top-16 z-30 flex items-center gap-4 border-b border-gray-200 bg-white px-4 py-3 lg:hidden dark:border-gray-700 dark:bg-gray-800"
+<svelte:head>
+	<title
+		>{menuItems.find((item) => activeUrl === item.href)?.label ?? 'Administración'} - SAPIN</title
 	>
-		<SidebarButton
-			onclick={sidebarUi.toggle}
-			class="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-		/>
-		<span class="text-lg font-semibold text-gray-900 dark:text-white">Panel de Administración</span>
-	</div>
+</svelte:head>
 
-	<div class="flex">
-		<!-- Sidebar - starts below main navbar on mobile -->
-		<Sidebar
-			{activeUrl}
-			isOpen={isSidebarOpen}
-			closeSidebar={sidebarUi.close}
-			class="fixed top-16 left-0 z-40 h-[calc(100dvh-4rem)] w-64 overflow-y-auto border-r border-gray-200 bg-white pt-4 transition-transform lg:top-16 lg:h-[calc(100dvh-4rem)] lg:translate-x-0 dark:border-gray-700 dark:bg-gray-800"
-			position="fixed"
-			backdrop={true}
-			backdropClass="!top-16"
-			breakpoint="lg"
-			classes={{
-				nonactive:
-					'flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700',
-				active:
-					'flex items-center p-2 text-base font-normal text-white bg-primary-600 rounded-lg dark:bg-primary-700 hover:bg-primary-700 dark:hover:bg-primary-800'
-			}}
+<div class="bg-gray-50 dark:bg-gray-900">
+	{#if !hasCourseSidebar}
+		<!-- Mobile sidebar toggle - positioned below main navbar -->
+		<div
+			class="sticky top-16 z-30 flex items-center gap-4 border-b border-gray-200 bg-white px-4 py-3 lg:hidden dark:border-gray-700 dark:bg-gray-800"
 		>
-			<SidebarWrapper class="px-3">
-				<!-- Brand/Logo -->
-				<div class="mb-6 flex items-center gap-3 px-2">
-					<div
-						class="bg-primary-600 flex h-10 w-10 items-center justify-center rounded-lg text-white"
-					>
-						<Home class="h-6 w-6" />
-					</div>
-					<div>
-						<span class="text-lg font-bold text-gray-900 dark:text-white">SAPIN</span>
-						<p class="text-xs text-gray-500 dark:text-gray-400">Panel Admin</p>
-					</div>
-				</div>
-
-				<SidebarGroup>
-					{#each menuItems as item (item.id)}
-						{#if !item.minLevel || (data.user?.highestRoleLevel ?? 0) >= item.minLevel}
-							<SidebarItem label={item.label} href={item.href} {spanClass}>
-								{#snippet icon()}
-									<item.icon class={iconClass} />
-								{/snippet}
-							</SidebarItem>
-						{/if}
-					{/each}
-				</SidebarGroup>
-
-				<!-- User info at bottom -->
-				<SidebarGroup border class="mt-auto">
-					<div class="flex items-center gap-3 rounded-lg bg-gray-100 p-3 dark:bg-gray-700">
+			<SidebarButton
+				breakpoint="lg"
+				aria-expanded={isSidebarOpen}
+				aria-controls="context-sidebar"
+				onclick={sidebarUi.toggle}
+				class="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+			/>
+			<span class="text-lg font-semibold text-gray-900 dark:text-white"
+				>Panel de Administración</span
+			>
+		</div>
+	{/if}
+	<div class="flex">
+		{#if !hasCourseSidebar}
+			<!-- Sidebar - starts below main navbar on mobile -->
+			<ResponsiveSidebar
+				ariaLabel="Navegación de administración"
+				{activeUrl}
+				isOpen={isSidebarOpen}
+				closeSidebar={sidebarUi.close}
+				class="fixed top-16 left-0 z-40 h-[calc(100dvh-4rem)] w-64 overflow-y-auto border-r border-gray-200 bg-white pt-4 transition-transform lg:top-16 lg:h-[calc(100dvh-4rem)] lg:translate-x-0 dark:border-gray-700 dark:bg-gray-800"
+				position="fixed"
+				backdrop={true}
+				backdropClass="!top-16"
+				breakpoint="lg"
+				classes={{
+					nonactive:
+						'flex items-center p-2 text-base font-normal text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700',
+					active:
+						'flex items-center p-2 text-base font-normal text-white bg-primary-600 rounded-lg dark:bg-primary-700 hover:bg-primary-700 dark:hover:bg-primary-800'
+				}}
+			>
+				<SidebarWrapper class="px-3">
+					<!-- Brand/Logo -->
+					<div class="mb-6 flex items-center gap-3 px-2">
 						<div
-							class="bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-400 flex h-10 w-10 items-center justify-center rounded-full"
+							class="bg-primary-600 flex h-10 w-10 items-center justify-center rounded-lg text-white"
 						>
-							{(data.user?.username || 'A').charAt(0).toUpperCase()}
+							<Home class="h-6 w-6" />
 						</div>
-						<div class="flex-1 truncate">
-							<p class="truncate text-sm font-medium text-gray-900 dark:text-white">
-								{data.user?.username || 'Admin'}
-							</p>
-							<p class="truncate text-xs text-gray-500 dark:text-gray-400">
-								{data.user?.email || ''}
-							</p>
+						<div>
+							<span class="text-lg font-bold text-gray-900 dark:text-white">SAPIN</span>
+							<p class="text-xs text-gray-500 dark:text-gray-400">Panel Admin</p>
 						</div>
 					</div>
-				</SidebarGroup>
-			</SidebarWrapper>
-		</Sidebar>
+
+					<SidebarGroup>
+						{#each menuItems as item (item.id)}
+							{#if !item.minLevel || (data.user?.highestRoleLevel ?? 0) >= item.minLevel}
+								<SidebarItem label={item.label} href={item.href} {spanClass}>
+									{#snippet icon()}
+										<item.icon class={iconClass} />
+									{/snippet}
+								</SidebarItem>
+							{/if}
+						{/each}
+					</SidebarGroup>
+
+					<!-- User info at bottom -->
+					<SidebarGroup border class="mt-auto">
+						<div class="flex items-center gap-3 rounded-lg bg-gray-100 p-3 dark:bg-gray-700">
+							<div
+								class="bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-400 flex h-10 w-10 items-center justify-center rounded-full"
+							>
+								{(data.user?.username || 'A').charAt(0).toUpperCase()}
+							</div>
+							<div class="flex-1 truncate">
+								<p class="truncate text-sm font-medium text-gray-900 dark:text-white">
+									{data.user?.username || 'Admin'}
+								</p>
+								<p class="truncate text-xs text-gray-500 dark:text-gray-400">
+									{data.user?.email || ''}
+								</p>
+							</div>
+						</div>
+					</SidebarGroup>
+				</SidebarWrapper>
+			</ResponsiveSidebar>
+		{/if}
 
 		<!-- Main content -->
 		<main class="flex-1 lg:ml-64">

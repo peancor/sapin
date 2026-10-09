@@ -5,7 +5,8 @@
 	import { LogOut, LogIn, User, Menu, Moon, Sun, X, Home, Shield, BookOpen } from 'lucide-svelte';
 	import { theme } from '$lib/stores/theme';
 	import { topbarMenuItems } from '$lib/stores/topbarNavigation';
-	import '$app/navigation';
+	import { afterNavigate } from '$app/navigation';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { m } from '$lib/paraglide/messages.js';
 	import {
 		Button,
@@ -27,6 +28,15 @@
 		isMobileMenuOpen: boolean;
 		onMenuToggle: () => void;
 	}>();
+
+	const reducedMotion = new MediaQuery('(prefers-reduced-motion: reduce)', false);
+	afterNavigate(() => {
+		if (isMobileMenuOpen) onMenuToggle();
+	});
+
+	function closeMobileMenu(event: KeyboardEvent) {
+		if (event.key === 'Escape' && isMobileMenuOpen) onMenuToggle();
+	}
 
 	// Usar $derived para mantener reactividad con los props - nuevo sistema de roles
 	const userHighestRole = $derived(user?.highestRole);
@@ -90,6 +100,8 @@
 	}
 </script>
 
+<svelte:window onkeydown={closeMobileMenu} />
+
 <header
 	class="fixed top-0 right-0 left-0 z-50 border-b border-gray-200/50 bg-white/80 backdrop-blur-lg transition-all duration-300 dark:border-gray-700/50 dark:bg-gray-900/80"
 >
@@ -100,6 +112,8 @@
 				class="rounded-xl p-2 text-gray-600 transition-all duration-200 hover:bg-gray-100/50 md:hidden dark:text-gray-400 dark:hover:bg-gray-800/50"
 				onclick={onMenuToggle}
 				aria-label="Menu"
+				aria-expanded={isMobileMenuOpen}
+				aria-controls="mobile-navigation"
 			>
 				{#if isMobileMenuOpen}
 					<div in:scale={{ duration: 200, start: 0.8 }}>
@@ -158,6 +172,7 @@
 				color="light"
 				class="border-none bg-transparent p-2.5! transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-800"
 				onclick={toggleTheme}
+				aria-label={$theme === 'dark' ? 'Activar tema claro' : 'Activar tema oscuro'}
 			>
 				{#if $theme === 'dark'}
 					<Sun size={18} class="animate-pulse text-yellow-400" />
@@ -372,6 +387,7 @@
 					</GradientButton>
 					<Button
 						href={resolve('/login')}
+						aria-label="Iniciar sesión"
 						size="sm"
 						color="blue"
 						class="flex items-center justify-center rounded-full p-2.5 shadow-lg shadow-blue-500/20 sm:hidden"
@@ -382,65 +398,66 @@
 			{/if}
 		</div>
 	</div>
-
-	<!-- Mobile Navigation -->
-	{#if isMobileMenuOpen}
-		<div
-			transition:slide={{ duration: 400 }}
-			class="fixed inset-0 top-14 z-40 overflow-y-auto bg-white/95 backdrop-blur-xl md:hidden dark:bg-gray-900/95"
-		>
-			<nav class="space-y-6 p-6">
-				<div class="space-y-3">
-					<p
-						class="ml-2 text-[10px] font-black tracking-widest text-slate-400 uppercase dark:text-slate-500"
-					>
-						Navegación
-					</p>
-					<div class="grid grid-cols-1 gap-3">
-						{#each filteredMenuItems as item (item.href)}
-							<a
-								href={resolve(...([item.href] as Parameters<typeof resolve>))}
-								class="hover:bg-primary-50 dark:hover:bg-primary-900/20 group flex items-center gap-4 rounded-2xl bg-slate-50 p-4 text-slate-700 transition-all duration-300 dark:bg-slate-800/50 dark:text-slate-200"
-								onclick={onMenuToggle}
-							>
-								<div
-									class="bg-primary-100 dark:bg-primary-900/50 rounded-xl p-2.5 transition-transform duration-300 group-hover:scale-110"
-								>
-									<Home class="text-primary-600 dark:text-primary-400 h-5 w-5" />
-								</div>
-								<span class="font-bold tracking-tight">{item.label}</span>
-								{#if $page.url.pathname === item.href}
-									<div class="bg-primary-500 ml-auto h-2 w-2 animate-pulse rounded-full"></div>
-								{/if}
-							</a>
-						{/each}
-					</div>
-				</div>
-
-				{#if !user}
-					<div class="space-y-4 pt-6">
-						<GradientButton
-							href={resolve('/register')}
-							color="purpleToBlue"
-							class="w-full rounded-2xl py-4 text-sm font-black tracking-widest uppercase shadow-xl shadow-blue-500/20"
-							onclick={onMenuToggle}
-						>
-							Comenzar Gratis
-						</GradientButton>
-						<Button
-							color="light"
-							href={resolve('/login')}
-							class="w-full rounded-2xl border-none bg-slate-100 py-4 text-sm font-bold dark:bg-slate-800"
-							onclick={onMenuToggle}
-						>
-							Iniciar sesión
-						</Button>
-					</div>
-				{/if}
-			</nav>
-		</div>
-	{/if}
 </header>
+
+<!-- Mobile Navigation -->
+{#if isMobileMenuOpen}
+	<div
+		id="mobile-navigation"
+		transition:slide={{ duration: reducedMotion.current ? 0 : 200 }}
+		class="fixed inset-0 top-14 z-40 overflow-y-auto overscroll-contain bg-white/95 backdrop-blur-xl md:hidden dark:bg-gray-900/95"
+	>
+		<nav class="space-y-6 p-6">
+			<div class="space-y-3">
+				<p
+					class="ml-2 text-[10px] font-black tracking-widest text-slate-400 uppercase dark:text-slate-500"
+				>
+					Navegación
+				</p>
+				<div class="grid grid-cols-1 gap-3">
+					{#each filteredMenuItems as item (item.href)}
+						<a
+							href={resolve(...([item.href] as Parameters<typeof resolve>))}
+							class="hover:bg-primary-50 dark:hover:bg-primary-900/20 group flex items-center gap-4 rounded-2xl bg-slate-50 p-4 text-slate-700 transition-all duration-300 dark:bg-slate-800/50 dark:text-slate-200"
+							onclick={onMenuToggle}
+						>
+							<div
+								class="bg-primary-100 dark:bg-primary-900/50 rounded-xl p-2.5 transition-transform duration-300 group-hover:scale-110"
+							>
+								<Home class="text-primary-600 dark:text-primary-400 h-5 w-5" />
+							</div>
+							<span class="font-bold tracking-tight">{item.label}</span>
+							{#if $page.url.pathname === item.href}
+								<div class="bg-primary-500 ml-auto h-2 w-2 animate-pulse rounded-full"></div>
+							{/if}
+						</a>
+					{/each}
+				</div>
+			</div>
+
+			{#if !user}
+				<div class="space-y-4 pt-6">
+					<GradientButton
+						href={resolve('/register')}
+						color="purpleToBlue"
+						class="w-full rounded-2xl py-4 text-sm font-black tracking-widest uppercase shadow-xl shadow-blue-500/20"
+						onclick={onMenuToggle}
+					>
+						Comenzar Gratis
+					</GradientButton>
+					<Button
+						color="light"
+						href={resolve('/login')}
+						class="w-full rounded-2xl border-none bg-slate-100 py-4 text-sm font-bold dark:bg-slate-800"
+						onclick={onMenuToggle}
+					>
+						Iniciar sesión
+					</Button>
+				</div>
+			{/if}
+		</nav>
+	</div>
+{/if}
 
 <style lang="postcss">
 	/* Estilos adicionales */
