@@ -52,7 +52,7 @@
 			lowercase: /[a-z]/.test(password),
 			uppercase: /[A-Z]/.test(password),
 			number: /[0-9]/.test(password),
-			special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+			special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password),
 			noCommonPatterns: !/(password|admin|qwerty|letmein|^(.)\1+$)/i.test(password)
 		};
 	});
@@ -76,8 +76,6 @@
 
 	let passwordsMatch = $derived(confirmPassword.length > 0 && password === confirmPassword);
 
-	let passwordMismatch = $derived(confirmPassword.length > 0 && password !== confirmPassword);
-
 	let canSubmit = $derived(
 		usernameValid?.valid &&
 			emailValid?.valid &&
@@ -88,7 +86,7 @@
 
 	function handleSubmit() {
 		isSubmitting = true;
-		return async ({ result, update }: { result: any; update: () => Promise<void> }) => {
+		return async ({ update }: { result: any; update: () => Promise<void> }) => {
 			isSubmitting = false;
 			await update();
 		};

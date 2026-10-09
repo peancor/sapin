@@ -15,8 +15,7 @@
 		MessageSquareText,
 		Radar,
 		Settings2,
-		User,
-		Wrench
+		User
 	} from 'lucide-svelte';
 	import JsonViewer from '$lib/components/activity-debugger/JsonViewer.svelte';
 	import RawSections from '$lib/components/activity-debugger/RawSections.svelte';

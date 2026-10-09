@@ -18,7 +18,6 @@
 		BarChart3,
 		Settings,
 		ChevronLeft,
-		GraduationCap,
 		Sparkles,
 		ShieldAlert,
 		Plus,

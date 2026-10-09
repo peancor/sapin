@@ -32,36 +32,6 @@
 		]);
 	});
 
-	function getRoleBadgeColor(role: string): 'purple' | 'red' | 'blue' | 'green' | 'yellow' {
-		switch (role) {
-			case 'super_admin':
-				return 'red';
-			case 'admin':
-				return 'purple';
-			case 'teacher':
-				return 'blue';
-			case 'assistant':
-				return 'yellow';
-			default:
-				return 'green';
-		}
-	}
-
-	function getRoleLabel(role: string) {
-		switch (role) {
-			case 'super_admin':
-				return 'Super Admin';
-			case 'admin':
-				return 'Administrador';
-			case 'teacher':
-				return 'Profesor';
-			case 'assistant':
-				return 'Asistente';
-			default:
-				return 'Estudiante';
-		}
-	}
-
 	function getRoleBadgeColorByLevel(level: number): 'purple' | 'red' | 'blue' | 'green' | 'yellow' {
 		if (level >= 100) return 'red';
 		if (level >= 90) return 'purple';

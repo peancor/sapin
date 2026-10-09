@@ -7,7 +7,7 @@
 	import { resolve } from '$app/paths';
 
 	import { onMount } from 'svelte';
-	import { response } from '$lib/stores/response';
+	import '$lib/stores/response';
 
 	let { data }: { data: PageData } = $props();
 

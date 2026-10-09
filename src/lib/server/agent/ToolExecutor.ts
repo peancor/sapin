@@ -1,4 +1,4 @@
-import type { AgentContext, ToolDefinitionResolved, ToolResult } from '$lib/types/agent';
+import type { AgentContext, ToolDefinitionResolved } from '$lib/types/agent';
 import { getBuiltinToolHandler } from './tools/registry';
 
 export interface ToolExecutionResult {

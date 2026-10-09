@@ -16,7 +16,6 @@
 	let container: HTMLDivElement;
 	let widgetId: string | undefined;
 	let token = $state('');
-	let scriptLoaded = $state(false);
 
 	// Expose token via binding
 	export function getToken(): string {
@@ -115,7 +114,6 @@
 
 		try {
 			await loadScript();
-			scriptLoaded = true;
 			renderWidget();
 		} catch (error) {
 			console.error('Failed to initialize Turnstile:', error);

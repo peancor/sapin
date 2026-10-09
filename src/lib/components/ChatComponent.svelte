@@ -1,15 +1,6 @@
 <script lang="ts">
 	import 'katex/dist/katex.min.css';
-	import {
-		Paperclip,
-		Upload,
-		Image,
-		AlertTriangle,
-		ArrowUp,
-		ChevronsUp,
-		KeyRound,
-		ArrowDown
-	} from 'lucide-svelte';
+	import { AlertTriangle, ChevronsUp, KeyRound } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { Spinner, TextPlaceholder } from 'flowbite-svelte';
 	import { renderMarkdownMath } from '$lib/utils';
@@ -105,25 +96,6 @@
 		if (!container) return;
 		userHasScrolled = true;
 		isAtBottom = checkIfAtBottom();
-	}
-
-	function scrollChatToBottom() {
-		if (!container) return;
-		container.scrollTop = container.scrollHeight;
-	}
-
-	function scrollChatToMiddle() {
-		if (!container) return;
-		const lastMessage = container.querySelector('.chat-container > div > div:last-child');
-		if (lastMessage instanceof HTMLElement) {
-			const containerHeight = container.clientHeight;
-			const messageTop = lastMessage.offsetTop;
-			const scrollPosition = messageTop - containerHeight / 2;
-			container.scrollTo({
-				top: scrollPosition,
-				behavior: 'smooth'
-			});
-		}
 	}
 
 	function scrollToNewMessage() {

@@ -11,9 +11,7 @@
 	import { formatDate } from '$lib/helpers/dateUtils';
 	import {
 		isLessonStudioSource,
-		lessonActivityHref,
 		lessonFlowHref,
-		lessonStudioHref,
 		lessonStudioReturnTarget
 	} from '$lib/lesson/lessonStudioNavigation';
 	import type {
@@ -74,8 +72,7 @@
 		const source = page.url.searchParams.get('source');
 		return isLessonStudioSource(source) ? source : 'activity';
 	});
-	const activityHref = $derived.by(() => lessonActivityHref(routeContext));
-	const studioHref = $derived.by(() => lessonStudioHref(routeContext));
+
 	const returnBlockId = $derived.by(() => {
 		const availableSnapshot = data.snapshot;
 		if (
@@ -105,11 +102,7 @@
 		if (!shouldRunFromBlock || !snapshot.selectedBlockId) return '';
 		return `${snapshot.previewMode}:${snapshot.selectedBlockId}:${page.url.search}`;
 	});
-	const selectedBlockSummary = $derived.by(
-		() =>
-			snapshot.blockSummaries.find((summary) => summary.blockId === snapshot.selectedBlockId) ??
-			null
-	);
+
 	const definitionSections = $derived.by(() =>
 		snapshot
 			? [

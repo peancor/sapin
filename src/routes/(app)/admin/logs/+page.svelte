@@ -190,7 +190,7 @@
 			} else {
 				cleanupResult = { success: false, error: result.data?.error || 'Error desconocido' };
 			}
-		} catch (err) {
+		} catch {
 			cleanupResult = { success: false, error: 'Error de conexion' };
 		} finally {
 			isCleaningUp = false;

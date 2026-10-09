@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
-	import { Users, BookOpen } from 'lucide-svelte';
+	import { BookOpen } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 

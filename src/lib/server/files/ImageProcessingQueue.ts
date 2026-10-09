@@ -157,7 +157,7 @@ class ImageProcessingQueue {
 	 */
 	async requeueFailedFiles(): Promise<number> {
 		try {
-			const result = await db
+			await db
 				.update(fileStorage)
 				.set({ processingStatus: 'pending' })
 				.where(and(eq(fileStorage.processingStatus, 'error'), eq(fileStorage.isActive, true)));

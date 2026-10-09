@@ -27,7 +27,6 @@
 		imageUrl = $bindable(''),
 		status = $bindable<CourseStatus>('draft'),
 		showStatusSelector = false,
-		mode = 'edit',
 		onchange
 	}: Props = $props();
 

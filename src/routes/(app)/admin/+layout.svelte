@@ -12,7 +12,6 @@
 	} from 'flowbite-svelte';
 	import {
 		Users,
-		User,
 		BookOpen,
 		Settings,
 		LayoutDashboard,
@@ -30,7 +29,6 @@
 		LayoutGrid,
 		Bug
 	} from 'lucide-svelte';
-	import { min } from 'drizzle-orm';
 
 	let { data, children }: { data: LayoutData; children: Snippet } = $props();
 

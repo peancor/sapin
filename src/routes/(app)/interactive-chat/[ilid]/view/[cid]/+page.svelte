@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { marked, type RendererThis, type Tokens } from 'marked';
-	import katex from 'katex';
+	import 'katex';
 	import markedKatex from 'marked-katex-extension';
 	import 'katex/dist/katex.min.css';
 	import type { PageData } from './$types';
 	import { preprocessMathExpressions } from '$lib/utils';
 	import { onMount } from 'svelte';
 	import type { Action } from 'svelte/action';
-	import { BarChart, PieChart } from 'lucide-svelte';
+	import { BarChart } from 'lucide-svelte';
 
 	marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
 	marked.use({

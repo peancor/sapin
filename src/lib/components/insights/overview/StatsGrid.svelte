@@ -1,13 +1,6 @@
 <script lang="ts">
 	import StatCard from './StatCard.svelte';
-	import {
-		Users,
-		MessageSquare,
-		TrendingUp,
-		AlertTriangle,
-		CheckCircle,
-		Clock
-	} from 'lucide-svelte';
+	import { Users, MessageSquare, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-svelte';
 	import type { ChatSummaryStats, ConsolidatedMetrics } from '$lib/types/insights';
 
 	interface Props {

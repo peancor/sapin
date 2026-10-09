@@ -1,6 +1,6 @@
 import { fail, redirect, isRedirect } from '@sveltejs/kit';
 import * as auth from '$lib/server/auth';
-import { db, DBUserUtils, InvitationUtils } from '$lib/server/db';
+import { DBUserUtils, InvitationUtils } from '$lib/server/db';
 import { sn } from '$lib/server/sn';
 import type { Actions, PageServerLoad } from './$types';
 import { validateTurnstileToken, getClientIp } from '$lib/server/turnstile';

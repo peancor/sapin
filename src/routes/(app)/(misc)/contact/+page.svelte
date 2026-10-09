@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Mail, MessageSquare, Send, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-svelte';
+	import { MessageSquare, Send, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-svelte';
 	import { Button, Input, Textarea, Label, Alert } from 'flowbite-svelte';
 	import { enhance } from '$app/forms';
 	import type { ActionData, PageData } from './$types';

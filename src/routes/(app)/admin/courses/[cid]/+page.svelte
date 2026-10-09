@@ -5,7 +5,6 @@
 		Users,
 		BookOpen,
 		Activity,
-		Clock,
 		GraduationCap,
 		Settings,
 		Eye,

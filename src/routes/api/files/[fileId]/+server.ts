@@ -48,7 +48,7 @@ export const GET: RequestHandler = async ({ params, locals, url, request }) => {
 		// Check if file exists on disk
 		try {
 			await fs.access(filePath);
-		} catch (err) {
+		} catch {
 			console.error('File not found on disk:', filePath);
 			throw error(404, 'File not found on disk');
 		}

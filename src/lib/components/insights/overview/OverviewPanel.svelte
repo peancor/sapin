@@ -2,7 +2,7 @@
 	import { Button, Card } from 'flowbite-svelte';
 	import StatsGrid from './StatsGrid.svelte';
 	import ParticipationDonut from '../charts/ParticipationDonut.svelte';
-	import EngagementChart from '../charts/EngagementChart.svelte';
+	import '../charts/EngagementChart.svelte';
 	import { insightsStore } from '$lib/stores/insights';
 	import { Settings, AlertTriangle } from 'lucide-svelte';
 	import type { ChatSummaryStats, ConsolidatedMetrics, ActivityContext } from '$lib/types/insights';

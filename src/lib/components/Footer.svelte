@@ -1,8 +1,8 @@
 <!-- Footer component -->
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages.js';
-	import { A, Hr } from 'flowbite-svelte';
-	import { Instagram, Twitter, Facebook, Github, Mail } from 'lucide-svelte';
+	import { Hr } from 'flowbite-svelte';
+	import { Mail } from 'lucide-svelte';
 	import { page } from '$app/state';
 
 	const hasSidebarLayout = $derived(

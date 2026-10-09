@@ -13,7 +13,6 @@
 	} from 'flowbite-svelte';
 	import {
 		ArrowLeft,
-		User,
 		Clock,
 		Eye,
 		Activity,
@@ -129,19 +128,6 @@
 		if (minutes < 60) return `Hace ${minutes}m`;
 		if (hours < 24) return `Hace ${hours}h`;
 		return `Hace ${days}d`;
-	}
-
-	function getDeviceIcon(device: string | null) {
-		switch (device) {
-			case 'desktop':
-				return Monitor;
-			case 'mobile':
-				return Smartphone;
-			case 'tablet':
-				return Tablet;
-			default:
-				return Globe;
-		}
 	}
 
 	function getEventTypeColor(type: string): 'blue' | 'gray' | 'green' | 'red' | 'purple' {

@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { formatDate } from '$lib/helpers/dateUtils';
-	import { ChevronDown, ChevronUp, MessageSquare, ExternalLink } from 'lucide-svelte';
+	import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-svelte';
 	import type { ChatInstanceInterface, InteractiveChatInterface } from '$lib/server/db/';
 	import { Avatar, Badge } from 'flowbite-svelte';
 	import { marked } from 'marked';
-	import katex from 'katex';
+	import 'katex';
 	import markedKatex from 'marked-katex-extension';
 	import 'katex/dist/katex.min.css';
 	import { preprocessMathExpressions } from '$lib/utils';

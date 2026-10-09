@@ -14,50 +14,8 @@
 		P,
 		Tooltip
 	} from 'flowbite-svelte';
-	import {
-		Camera,
-		Trash2,
-		User,
-		Lock,
-		Mail,
-		UserCircle,
-		GraduationCap,
-		Sparkles,
-		Shield
-	} from 'lucide-svelte';
+	import { Camera, Trash2, User, Lock, Mail, UserCircle, GraduationCap } from 'lucide-svelte';
 	import { invalidateAll } from '$app/navigation';
-
-	function getRoleDisplayName(role: string): string {
-		switch (role) {
-			case 'super_admin':
-				return 'Super Administrador';
-			case 'admin':
-				return 'Administrador';
-			case 'teacher':
-				return 'Profesor';
-			case 'assistant':
-				return 'Asistente';
-			case 'student':
-				return 'Estudiante';
-			default:
-				return 'Usuario';
-		}
-	}
-
-	function getRoleBadgeColor(role: string): 'red' | 'purple' | 'blue' | 'yellow' | 'green' {
-		switch (role) {
-			case 'super_admin':
-				return 'red';
-			case 'admin':
-				return 'purple';
-			case 'teacher':
-				return 'blue';
-			case 'assistant':
-				return 'yellow';
-			default:
-				return 'green';
-		}
-	}
 
 	function getRoleBadgeColorByLevel(level: number): 'red' | 'purple' | 'blue' | 'yellow' | 'green' {
 		if (level >= 100) return 'red';
@@ -67,7 +25,7 @@
 		return 'green';
 	}
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	let { data }: { data: PageData; form: ActionData } = $props();
 
 	// Estado local para campos de perfil
 	let username = $derived(data.user.username || '');

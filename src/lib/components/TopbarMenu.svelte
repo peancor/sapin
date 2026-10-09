@@ -1,22 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import {
-		LogOut,
-		LogIn,
-		User,
-		Menu,
-		Moon,
-		Sun,
-		X,
-		Home,
-		Settings,
-		Shield,
-		GraduationCap,
-		BookOpen
-	} from 'lucide-svelte';
+	import { LogOut, LogIn, User, Menu, Moon, Sun, X, Home, Shield, BookOpen } from 'lucide-svelte';
 	import { theme } from '$lib/stores/theme';
 	import { topbarMenuItems } from '$lib/stores/topbarNavigation';
-	import { goto } from '$app/navigation';
+	import '$app/navigation';
 	import { m } from '$lib/paraglide/messages.js';
 	import {
 		Button,
@@ -25,11 +12,10 @@
 		Dropdown,
 		DropdownHeader,
 		DropdownItem,
-		DropdownDivider,
 		DropdownGroup,
 		GradientButton
 	} from 'flowbite-svelte';
-	import { fade, slide, fly } from 'svelte/transition';
+	import { slide } from 'svelte/transition';
 	import { ChevronDownOutline } from 'flowbite-svelte-icons';
 	import NotificationBell from './notifications/NotificationBell.svelte';
 	import { scale } from 'svelte/transition';
@@ -146,7 +132,7 @@
 
 		<!-- Desktop Navigation -->
 		<nav class="hidden items-center gap-8 md:flex">
-			{#each filteredMenuItems as item, i}
+			{#each filteredMenuItems as item}
 				<a
 					href={item.href}
 					class="group hover:text-primary-600 dark:hover:text-primary-400 relative px-1 py-2 text-sm font-semibold tracking-wide text-slate-600 transition-all duration-300 dark:text-slate-300"

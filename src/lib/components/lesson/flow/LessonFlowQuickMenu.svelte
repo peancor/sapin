@@ -10,9 +10,9 @@
 		subtitle = '',
 		query = '',
 		items = [],
-		onselect = (_itemId: string) => {},
+		onselect = () => {},
 		onclose = () => {},
-		onquerychange = (_value: string) => {}
+		onquerychange = () => {}
 	}: {
 		open?: boolean;
 		x?: number;

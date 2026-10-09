@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { db } from '..';
 import * as schema from '../schema';

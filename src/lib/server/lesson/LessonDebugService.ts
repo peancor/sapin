@@ -3,16 +3,13 @@ import { and, asc, desc, eq } from 'drizzle-orm';
 import { AgentTranscriptService } from '$lib/server/agent/AgentTranscriptService';
 import { db } from '$lib/server/db';
 import {
-	interactiveLessonBlockVisit,
 	interactiveLessonEvent,
 	interactiveLessonSession,
 	lessonSessionScope,
 	message,
 	type InteractiveLearning,
-	type InteractiveLessonBlockState,
 	type InteractiveLessonBlockVisit,
-	type InteractiveLessonEvent,
-	type InteractiveLessonSession
+	type InteractiveLessonEvent
 } from '$lib/server/db/schema';
 import type { AgentDisplayMessage } from '$lib/types/agent';
 import type { LessonBlock } from '$lib/types/lesson';
@@ -31,7 +28,6 @@ import {
 	buildLessonDebugTemplateContext,
 	evaluateLessonDebugTransitions,
 	parseLessonDebugJsonRecord,
-	pickLessonDebugPreviewSession,
 	resolveLessonDebugBlock
 } from './lessonDebugUtils.ts';
 

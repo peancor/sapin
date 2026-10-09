@@ -1,5 +1,5 @@
 import { db } from '.';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import * as schema from './schema';
 
 export default class DBUtils {

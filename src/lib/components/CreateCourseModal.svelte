@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Modal, Label, Input, Textarea, Button } from 'flowbite-svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { BookOpen, Sparkles, Loader2, X } from 'lucide-svelte';
+	import { BookOpen, Loader2 } from 'lucide-svelte';
 
 	interface Props {
 		show?: boolean;

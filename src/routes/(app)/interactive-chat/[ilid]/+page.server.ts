@@ -1,11 +1,10 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { and, eq } from 'drizzle-orm';
-import { interactiveLearningChat, userInteractiveLearningChat, chat } from '$lib/server/db/schema';
+import { userInteractiveLearningChat, chat } from '$lib/server/db/schema';
 import { error } from '@sveltejs/kit';
 
-export const load = (async ({ params, parent, locals }) => {
-	const { ilid } = params;
+export const load = (async ({ parent, locals }) => {
 	const { user } = locals;
 
 	// El layout ya verifica autenticación, pero TypeScript necesita esta verificación

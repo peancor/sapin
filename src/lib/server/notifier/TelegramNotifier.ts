@@ -1,5 +1,5 @@
 import type { Notifier } from './index';
-import { env } from '$env/dynamic/private';
+import '$env/dynamic/private';
 
 export default class TelegramNotifier implements Notifier {
 	private botToken: string;

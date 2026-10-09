@@ -3,7 +3,7 @@
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
-	import { Input, Label, Toggle, Select, Button, Helper, Alert, Checkbox } from 'flowbite-svelte';
+	import { Input, Label, Toggle, Select, Button, Helper, Alert } from 'flowbite-svelte';
 	import { Mail, Server, Send, CheckCircle, XCircle, Bell, BellRing, Users } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();

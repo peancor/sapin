@@ -4,7 +4,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import ImageUpload from '$lib/components/ImageUpload.svelte';
-	import { Button, Label, Input, Helper, Checkbox, Badge, Card } from 'flowbite-svelte';
+	import { Button, Label, Input, Helper, Checkbox, Badge } from 'flowbite-svelte';
 	import { UserCog, Mail, User, Lock, Shield, ArrowLeft, Save, Users, Crown } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();

@@ -29,7 +29,6 @@
 		Smartphone,
 		Tablet,
 		Globe,
-		MousePointer,
 		User,
 		UserX,
 		LayoutDashboard,
@@ -304,19 +303,6 @@
 				return 'Tablet';
 			default:
 				return device;
-		}
-	}
-
-	function getDeviceIcon(device: string | null) {
-		switch (device) {
-			case 'desktop':
-				return Monitor;
-			case 'mobile':
-				return Smartphone;
-			case 'tablet':
-				return Tablet;
-			default:
-				return Globe;
 		}
 	}
 

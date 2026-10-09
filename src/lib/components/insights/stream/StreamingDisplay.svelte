@@ -53,7 +53,7 @@
 
 				<!-- Phases List -->
 				<div class="space-y-2">
-					{#each phases as phase, index}
+					{#each phases as phase}
 						<div
 							class="flex items-center gap-3 rounded-lg p-2 transition-colors
                             {getPhaseStatus(phase) === 'active'

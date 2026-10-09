@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { db, CourseRoleUtils } from '$lib/server/db';
 import { user, role, userRoleAssignment } from '$lib/server/db/schema';
-import { eq, and, not, inArray, isNull, or, gt, gte } from 'drizzle-orm';
+import { eq, and, inArray, isNull, or, gt, gte } from 'drizzle-orm';
 import { error, fail } from '@sveltejs/kit';
 import { ROLE_LEVELS } from '$lib/server/roles';
 

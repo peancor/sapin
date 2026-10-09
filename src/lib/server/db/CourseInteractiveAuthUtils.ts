@@ -1,5 +1,5 @@
 import { db } from './index';
-import { courseInteractiveLearning, courseRole } from './schema';
+import { courseInteractiveLearning } from './schema';
 import { eq, and } from 'drizzle-orm';
 import { ROLE_LEVELS } from '../roles';
 import { CourseRoleUtils } from './CourseRoleUtils';

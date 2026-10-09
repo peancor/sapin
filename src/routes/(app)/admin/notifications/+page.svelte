@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { PageData } from './$types';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
@@ -42,7 +41,6 @@
 	let selectedRoles = $state<string[]>([]);
 	let channelInApp = $state(true);
 	// Email deshabilitado para broadcast durante desarrollo
-	const channelEmail = false;
 
 	// Individual form
 	let individualTitle = $state('');

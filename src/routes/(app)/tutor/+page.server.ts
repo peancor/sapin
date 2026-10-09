@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { DBAgentActivityUtils } from '$lib/server/db/agent';
 
-export const load = (async ({ locals, fetch }) => {
+export const load = (async ({ locals }) => {
 	const user = locals.user;
 	if (!user) throw redirect(302, '/login');
 

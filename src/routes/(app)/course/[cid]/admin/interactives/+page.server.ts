@@ -9,7 +9,7 @@ import {
 	lessonSessionScope,
 	userInteractiveLearningChat
 } from '$lib/server/db/schema';
-import { eq, and, sql, count, inArray, isNotNull } from 'drizzle-orm';
+import { eq, and, count, inArray, isNotNull } from 'drizzle-orm';
 
 export const load = (async ({ params, locals }) => {
 	if (!locals.user) {

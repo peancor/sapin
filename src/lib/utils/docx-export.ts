@@ -150,7 +150,7 @@ function preprocessMarkdown(content: string): string {
 			// Ensure separator line is properly formatted
 			const cells = trimmed.split('|').filter((c) => c.trim());
 			if (cells.length > 0) {
-				const formattedSep = '| ' + cells.map((c) => '---').join(' | ') + ' |';
+				const formattedSep = '| ' + cells.map(() => '---').join(' | ') + ' |';
 				fixedLines.push(formattedSep);
 				continue;
 			}
@@ -369,7 +369,7 @@ function processInlineTokens(
 		if (!token) continue;
 
 		switch (token.type) {
-			case 'text':
+			case 'text': {
 				// Ensure we clean any markdown syntax that might be in the text
 				const cleanedText = cleanMarkdownSyntax(token.text || '');
 				if (cleanedText) {
@@ -382,6 +382,7 @@ function processInlineTokens(
 					);
 				}
 				break;
+			}
 
 			case 'strong':
 				// Handle bold text - merge bold state with any inherited formatting
@@ -525,22 +526,6 @@ function processInlineTokens(
 }
 
 /**
- * Process tokens inside a strong (bold) context
- * @deprecated Use processInlineTokens with options.bold = true instead
- */
-function processStrongTokens(tokens: any[], runs: TextRun[]) {
-	processInlineTokens(tokens, runs, { bold: true });
-}
-
-/**
- * Process tokens inside an em (italic) context
- * @deprecated Use processInlineTokens with options.italics = true instead
- */
-function processEmTokens(tokens: any[], runs: TextRun[]) {
-	processInlineTokens(tokens, runs, { italics: true });
-}
-
-/**
  * Create a heading paragraph
  */
 function createHeading(token: HeadingToken): Paragraph {
@@ -647,12 +632,13 @@ function processListItemTokens(tokens: any[], runs: TextRun[], prefix: string = 
 		if (!token) continue;
 
 		switch (token.type) {
-			case 'text':
+			case 'text': {
 				const cleanText = cleanMarkdownSyntax(token.text || '');
 				if (cleanText) {
 					runs.push(new TextRun({ text: cleanText }));
 				}
 				break;
+			}
 
 			case 'strong':
 				if (token.tokens && token.tokens.length > 0) {

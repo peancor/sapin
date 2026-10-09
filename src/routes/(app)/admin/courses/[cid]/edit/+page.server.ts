@@ -3,7 +3,7 @@ import { db } from '$lib/server/db';
 import { course, courseStatus } from '$lib/server/db/schema';
 import type { CourseStatusType } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { fail, error } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { fileStorageService } from '$lib/server/files/FileStorageService';
 import { auditService, auditAction } from '$lib/server/logging';
 

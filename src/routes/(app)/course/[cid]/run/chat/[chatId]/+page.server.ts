@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { db, CourseRoleUtils, CourseInteractiveAuthUtils } from '$lib/server/db';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import {
 	course,
 	interactiveLearning,

@@ -1,5 +1,5 @@
 import { db } from '..';
-import { eq, and, desc, isNull, or } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import * as schema from '../schema';
 import { nanoid } from 'nanoid';
 import type { ToolDefinitionResolved } from '$lib/types/agent';

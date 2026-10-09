@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { LogOut, LogIn, User, Moon, Sun, BookOpen, ArrowLeft } from 'lucide-svelte';
+	import { LogOut, LogIn, User, Moon, Sun, BookOpen } from 'lucide-svelte';
 	import { theme } from '$lib/stores/theme';
-	import { m } from '$lib/paraglide/messages.js';
+	import '$lib/paraglide/messages.js';
 	import {
 		Button,
 		Avatar,
@@ -9,13 +9,12 @@
 		Dropdown,
 		DropdownHeader,
 		DropdownItem,
-		DropdownDivider,
 		DropdownGroup
 	} from 'flowbite-svelte';
 	import { ChevronDownOutline } from 'flowbite-svelte-icons';
 	import NotificationBell from './notifications/NotificationBell.svelte';
 
-	const { course, user, onMenuToggle } = $props<{
+	const { course, user } = $props<{
 		course: any;
 		user: any;
 		onMenuToggle: () => void;

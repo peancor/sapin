@@ -521,7 +521,7 @@ export const actions = {
 		if (!chat) throw error(404, 'Chat not found');
 
 		// Obtener nombre de la actividad para el log
-		const interactive = await db
+		await db
 			.select({ name: interactiveLearning.name })
 			.from(interactiveLearning)
 			.where(eq(interactiveLearning.id, params.ilid))

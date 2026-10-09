@@ -1,13 +1,12 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
-	import type { CourseFile, CourseStatusType } from '$lib/server/db/schema';
+	import type { CourseStatusType } from '$lib/server/db/schema';
 	import {
 		FileText,
 		Image,
 		Trash2,
 		Save,
-		Upload,
 		FolderOpen,
 		CheckCircle,
 		AlertCircle,
@@ -78,7 +77,7 @@
 				} else {
 					showNotification('Error al subir el archivo', 'error');
 				}
-			} catch (error) {
+			} catch {
 				showNotification('Error al subir el archivo', 'error');
 			} finally {
 				isUploading = false;
@@ -105,9 +104,9 @@
 	<form
 		method="POST"
 		action="?/updatecourse"
-		use:enhance={({ formElement, formData, action, cancel, submitter }) => {
+		use:enhance={() => {
 			isSaving = true;
-			return async ({ result, update }) => {
+			return async ({ result }) => {
 				isSaving = false;
 				if (result.type === 'success') {
 					isDirty = false;

@@ -130,7 +130,7 @@ export const actions = {
 		return { success: true };
 	},
 
-	updateOrder: async ({ request, params }) => {
+	updateOrder: async ({ request }) => {
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 		const newOrder = parseInt(data.get('order')?.toString() || '0');

@@ -1475,11 +1475,6 @@ export class LessonService {
 			typeof input.duration === 'number' && Number.isFinite(input.duration) && input.duration > 0
 				? input.duration
 				: null;
-		const segmentEndSeconds = configuredEndSeconds ?? finiteDuration;
-		const segmentLength =
-			segmentEndSeconds !== null && segmentEndSeconds > startSeconds
-				? segmentEndSeconds - startSeconds
-				: finiteDuration;
 		const normalizedCurrentTime =
 			typeof input.currentTime === 'number' && Number.isFinite(input.currentTime)
 				? Math.max(0, input.currentTime)

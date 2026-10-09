@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { Home, Settings, Users, GraduationCap, Notebook } from 'lucide-svelte';
+import { Home } from 'lucide-svelte';
 
 // Constantes de niveles de rol (deben coincidir con el servidor)
 export const ROLE_LEVELS = {

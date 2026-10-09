@@ -314,7 +314,7 @@ class ImageProcessor {
 	private async ensureDirectory(dirPath: string): Promise<void> {
 		try {
 			await fs.mkdir(dirPath, { recursive: true });
-		} catch (error) {
+		} catch {
 			// Directory might already exist
 		}
 	}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { Card, Avatar, Badge } from 'flowbite-svelte';
+	import { Avatar, Badge } from 'flowbite-svelte';
 	import { Users, GraduationCap, BookOpen, Shield, TrendingUp, Clock, Bell } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();

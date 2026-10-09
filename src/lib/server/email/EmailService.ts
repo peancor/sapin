@@ -6,12 +6,7 @@ import { join } from 'path';
 import { db } from '$lib/server/db';
 import { appSetting } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import type {
-	EmailConfig,
-	EmailSendOptions,
-	EmailSendResult,
-	EmailProvider
-} from '$lib/types/email';
+import type { EmailConfig, EmailSendOptions, EmailSendResult } from '$lib/types/email';
 import { DEFAULT_EMAIL_CONFIG } from '$lib/types/email';
 
 /**

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { page } from '$app/state';
-	import { beforeNavigate, afterNavigate } from '$app/navigation';
+	import '$app/state';
+	import { afterNavigate } from '$app/navigation';
 	import TopbarMenu from '$lib/components/TopbarMenu.svelte';
 	import Footer from '$lib/components/Footer.svelte';
 	import { initAnalytics, destroyAnalytics, trackPageView, setUserId } from '$lib/stores/analytics';

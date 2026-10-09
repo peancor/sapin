@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Modal, Button, Badge } from 'flowbite-svelte';
-	import { fly, fade, scale } from 'svelte/transition';
+	import { fly, fade } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 
 	interface Props {
@@ -10,7 +10,7 @@
 		onclose?: () => void;
 	}
 
-	let { open = $bindable(), instructions, oninstructionsUpdate, onclose }: Props = $props();
+	let { open = $bindable(), oninstructionsUpdate, onclose }: Props = $props();
 
 	// Estados
 	let currentStep = $state(1);

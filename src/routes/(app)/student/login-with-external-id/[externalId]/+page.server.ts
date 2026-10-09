@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { LoginUtils } from '$lib/server/db';
 import { error } from '@sveltejs/kit';
-import { notifier } from '$lib/server/notifier';
+import '$lib/server/notifier';
 
 export const load = (async (event) => {
 	const { externalId } = event.params;

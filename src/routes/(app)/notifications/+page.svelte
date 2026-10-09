@@ -3,8 +3,8 @@
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { Button, Badge, Select, Toggle, Spinner } from 'flowbite-svelte';
-	import { Bell, CheckCheck, Trash2, Filter, ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { Button, Badge, Select, Spinner } from 'flowbite-svelte';
+	import { Bell, CheckCheck, Filter, ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import NotificationItem from '$lib/components/notifications/NotificationItem.svelte';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 

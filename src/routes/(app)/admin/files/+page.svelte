@@ -294,7 +294,7 @@
 			if (maintenanceResult.success) {
 				await invalidateAll();
 			}
-		} catch (error) {
+		} catch {
 			maintenanceResult = { success: false, error: 'Error de conexión' };
 		} finally {
 			maintenanceLoading = false;
@@ -318,7 +318,7 @@
 				await invalidateAll();
 				selectedFiles = [];
 			}
-		} catch (error) {
+		} catch {
 			processingResult = { success: false, error: 'Error de conexión' };
 		} finally {
 			processingLoading = false;

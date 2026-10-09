@@ -2,19 +2,12 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import {
-		AlertTriangle,
 		ArrowLeft,
 		ArrowRight,
-		Bot,
-		Brain,
-		CalendarClock,
-		Cpu,
 		Database,
 		Fingerprint,
-		MessageSquareText,
 		Radar,
 		Settings2,
-		Sparkles,
 		Wrench
 	} from 'lucide-svelte';
 	import RawSections from '$lib/components/activity-debugger/RawSections.svelte';

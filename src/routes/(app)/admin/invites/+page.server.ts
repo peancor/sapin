@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { db, RoleUtils, InvitationUtils } from '$lib/server/db';
 import { course } from '$lib/server/db/schema';
 import { error, fail } from '@sveltejs/kit';
-import { createInviteSchema, inviteConfigSchema } from '$lib/server/db/InvitationUtils';
+import { createInviteSchema } from '$lib/server/db/InvitationUtils';
 import { eq } from 'drizzle-orm';
 import { ROLE_LEVELS } from '$lib/server/roles';
 

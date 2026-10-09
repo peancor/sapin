@@ -6,8 +6,8 @@ import {
 	interactiveLearning,
 	interactiveLearningChat
 } from '$lib/server/db/schema';
-import type { FileStorage } from '$lib/server/db/schema';
-import { eq, and, lt, sql, isNull } from 'drizzle-orm';
+
+import { eq, and, lt, sql } from 'drizzle-orm';
 import fs from 'fs/promises';
 import path from 'path';
 import { env } from '$env/dynamic/private';

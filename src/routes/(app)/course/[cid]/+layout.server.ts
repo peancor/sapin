@@ -1,10 +1,10 @@
-import { error, redirect } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
-import { course, courseInteractiveLearning, interactiveLearning } from '$lib/server/db/schema';
+import { course } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 
-export const load = (async ({ locals, params }) => {
+export const load = (async ({ params }) => {
 	const { cid } = params;
 
 	const courseData = await db.select().from(course).where(eq(course.id, cid)).limit(1);

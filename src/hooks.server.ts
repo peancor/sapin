@@ -2,7 +2,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
 import * as auth from '$lib/server/auth.js';
 import { paraglideMiddleware } from '$lib/paraglide/server';
-import { httpLogger } from '$lib/server/logging';
+import '$lib/server/logging';
 import cron from 'node-cron';
 import { imageProcessingQueue } from '$lib/server/files/ImageProcessingQueue';
 import { fileCleanupService } from '$lib/server/files/FileCleanupService';
@@ -51,12 +51,7 @@ console.log('  - Daily cleanup: 3:00 AM');
 console.log('  - Image processing: Every 15 minutes');
 
 const handleLogging: Handle = async ({ event, resolve }) => {
-	const startTime = Date.now();
-	const { method } = event.request;
-	const path = event.url.pathname;
-
 	const response = await resolve(event);
-	const duration = Date.now() - startTime;
 
 	// Log HTTP a stdout (pino) - solo rutas relevantes (excluir assets estaticos)
 	// if (!path.startsWith('/_app/') && !path.startsWith('/favicon')) {

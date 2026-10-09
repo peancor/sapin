@@ -10,7 +10,7 @@
 		onclose?: () => void;
 	}
 
-	let { open = $bindable(), role, onroleUpdate, onclose }: Props = $props();
+	let { open = $bindable(), onroleUpdate, onclose }: Props = $props();
 
 	// Estados
 	let currentStep = $state(1);

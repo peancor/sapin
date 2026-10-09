@@ -2,18 +2,12 @@
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import {
-		GraduationCap,
-		BookOpen,
-		Sparkles,
 		Users,
 		CheckCircle,
 		ArrowRight,
 		Shield,
-		Zap,
 		MessageSquare,
 		BrainCircuit,
-		Rocket,
-		MonitorPlay,
 		FlaskConical,
 		BarChart3,
 		FileText,
@@ -21,9 +15,9 @@
 		Target,
 		Microscope
 	} from 'lucide-svelte';
-	import { Button, Card, GradientButton, Badge } from 'flowbite-svelte';
+	import { Button, GradientButton, Badge } from 'flowbite-svelte';
 	import ParticlesBackground from '$lib/components/ParticlesBackground.svelte';
-	import { fade, fly, scale, blur } from 'svelte/transition';
+	import { fly, scale } from 'svelte/transition';
 
 	let { data }: { data: PageData } = $props();
 

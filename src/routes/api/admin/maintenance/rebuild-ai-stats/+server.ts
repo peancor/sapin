@@ -1,7 +1,7 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { aiUsageLog, aiUsageDailyStats } from '$lib/server/db/schema';
-import { eq, and, gte, lt, sql, count, countDistinct, isNotNull } from 'drizzle-orm';
+import { eq, and, gte, lt, sql, count, countDistinct } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { ROLE_LEVELS } from '$lib/server/roles';
 

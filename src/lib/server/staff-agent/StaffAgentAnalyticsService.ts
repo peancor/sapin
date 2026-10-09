@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
-import { ActivityAnalyticsService } from '$lib/server/learning-evidence/ActivityAnalyticsService';
+import '$lib/server/learning-evidence/ActivityAnalyticsService';
 import { AdvancedInsightsService } from '$lib/server/learning-evidence/AdvancedInsightsService';
 import { LearningEvidenceService } from '$lib/server/learning-evidence';
 import type { LearningEvidenceAccessContext } from '$lib/types/learningEvidence';
