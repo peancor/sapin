@@ -308,7 +308,7 @@
 				<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Sesiones Recientes</h3>
 			</div>
 			<div class="divide-y divide-gray-200 dark:divide-gray-700">
-				{#each userActivity.recentSessions as session}
+				{#each userActivity.recentSessions as session (session.id)}
 					<div class="flex items-center justify-between px-5 py-3">
 						<div class="flex items-center gap-3">
 							{#if session.device === 'desktop'}
@@ -363,7 +363,7 @@
 					<TableHeadCell>Evento</TableHeadCell>
 				</TableHead>
 				<TableBody>
-					{#each userActivity.recentEvents as event}
+					{#each userActivity.recentEvents as event (event.id)}
 						<TableBodyRow>
 							<TableBodyCell class="whitespace-nowrap">
 								<span class="text-sm text-gray-500 dark:text-gray-400">

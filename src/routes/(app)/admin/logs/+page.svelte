@@ -305,7 +305,7 @@
 				</label>
 				<Select id="logs-action" bind:value={selectedAction}>
 					<option value="">Todas las acciones</option>
-					{#each data.availableActions as action}
+					{#each data.availableActions as action (action)}
 						<option value={action}>{formatActionName(action)}</option>
 					{/each}
 				</Select>
@@ -478,7 +478,7 @@
 						const end = Math.min(totalPages, start + 4);
 						const adjustedStart = Math.max(1, end - 4);
 						return adjustedStart + i;
-					}).filter((p) => p <= totalPages) as pageNum}
+					}).filter((p) => p <= totalPages) as pageNum (pageNum)}
 						<button
 							type="button"
 							class="h-8 w-8 rounded text-sm font-medium transition-colors {pageNum === currentPage

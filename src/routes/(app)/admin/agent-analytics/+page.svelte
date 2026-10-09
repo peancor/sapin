@@ -80,7 +80,7 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-						{#each analytics.toolStats as t}
+						{#each analytics.toolStats as t (t.toolName)}
 							{@const successPct =
 								t.total > 0 ? Math.round(((t.completed ?? 0) / t.total) * 100) : 0}
 							<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
@@ -134,7 +134,7 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-						{#each analytics.uiStats as u}
+						{#each analytics.uiStats as u (u.componentKey)}
 							{@const responsePct =
 								u.total > 0 ? Math.round(((u.responded ?? 0) / u.total) * 100) : 0}
 							{@const avgScorePct =
