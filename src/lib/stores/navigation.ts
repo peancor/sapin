@@ -13,7 +13,7 @@ export const ROLE_LEVELS = {
 export type NavigationItem = {
 	href?: string;
 	label: string;
-	icon: any;
+	icon: typeof Home;
 	roles?: string[]; // Sistema legacy (deprecated)
 	minLevel?: number; // Nuevo sistema basado en niveles
 	children?: NavigationItem[];

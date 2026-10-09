@@ -200,7 +200,7 @@ function riskScoreFromFactors(profile: StudentProfile, stuckCount: number) {
 	return {
 		riskScore: score,
 		riskLevel: scoreSeverity(score),
-		factors: factors.map(({ weight: _weight, ...factor }) => factor)
+		factors: factors.map(({ type, severity, description }) => ({ type, severity, description }))
 	};
 }
 

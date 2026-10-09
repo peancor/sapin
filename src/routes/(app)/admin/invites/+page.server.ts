@@ -34,7 +34,7 @@ export const actions = {
 		const inviteTypeValue = formData.get('inviteType')?.toString();
 
 		// Build config based on type
-		let config: any;
+		let config: Record<string, unknown>;
 		switch (inviteTypeValue) {
 			case 'course_student': {
 				const courseId = formData.get('courseId')?.toString();
@@ -99,9 +99,11 @@ export const actions = {
 
 			const codes = await InvitationUtils.createInvites(parsed, locals.user.id);
 			return { success: true, codes, count: codes.length };
-		} catch (e: any) {
+		} catch (e) {
 			console.error('Error generating invites:', e);
-			return fail(400, { message: e.message || 'Error al generar invitaciones' });
+			return fail(400, {
+				message: e instanceof Error && e.message ? e.message : 'Error al generar invitaciones'
+			});
 		}
 	},
 

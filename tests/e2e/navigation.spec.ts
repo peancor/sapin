@@ -29,6 +29,31 @@ async function login(page: Page, user = 'student') {
 	await expect(page).not.toHaveURL(/\/login/);
 }
 
+test('file processing displays the failed count returned by the batch service', async ({
+	page
+}) => {
+	const actions: string[] = [];
+	await login(page, 'admin');
+	await page.route('**/api/admin/files/process', async (route) => {
+		if (route.request().method() !== 'POST') return route.continue();
+		const { action } = route.request().postDataJSON();
+		actions.push(action);
+		await route.fulfill({
+			json:
+				action === 'requeue-failed'
+					? { success: true, requeuedCount: 2 }
+					: { success: true, result: { processed: 5, succeeded: 3, failed: 2, errors: [] } }
+		});
+	});
+	await page.goto('/admin/files');
+	await page.getByRole('button', { name: 'Procesamiento', exact: true }).click();
+	await page.getByRole('button', { name: 'Procesar Lote (5 archivos)', exact: true }).click();
+	await expect(page.getByText('Fallidos: 2', { exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Reencolar Fallidos', exact: true }).click();
+	await expect(page.getByText('Reencolados: 2', { exact: true })).toBeVisible();
+	expect(actions).toEqual(['process-batch', 'requeue-failed']);
+});
+
 test('debugger navigation preserves query filters and session identity', async ({ page }) => {
 	const errors: string[] = [];
 	page.on('pageerror', (error) => errors.push(error.message));

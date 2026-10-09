@@ -18,14 +18,14 @@ type HeadingToken = {
 	type: 'heading';
 	depth: number;
 	text: string;
-	tokens?: any[];
+	tokens?: Token[];
 	raw: string;
 };
 
 type ParagraphToken = {
 	type: 'paragraph';
 	text?: string;
-	tokens?: any[];
+	tokens?: Token[];
 	raw: string;
 };
 
@@ -40,7 +40,7 @@ type ListToken = {
 type ListItemToken = {
 	type: 'list_item';
 	text?: string;
-	tokens?: any[];
+	tokens?: Token[];
 	raw: string;
 };
 
@@ -53,7 +53,7 @@ type CodeToken = {
 
 type BlockquoteToken = {
 	type: 'blockquote';
-	tokens: any[];
+	tokens: Token[];
 	raw: string;
 };
 
@@ -61,7 +61,7 @@ type BlockquoteToken = {
 // header and rows contain TableCell objects with text and tokens
 type TableCellContent = {
 	text: string;
-	tokens?: any[];
+	tokens?: Token[];
 };
 
 type TableToken = {
@@ -74,38 +74,15 @@ type TableToken = {
 	raw: string;
 };
 
-type TextToken = {
-	type: 'text';
-	text: string;
+// Common fields consumed by the exporter, including nested inline tokens.
+type Token = {
+	type: string;
 	raw: string;
+	text?: string;
+	tokens?: Token[];
+	href?: string;
+	alt?: string;
 };
-
-type StrongToken = {
-	type: 'strong';
-	text: string;
-	tokens?: any[];
-	raw: string;
-};
-
-type EmToken = {
-	type: 'em';
-	text: string;
-	tokens?: any[];
-	raw: string;
-};
-
-type Token =
-	| HeadingToken
-	| ParagraphToken
-	| ListToken
-	| ListItemToken
-	| CodeToken
-	| BlockquoteToken
-	| TableToken
-	| TextToken
-	| StrongToken
-	| EmToken
-	| { type: string; raw: string; [key: string]: any };
 
 type TokensList = Token[];
 
@@ -309,7 +286,7 @@ function processTokens(tokens: TokensList): (Paragraph | Table)[] {
 /**
  * Extract raw text from a token, regardless of its type
  */
-function getTokenText(token: any): string {
+function getTokenText(token: Token | null | undefined): string {
 	if (!token) return '';
 
 	// If token has a text property, use it
@@ -320,7 +297,7 @@ function getTokenText(token: any): string {
 
 	// If token has tokens array, recursively get text from all tokens
 	if (token.tokens && Array.isArray(token.tokens)) {
-		return token.tokens.map((t: any) => getTokenText(t)).join('');
+		return token.tokens.map((t: Token) => getTokenText(t)).join('');
 	}
 
 	// Default to empty string
@@ -359,7 +336,7 @@ function processParagraph(token: ParagraphToken): Paragraph {
  * Process inline tokens for text formatting
  */
 function processInlineTokens(
-	tokens: any[],
+	tokens: Token[] | undefined,
 	runs: TextRun[],
 	options: { bold?: boolean; italics?: boolean } = {}
 ) {
@@ -622,7 +599,7 @@ function createList(token: ListToken): Paragraph[] {
 /**
  * Process tokens in a list item
  */
-function processListItemTokens(tokens: any[], runs: TextRun[], prefix: string = '') {
+function processListItemTokens(tokens: Token[], runs: TextRun[], prefix: string = '') {
 	// Add prefix as first element
 	if (prefix) {
 		runs.push(new TextRun({ text: prefix }));
@@ -766,7 +743,7 @@ function createBlockquote(token: BlockquoteToken): Paragraph[] {
 /**
  * Process tokens in a blockquote
  */
-function processBlockquoteTokens(tokens: any[], runs: TextRun[]) {
+function processBlockquoteTokens(tokens: Token[], runs: TextRun[]) {
 	for (const token of tokens) {
 		if (!token) continue;
 
@@ -849,7 +826,7 @@ function createHorizontalRule(): Paragraph {
  * - { text, tokens }: marked v4+ table cell format
  */
 function createTableCellParagraph(
-	cellContent: string | { tokens?: any[]; text?: string } | null | undefined,
+	cellContent: string | { tokens?: Token[]; text?: string } | null | undefined,
 	isBold: boolean = false
 ): Paragraph {
 	const runs: TextRun[] = [];
@@ -899,7 +876,10 @@ function createTableCellParagraph(
  */
 function createTable(token: TableToken): Paragraph | Table {
 	// Debug: log table structure to help diagnose issues
-	if (typeof window !== 'undefined' && (window as any).__DOCX_DEBUG__) {
+	if (
+		typeof window !== 'undefined' &&
+		(window as Window & { __DOCX_DEBUG__?: boolean }).__DOCX_DEBUG__
+	) {
 		console.log('Table token structure:', JSON.stringify(token, null, 2));
 	}
 
@@ -925,7 +905,7 @@ function createTable(token: TableToken): Paragraph | Table {
 
 	try {
 		// Create table rows for header
-		const headerCells = token.header.map((cell: any) => {
+		const headerCells = token.header.map((cell) => {
 			return new TableCell({
 				children: [createTableCellParagraph(cell, true)],
 				shading: {

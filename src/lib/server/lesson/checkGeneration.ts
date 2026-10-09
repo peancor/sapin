@@ -214,7 +214,12 @@ function normalizeGeneratedQuestion(
 				id: questionId,
 				prompt,
 				mode: rawQuestion.mode,
-				options: options.map(({ isCorrect: _isCorrect, ...option }) => option),
+				options: options.map(({ id, label, value, description }) => ({
+					id,
+					label,
+					value,
+					description
+				})),
 				correctOptionIds
 			},
 			answerRationale,

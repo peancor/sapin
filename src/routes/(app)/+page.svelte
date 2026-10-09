@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { PageData } from './$types';
 	import {
 		Users,
 		CheckCircle,
@@ -18,8 +17,6 @@
 	import { Button, GradientButton, Badge } from 'flowbite-svelte';
 	import ParticlesBackground from '$lib/components/ParticlesBackground.svelte';
 	import { fly, scale } from 'svelte/transition';
-
-	let { data }: { data: PageData } = $props();
 
 	let visible = $state(false);
 	onMount(() => {

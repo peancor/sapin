@@ -1,3 +1,4 @@
+import type { TextStreamPart, ToolSet } from 'ai';
 import type { AgentContext, AgentStreamPart, ToolDefinitionResolved } from '$lib/types/agent';
 import { DBAgentMessageUtils } from '$lib/server/db/agent';
 import { auditAction, auditService, auditSeverity, aiLogger } from '$lib/server/logging';
@@ -190,9 +191,8 @@ async function persistToolCallStart(params: {
 }
 
 export class AgentStreamProcessor {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	static async *process(
-		result: any,
+		result: { fullStream: AsyncIterable<TextStreamPart<ToolSet>> },
 		context: AgentContext,
 		runtimeTools: ToolDefinitionResolved[],
 		assistantMsgId: string,

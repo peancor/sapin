@@ -1,7 +1,7 @@
 import type { Notifier } from '.';
 
 export default class VoidNotifier implements Notifier {
-	notify(message: string): void {
+	notify(): void {
 		// Intentionally empty - does nothing
 	}
 }

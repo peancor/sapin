@@ -38,7 +38,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		);
 	}
 
-	const workspace = await DBStaffAgentUtils.getOrCreateActivityWorkspace(params.ilid, courseId);
+	const workspace = await DBStaffAgentUtils.getOrCreateActivityWorkspace(params.ilid);
 	const config = await DBStaffAgentUtils.getWorkspaceConfigDTO(workspace.id);
 	const threads = await DBStaffAgentUtils.listThreadsForWorkspace(workspace.id);
 
@@ -70,7 +70,7 @@ export const PUT: RequestHandler = async ({ params, locals, request }) => {
 		);
 	}
 
-	const workspace = await DBStaffAgentUtils.getOrCreateActivityWorkspace(params.ilid, courseId);
+	const workspace = await DBStaffAgentUtils.getOrCreateActivityWorkspace(params.ilid);
 
 	try {
 		const body = (await request.json()) as {

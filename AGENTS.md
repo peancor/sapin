@@ -665,6 +665,8 @@ La configuración de notificaciones se guarda en `app_setting`.
 
 ## Estado actual de testing
 
+- El exportador DOCX tiene pruebas de Markdown y tablas legacy. La suite de navegador comprueba también la descarga WebP de adjuntos y el contador de fallidos en el resultado de procesamiento de imágenes (respuesta simulada, sin procesar ficheros reales).
+
 - Las listas de analítica conservan claves del grupo SQL antes de normalizar textos; las sesiones agénticas usan el identificador de asociación. Las pruebas E2E cubren grupos con rutas/títulos visualmente iguales y opciones repetidas en quizzes normales e inmersivos.
 
 - Playwright vive en `tests/e2e/` y `playwright.config.ts`. Instalar el navegador con `npx playwright install chromium`.

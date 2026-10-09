@@ -213,7 +213,7 @@
 				{/if}
 
 				<a
-					href={resolve(editActivityUrl as any)}
+					href={resolve(...([editActivityUrl] as Parameters<typeof resolve>))}
 					class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-purple-300 hover:bg-purple-50 dark:border-gray-700 dark:hover:border-purple-800 dark:hover:bg-purple-900/20"
 				>
 					<div
@@ -248,7 +248,7 @@
 					</a>
 
 					<a
-						href={resolve(lessonDebugUrl as any)}
+						href={resolve(...([lessonDebugUrl] as Parameters<typeof resolve>))}
 						class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-sky-300 hover:bg-sky-50 dark:border-gray-700 dark:hover:border-sky-800 dark:hover:bg-sky-900/20"
 					>
 						<div
@@ -263,7 +263,7 @@
 					</a>
 
 					<a
-						href={resolve(lessonFlowUrl as any)}
+						href={resolve(...([lessonFlowUrl] as Parameters<typeof resolve>))}
 						class="group flex flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:hover:border-orange-800 dark:hover:bg-orange-900/20"
 					>
 						<div
@@ -319,7 +319,7 @@
 						Configuración de la actividad
 					</h2>
 					<a
-						href={resolve(editActivityUrl as any)}
+						href={resolve(...([editActivityUrl] as Parameters<typeof resolve>))}
 						class="text-primary-600 dark:text-primary-400 text-sm hover:underline"
 					>
 						Editar
@@ -531,7 +531,11 @@
 				</div>
 			{:else}
 				<a
-					href={resolve((isAgent ? `/agent-chat/${ilid}` : `/interactive-chat/${ilid}`) as any)}
+					href={resolve(
+						...([isAgent ? `/agent-chat/${ilid}` : `/interactive-chat/${ilid}`] as Parameters<
+							typeof resolve
+						>)
+					)}
 					target="_blank"
 					class="bg-primary-600 hover:bg-primary-700 inline-flex items-center gap-2 rounded-lg px-6 py-3 text-white transition-colors"
 				>

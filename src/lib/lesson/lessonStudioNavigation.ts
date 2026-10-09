@@ -1,3 +1,4 @@
+import type { PathnameWithSearchOrHash } from '$app/types';
 export type LessonStudioSource = 'activity' | 'studio' | 'flow' | 'block' | 'resources' | 'review';
 export type LessonStudioDebugView = 'student' | 'debug';
 export type LessonStudioDebugIntent = 'inspect' | 'run';
@@ -8,7 +9,7 @@ export type LessonStudioRouteContext = {
 };
 
 export type LessonStudioReturnTarget = {
-	href: string;
+	href: PathnameWithSearchOrHash;
 	label: string;
 	source: LessonStudioSource;
 };
@@ -36,20 +37,20 @@ export function isLessonStudioSource(
 }
 
 export function lessonActivityHref({ cid, ilid }: LessonStudioRouteContext) {
-	return `/course/${cid}/admin/interactives/${ilid}`;
+	return `/course/${cid}/admin/interactives/${ilid}` as const;
 }
 
 export function lessonStudioHref({ cid, ilid }: LessonStudioRouteContext) {
-	return `/course/${cid}/lesson-studio/${ilid}`;
+	return `/course/${cid}/lesson-studio/${ilid}` as const;
 }
 
 export function lessonFlowHref({ cid, ilid }: LessonStudioRouteContext, blockId?: string | null) {
-	const base = `/course/${cid}/lesson-studio/${ilid}/flow`;
-	return blockId ? `${base}?blockId=${encodeURIComponent(blockId)}` : base;
+	const base = `/course/${cid}/lesson-studio/${ilid}/flow` as const;
+	return blockId ? (`${base}?blockId=${encodeURIComponent(blockId)}` as const) : base;
 }
 
 export function lessonBlockHref({ cid, ilid }: LessonStudioRouteContext, blockId: string) {
-	return `/course/${cid}/lesson-studio/${ilid}/blocks/${encodeURIComponent(blockId)}`;
+	return `/course/${cid}/lesson-studio/${ilid}/blocks/${encodeURIComponent(blockId)}` as const;
 }
 
 export function lessonResourcesHref(
@@ -63,15 +64,15 @@ export function lessonResourcesHref(
 		params.set('blockId', options.blockId);
 	}
 
-	return `${lessonStudioHref(context)}/resources?${params.toString()}`;
+	return `${lessonStudioHref(context)}/resources?${params.toString()}` as const;
 }
 
 export function lessonReviewHref(
 	{ cid, ilid }: LessonStudioRouteContext,
 	sessionId?: string | null
 ) {
-	const base = `/course/${cid}/admin/interactives/${ilid}/lesson-review`;
-	return sessionId ? `${base}/${encodeURIComponent(sessionId)}` : base;
+	const base = `/course/${cid}/admin/interactives/${ilid}/lesson-review` as const;
+	return sessionId ? (`${base}/${encodeURIComponent(sessionId)}` as const) : base;
 }
 
 export function lessonDebuggerHref(
@@ -99,7 +100,7 @@ export function lessonDebuggerHref(
 		params.set('fresh', '1');
 	}
 
-	return `${lessonStudioHref(context)}/debug?${params.toString()}`;
+	return `${lessonStudioHref(context)}/debug?${params.toString()}` as const;
 }
 
 export function lessonStudioReturnTarget(

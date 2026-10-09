@@ -77,6 +77,13 @@ test('image upload sanitizes to WebP and rejects an unauthenticated request', as
 	const { attachments } = await response.json();
 	expect(attachments).toHaveLength(1);
 	expect(attachments[0].mimeType).toBe('image/webp');
+	const download = await page.request.get(attachments[0].url);
+	expect(download.status()).toBe(200);
+	expect(download.headers()['content-type']).toContain('image/webp');
+	const metadata = await sharp(await download.body()).metadata();
+	expect(metadata.format).toBe('webp');
+	expect(metadata.width).toBe(32);
+	expect(metadata.height).toBe(32);
 });
 
 test('real tool confirmation enforces chat scope, executes once and records rejection', async ({

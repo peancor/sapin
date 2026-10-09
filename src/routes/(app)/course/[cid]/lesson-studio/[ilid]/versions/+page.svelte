@@ -63,14 +63,14 @@
 
 				<div class="flex flex-wrap gap-2">
 					<a
-						href={resolve(flowHref as any)}
+						href={resolve(...([flowHref] as Parameters<typeof resolve>))}
 						class="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
 					>
 						<Route class="mr-2 h-4 w-4" />
 						Abrir mapa
 					</a>
 					<a
-						href={resolve(debugHref as any)}
+						href={resolve(...([debugHref] as Parameters<typeof resolve>))}
 						class="inline-flex items-center justify-center rounded-2xl border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm font-medium text-sky-800 transition hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200"
 					>
 						<Bug class="mr-2 h-4 w-4" />

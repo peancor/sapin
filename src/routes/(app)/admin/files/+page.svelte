@@ -1,4 +1,23 @@
 <script lang="ts">
+	import type { BatchResult } from '$lib/server/files/ImageProcessingQueue';
+	interface MaintenanceResponse {
+		success?: boolean;
+		error?: string;
+		result?: {
+			orphansDetected?: number;
+			purgedCount?: number;
+			freedBytes?: number;
+			deletedPurged?: number;
+			orphansPurged?: number;
+		};
+	}
+	interface ProcessingResponse {
+		success?: boolean;
+		error?: string;
+		result?: BatchResult;
+		requeuedCount?: number;
+	}
+
 	import { resolve } from '$app/paths';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
@@ -48,9 +67,9 @@
 	let isMaintenanceModalOpen = $state(false);
 	let isProcessingModalOpen = $state(false);
 	let maintenanceLoading = $state(false);
-	let maintenanceResult = $state<any>(null);
+	let maintenanceResult = $state<MaintenanceResponse | null>(null);
 	let processingLoading = $state(false);
-	let processingResult = $state<any>(null);
+	let processingResult = $state<ProcessingResponse | null>(null);
 
 	// Detect theme
 	$effect(() => {
@@ -108,7 +127,8 @@
 			backgroundColor: isDark ? '#1f2937' : '#fff',
 			borderColor: isDark ? '#374151' : '#e5e7eb',
 			textStyle: { color: isDark ? '#f3f4f6' : '#1f2937' },
-			formatter: (params: any) => `${params.name}: ${params.value} archivos (${params.percent}%)`
+			formatter: (params: { name: string; value: number; percent: number }) =>
+				`${params.name}: ${params.value} archivos (${params.percent}%)`
 		},
 		legend: {
 			orient: 'vertical',
@@ -145,7 +165,8 @@
 			backgroundColor: isDark ? '#1f2937' : '#fff',
 			borderColor: isDark ? '#374151' : '#e5e7eb',
 			textStyle: { color: isDark ? '#f3f4f6' : '#1f2937' },
-			formatter: (params: any) => `${params[0].name}: ${formatBytes(params[0].value)}`
+			formatter: (params: { name: string; value: number }[]) =>
+				`${params[0].name}: ${formatBytes(params[0].value)}`
 		},
 		grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
 		xAxis: {
@@ -292,7 +313,7 @@
 			});
 
 			maintenanceResult = await response.json();
-			if (maintenanceResult.success) {
+			if (maintenanceResult?.success) {
 				await invalidateAll();
 			}
 		} catch {
@@ -303,7 +324,7 @@
 	}
 
 	// Processing actions
-	async function runProcessing(action: string) {
+	async function runProcessing(action: 'process-batch' | 'reprocess' | 'requeue-failed') {
 		processingLoading = true;
 		processingResult = null;
 
@@ -315,7 +336,7 @@
 			});
 
 			processingResult = await response.json();
-			if (processingResult.success) {
+			if (processingResult?.success) {
 				await invalidateAll();
 				selectedFiles = [];
 			}
@@ -763,7 +784,7 @@
 		{#if maintenanceResult}
 			<Alert color={maintenanceResult.success ? 'green' : 'red'}>
 				{#snippet icon()}
-					{#if maintenanceResult.success}
+					{#if maintenanceResult?.success}
 						<Check class="h-5 w-5" />
 					{:else}
 						<X class="h-5 w-5" />
@@ -813,7 +834,7 @@
 			<Button
 				color="alternative"
 				class="justify-start"
-				onclick={() => runProcessing('requeue-error')}
+				onclick={() => runProcessing('requeue-failed')}
 				disabled={processingLoading}
 			>
 				<RotateCcw class="mr-2 h-4 w-4" />
@@ -830,7 +851,7 @@
 		{#if processingResult}
 			<Alert color={processingResult.success ? 'green' : 'red'}>
 				{#snippet icon()}
-					{#if processingResult.success}
+					{#if processingResult?.success}
 						<Check class="h-5 w-5" />
 					{:else}
 						<X class="h-5 w-5" />
@@ -841,7 +862,7 @@
 						{#if processingResult.result?.processed !== undefined}
 							<p>Procesados: {processingResult.result.processed}</p>
 							<p>Exitosos: {processingResult.result.succeeded}</p>
-							<p>Fallidos: {processingResult.result.error}</p>
+							<p>Fallidos: {processingResult.result.failed}</p>
 						{/if}
 						{#if processingResult.requeuedCount !== undefined}
 							<p>Reencolados: {processingResult.requeuedCount}</p>

@@ -58,7 +58,7 @@ export const actions = {
 		const inviteTypeValue = formData.get('inviteType')?.toString() || 'course_student';
 		const welcomeMessage = formData.get('welcomeMessage')?.toString();
 
-		let config: any;
+		let config: Record<string, unknown>;
 
 		if (inviteTypeValue === 'course_role') {
 			const courseRole = formData.get('courseRole')?.toString() || 'student';
@@ -90,9 +90,11 @@ export const actions = {
 
 			const codes = await InvitationUtils.createInvites(parsed, locals.user.id);
 			return { success: true, codes, count: codes.length };
-		} catch (e: any) {
+		} catch (e) {
 			console.error('Error generating course invites:', e);
-			return fail(400, { message: e.message || 'Error al generar invitaciones' });
+			return fail(400, {
+				message: e instanceof Error && e.message ? e.message : 'Error al generar invitaciones'
+			});
 		}
 	},
 

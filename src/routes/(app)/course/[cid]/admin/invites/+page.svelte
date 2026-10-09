@@ -43,7 +43,7 @@
 	] satisfies BreadcrumbItem[]);
 
 	// Generated codes from form action
-	let generatedCodes = $derived((form as any)?.codes as string[] | undefined);
+	let generatedCodes = $derived(form && 'codes' in form ? form.codes : undefined);
 
 	$effect(() => {
 		if (generatedCodes && generatedCodes.length > 0) {
@@ -112,14 +112,14 @@
 		URL.revokeObjectURL(url);
 	}
 
-	function getStatusLabel(inv: any): string {
+	function getStatusLabel(inv: PageData['invites'][number]): string {
 		if (!inv.isActive) return 'Desactivada';
 		if (inv.isExpired) return 'Expirada';
 		if (inv.isFullyUsed) return 'Agotada';
 		return 'Disponible';
 	}
 
-	function getStatusColor(inv: any): 'green' | 'red' | 'yellow' | 'gray' {
+	function getStatusColor(inv: PageData['invites'][number]): 'green' | 'red' | 'yellow' | 'gray' {
 		if (!inv.isActive) return 'gray';
 		if (inv.isExpired) return 'red';
 		if (inv.isFullyUsed) return 'yellow';

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { SessionValidationResult } from '$lib/server/auth';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
 	import { LogOut, LogIn, User, Menu, Moon, Sun, X, Home, Shield, BookOpen } from 'lucide-svelte';
@@ -22,7 +23,7 @@
 	import { scale } from 'svelte/transition';
 
 	const { user, isMobileMenuOpen, onMenuToggle } = $props<{
-		user: any;
+		user: SessionValidationResult['user'];
 		isMobileMenuOpen: boolean;
 		onMenuToggle: () => void;
 	}>();

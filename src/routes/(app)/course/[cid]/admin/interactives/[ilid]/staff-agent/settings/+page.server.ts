@@ -9,7 +9,7 @@ export const load = (async ({ parent, locals }) => {
 	}
 
 	const { course, interactive } = await parent();
-	const workspace = await DBStaffAgentUtils.getOrCreateActivityWorkspace(interactive.id, course.id);
+	const workspace = await DBStaffAgentUtils.getOrCreateActivityWorkspace(interactive.id);
 
 	return {
 		courseId: course.id,

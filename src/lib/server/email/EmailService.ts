@@ -198,7 +198,7 @@ class EmailService {
 			case 'smtp':
 				return this.sendViaSmtp(options, html);
 			case 'resend':
-				return this.sendViaResend(options, html);
+				return this.sendViaResend();
 			default:
 				return {
 					success: false,
@@ -249,7 +249,7 @@ class EmailService {
 	/**
 	 * Send email via Resend (placeholder for future implementation)
 	 */
-	private async sendViaResend(options: EmailSendOptions, html?: string): Promise<EmailSendResult> {
+	private async sendViaResend(): Promise<EmailSendResult> {
 		// Future: Implement Resend sending
 		return {
 			success: false,

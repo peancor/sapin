@@ -371,7 +371,7 @@ export default class DBStaffAgentUtils {
 		});
 	}
 
-	static async getOrCreateActivityWorkspace(activityId: string, _courseId?: string) {
+	static async getOrCreateActivityWorkspace(activityId: string) {
 		const existing = await this.getWorkspaceForActivity(activityId);
 		if (existing) {
 			await this.syncWorkspaceToolsWithAllowedCatalog(

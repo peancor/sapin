@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { SessionValidationResult } from '$lib/server/auth';
 	import { resolve } from '$app/paths';
 	import { LogOut, LogIn, User, Moon, Sun, BookOpen } from 'lucide-svelte';
 	import { theme } from '$lib/stores/theme';
@@ -16,8 +17,8 @@
 	import NotificationBell from './notifications/NotificationBell.svelte';
 
 	const { course, user } = $props<{
-		course: any;
-		user: any;
+		course: { name: string };
+		user: SessionValidationResult['user'];
 		onMenuToggle: () => void;
 	}>();
 

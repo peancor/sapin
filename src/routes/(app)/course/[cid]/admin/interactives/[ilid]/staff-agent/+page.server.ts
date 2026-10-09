@@ -10,7 +10,7 @@ export const load = (async ({ parent, locals, url }) => {
 	}
 
 	const { course, interactive } = await parent();
-	const workspace = await DBStaffAgentUtils.getOrCreateActivityWorkspace(interactive.id, course.id);
+	const workspace = await DBStaffAgentUtils.getOrCreateActivityWorkspace(interactive.id);
 	const config = await DBStaffAgentUtils.getWorkspaceConfigDTO(workspace.id);
 	const threads = await DBStaffAgentUtils.listThreadsForWorkspace(workspace.id);
 	const requestedThreadId = url.searchParams.get('thread');

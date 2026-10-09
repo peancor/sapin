@@ -1,4 +1,4 @@
-import type { AgentContext, ToolResult } from '$lib/types/agent';
+import type { ToolResult } from '$lib/types/agent';
 import { evaluateScopedExpression, EDUCATIONAL_EXPRESSION_SCOPE } from '$lib/math/expressionScope';
 
 interface CalcParams {
@@ -13,10 +13,7 @@ function formatResult(value: number): string {
 	return parseFloat(value.toPrecision(10)).toString();
 }
 
-export async function calculateExpression(
-	params: CalcParams,
-	_context: AgentContext
-): Promise<ToolResult> {
+export async function calculateExpression(params: CalcParams): Promise<ToolResult> {
 	const start = Date.now();
 
 	try {

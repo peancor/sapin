@@ -93,7 +93,7 @@ export const actions = {
 		}
 
 		try {
-			const updateData: any = {
+			const updateData: Partial<typeof user.$inferInsert> = {
 				email,
 				username: username || null,
 				updatedAt: new Date()

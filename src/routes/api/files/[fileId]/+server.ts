@@ -1,3 +1,4 @@
+import { Readable } from 'node:stream';
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { fileStorageService } from '$lib/server/files/FileStorageService';
@@ -113,7 +114,7 @@ export const GET: RequestHandler = async ({ params, locals, url, request }) => {
 		// Stream the file
 		const fileStream = createReadStream(filePath);
 
-		return new Response(fileStream as any, {
+		return new Response(Readable.toWeb(fileStream) as ReadableStream<Uint8Array>, {
 			status: 200,
 			headers
 		});

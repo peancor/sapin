@@ -29,7 +29,7 @@ export interface EmailData {
 	bcc?: string | string[];
 	subject: string;
 	template: string;
-	context: Record<string, any>;
+	context: Record<string, unknown>;
 }
 
 // Función para cargar y compilar plantilla

@@ -54,9 +54,11 @@
 			id: 'editor',
 			label: 'Editor',
 			href: resolve(
-				(isLesson
-					? lessonStudioHref({ cid, ilid })
-					: `/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chatedit'}`) as any
+				...([
+					isLesson
+						? lessonStudioHref({ cid, ilid })
+						: `/course/${cid}/admin/interactives/${ilid}/${isAgent ? 'agentedit' : 'chatedit'}`
+				] as Parameters<typeof resolve>)
 			),
 			icon: Edit
 		},
@@ -303,7 +305,7 @@
 						Acciones rápidas
 					</p>
 					<a
-						href={resolve(previewHref as any)}
+						href={resolve(...([previewHref] as Parameters<typeof resolve>))}
 						target="_blank"
 						class="flex items-center gap-3 rounded-lg bg-green-50 p-3 text-green-700 transition-colors hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
 					>

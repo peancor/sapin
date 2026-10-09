@@ -86,7 +86,7 @@
 
 	function handleSubmit() {
 		isSubmitting = true;
-		return async ({ update }: { result: any; update: () => Promise<void> }) => {
+		return async ({ update }: { update: () => Promise<void> }) => {
 			isSubmitting = false;
 			await update();
 		};
