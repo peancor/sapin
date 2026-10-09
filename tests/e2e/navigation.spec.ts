@@ -29,6 +29,23 @@ async function login(page: Page, user = 'student') {
 	await expect(page).not.toHaveURL(/\/login/);
 }
 
+test('global tutor is unavailable and absent from navigation', async ({ page }) => {
+	await login(page);
+	await page.goto('/dashboard');
+	await expect(page.locator('header a[href="/dashboard"]').first()).toBeVisible();
+	await expect(page.locator('a[href^="/tutor"]')).toHaveCount(0);
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.getByRole('button', { name: 'Menu', exact: true }).click();
+	await expect(page.getByText('Navegación', { exact: true })).toBeVisible();
+	await expect(page.locator('a[href^="/tutor"]')).toHaveCount(0);
+	for (const path of ['/tutor', '/tutor/c/retired-chat']) {
+		const response = await page.request.get(path);
+		expect(response.status()).toBe(404);
+	}
+	const response = await page.request.post('/api/tutor/chat');
+	expect(response.status()).toBe(404);
+});
+
 test('registration prefills the invitation and retains edits after validation fails', async ({
 	page
 }) => {
