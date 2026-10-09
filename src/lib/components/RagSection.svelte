@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
+	import { ragDocumentLink } from '$lib/utils/ragDocumentLink';
 	import { untrack, onDestroy } from 'svelte';
 	import {
 		Toggle,
@@ -872,6 +874,7 @@
 				</div>
 			{:else}
 				{#each ragDocuments as doc (doc.id)}
+					{@const documentLink = ragDocumentLink(doc.originalPath)}
 					<div class="rounded-lg border bg-white p-3 dark:border-gray-600 dark:bg-gray-800">
 						<div class="flex flex-wrap items-center justify-between gap-2">
 							<div class="min-w-0">
@@ -889,10 +892,17 @@
 											: doc.status === 'error'
 												? 'Error'
 												: doc.status}</Badge
-								>{#if doc.originalPath}<a
-										href={doc.originalPath}
+								>
+								{#if documentLink?.kind === 'internal'}<a
+										href={resolve(documentLink.pathname)}
 										target="_blank"
 										rel="noreferrer"
+										class="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+										><ExternalLink class="h-3 w-3" />Abrir</a
+									>{:else if documentLink?.kind === 'resource'}<a
+										href={documentLink.href}
+										target="_blank"
+										rel="external noreferrer"
 										class="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
 										><ExternalLink class="h-3 w-3" />Abrir</a
 									>{/if}<button

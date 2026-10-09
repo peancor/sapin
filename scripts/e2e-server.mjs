@@ -1,6 +1,7 @@
 import { mkdtempSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
 
 // Always create a fresh database: never accept the user's DATABASE_URL.
 mkdirSync('output/e2e', { recursive: true });
@@ -39,6 +40,30 @@ const build = spawnSync(
 	{ env: { ...env, NODE_ENV: 'production' }, stdio: 'inherit' }
 );
 if (build.status !== 0) process.exit(build.status || 1);
+
+// Read-only Qdrant fixture for the library UI. No indexing or external service is involved.
+const qdrant = createServer((request, response) => {
+	response.setHeader('Content-Type', 'application/json');
+	if (request.method === 'GET' && request.url === '/') {
+		response.end(JSON.stringify({ title: 'qdrant', version: '1.18.0' }));
+	} else if (request.method === 'GET' && request.url === '/collections') {
+		response.end(JSON.stringify({ result: { collections: [] }, status: 'ok', time: 0 }));
+	} else {
+		response.writeHead(404);
+		response.end(JSON.stringify({ status: { error: 'Not provided by the E2E fixture' } }));
+	}
+});
+await new Promise((ready, reject) => {
+	qdrant.once('error', reject);
+	qdrant.listen(0, '127.0.0.1', ready);
+});
+const address = qdrant.address();
+if (!address || typeof address === 'string') throw new Error('No fixture port was allocated.');
+env.QDRANT_URL = `http://127.0.0.1:${address.port}`;
 const server = spawn(process.execPath, ['build/index.js'], { env, stdio: 'inherit' });
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.kill(signal));
+for (const signal of ['SIGINT', 'SIGTERM'])
+	process.on(signal, () => {
+		qdrant.close();
+		server.kill(signal);
+	});
 server.on('exit', (code) => process.exit(code || 0));

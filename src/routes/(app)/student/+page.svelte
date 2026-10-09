@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
+	import type { BreadcrumbItem } from '$lib/types/navigation';
 	import { BookOpen } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -9,7 +10,7 @@
 	const breadcrumbItems = [
 		{ label: 'Home', href: '/' },
 		{ label: 'Student Dashboard', href: '/student' }
-	];
+	] satisfies BreadcrumbItem[];
 
 	const gradients = [
 		'from-blue-300/60 via-indigo-200/60 to-violet-300/60',

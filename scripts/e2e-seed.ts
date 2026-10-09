@@ -50,6 +50,24 @@ try {
 	f.database.update(s.course).set({ status: 'published' }).run();
 	f.database.update(s.interactiveLearning).set({ status: 'published' }).run();
 	f.database.insert(s.interactiveLearningChat).values({ id: 'activity', createdAt: now }).run();
+	for (const [id, originalPath] of [
+		['rag-local', '/api/files/rag-fixture?download=1#page=2'],
+		['rag-external', 'https://example.invalid/material.pdf?token=a%2Bb#page=3'],
+		['rag-legacy', '/uploads/legacy.pdf']
+	]) {
+		f.database
+			.insert(s.interactiveLearningRagDocument)
+			.values({
+				id,
+				interactiveLearningId: 'activity',
+				name: id,
+				originalPath,
+				fileType: 'pdf',
+				createdAt: now,
+				updatedAt: now
+			})
+			.run();
+	}
 	for (const type of ['lesson', 'agent']) {
 		f.database
 			.insert(s.interactiveLearning)

@@ -65,3 +65,34 @@ test('admin navigation retains course and user identifiers and return query', as
 	await page.locator('a[href="/admin/analytics?tab=users"]').click();
 	await expect(page).toHaveURL(/\/admin\/analytics\?tab=users$/);
 });
+
+test('invitation breadcrumbs lead to the existing course overview and course list', async ({
+	page
+}) => {
+	await login(page, 'admin');
+	await page.goto('/course/course/admin/invites');
+	const breadcrumbs = page.getByRole('navigation', { name: 'Breadcrumb', exact: true });
+	await breadcrumbs.getByRole('link', { name: 'Clase', exact: true }).click();
+	await expect(page).toHaveURL(/\/course\/course\/admin$/);
+	await page.goto('/course/course/admin/invites');
+	await breadcrumbs.getByRole('link', { name: 'Cursos', exact: true }).click();
+	await expect(page).toHaveURL(/\/dashboard$/);
+	await expect(page).toHaveTitle('Mi Espacio - SAPIN');
+});
+
+test('RAG links preserve file endpoints and external and legacy resource URLs', async ({
+	page
+}) => {
+	await login(page, 'teacher');
+	await page.goto('/course/course/admin/interactives/activity/chatedit');
+	for (const href of [
+		'/api/files/rag-fixture?download=1#page=2',
+		'https://example.invalid/material.pdf?token=a%2Bb#page=3',
+		'/uploads/legacy.pdf'
+	]) {
+		const link = page.locator(`a[href="${href}"]`);
+		await expect(link).toHaveCount(1);
+		await expect(link).toHaveAttribute('target', '_blank');
+		await expect(link).toHaveAttribute('rel', /noreferrer/);
+	}
+});

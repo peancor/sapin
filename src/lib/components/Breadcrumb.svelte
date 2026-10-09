@@ -1,5 +1,7 @@
 <script lang="ts">
-	export let items: { label: string; href?: string }[] = [];
+	import { resolve } from '$app/paths';
+	import type { BreadcrumbItem } from '$lib/types/navigation';
+	export let items: BreadcrumbItem[] = [];
 </script>
 
 <nav class="mb-4 text-sm" aria-label="Breadcrumb">
@@ -10,7 +12,10 @@
 					<span class="mx-2 text-gray-400">/</span>
 				{/if}
 				{#if item.href}
-					<a href={item.href} class="text-blue-600 hover:text-blue-800">{item.label}</a>
+					<a
+						href={resolve(...([item.href] as Parameters<typeof resolve>))}
+						class="text-blue-600 hover:text-blue-800">{item.label}</a
+					>
 				{:else}
 					<span class="text-gray-500">{item.label}</span>
 				{/if}

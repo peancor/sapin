@@ -19,6 +19,7 @@
 	} from 'flowbite-svelte';
 	import { TicketPlus, Copy, Link, Ban, Download, ChevronDown, ChevronUp } from 'lucide-svelte';
 	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
+	import type { BreadcrumbItem } from '$lib/types/navigation';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -34,13 +35,12 @@
 	let showCodesModal = $state(false);
 	let copiedCode = $state('');
 
-	const breadcrumbItems = [
+	const breadcrumbItems = $derived([
 		{ label: 'Inicio', href: '/' },
-		{ label: 'Cursos', href: '/courses' },
-		{ label: data.course.name, href: `/course/${data.course.id}` },
-		{ label: 'Administración', href: `/course/${data.course.id}/admin` },
+		{ label: 'Cursos', href: '/dashboard' },
+		{ label: data.course.name, href: `/course/${data.course.id}/admin` },
 		{ label: 'Invitaciones', href: `/course/${data.course.id}/admin/invites` }
-	];
+	] satisfies BreadcrumbItem[]);
 
 	// Generated codes from form action
 	let generatedCodes = $derived((form as any)?.codes as string[] | undefined);
