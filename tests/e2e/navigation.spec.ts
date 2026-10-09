@@ -96,3 +96,41 @@ test('RAG links preserve file endpoints and external and legacy resource URLs', 
 		await expect(link).toHaveAttribute('rel', /noreferrer/);
 	}
 });
+
+test('invitation rows retain their identity when new codes are added and one is deactivated', async ({
+	page
+}) => {
+	await login(page, 'admin');
+	await page.goto('/course/course/admin/invites');
+	await page.getByRole('button', { name: 'Generar', exact: true }).click();
+	await page.getByLabel('Cantidad', { exact: true }).fill('2');
+	await page.getByRole('button', { name: 'Generar 2 invitaciones', exact: true }).click();
+	const dialog = page.getByRole('dialog');
+	await expect(dialog).toBeVisible();
+	await expect(dialog.locator('code')).toHaveCount(2);
+	const codes = await dialog.locator('code').allTextContents();
+	await page.keyboard.press('Escape');
+	await expect(dialog).not.toBeVisible();
+	const firstRow = page
+		.getByRole('row')
+		.filter({ has: page.locator('code', { hasText: codes[0] }) });
+	const firstRowNode = await firstRow.elementHandle();
+	if (!firstRowNode) throw new Error('The generated invitation row is missing.');
+	await page.getByLabel('Cantidad', { exact: true }).fill('1');
+	await page.getByRole('button', { name: 'Generar invitación', exact: true }).click();
+	await expect(dialog).toBeVisible();
+	await expect(dialog.locator('code')).toHaveCount(1);
+	const newCode = await dialog.locator('code').innerText();
+	expect(codes).not.toContain(newCode);
+	await page.keyboard.press('Escape');
+	await expect(dialog).not.toBeVisible();
+	await expect(firstRow).toContainText('Disponible');
+	expect(await firstRow.evaluate((node, original) => node === original, firstRowNode)).toBe(true);
+	await firstRow.locator('form[action="?/deactivate"] button').click();
+	await expect(firstRow).toContainText('Desactivada');
+	for (const code of [codes[1], newCode]) {
+		await expect(
+			page.getByRole('row').filter({ has: page.locator('code', { hasText: code }) })
+		).toContainText('Disponible');
+	}
+});

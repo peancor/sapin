@@ -92,7 +92,7 @@
 				</span>
 			</div>
 			<div class="flex flex-wrap gap-2">
-				{#each selectedStudents as student}
+				{#each selectedStudents as student (student.id)}
 					<span
 						class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1
                         text-sm text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
@@ -116,7 +116,7 @@
 			<StudentSearch value={searchQuery} onchange={(v) => (searchQuery = v)} />
 		</div>
 		<div class="flex gap-2">
-			{#each filterButtons as btn}
+			{#each filterButtons as btn (btn.id)}
 				<button
 					onclick={() => handleFilterClick(btn.id)}
 					class="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200

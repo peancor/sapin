@@ -337,7 +337,7 @@
 				<div
 					class="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-gray-200 p-3 dark:border-gray-600"
 				>
-					{#each generatedCodes as code}
+					{#each generatedCodes as code (code)}
 						<div
 							class="flex items-center justify-between rounded bg-gray-50 px-3 py-2 dark:bg-gray-700"
 						>
@@ -391,7 +391,7 @@
 			<TableHeadCell>Acciones</TableHeadCell>
 		</TableHead>
 		<TableBody>
-			{#each data.invites as inv}
+			{#each data.invites as inv (inv.id)}
 				<TableBodyRow>
 					<TableBodyCell>
 						<div class="flex items-center gap-2">

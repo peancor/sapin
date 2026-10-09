@@ -56,7 +56,7 @@
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-				{#each data.components as comp}
+				{#each data.components as comp (comp.id)}
 					<tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50">
 						<td class="px-4 py-3">
 							<div class="font-medium text-gray-900 dark:text-white">{comp.displayName}</div>
