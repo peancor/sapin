@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { LogOut, LogIn, User, Moon, Sun, BookOpen } from 'lucide-svelte';
 	import { theme } from '$lib/stores/theme';
 	import '$lib/paraglide/messages.js';
@@ -69,7 +70,7 @@
 	<div class="mx-auto flex h-14 max-w-7xl items-center justify-between px-6 md:h-16">
 		<div class="flex items-center gap-4">
 			<!-- Site Logo -->
-			<a href="/student" class="group flex items-center gap-2">
+			<a href={resolve('/student')} class="group flex items-center gap-2">
 				<div class="relative flex items-center justify-center">
 					<div
 						class="bg-primary-500/20 group-hover:bg-primary-500/30 absolute inset-0 rounded-full blur-lg transition-all duration-500"
@@ -187,7 +188,7 @@
 					<!-- Menu Items -->
 					<DropdownGroup class="space-y-1 p-2">
 						<DropdownItem
-							href="/student"
+							href={resolve('/student')}
 							class="group/item rounded-xl transition-all duration-200 hover:bg-blue-50/50 dark:hover:bg-blue-900/20"
 						>
 							<div class="flex items-center gap-3.5">
@@ -208,7 +209,7 @@
 						</DropdownItem>
 
 						<DropdownItem
-							href="/profile"
+							href={resolve('/profile')}
 							class="group/item rounded-xl transition-all duration-200 hover:bg-slate-50/50 dark:hover:bg-slate-800/50"
 						>
 							<div class="flex items-center gap-3.5">
@@ -236,7 +237,7 @@
 					<!-- Logout -->
 					<DropdownGroup class="p-2">
 						<DropdownItem
-							href="/logout"
+							href={resolve('/logout')}
 							class="group/item rounded-xl transition-all duration-200 hover:bg-red-50/50 dark:hover:bg-red-900/20"
 						>
 							<div class="flex items-center gap-3.5">
@@ -256,7 +257,7 @@
 				</Dropdown>
 			{:else}
 				<Button
-					href="/login"
+					href={resolve('/login')}
 					size="sm"
 					color="blue"
 					class="flex items-center justify-center rounded-full p-2.5 shadow-lg shadow-blue-500/20"

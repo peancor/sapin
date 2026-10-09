@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
@@ -94,7 +95,9 @@
 
 	function handleSearch() {
 		if (searchQuery.length >= 2) {
-			goto(`/admin/notifications?search=${encodeURIComponent(searchQuery)}`, { keepFocus: true });
+			goto(resolve(`/admin/notifications?search=${encodeURIComponent(searchQuery)}`), {
+				keepFocus: true
+			});
 		}
 	}
 
@@ -162,7 +165,7 @@
 			{/snippet}
 			El sistema de notificaciones está deshabilitado. Las notificaciones no se enviarán hasta que lo
 			actives en
-			<a href="/admin/settings" class="font-medium underline">Configuración</a>.
+			<a href={resolve('/admin/settings')} class="font-medium underline">Configuración</a>.
 		</Alert>
 	{/if}
 

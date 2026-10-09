@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
 	import type { ActionData, PageData } from './$types';
 	import { m } from '$lib/paraglide/messages.js';
@@ -195,7 +196,7 @@
 		</form>
 
 		<div class="mt-4 text-center">
-			<a href="/login" class="text-blue-600 hover:underline dark:text-blue-400">
+			<a href={resolve('/login')} class="text-blue-600 hover:underline dark:text-blue-400">
 				{m.already_have_account()}
 			</a>
 		</div>

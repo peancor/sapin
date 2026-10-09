@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import {
@@ -154,7 +155,7 @@
 		selectedSeverity = '';
 		startDate = '';
 		endDate = '';
-		goto('/admin/logs');
+		goto(resolve('/admin/logs'));
 	}
 
 	function goToPage(page: number) {
@@ -185,7 +186,7 @@
 				// Recargar la pagina para ver cambios
 				setTimeout(() => {
 					showCleanupModal = false;
-					goto('/admin/logs');
+					goto(resolve('/admin/logs'));
 				}, 2000);
 			} else {
 				cleanupResult = { success: false, error: result.data?.error || 'Error desconocido' };
@@ -213,7 +214,7 @@
 			</p>
 		</div>
 		<div class="flex gap-2">
-			<a href="/admin/logs/settings">
+			<a href={resolve('/admin/logs/settings')}>
 				<Button color="alternative" class="flex items-center gap-2">
 					<Settings class="h-4 w-4" />
 					Configuracion
@@ -240,7 +241,10 @@
 			<div>
 				<span class="font-medium">El sistema de auditoria esta desactivado.</span>
 				No se estan registrando nuevas acciones.
-				<a href="/admin/logs/settings" class="ml-2 font-medium underline hover:no-underline">
+				<a
+					href={resolve('/admin/logs/settings')}
+					class="ml-2 font-medium underline hover:no-underline"
+				>
 					Ir a Configuracion para activarlo
 				</a>
 			</div>

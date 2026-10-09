@@ -16,7 +16,7 @@ export const load = (async ({ parent, locals }) => {
 		workspace: await DBStaffAgentUtils.getWorkspaceConfigDTO(workspace.id),
 		models: await StaffAgentRuntimeService.getModels(),
 		availableTools: await StaffAgentRuntimeService.getAvailableToolsForWorkspace(workspace.id),
-		returnHref: `/course/${course.id}/admin/course-agent`,
+		returnHref: `/course/${course.id}/admin/course-agent` as const,
 		scopeLabel: `Curso · ${course.name}`,
 		updateEndpoint: `/api/admin/staff-agent/workspaces/course/${course.id}`
 	};

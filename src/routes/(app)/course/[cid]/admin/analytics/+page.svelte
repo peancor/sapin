@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import { Badge } from 'flowbite-svelte';
 	import EChart from '$lib/components/charts/EChart.svelte';
@@ -104,7 +105,7 @@
 		const student = pagedHeatmapStudents.find((item) => item.label === event.value);
 		if (!student) return;
 
-		goto(`/course/${data.courseId}/admin/students/${student.userId}`);
+		goto(resolve(`/course/${data.courseId}/admin/students/${student.userId}`));
 	}
 
 	function setCalendarRange(range: 30 | 90 | 180): void {
@@ -743,7 +744,7 @@
 							<p class="text-sm font-medium text-gray-900 dark:text-white">
 								#{index + 1} ·
 								<a
-									href={`/course/${data.courseId}/admin/students/${student.userId}`}
+									href={resolve(`/course/${data.courseId}/admin/students/${student.userId}`)}
 									class="hover:text-primary-600 dark:hover:text-primary-400 underline-offset-2 hover:underline"
 								>
 									{getStudentDisplayName(student)}

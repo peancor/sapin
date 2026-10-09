@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import type { Pathname } from '$app/types';
 
 // Constantes de niveles de rol (deben coincidir con el servidor)
 export const ROLE_LEVELS = {
@@ -10,7 +11,7 @@ export const ROLE_LEVELS = {
 } as const;
 
 export type TopbarMenuItem = {
-	href: string;
+	href: Pathname;
 	label: string;
 	roles?: string[]; // Sistema legacy (deprecated)
 	minLevel?: number; // Nuevo sistema basado en niveles

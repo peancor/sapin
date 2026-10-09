@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { Button, Label, Input, Textarea, Avatar, Badge } from 'flowbite-svelte';
 	import {
 		ArrowLeftOutline,
@@ -190,7 +191,7 @@
 
 			if (response.ok) {
 				await invalidateAll();
-				goto('/admin/courses');
+				goto(resolve('/admin/courses'));
 			}
 		} finally {
 			isLoading = false;
@@ -217,7 +218,7 @@
 			<div class="flex h-16 items-center justify-between">
 				<!-- Back -->
 				<a
-					href="/admin/courses"
+					href={resolve('/admin/courses')}
 					class="flex items-center gap-2 text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
 				>
 					<ArrowLeftOutline class="h-5 w-5" />

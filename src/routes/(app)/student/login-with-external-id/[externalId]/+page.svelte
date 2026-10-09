@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import type { PageData } from './$types';
@@ -10,7 +11,7 @@
 		if (data.loginSuccess === true) {
 			console.log('Login success with external ID');
 			setTimeout(() => {
-				goto('/student', { invalidateAll: true });
+				goto(resolve('/student'), { invalidateAll: true });
 			}, 2000);
 		}
 	});

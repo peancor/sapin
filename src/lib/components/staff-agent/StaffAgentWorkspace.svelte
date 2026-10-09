@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
+	import type { Pathname } from '$app/types';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { ArrowRight, MessageSquarePlus, Settings2, Trash2, PencilLine } from 'lucide-svelte';
@@ -32,7 +34,7 @@
 		threads: ThreadSummary[];
 		selectedThread: SelectedThread | null;
 		apiBasePath: string;
-		settingsHref: string;
+		settingsHref: Pathname;
 		newThreadLabel: string;
 		viewerUser: { username?: string | undefined; alias?: string | undefined };
 	}
@@ -201,7 +203,7 @@
 
 			<div class="flex flex-wrap gap-3">
 				<a
-					href={settingsHref}
+					href={resolve(...([settingsHref] as Parameters<typeof resolve>))}
 					class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-white"
 				>
 					<Settings2 class="h-4 w-4" />

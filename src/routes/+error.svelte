@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 </script>
 
@@ -9,7 +10,7 @@
 		</div>
 		<h1 class="error-code">{page.status}</h1>
 		<p class="error-message">{page.error?.message}</p>
-		<a href="/" class="back-button">Inicio</a>
+		<a href={resolve('/')} class="back-button">Inicio</a>
 	</div>
 </div>
 

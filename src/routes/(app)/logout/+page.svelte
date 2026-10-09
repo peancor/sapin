@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
@@ -13,7 +14,7 @@
 		setTimeout(() => {
 			showSuccess = true;
 		}, 500);
-		setTimeout(() => goto('/'), 2000);
+		setTimeout(() => goto(resolve('/')), 2000);
 	});
 </script>
 

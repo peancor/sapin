@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import { Avatar, Badge } from 'flowbite-svelte';
 	import { Users, GraduationCap, BookOpen, Shield, TrendingUp, Clock, Bell } from 'lucide-svelte';
@@ -97,7 +98,7 @@
 			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Acciones Rápidas</h3>
 			<div class="space-y-3">
 				<a
-					href="/admin/users"
+					href={resolve('/admin/users')}
 					class="flex items-center gap-3 rounded-lg border border-gray-200 p-3 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"
 				>
 					<div
@@ -111,7 +112,7 @@
 					</div>
 				</a>
 				<a
-					href="/admin/courses"
+					href={resolve('/admin/courses')}
 					class="flex items-center gap-3 rounded-lg border border-gray-200 p-3 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"
 				>
 					<div
@@ -125,7 +126,7 @@
 					</div>
 				</a>
 				<a
-					href="/admin/notifications"
+					href={resolve('/admin/notifications')}
 					class="flex items-center gap-3 rounded-lg border border-gray-200 p-3 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"
 				>
 					<div
@@ -139,7 +140,7 @@
 					</div>
 				</a>
 				<a
-					href="/admin/settings"
+					href={resolve('/admin/settings')}
 					class="flex items-center gap-3 rounded-lg border border-gray-200 p-3 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"
 				>
 					<div
@@ -162,7 +163,7 @@
 			<div class="mb-4 flex items-center justify-between">
 				<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Usuarios Recientes</h3>
 				<a
-					href="/admin/users"
+					href={resolve('/admin/users')}
 					class="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline"
 				>
 					Ver todos

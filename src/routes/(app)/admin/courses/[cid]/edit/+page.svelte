@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
@@ -350,7 +351,11 @@
 
 					<!-- Submit Button -->
 					<div class="flex justify-end gap-3 border-t border-gray-100 pt-6 dark:border-gray-700">
-						<Button href="/admin/courses/{data.course.id}" color="alternative" class="!rounded-xl">
+						<Button
+							href={resolve(`/admin/courses/${data.course.id}`)}
+							color="alternative"
+							class="!rounded-xl"
+						>
 							Cancelar
 						</Button>
 						<Button type="submit" color="primary" disabled={isSaving} class="!rounded-xl !px-6">
@@ -461,7 +466,7 @@
 				<h3 class="mb-4 font-semibold text-gray-900 dark:text-white">Accesos rápidos</h3>
 				<div class="space-y-2">
 					<a
-						href="/admin/courses/{data.course.id}/teachers"
+						href={resolve(`/admin/courses/${data.course.id}/teachers`)}
 						class="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
 					>
 						<div
@@ -474,7 +479,7 @@
 						>
 					</a>
 					<a
-						href="/admin/courses/{data.course.id}/students"
+						href={resolve(`/admin/courses/${data.course.id}/students`)}
 						class="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
 					>
 						<div
@@ -487,7 +492,7 @@
 						>
 					</a>
 					<a
-						href="/admin/courses/{data.course.id}/interactives"
+						href={resolve(`/admin/courses/${data.course.id}/interactives`)}
 						class="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
 					>
 						<div

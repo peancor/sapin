@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -71,7 +72,7 @@
 			</div>
 		</div>
 		<a
-			href="/admin/users"
+			href={resolve('/admin/users')}
 			class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
 		>
 			<ArrowLeft class="h-4 w-4" />
@@ -98,7 +99,7 @@
 					loading = false;
 					if (result.type === 'success') {
 						await invalidateAll();
-						goto('/admin/users');
+						goto(resolve('/admin/users'));
 					} else if (result.type === 'failure') {
 						error = (result.data as { message?: string })?.message || 'Error al actualizar usuario';
 					}
@@ -182,7 +183,9 @@
 			<div
 				class="mt-8 flex items-center justify-end gap-3 border-t border-gray-200 pt-6 dark:border-gray-700"
 			>
-				<Button color="alternative" href="/admin/users" disabled={loading}>Cancelar</Button>
+				<Button color="alternative" href={resolve('/admin/users')} disabled={loading}
+					>Cancelar</Button
+				>
 				<Button type="submit" color="primary" disabled={loading} class="flex items-center gap-2">
 					{#if loading}
 						<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24">

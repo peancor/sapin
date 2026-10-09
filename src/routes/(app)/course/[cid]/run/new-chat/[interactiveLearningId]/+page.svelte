@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
@@ -12,7 +13,7 @@
 			console.log('Chat ID:', data.chatId);
 			setTimeout(() => {
 				// redirigimos a la pagina de chat
-				goto(`/course/${data.course.id}/run/chat/${data.chatId}`);
+				goto(resolve(`/course/${data.course.id}/run/chat/${data.chatId}`));
 			}, 1000);
 		} else if (data.error) {
 			msg = 'Error: ' + data.error;

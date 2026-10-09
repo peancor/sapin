@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
 	import { BookOpen } from 'lucide-svelte';
@@ -81,7 +82,7 @@
 								>
 							</div>
 							<a
-								href={`/course/${course.id}/run`}
+								href={resolve(`/course/${course.id}/run`)}
 								class="rounded-lg bg-white/90 px-16 py-4 text-lg font-semibold text-gray-900 shadow-lg transition-all duration-500 hover:-translate-y-1 hover:scale-105 hover:shadow-xl dark:bg-gray-800/90 dark:text-white"
 							>
 								Continuar Aprendiendo

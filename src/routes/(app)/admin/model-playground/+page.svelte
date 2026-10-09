@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { Trash2, Bot } from 'lucide-svelte';
 	import { Select, Label, Button } from 'flowbite-svelte';
 	import ChatComponent from '$lib/components/ChatComponent.svelte';
@@ -80,7 +81,10 @@
 				</h3>
 				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
 					Configura los modelos de IA en la sección de
-					<a href="/admin/ai-models" class="text-primary-600 dark:text-primary-400 hover:underline">
+					<a
+						href={resolve('/admin/ai-models')}
+						class="text-primary-600 dark:text-primary-400 hover:underline"
+					>
 						Modelos IA
 					</a>
 				</p>

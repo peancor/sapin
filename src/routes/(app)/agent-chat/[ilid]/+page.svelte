@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	let { data }: { data: PageData } = $props();
 
@@ -18,7 +18,7 @@
 
 			if (response.ok) {
 				const { chatId } = (await response.json()) as { chatId: string };
-				goto(`${base}/agent-chat/${data.interactiveLearning.id}/c/${chatId}`);
+				goto(resolve(`/agent-chat/${data.interactiveLearning.id}/c/${chatId}`));
 			} else {
 				console.error('Error al crear el chat agéntico');
 			}
@@ -95,7 +95,7 @@
 				{#each data.userChats as chatSession}
 					{#if chatSession}
 						<a
-							href="{base}/agent-chat/{data.interactiveLearning.id}/c/{chatSession.id}"
+							href={resolve(`/agent-chat/${data.interactiveLearning.id}/c/${chatSession.id}`)}
 							class="group flex items-center justify-between rounded-lg border border-gray-200
                                 bg-white px-4 py-3 transition-colors hover:border-blue-300 dark:border-gray-700
                                 dark:bg-gray-800 dark:hover:border-blue-600"

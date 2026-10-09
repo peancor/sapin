@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { onMount, onDestroy } from 'svelte';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import { Button, Badge, Alert } from 'flowbite-svelte';
@@ -97,7 +98,7 @@
 	<!-- Header -->
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div class="flex items-center gap-4">
-			<a href="/admin/analytics">
+			<a href={resolve('/admin/analytics')}>
 				<Button color="alternative" size="sm" class="flex items-center gap-2">
 					<ArrowLeft class="h-4 w-4" />
 					Volver
@@ -133,7 +134,7 @@
 			<div>
 				<span class="font-medium">El sistema de analítica está desactivado.</span>
 				No se están recopilando datos nuevos.
-				<a href="/admin/settings" class="ml-2 font-medium underline hover:no-underline">
+				<a href={resolve('/admin/settings')} class="ml-2 font-medium underline hover:no-underline">
 					Ir a Configuración para activarlo
 				</a>
 			</div>

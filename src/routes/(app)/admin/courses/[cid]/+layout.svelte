@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { LayoutData } from './$types';
 	import type { Snippet } from 'svelte';
 	import { page } from '$app/state';
@@ -153,7 +154,7 @@
 				<!-- Course Header -->
 				<div class="mb-6">
 					<a
-						href="/admin/courses"
+						href={resolve('/admin/courses')}
 						class="hover:text-primary-600 dark:hover:text-primary-400 mb-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400"
 					>
 						<ChevronLeft class="h-4 w-4" />
@@ -212,7 +213,7 @@
 						Acciones rápidas
 					</p>
 					<a
-						href="/course/{courseId}/run"
+						href={resolve(`/course/${courseId}/run`)}
 						class="flex items-center gap-3 rounded-lg bg-blue-50 p-3 text-blue-700 transition-colors hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
 					>
 						<Eye class="h-5 w-5" />

@@ -37,7 +37,7 @@ export const load = (async ({ parent, locals, url }) => {
 		models: await StaffAgentRuntimeService.getModels(),
 		availableTools: await StaffAgentRuntimeService.getAvailableToolsForWorkspace(workspace.id),
 		apiBasePath: `/api/admin/staff-agent`,
-		settingsHref: `/course/${course.id}/admin/course-agent/settings`,
+		settingsHref: `/course/${course.id}/admin/course-agent/settings` as const,
 		newThreadLabel: 'Nuevo hilo de curso',
 		viewerUser: {
 			username: locals.user.username ?? locals.user.email ?? undefined,

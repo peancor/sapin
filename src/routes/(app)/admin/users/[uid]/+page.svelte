@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import {
@@ -56,7 +57,7 @@
 	<!-- Header -->
 	<div class="flex items-center gap-4">
 		<a
-			href="/admin/users"
+			href={resolve('/admin/users')}
 			class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
 		>
 			<ArrowLeft size={20} />
@@ -65,7 +66,7 @@
 			<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Detalles del Usuario</h1>
 			<p class="text-sm text-gray-500 dark:text-gray-400">Información completa del usuario</p>
 		</div>
-		<a href="/admin/users/{data.user.id}/edit">
+		<a href={resolve(`/admin/users/${data.user.id}/edit`)}>
 			<Button color="primary" class="flex items-center gap-2">
 				<PencilLine size={16} />
 				Editar
@@ -213,13 +214,13 @@
 
 	<!-- Actions -->
 	<div class="flex gap-3">
-		<a href="/admin/users">
+		<a href={resolve('/admin/users')}>
 			<Button color="alternative">
 				<ArrowLeft size={16} class="mr-2" />
 				Volver a usuarios
 			</Button>
 		</a>
-		<a href="/admin/users/{data.user.id}/edit">
+		<a href={resolve(`/admin/users/${data.user.id}/edit`)}>
 			<Button color="primary">
 				<PencilLine size={16} class="mr-2" />
 				Editar usuario

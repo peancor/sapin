@@ -3,12 +3,46 @@ import { eq } from 'drizzle-orm';
 import { existsSync } from 'node:fs';
 import * as s from '../src/lib/server/db/schema/index';
 import { radarFixture } from '../src/lib/server/radar/testing';
+import { ROLE_LEVELS } from '../src/lib/server/roles';
 
 const destination = process.argv[2];
 if (!destination || existsSync(destination)) throw new Error('Se requiere una BD nueva.');
 const f = radarFixture();
 try {
 	const now = new Date();
+	f.database
+		.insert(s.user)
+		.values({
+			id: 'admin',
+			email: 'admin@example.invalid',
+			displayName: 'admin',
+			passwordHash: 'test',
+			createdAt: now,
+			updatedAt: now
+		})
+		.run();
+	// Course membership alone does not grant access to the student dashboard.
+	for (const [name, level] of [
+		['admin', ROLE_LEVELS.ADMIN],
+		['teacher', ROLE_LEVELS.TEACHER],
+		['student', ROLE_LEVELS.STUDENT]
+	] as const) {
+		f.database
+			.insert(s.role)
+			.values({ id: name, name, displayName: name, level, createdAt: now, updatedAt: now })
+			.run();
+	}
+	for (const userId of ['admin', 'teacher', 'student', 'student2']) {
+		f.database
+			.insert(s.userRoleAssignment)
+			.values({
+				id: userId,
+				userId,
+				roleId: userId === 'student2' ? 'student' : userId,
+				assignedAt: now
+			})
+			.run();
+	}
 	f.database
 		.update(s.user)
 		.set({ passwordHash: await hash('Sapin-e2e-2026!') })

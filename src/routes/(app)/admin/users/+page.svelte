@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import {
 		UserPlus,
@@ -107,7 +108,7 @@
 	function clearFilters() {
 		searchTerm = '';
 		roleFilter = 'all';
-		goto('/admin/users');
+		goto(resolve('/admin/users'));
 	}
 
 	// Display toast message
@@ -377,14 +378,14 @@
 							<TableBodyCell>
 								<div class="flex justify-end gap-1">
 									<a
-										href="/admin/users/{user.id}"
+										href={resolve(`/admin/users/${user.id}`)}
 										class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
 									>
 										<Eye size={18} />
 										<Tooltip>Ver detalles</Tooltip>
 									</a>
 									<a
-										href="/admin/users/{user.id}/edit"
+										href={resolve(`/admin/users/${user.id}/edit`)}
 										class="hover:text-primary-600 dark:hover:text-primary-400 rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
 									>
 										<PencilLine size={18} />

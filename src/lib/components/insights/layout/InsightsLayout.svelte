@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { Snippet } from 'svelte';
 	import InsightsTabs from './InsightsTabs.svelte';
 	import { ArrowLeft } from 'lucide-svelte';
@@ -34,7 +35,7 @@
 			<!-- Header Row -->
 			<div class="flex items-center gap-4 py-4">
 				<a
-					href="/course/{courseId}/admin/interactives/{ilid}"
+					href={resolve(`/course/${courseId}/admin/interactives/${ilid}`)}
 					class="-ml-2 rounded-lg p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
 					title="Volver a la actividad"
 				>

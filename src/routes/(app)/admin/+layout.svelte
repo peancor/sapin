@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { type Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 	import { page } from '$app/state';
@@ -261,7 +262,7 @@
 						</p>
 					</div>
 					<a
-						href="/"
+						href={resolve('/')}
 						class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
 					>
 						<Home class="h-4 w-4" />

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { MessageSquare, Send, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-svelte';
 	import { Button, Input, Textarea, Label, Alert } from 'flowbite-svelte';
 	import { enhance } from '$app/forms';
@@ -45,7 +46,7 @@
 		<div class="mx-auto max-w-xl">
 			<!-- Back link -->
 			<a
-				href="/"
+				href={resolve('/')}
 				class="mb-8 inline-flex items-center gap-2 text-sm text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
 			>
 				<ArrowLeft class="h-4 w-4" />
@@ -81,7 +82,7 @@
 					<p class="mb-6 text-slate-600 dark:text-slate-400">
 						{form.message}
 					</p>
-					<Button href="/" color="light">Volver al inicio</Button>
+					<Button href={resolve('/')} color="light">Volver al inicio</Button>
 				</div>
 			{:else}
 				<!-- Form -->
@@ -178,7 +179,7 @@
 
 					<p class="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
 						Al enviar aceptas nuestra <a
-							href="/privacy"
+							href={resolve('/privacy')}
 							class="text-indigo-600 hover:underline dark:text-indigo-400">política de privacidad</a
 						>.
 					</p>

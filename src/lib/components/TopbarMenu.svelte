@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
 	import { LogOut, LogIn, User, Menu, Moon, Sun, X, Home, Shield, BookOpen } from 'lucide-svelte';
 	import { theme } from '$lib/stores/theme';
@@ -111,7 +112,7 @@
 			</button>
 
 			<!-- Site Logo -->
-			<a href="/" class="group flex items-center gap-2">
+			<a href={resolve('/')} class="group flex items-center gap-2">
 				<div class="relative flex items-center justify-center">
 					<div
 						class="bg-primary-500/20 group-hover:bg-primary-500/30 absolute inset-0 rounded-full blur-lg transition-all duration-500"
@@ -134,7 +135,7 @@
 		<nav class="hidden items-center gap-8 md:flex">
 			{#each filteredMenuItems as item}
 				<a
-					href={item.href}
+					href={resolve(...([item.href] as Parameters<typeof resolve>))}
 					class="group hover:text-primary-600 dark:hover:text-primary-400 relative px-1 py-2 text-sm font-semibold tracking-wide text-slate-600 transition-all duration-300 dark:text-slate-300"
 				>
 					<span class="relative z-10">{item.label}</span>
@@ -239,7 +240,7 @@
 					<!-- Menu Items -->
 					<DropdownGroup class="space-y-1 p-2">
 						<DropdownItem
-							href="/dashboard"
+							href={resolve('/dashboard')}
 							class="group/item rounded-xl transition-all duration-200 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20"
 						>
 							<div class="flex items-center gap-3.5">
@@ -258,7 +259,7 @@
 						</DropdownItem>
 
 						<DropdownItem
-							href="/profile"
+							href={resolve('/profile')}
 							class="group/item rounded-xl transition-all duration-200 hover:bg-slate-50/50 dark:hover:bg-slate-800/50"
 						>
 							<div class="flex items-center gap-3.5">
@@ -277,7 +278,7 @@
 						</DropdownItem>
 
 						<DropdownItem
-							href="/student"
+							href={resolve('/student')}
 							class="group/item rounded-xl transition-all duration-200 hover:bg-blue-50/50 dark:hover:bg-blue-900/20"
 						>
 							<div class="flex items-center gap-3.5">
@@ -305,7 +306,7 @@
 						</div>
 						<DropdownGroup class="p-2">
 							<DropdownItem
-								href="/admin"
+								href={resolve('/admin')}
 								class="group/item rounded-xl transition-all duration-200 hover:bg-purple-50/50 dark:hover:bg-purple-900/20"
 							>
 								<div class="flex items-center gap-3.5">
@@ -334,7 +335,7 @@
 					<!-- Logout -->
 					<DropdownGroup class="p-2">
 						<DropdownItem
-							href="/logout"
+							href={resolve('/logout')}
 							class="group/item rounded-xl transition-all duration-200 hover:bg-red-50/50 dark:hover:bg-red-900/20"
 						>
 							<div class="flex items-center gap-3.5">
@@ -355,13 +356,13 @@
 			{:else}
 				<div class="flex items-center gap-3">
 					<a
-						href="/login"
+						href={resolve('/login')}
 						class="hidden px-4 py-2 text-sm font-bold text-slate-600 transition-colors duration-200 hover:text-slate-900 sm:block dark:text-slate-400 dark:hover:text-white"
 					>
 						{m.login()}
 					</a>
 					<GradientButton
-						href="/register"
+						href={resolve('/register')}
 						size="sm"
 						color="purpleToBlue"
 						class="hidden transform items-center gap-2 rounded-full px-6 py-2.5 text-xs font-black tracking-widest uppercase shadow-lg shadow-blue-500/20 transition-all duration-300 hover:scale-105 sm:flex"
@@ -369,7 +370,7 @@
 						Registro
 					</GradientButton>
 					<Button
-						href="/login"
+						href={resolve('/login')}
 						size="sm"
 						color="blue"
 						class="flex items-center justify-center rounded-full p-2.5 shadow-lg shadow-blue-500/20 sm:hidden"
@@ -397,7 +398,7 @@
 					<div class="grid grid-cols-1 gap-3">
 						{#each filteredMenuItems as item}
 							<a
-								href={item.href}
+								href={resolve(...([item.href] as Parameters<typeof resolve>))}
 								class="hover:bg-primary-50 dark:hover:bg-primary-900/20 group flex items-center gap-4 rounded-2xl bg-slate-50 p-4 text-slate-700 transition-all duration-300 dark:bg-slate-800/50 dark:text-slate-200"
 								onclick={onMenuToggle}
 							>
@@ -418,7 +419,7 @@
 				{#if !user}
 					<div class="space-y-4 pt-6">
 						<GradientButton
-							href="/register"
+							href={resolve('/register')}
 							color="purpleToBlue"
 							class="w-full rounded-2xl py-4 text-sm font-black tracking-widest uppercase shadow-xl shadow-blue-500/20"
 							onclick={onMenuToggle}
@@ -427,7 +428,7 @@
 						</GradientButton>
 						<Button
 							color="light"
-							href="/login"
+							href={resolve('/login')}
 							class="w-full rounded-2xl border-none bg-slate-100 py-4 text-sm font-bold dark:bg-slate-800"
 							onclick={onMenuToggle}
 						>

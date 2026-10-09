@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import { Button, Badge, Input } from 'flowbite-svelte';
 	import { BookOpen, Search, X, ExternalLink, Eye } from 'lucide-svelte';
@@ -90,7 +91,7 @@
 				{data.interactives.length} actividades en este curso
 			</p>
 		</div>
-		<Button href="/course/{data.courseId}/admin/interactives" color="primary">
+		<Button href={resolve(`/course/${data.courseId}/admin/interactives`)} color="primary">
 			<ExternalLink class="mr-2 h-4 w-4" />
 			Gestionar en Panel del Curso
 		</Button>
@@ -125,8 +126,9 @@
 	>
 		<p class="text-sm text-blue-700 dark:text-blue-300">
 			Esta es una vista de solo lectura. Para gestionar actividades (crear, editar, eliminar), usa
-			el <a href="/course/{data.courseId}/admin/interactives" class="font-medium underline"
-				>Panel de Administración del Curso</a
+			el <a
+				href={resolve(`/course/${data.courseId}/admin/interactives`)}
+				class="font-medium underline">Panel de Administración del Curso</a
 			>.
 		</p>
 	</div>
@@ -157,11 +159,16 @@
 						</Badge>
 
 						<div class="flex gap-2">
-							<Button href="/interactive-chat/{activity.id}" size="xs" color="light" class="!p-2">
+							<Button
+								href={resolve(`/interactive-chat/${activity.id}`)}
+								size="xs"
+								color="light"
+								class="!p-2"
+							>
 								<Eye class="h-4 w-4" />
 							</Button>
 							<Button
-								href="/course/{data.courseId}/admin/interactives/{activity.id}"
+								href={resolve(`/course/${data.courseId}/admin/interactives/${activity.id}`)}
 								size="xs"
 								color="alternative"
 							>
@@ -188,7 +195,7 @@
 				<p class="mb-4 text-gray-500 dark:text-gray-400">
 					Este curso aún no tiene actividades de aprendizaje
 				</p>
-				<Button href="/course/{data.courseId}/admin/interactives/new" color="primary">
+				<Button href={resolve(`/course/${data.courseId}/admin/interactives/new`)} color="primary">
 					Crear primera actividad
 				</Button>
 			{/if}

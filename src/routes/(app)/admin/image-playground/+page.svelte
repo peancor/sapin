@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { ImagePlus, Download, Trash2, Sparkles } from 'lucide-svelte';
 	import { Select, Label, Spinner, Button, Textarea } from 'flowbite-svelte';
 	import type { PageData } from './$types';
@@ -134,7 +135,10 @@
 				</h3>
 				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
 					Configura la API key de OpenRouter en
-					<a href="/admin/settings" class="text-primary-600 dark:text-primary-400 hover:underline">
+					<a
+						href={resolve('/admin/settings')}
+						class="text-primary-600 dark:text-primary-400 hover:underline"
+					>
 						Configuración
 					</a>
 				</p>

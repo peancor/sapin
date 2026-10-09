@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import { invalidateAll } from '$app/navigation';
 	import {
@@ -230,14 +231,14 @@
 					Regenerar progreso
 				</button>
 				<a
-					href="/course/{data.course.id}/run"
+					href={resolve(`/course/${data.course.id}/run`)}
 					class="flex items-center gap-2 rounded-lg bg-white/20 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/30"
 				>
 					<Eye class="h-4 w-4" />
 					Vista estudiante
 				</a>
 				<a
-					href="/admin/courses/{data.course.id}/edit"
+					href={resolve(`/admin/courses/${data.course.id}/edit`)}
 					class="flex items-center gap-2 rounded-lg bg-white/20 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/30"
 				>
 					<Settings class="h-4 w-4" />
@@ -250,7 +251,7 @@
 	<!-- Stats Cards -->
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 		<a
-			href="/admin/courses/{data.course.id}/teachers"
+			href={resolve(`/admin/courses/${data.course.id}/teachers`)}
 			class="rounded-xl bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800"
 		>
 			<div class="flex items-center gap-4">
@@ -267,7 +268,7 @@
 		</a>
 
 		<a
-			href="/admin/courses/{data.course.id}/students"
+			href={resolve(`/admin/courses/${data.course.id}/students`)}
 			class="rounded-xl bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800"
 		>
 			<div class="flex items-center gap-4">
@@ -284,7 +285,7 @@
 		</a>
 
 		<a
-			href="/admin/courses/{data.course.id}/interactives"
+			href={resolve(`/admin/courses/${data.course.id}/interactives`)}
 			class="rounded-xl bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800"
 		>
 			<div class="flex items-center gap-4">
@@ -329,7 +330,7 @@
 					</p>
 				</div>
 				<a
-					href="/admin/courses/{data.course.id}/teachers"
+					href={resolve(`/admin/courses/${data.course.id}/teachers`)}
 					class="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1 text-sm font-medium"
 				>
 					Ver todos
@@ -365,7 +366,7 @@
 					{#if data.teachers.length > 5}
 						<div class="mt-4 border-t border-gray-100 pt-4 text-center dark:border-gray-700">
 							<a
-								href="/admin/courses/{data.course.id}/teachers"
+								href={resolve(`/admin/courses/${data.course.id}/teachers`)}
 								class="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline"
 							>
 								Ver {data.teachers.length - 5} profesores más →
@@ -377,7 +378,7 @@
 						<Users class="mx-auto mb-3 h-10 w-10 text-gray-300 dark:text-gray-600" />
 						<p class="text-gray-500 dark:text-gray-400">No hay profesores asignados</p>
 						<Button
-							href="/admin/courses/{data.course.id}/teachers"
+							href={resolve(`/admin/courses/${data.course.id}/teachers`)}
 							color="light"
 							size="sm"
 							class="mt-3"
@@ -401,7 +402,7 @@
 					</p>
 				</div>
 				<a
-					href="/admin/courses/{data.course.id}/students"
+					href={resolve(`/admin/courses/${data.course.id}/students`)}
 					class="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1 text-sm font-medium"
 				>
 					Ver todos
@@ -432,7 +433,7 @@
 					{#if data.students.length > 5}
 						<div class="mt-4 border-t border-gray-100 pt-4 text-center dark:border-gray-700">
 							<a
-								href="/admin/courses/{data.course.id}/students"
+								href={resolve(`/admin/courses/${data.course.id}/students`)}
 								class="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline"
 							>
 								Ver {data.students.length - 5} estudiantes más →
@@ -444,7 +445,7 @@
 						<GraduationCap class="mx-auto mb-3 h-10 w-10 text-gray-300 dark:text-gray-600" />
 						<p class="text-gray-500 dark:text-gray-400">No hay estudiantes inscritos</p>
 						<Button
-							href="/admin/courses/{data.course.id}/students"
+							href={resolve(`/admin/courses/${data.course.id}/students`)}
 							color="light"
 							size="sm"
 							class="mt-3"
@@ -471,7 +472,7 @@
 				</p>
 			</div>
 			<a
-				href="/admin/courses/{data.course.id}/interactives"
+				href={resolve(`/admin/courses/${data.course.id}/interactives`)}
 				class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 			>
 				<BookOpen class="h-4 w-4" />
@@ -505,7 +506,7 @@
 			{#if data.interactives.length > 6}
 				<div class="border-t border-gray-200 p-4 text-center dark:border-gray-700">
 					<a
-						href="/admin/courses/{data.course.id}/interactives"
+						href={resolve(`/admin/courses/${data.course.id}/interactives`)}
 						class="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline"
 					>
 						Ver las {data.interactives.length - 6} actividades restantes →

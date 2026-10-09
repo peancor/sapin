@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { m } from '$lib/paraglide/messages.js';
 	import { Shield, Database, Eye, Lock, UserCheck, Mail } from 'lucide-svelte';
 </script>
@@ -143,7 +144,7 @@
 				<p class="text-sm text-slate-700 dark:text-slate-300">
 					Si tienes dudas sobre cómo tratamos tus datos, contacta con nosotros en
 					<a
-						href="/contact"
+						href={resolve('/contact')}
 						class="font-medium text-emerald-600 hover:underline dark:text-emerald-400"
 						>nuestra página de contacto</a
 					>.

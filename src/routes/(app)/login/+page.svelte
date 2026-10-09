@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
 	import type { ActionData, PageData } from './$types';
 	import { m } from '$lib/paraglide/messages.js';
@@ -94,7 +95,7 @@
 		</form>
 
 		<div class="mt-4 text-center">
-			<a href="/register" class="text-blue-600 hover:underline dark:text-blue-400">
+			<a href={resolve('/register')} class="text-blue-600 hover:underline dark:text-blue-400">
 				{m.have_invite_code_register()}
 			</a>
 		</div>

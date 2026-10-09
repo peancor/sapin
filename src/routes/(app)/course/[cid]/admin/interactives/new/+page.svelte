@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
 	import { beforeNavigate, goto } from '$app/navigation';
@@ -64,7 +65,7 @@
 		<div class="container mx-auto max-w-screen-xl px-4">
 			<div class="flex items-center gap-4 py-4">
 				<a
-					href="/course/{$page.params.cid}/admin"
+					href={resolve(`/course/${$page.params.cid}/admin`)}
 					class="-ml-2 rounded-lg p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
 					title="Volver al curso"
 				>
@@ -251,7 +252,7 @@
 					Crear y configurar
 				</button>
 				<a
-					href={`/course/${data.courseId}/admin`}
+					href={resolve(`/course/${data.courseId}/admin`)}
 					class="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
 				>
 					Cancelar

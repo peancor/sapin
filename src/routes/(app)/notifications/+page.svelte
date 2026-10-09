@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -70,13 +71,13 @@
 		if (selectedType) params.set('type', selectedType);
 		if (unreadOnly) params.set('unreadOnly', 'true');
 		params.set('page', '1');
-		goto(`/notifications?${params.toString()}`);
+		goto(resolve(`/notifications?${params.toString()}`));
 	}
 
 	function goToPage(pageNum: number) {
 		const params = new SvelteURLSearchParams($page.url.searchParams);
 		params.set('page', pageNum.toString());
-		goto(`/notifications?${params.toString()}`);
+		goto(resolve(`/notifications?${params.toString()}`));
 	}
 
 	const unreadCount = $derived(data.notifications.filter((n) => !n.read).length);

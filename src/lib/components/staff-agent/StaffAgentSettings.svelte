@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
+	import type { Pathname } from '$app/types';
 	import { ArrowLeft, Save, Wrench } from 'lucide-svelte';
 
 	interface ToolOption {
@@ -24,7 +26,7 @@
 
 	interface Props {
 		scopeLabel: string;
-		returnHref: string;
+		returnHref: Pathname;
 		updateEndpoint: string;
 		models: string[];
 		availableTools: ToolOption[];
@@ -123,7 +125,7 @@
 		<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 			<div class="max-w-3xl">
 				<a
-					href={returnHref}
+					href={resolve(...([returnHref] as Parameters<typeof resolve>))}
 					class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
 				>
 					<ArrowLeft class="h-4 w-4" />

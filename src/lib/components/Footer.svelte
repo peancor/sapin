@@ -1,5 +1,6 @@
 <!-- Footer component -->
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { m } from '$lib/paraglide/messages.js';
 	import { Hr } from 'flowbite-svelte';
 	import { Mail } from 'lucide-svelte';
@@ -23,13 +24,16 @@
 				</h2>
 				<ul class="space-y-3 text-gray-600 dark:text-gray-400">
 					<li>
-						<a href="/about" class="hover:text-blue-600 hover:underline dark:hover:text-blue-500">
+						<a
+							href={resolve('/about')}
+							class="hover:text-blue-600 hover:underline dark:hover:text-blue-500"
+						>
 							{m.about()}
 						</a>
 					</li>
 					<li>
 						<a
-							href="/attributions"
+							href={resolve('/attributions')}
 							class="hover:text-blue-600 hover:underline dark:hover:text-blue-500"
 						>
 							{m.attributions()}
@@ -43,12 +47,18 @@
 				<h2 class="mb-4 text-sm font-semibold text-gray-900 uppercase dark:text-white">Legal</h2>
 				<ul class="space-y-3 text-gray-600 dark:text-gray-400">
 					<li>
-						<a href="/privacy" class="hover:text-blue-600 hover:underline dark:hover:text-blue-500">
+						<a
+							href={resolve('/privacy')}
+							class="hover:text-blue-600 hover:underline dark:hover:text-blue-500"
+						>
 							{m.privacyPolicy()}
 						</a>
 					</li>
 					<li>
-						<a href="/cookies" class="hover:text-blue-600 hover:underline dark:hover:text-blue-500">
+						<a
+							href={resolve('/cookies')}
+							class="hover:text-blue-600 hover:underline dark:hover:text-blue-500"
+						>
 							{m.cookiePolicy()}
 						</a>
 					</li>
@@ -61,7 +71,7 @@
 				<div class="flex items-center">
 					<Mail size={16} class="mr-2 text-gray-600 dark:text-gray-400" />
 					<a
-						href="/contact"
+						href={resolve('/contact')}
 						class="text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-500"
 					>
 						{m.contact()}

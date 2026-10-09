@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { fly } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 	import { Button, Spinner } from 'flowbite-svelte';
@@ -80,7 +81,7 @@
 			class="border-t border-gray-100 bg-gray-50/50 p-2 text-center dark:border-gray-700 dark:bg-gray-800/50"
 		>
 			<a
-				href="/notifications"
+				href={resolve('/notifications')}
 				class="text-primary-600 dark:text-primary-400 text-xs font-medium hover:underline"
 				onclick={onClose}
 			>

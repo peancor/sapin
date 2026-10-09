@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import {
 		Button,
@@ -165,7 +166,7 @@
 	<!-- Header -->
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div class="flex items-center gap-4">
-			<a href="/admin/analytics?tab=users">
+			<a href={resolve('/admin/analytics?tab=users')}>
 				<Button color="alternative" size="sm" class="flex items-center gap-2">
 					<ArrowLeft class="h-4 w-4" />
 					Volver

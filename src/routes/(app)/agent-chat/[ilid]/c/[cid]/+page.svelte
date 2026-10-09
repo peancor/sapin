@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import AgentChatComponent from '$lib/components/agent/AgentChatComponent.svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -14,7 +14,7 @@
 		class="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900"
 	>
 		<a
-			href="{base}/agent-chat/{data.activityId}"
+			href={resolve(`/agent-chat/${data.activityId}`)}
 			class="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
 			aria-label="Volver a la actividad"
 		>
