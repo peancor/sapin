@@ -158,14 +158,15 @@
 	</div>
 
 	<!-- Questions -->
+	<!-- Persisted answers address fixed positions within this UI instance, not question text. -->
 	<div class="divide-y divide-gray-100 dark:divide-gray-700">
-		{#each questions as q, qIdx}
+		{#each questions as q, qIdx (`${instanceId}:question:${qIdx}`)}
 			<div class="px-4 py-3">
 				<p class="mb-2.5 text-sm font-medium text-gray-900 dark:text-white">
 					{qIdx + 1}. {@html renderInline(q.question)}
 				</p>
 				<div class="space-y-1.5">
-					{#each q.options as opt, optIdx}
+					{#each q.options as opt, optIdx (`${instanceId}:${qIdx}:option:${optIdx}`)}
 						<button
 							class="w-full rounded-lg border px-3 py-2 text-left text-xs transition-colors
                                 {getOptionClass(qIdx, optIdx)}"

@@ -583,7 +583,8 @@
 				</p>
 
 				<div class="space-y-2">
-					{#each currentQuestion.options as option, optionIndex}
+					<!-- Options belong to a question position; advancing must create new buttons. -->
+					{#each currentQuestion.options as option, optionIndex (`${instanceId}:${safeCurrentIndex}:option:${optionIndex}`)}
 						<button
 							class="w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors {getCurrentOptionClass(
 								optionIndex
@@ -654,7 +655,8 @@
 			</div>
 
 			<div class="mt-3 space-y-2">
-				{#each questions as question, i}
+				<!-- Results use the same fixed question positions as the persisted answers. -->
+				{#each questions as question, i (`${instanceId}:question:${i}`)}
 					{@const result = computedResults[i]}
 					<div
 						class="rounded-xl border border-slate-200 bg-white p-3 text-xs dark:border-slate-700 dark:bg-slate-800/40"

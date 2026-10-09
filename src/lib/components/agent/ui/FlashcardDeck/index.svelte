@@ -182,7 +182,8 @@
 
 				<!-- Progress dots -->
 				<div class="flex gap-1">
-					{#each cards as _, i}
+					<!-- Dots represent positions in this deck, including cards with identical content. -->
+					{#each cards.keys() as i (`${instanceId}:position:${i}`)}
 						<span
 							class="h-1.5 w-1.5 rounded-full transition-colors
                         {i === currentIndex
