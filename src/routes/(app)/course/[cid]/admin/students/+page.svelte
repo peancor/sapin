@@ -105,7 +105,8 @@
 	let importValidationError = $state<string | null>(null);
 
 	// State for Moodle import wizard
-	let moodleBaseUrl = $state('');
+	const DEFAULT_MOODLE_URL = 'https://moodle.unican.es/webservice/rest/server.php';
+	let moodleBaseUrl = $state(DEFAULT_MOODLE_URL);
 	let moodleToken = $state('');
 	let moodleCourseId = $state('');
 	let moodleStep = $state<1 | 2>(1);
@@ -229,7 +230,7 @@
 
 	function resetMoodleWizard() {
 		moodleStep = 1;
-		moodleBaseUrl = '';
+		moodleBaseUrl = DEFAULT_MOODLE_URL;
 		moodleToken = '';
 		moodleCourseId = '';
 		moodlePreviewRows = [];
@@ -256,7 +257,7 @@
 
 	async function loadMoodlePreview() {
 		if (!moodleBaseUrl || !moodleToken || !moodleCourseId) {
-			moodleError = 'Debes indicar URL del endpoint REST, token e ID de curso de Moodle';
+			moodleError = 'Completa la URL de Moodle, el token y el ID del curso para continuar';
 			return;
 		}
 
@@ -725,20 +726,21 @@
 		{#if moodleStep === 1}
 			<div class="space-y-4">
 				<p class="text-sm text-gray-600 dark:text-gray-400">
-					Introduce los datos del servicio web de Moodle para obtener la lista de estudiantes.
+					Paso 1 de 2 · Conecta con Moodle para revisar la lista de estudiantes antes de importar.
+					Todos los campos son obligatorios.
 				</p>
 
 				<div>
 					<label
 						for="moodleRestEndpointInput"
 						class="mb-1 block text-sm font-medium dark:text-white"
-						>URL del endpoint REST de Moodle</label
+						>URL del servicio REST de Moodle</label
 					>
 					<input
 						id="moodleRestEndpointInput"
 						type="url"
 						bind:value={moodleBaseUrl}
-						placeholder="https://moodle.unican.es/webservice/rest/server.php"
+						aria-describedby="moodleUrlHelp"
 						autocomplete="off"
 						autocapitalize="off"
 						spellcheck="false"
@@ -747,6 +749,10 @@
 						data-bwignore="true"
 						class="block w-full rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 					/>
+					<p id="moodleUrlHelp" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+						Dirección de la Universidad de Cantabria rellenada por defecto. Puedes cambiarla si
+						utilizas otro Moodle.
+					</p>
 				</div>
 
 				<div>
@@ -759,7 +765,7 @@
 						id="externalServiceSecretInput"
 						type="password"
 						bind:value={moodleToken}
-						placeholder="Token del servicio web"
+						aria-describedby="moodleTokenHelp moodleTokenPrivacy"
 						autocomplete="new-password"
 						autocapitalize="off"
 						spellcheck="false"
@@ -769,7 +775,11 @@
 						data-bwignore="true"
 						class="block w-full rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 					/>
+					<p id="moodleTokenHelp" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+						Pega aquí tu token de acceso al servicio web de Moodle. No es tu contraseña.
+					</p>
 					<p
+						id="moodleTokenPrivacy"
 						class="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
 					>
 						Tu token de Moodle se usa exclusivamente para consultar los estudiantes del curso
@@ -786,7 +796,8 @@
 						id="moodleCourseId"
 						type="text"
 						bind:value={moodleCourseId}
-						placeholder="Ej: 42"
+						inputmode="numeric"
+						aria-describedby="moodleCourseHelp"
 						autocomplete="off"
 						autocapitalize="off"
 						spellcheck="false"
@@ -795,6 +806,11 @@
 						data-bwignore="true"
 						class="block w-full rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 					/>
+					<p id="moodleCourseHelp" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+						Abre tu curso en Moodle y copia el número que aparece después de <code>id=</code> en la
+						dirección. Por ejemplo, en <code>course/view.php?id=42</code>, el ID es
+						<strong>42</strong>.
+					</p>
 				</div>
 
 				<div class="flex justify-end gap-2">
@@ -806,12 +822,15 @@
 						Cancelar
 					</Button>
 					<Button color="purple" onclick={loadMoodlePreview} disabled={isLoadingMoodlePreview}>
-						{#if isLoadingMoodlePreview}Consultando Moodle...{:else}Continuar{/if}
+						{#if isLoadingMoodlePreview}Consultando Moodle...{:else}Revisar estudiantes{/if}
 					</Button>
 				</div>
 			</div>
 		{:else}
 			<div class="space-y-4">
+				<p class="text-sm text-gray-600 dark:text-gray-400">
+					Paso 2 de 2 · Revisa el resultado y confirma la importación.
+				</p>
 				<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
 					<div class="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
 						<p class="text-xs text-gray-600 dark:text-gray-400">Crear e inscribir</p>
@@ -882,7 +901,7 @@
 						id="externalServiceSecretConfirmInput"
 						type="password"
 						bind:value={moodleToken}
-						placeholder="Vuelve a introducir el token"
+						aria-describedby="moodleConfirmTokenHelp"
 						autocomplete="new-password"
 						autocapitalize="off"
 						spellcheck="false"
@@ -893,10 +912,11 @@
 						class="block w-full rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 					/>
 					<p
+						id="moodleConfirmTokenHelp"
 						class="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
 					>
-						Este token se usa solo para ejecutar esta importación y no se almacena en ningún
-						momento.
+						Vuelve a pegar tu token para confirmar. Se ha vaciado tras la consulta y no se guarda en
+						la base de datos.
 					</p>
 				</div>
 

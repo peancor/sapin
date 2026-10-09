@@ -10,6 +10,18 @@ if (!destination || existsSync(destination)) throw new Error('Se requiere una BD
 const f = radarFixture();
 try {
 	const now = new Date();
+	// A separate course keeps the Moodle form test independent of duplicate-role fixtures.
+	f.database
+		.insert(s.course)
+		.values({
+			id: 'moodle-import-course',
+			name: 'Importación Moodle',
+			slug: 'moodle-import-course',
+			status: 'published',
+			createdAt: now,
+			updatedAt: now
+		})
+		.run();
 	// Multiple active assignments for the same course, including a repeated role.
 	// The inactive assignment must never appear in the course lists.
 	for (const [id, role, isActive] of [
