@@ -1,4 +1,5 @@
 <script lang="ts">
+	import '$lib/styles/admin-collections.css';
 	import { Card, Modal, Button, Badge, Avatar, Tooltip, Spinner } from 'flowbite-svelte';
 	import {
 		PlusOutline,
@@ -8,11 +9,11 @@
 		ExclamationCircleOutline,
 		BookOpenSolid,
 		SearchOutline,
-		GridSolid,
 		ClipboardListSolid
 	} from 'flowbite-svelte-icons';
 	import type { PageData } from './$types';
 	import { invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	let { data }: { data: PageData } = $props();
 
@@ -186,32 +187,6 @@
 		}
 	}
 
-	// Get gradient class for card
-	function getCardGradient(index: number): string {
-		const gradients = [
-			'from-blue-500/10 to-purple-500/10',
-			'from-emerald-500/10 to-teal-500/10',
-			'from-orange-500/10 to-red-500/10',
-			'from-pink-500/10 to-rose-500/10',
-			'from-indigo-500/10 to-blue-500/10',
-			'from-amber-500/10 to-yellow-500/10'
-		];
-		return gradients[index % gradients.length];
-	}
-
-	// Get accent color for stats
-	function getAccentColor(index: number): string {
-		const colors = [
-			'text-blue-500',
-			'text-emerald-500',
-			'text-orange-500',
-			'text-pink-500',
-			'text-indigo-500',
-			'text-amber-500'
-		];
-		return colors[index % colors.length];
-	}
-
 	// Stats
 	let totalStudents = $derived(
 		data.courses.reduce((acc, course) => acc + getCourseStudentsCount(course), 0)
@@ -221,293 +196,194 @@
 	);
 </script>
 
-<div class="container mx-auto p-4 lg:p-6">
-	<!-- Header with Stats -->
-	<div class="mb-8">
-		<div class="mb-6 flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
-			<div>
-				<h1 class="flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white">
-					<div class="rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 p-2">
-						<BookOpenSolid class="h-7 w-7 text-white" />
-					</div>
-					Gestión de Cursos
-				</h1>
-				<p class="mt-2 text-gray-500 dark:text-gray-400">
-					Administra y organiza los cursos de tu plataforma educativa
-				</p>
-			</div>
-			<Button
-				color="blue"
-				class="shadow-lg shadow-blue-500/25 transition-shadow hover:shadow-blue-500/40"
-				href="/admin/courses/new"
-			>
-				<PlusOutline class="me-2 h-5 w-5" />
-				Crear Nuevo Curso
-			</Button>
+<div class="admin-collection space-y-6">
+	<div class="collection-header">
+		<div>
+			<h1 class="collection-title">Gestión de cursos</h1>
+			<p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+				Administra y organiza los cursos de tu plataforma educativa
+			</p>
 		</div>
-
-		<!-- Quick Stats -->
-		<div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-			<Card
-				class="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 !p-4 dark:border-blue-800 dark:from-blue-900/20 dark:to-blue-800/20"
-			>
-				<div class="flex items-center gap-3">
-					<div class="rounded-xl bg-blue-500 p-3">
-						<GridSolid class="h-6 w-6 text-white" />
-					</div>
-					<div>
-						<p class="text-sm font-medium text-blue-600 dark:text-blue-400">Total Cursos</p>
-						<p class="text-2xl font-bold text-blue-700 dark:text-blue-300">{data.courses.length}</p>
-					</div>
-				</div>
-			</Card>
-			<Card
-				class="border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100 !p-4 dark:border-emerald-800 dark:from-emerald-900/20 dark:to-emerald-800/20"
-			>
-				<div class="flex items-center gap-3">
-					<div class="rounded-xl bg-emerald-500 p-3">
-						<UsersSolid class="h-6 w-6 text-white" />
-					</div>
-					<div>
-						<p class="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-							Total Estudiantes
-						</p>
-						<p class="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{totalStudents}</p>
-					</div>
-				</div>
-			</Card>
-			<Card
-				class="border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100 !p-4 dark:border-purple-800 dark:from-purple-900/20 dark:to-purple-800/20"
-			>
-				<div class="flex items-center gap-3">
-					<div class="rounded-xl bg-purple-500 p-3">
-						<ClipboardListSolid class="h-6 w-6 text-white" />
-					</div>
-					<div>
-						<p class="text-sm font-medium text-purple-600 dark:text-purple-400">
-							Profesores Activos
-						</p>
-						<p class="text-2xl font-bold text-purple-700 dark:text-purple-300">{totalTeachers}</p>
-					</div>
-				</div>
-			</Card>
-		</div>
-
-		<!-- Search Bar -->
-		<div class="relative">
-			<div class="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-4">
-				<SearchOutline class="h-5 w-5 text-gray-400" />
-			</div>
-			<input
-				type="text"
-				bind:value={searchTerm}
-				placeholder="Buscar cursos por nombre o descripción..."
-				class="w-full rounded-xl border border-gray-200 bg-white py-3 ps-12 pe-4 text-gray-900 placeholder-gray-400 transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-			/>
-		</div>
+		<Button color="primary" class="collection-primary" href={resolve('/admin/courses/new')}>
+			<PlusOutline class="me-2 h-4 w-4" />
+			Crear curso
+		</Button>
 	</div>
 
-	<!-- Course Cards Grid -->
-	{#if filteredCourses.length > 0}
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-			{#each filteredCourses as course, index (course.id)}
-				{@const teachers = getCourseTeachers(course)}
-				{@const studentCount = getCourseStudentsCount(course)}
-
-				<Card
-					class="group overflow-hidden border border-gray-200 !p-0 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 dark:border-gray-700 dark:hover:shadow-gray-900/50"
-				>
-					<!-- Card Header with Gradient -->
-					<div class="relative h-32 bg-gradient-to-br {getCardGradient(index)} p-5">
-						<div
-							class="absolute inset-0 bg-gradient-to-t from-white/80 to-transparent dark:from-gray-800/80"
-						></div>
-						<div class="relative z-10">
-							<div class="mb-1 flex items-start justify-between gap-2">
-								<Badge color={getStatusBadgeColor(course.status)} class="text-xs">
-									{getStatusLabel(course.status)}
-								</Badge>
-							</div>
-							<h3
-								class="line-clamp-2 text-xl font-bold text-gray-900 transition-colors group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400"
-							>
-								{course.name}
-							</h3>
-						</div>
-
-						<!-- Quick Actions (Top Right) -->
-						<div
-							class="absolute top-3 right-3 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100"
-						>
-							<Button
-								size="xs"
-								color="yellow"
-								class="!p-2 shadow-lg"
-								onclick={() => confirmRebuildProgress(course)}
-							>
-								<ClipboardListSolid class="h-3.5 w-3.5" />
-							</Button>
-							<Tooltip>Regenerar progreso</Tooltip>
-							<Button
-								size="xs"
-								color="light"
-								class="!p-2 shadow-lg"
-								href="/admin/courses/{course.id}"
-							>
-								<PenSolid class="h-3.5 w-3.5" />
-							</Button>
-							<Tooltip>Gestionar curso</Tooltip>
-							<Button
-								size="xs"
-								color="red"
-								class="!p-2 shadow-lg"
-								onclick={() => confirmDelete(course)}
-							>
-								<TrashBinSolid class="h-3.5 w-3.5" />
-							</Button>
-							<Tooltip>Eliminar curso</Tooltip>
-						</div>
-					</div>
-
-					<!-- Card Body -->
-					<div class="p-5 pt-3">
-						<!-- Description -->
-						<p class="mb-4 line-clamp-2 min-h-[40px] text-sm text-gray-500 dark:text-gray-400">
-							{course.description
-								? truncateText(course.description, 120)
-								: 'Sin descripción disponible'}
-						</p>
-
-						{#if course.lastProgressRebuild}
-							<div
-								class="mb-4 rounded-lg border border-amber-200/70 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300"
-							>
-								<p class="font-semibold">Última regeneración</p>
-								<p>
-									{formatRebuildDate(course.lastProgressRebuild.rebuildAt)} · {getRebuildModeLabel(
-										course.lastProgressRebuild.mode
-									)}
-								</p>
-							</div>
-						{/if}
-
-						<!-- Teachers Section -->
-						<div class="mb-4">
-							<p
-								class="mb-2 text-xs font-semibold tracking-wider text-gray-400 uppercase dark:text-gray-500"
-							>
-								Profesores
-							</p>
-							{#if teachers.length > 0}
-								<div class="flex items-center gap-2">
-									<div class="flex -space-x-2">
-										{#each teachers.slice(0, 3) as teacher (teacher.userId)}
-											<Avatar
-												src={teacher.image ?? undefined}
-												alt={teacher.username ?? 'Profesor'}
-												size="sm"
-												class="ring-2 ring-white dark:ring-gray-800"
-											/>
-										{/each}
-										{#if teachers.length > 3}
-											<div
-												class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 ring-2 ring-white dark:bg-gray-700 dark:ring-gray-800"
-											>
-												<span class="text-xs font-medium text-gray-600 dark:text-gray-300"
-													>+{teachers.length - 3}</span
-												>
-											</div>
-										{/if}
-									</div>
-									<div class="ml-2 flex flex-wrap gap-1">
-										{#each teachers.slice(0, 2) as teacher (teacher.userId)}
-											<Badge color={getRoleBadgeColor(teacher.role)} class="text-xs">
-												{teacher.username ?? 'Sin nombre'}
-											</Badge>
-										{/each}
-										{#if teachers.length > 2}
-											<Badge color="gray" class="text-xs">+{teachers.length - 2}</Badge>
-										{/if}
-									</div>
-								</div>
-							{:else}
-								<p class="text-sm text-gray-400 italic">Sin profesores asignados</p>
-							{/if}
-						</div>
-
-						<!-- Stats Row -->
-						<div
-							class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-gray-700"
-						>
-							<div class="flex items-center gap-4">
-								<div class="flex items-center gap-1.5">
-									<UsersSolid class="h-4 w-4 {getAccentColor(index)}" />
-									<span class="text-sm font-semibold text-gray-700 dark:text-gray-300"
-										>{studentCount}</span
-									>
-									<span class="text-xs text-gray-400">alumnos</span>
-								</div>
-								<div class="flex items-center gap-1.5">
-									<BookOpenSolid class="h-4 w-4 text-purple-500" />
-									<span class="text-sm font-semibold text-gray-700 dark:text-gray-300"
-										>{course.activityCount || 0}</span
-									>
-									<span class="text-xs text-gray-400">actividades</span>
-								</div>
-							</div>
-							<Button
-								size="xs"
-								color="blue"
-								outline
-								href="/admin/courses/{course.id}"
-								class="group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20"
-							>
-								Ver detalles
-							</Button>
-						</div>
-					</div>
-				</Card>
-			{/each}
+	<dl class="collection-stats">
+		<div>
+			<dt>Total cursos</dt>
+			<dd>{data.courses.length}</dd>
 		</div>
+		<div>
+			<dt>Total estudiantes</dt>
+			<dd>{totalStudents}</dd>
+		</div>
+		<div>
+			<dt>Profesores activos</dt>
+			<dd>{totalTeachers}</dd>
+		</div>
+	</dl>
 
-		<!-- Results summary -->
-		<div class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+	<div class="collection-toolbar">
+		<div class="relative w-full sm:max-w-md">
+			<SearchOutline
+				class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-500"
+			/>
+			<input
+				type="search"
+				aria-label="Buscar cursos"
+				bind:value={searchTerm}
+				placeholder="Buscar cursos por nombre o descripción..."
+				class="collection-search w-full py-2.5 ps-10 pe-3"
+			/>
+		</div>
+		<p class="text-sm text-gray-600 dark:text-gray-300" aria-live="polite">
 			{#if searchTerm}
 				Mostrando {filteredCourses.length} de {data.courses.length} cursos
 			{:else}
 				{data.courses.length} cursos en total
 			{/if}
+		</p>
+	</div>
+
+	{#if filteredCourses.length > 0}
+		<div class="collection-grid">
+			{#each filteredCourses as course (course.id)}
+				{@const teachers = getCourseTeachers(course)}
+				{@const studentCount = getCourseStudentsCount(course)}
+				<article class="collection-card p-5">
+					<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+						<Badge color={getStatusBadgeColor(course.status)} class="text-xs">
+							{getStatusLabel(course.status)}
+						</Badge>
+						<div class="flex items-center gap-1">
+							<Button
+								size="xs"
+								color="light"
+								class="collection-secondary-action h-9 w-9 p-0!"
+								aria-label={`Regenerar progreso de ${course.name}`}
+								onclick={() => confirmRebuildProgress(course)}
+							>
+								<ClipboardListSolid class="h-4 w-4" />
+							</Button>
+							<Tooltip>Regenerar progreso</Tooltip>
+							<Button
+								size="xs"
+								color="light"
+								class="collection-secondary-action h-9 w-9 p-0!"
+								aria-label={`Gestionar ${course.name}`}
+								href={resolve(`/admin/courses/${course.id}`)}
+							>
+								<PenSolid class="h-4 w-4" />
+							</Button>
+							<Tooltip>Gestionar curso</Tooltip>
+							<Button
+								size="xs"
+								color="light"
+								class="collection-secondary-action h-9 w-9 p-0! hover:text-red-700! dark:hover:text-red-400!"
+								aria-label={`Eliminar ${course.name}`}
+								onclick={() => confirmDelete(course)}
+							>
+								<TrashBinSolid class="h-4 w-4" />
+							</Button>
+							<Tooltip>Eliminar curso</Tooltip>
+						</div>
+					</div>
+					<h2>
+						<a class="collection-card-title" href={resolve(`/admin/courses/${course.id}`)}
+							>{course.name}</a
+						>
+					</h2>
+					<p class="mt-2 mb-5 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
+						{course.description
+							? truncateText(course.description, 120)
+							: 'Sin descripción disponible'}
+					</p>
+					{#if course.lastProgressRebuild}
+						<div
+							class="mb-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900/40 dark:text-gray-300"
+						>
+							<p class="font-medium">Última regeneración</p>
+							<p>
+								{formatRebuildDate(course.lastProgressRebuild.rebuildAt)} · {getRebuildModeLabel(
+									course.lastProgressRebuild.mode
+								)}
+							</p>
+						</div>
+					{/if}
+					<div class="mb-5">
+						<p class="mb-2 text-xs font-medium text-gray-600 dark:text-gray-300">Profesores</p>
+						{#if teachers.length > 0}
+							<div class="flex flex-wrap items-center gap-3">
+								<div class="flex -space-x-2">
+									{#each teachers.slice(0, 3) as teacher (teacher.assignmentId)}
+										<Avatar
+											src={teacher.image ?? undefined}
+											alt={teacher.username ?? 'Profesor'}
+											size="sm"
+											class="ring-2 ring-white dark:ring-gray-800"
+										/>
+									{/each}
+									{#if teachers.length > 3}
+										<div
+											class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600 ring-2 ring-white dark:bg-gray-700 dark:text-gray-300 dark:ring-gray-800"
+										>
+											+{teachers.length - 3}
+										</div>
+									{/if}
+								</div>
+								<div class="flex min-w-0 flex-wrap gap-1">
+									{#each teachers.slice(0, 2) as teacher (teacher.assignmentId)}
+										<Badge
+											color={getRoleBadgeColor(teacher.role)}
+											class="max-w-full text-xs break-all">{teacher.username ?? 'Sin nombre'}</Badge
+										>
+									{/each}
+									{#if teachers.length > 2}<Badge color="gray" class="text-xs"
+											>+{teachers.length - 2}</Badge
+										>{/if}
+								</div>
+							</div>
+						{:else}
+							<p class="text-sm text-gray-500 dark:text-gray-400">Sin profesores asignados</p>
+						{/if}
+					</div>
+					<div class="collection-card-footer justify-between">
+						<div class="flex flex-wrap gap-3 text-xs text-gray-600 dark:text-gray-300">
+							<span class="flex items-center gap-1.5"
+								><UsersSolid class="h-4 w-4" />{studentCount} alumnos</span
+							>
+							<span class="flex items-center gap-1.5"
+								><BookOpenSolid class="h-4 w-4" />{course.activityCount || 0} actividades</span
+							>
+						</div>
+						<a
+							class="collection-link inline-flex items-center"
+							href={resolve(`/admin/courses/${course.id}`)}>Ver detalles</a
+						>
+					</div>
+				</article>
+			{/each}
 		</div>
 	{:else}
-		<!-- Empty State -->
-		<Card class="!p-12">
-			<div class="text-center">
-				<div
-					class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
+		<Card class="collection-card max-w-none! p-8! text-center sm:p-12!">
+			<BookOpenSolid class="mx-auto mb-4 h-10 w-10 text-gray-400" />
+			{#if searchTerm}
+				<h2 class="mb-2 text-lg font-semibold">No se encontraron resultados</h2>
+				<p class="mb-4 text-gray-600 dark:text-gray-300">
+					No hay cursos que coincidan con "{searchTerm}"
+				</p>
+				<Button color="light" onclick={() => (searchTerm = '')}>Limpiar búsqueda</Button>
+			{:else}
+				<h2 class="mb-2 text-lg font-semibold">No hay cursos registrados</h2>
+				<p class="mb-4 text-gray-600 dark:text-gray-300">
+					Comienza creando tu primer curso para organizar tu contenido educativo
+				</p>
+				<Button color="primary" class="collection-primary" href={resolve('/admin/courses/new')}
+					><PlusOutline class="me-2 h-4 w-4" />Crear primer curso</Button
 				>
-					<BookOpenSolid class="h-10 w-10 text-gray-400 dark:text-gray-500" />
-				</div>
-				{#if searchTerm}
-					<h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-						No se encontraron resultados
-					</h3>
-					<p class="mb-4 text-gray-500 dark:text-gray-400">
-						No hay cursos que coincidan con "<span class="font-medium">{searchTerm}</span>"
-					</p>
-					<Button color="light" onclick={() => (searchTerm = '')}>Limpiar búsqueda</Button>
-				{:else}
-					<h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-						No hay cursos registrados
-					</h3>
-					<p class="mb-4 text-gray-500 dark:text-gray-400">
-						Comienza creando tu primer curso para organizar tu contenido educativo
-					</p>
-					<Button color="blue" href="/admin/courses/new">
-						<PlusOutline class="me-2 h-4 w-4" />
-						Crear Primer Curso
-					</Button>
-				{/if}
-			</div>
+			{/if}
 		</Card>
 	{/if}
 </div>

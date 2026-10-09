@@ -1,4 +1,5 @@
 <script lang="ts">
+	import '$lib/styles/admin-collections.css';
 	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import { Button, Badge, Input } from 'flowbite-svelte';
@@ -82,36 +83,43 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="admin-collection space-y-6">
 	<!-- Page Header -->
-	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+	<div class="collection-header">
 		<div>
-			<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Actividades del Curso</h1>
+			<h1 class="collection-title">Actividades del Curso</h1>
 			<p class="mt-1 text-gray-500 dark:text-gray-400">
 				{data.interactives.length} actividades en este curso
 			</p>
 		</div>
-		<Button href={resolve(`/course/${data.courseId}/admin/interactives`)} color="primary">
+		<Button
+			href={resolve(`/course/${data.courseId}/admin/interactives`)}
+			color="primary"
+			class="collection-primary"
+		>
 			<ExternalLink class="mr-2 h-4 w-4" />
 			Gestionar en Panel del Curso
 		</Button>
 	</div>
 
 	<!-- Search -->
-	<div class="rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
-		<div class="relative max-w-md">
+	<div class="collection-toolbar">
+		<div class="relative w-full max-w-md">
 			<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 				<Search class="h-4 w-4 text-gray-400" />
 			</div>
 			<Input
-				type="text"
+				type="search"
+				aria-label="Buscar actividades"
 				placeholder="Buscar por nombre, descripción o tipo..."
 				bind:value={searchTerm}
-				class="pl-10"
+				class="collection-search py-2.5 pr-10 pl-10"
 			/>
 			{#if searchTerm}
 				<button
 					onclick={() => (searchTerm = '')}
+					type="button"
+					aria-label="Limpiar búsqueda"
 					class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
 				>
 					<X class="h-4 w-4" />
@@ -122,9 +130,9 @@
 
 	<!-- Info Banner -->
 	<div
-		class="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20"
+		class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/30"
 	>
-		<p class="text-sm text-blue-700 dark:text-blue-300">
+		<p class="text-sm text-gray-600 dark:text-gray-300">
 			Esta es una vista de solo lectura. Para gestionar actividades (crear, editar, eliminar), usa
 			el <a
 				href={resolve(`/course/${data.courseId}/admin/interactives`)}
@@ -135,16 +143,14 @@
 
 	<!-- Activities Grid -->
 	{#if filteredActivities.length > 0}
-		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+		<div class="collection-grid">
 			{#each filteredActivities as activity (activity.id)}
-				<div
-					class="rounded-xl bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800"
-				>
-					<div class="mb-3 flex items-start justify-between">
-						<h3 class="line-clamp-2 font-semibold text-gray-900 dark:text-white">
+				<div class="collection-card p-5">
+					<div class="mb-3 flex flex-col items-start gap-2">
+						<h3 class="collection-card-title">
 							{activity.name}
 						</h3>
-						<Badge color={getStatusColor(activity.status)} class="ml-2 shrink-0">
+						<Badge color={getStatusColor(activity.status)} class="shrink-0">
 							{getStatusLabel(activity.status)}
 						</Badge>
 					</div>
@@ -153,7 +159,7 @@
 						{activity.description || 'Sin descripción'}
 					</p>
 
-					<div class="flex items-center justify-between">
+					<div class="collection-card-footer justify-between">
 						<Badge color={getTypeColor(activity.type)} class="capitalize">
 							{getTypeLabel(activity.type)}
 						</Badge>
@@ -163,7 +169,8 @@
 								href={resolve(`/interactive-chat/${activity.id}`)}
 								size="xs"
 								color="light"
-								class="!p-2"
+								class="collection-secondary-action p-2!"
+								aria-label={`Previsualizar ${activity.name}`}
 							>
 								<Eye class="h-4 w-4" />
 							</Button>
@@ -180,7 +187,7 @@
 			{/each}
 		</div>
 	{:else}
-		<div class="rounded-xl bg-white p-12 text-center shadow-sm dark:bg-gray-800">
+		<div class="collection-card items-center p-8 text-center sm:p-12">
 			<BookOpen class="mx-auto mb-4 h-12 w-12 text-gray-300 dark:text-gray-600" />
 			{#if searchTerm}
 				<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-white">Sin resultados</h3>
@@ -204,7 +211,7 @@
 
 	<!-- Stats Summary -->
 	{#if data.interactives.length > 0}
-		<div class="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800">
+		<div class="rounded-lg border border-gray-200 p-5 dark:border-gray-700">
 			<h3 class="mb-4 font-semibold text-gray-900 dark:text-white">Resumen</h3>
 			<div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
 				<div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import '$lib/styles/admin-collections.css';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
@@ -80,23 +81,6 @@
 	function confirmDelete(interactive: (typeof data.interactives)[number]) {
 		interactiveToDelete = interactive;
 		deleteModal = true;
-	}
-
-	function getTypeColor(type: string): 'blue' | 'purple' | 'green' | 'gray' {
-		switch (type) {
-			case 'chat':
-				return 'blue';
-			case 'agent':
-				return 'green';
-			case 'lesson':
-				return 'purple';
-			case 'quiz':
-				return 'purple';
-			case 'simulation':
-				return 'green';
-			default:
-				return 'gray';
-		}
 	}
 
 	function getStatusColor(status: string): 'green' | 'yellow' | 'orange' | 'gray' {
@@ -225,23 +209,27 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="admin-collection space-y-6">
 	<!-- Header -->
-	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+	<div class="collection-header">
 		<div>
-			<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Actividades</h1>
+			<h1 class="collection-title">Actividades</h1>
 			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
 				Gestiona las actividades de aprendizaje interactivo del curso
 			</p>
 		</div>
-		<div class="flex items-center gap-2">
-			<Button color="alternative" onclick={() => (importModal = true)}>
+		<div class="flex flex-wrap items-center gap-2">
+			<Button
+				color="alternative"
+				class="collection-secondary-action"
+				onclick={() => (importModal = true)}
+			>
 				<Upload class="mr-2 h-4 w-4" />
 				Importar
 			</Button>
 			<a
 				href={resolve(`/course/${data.courseId}/admin/interactives/new`)}
-				class="bg-primary-600 hover:bg-primary-700 inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-colors"
+				class="collection-primary inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors"
 			>
 				<Plus class="h-4 w-4" />
 				Nueva actividad
@@ -250,44 +238,51 @@
 	</div>
 
 	<!-- Toolbar -->
-	<div
-		class="flex flex-col gap-4 rounded-xl bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:bg-gray-800"
-	>
+	<div class="collection-toolbar">
 		<!-- Search -->
-		<div class="relative flex-1 sm:max-w-xs">
-			<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+		<div class="relative w-full sm:max-w-md">
+			<Search
+				class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-500"
+			/>
 			<Input
-				type="text"
+				type="search"
+				aria-label="Buscar actividades"
 				placeholder="Buscar actividades..."
 				bind:value={searchQuery}
-				class="pl-10"
+				class="collection-search py-2.5 pl-10"
 			/>
 		</div>
 
 		<!-- View Toggle & Stats -->
 		<div class="flex items-center gap-4">
-			<span class="text-sm text-gray-500 dark:text-gray-400">
+			<span class="text-sm text-gray-600 dark:text-gray-300" aria-live="polite">
 				{filteredInteractives.length} actividad{filteredInteractives.length !== 1 ? 'es' : ''}
 			</span>
-			<div class="flex rounded-lg border border-gray-200 dark:border-gray-600">
+			<div
+				class="flex shrink-0 gap-1 rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-800"
+				role="group"
+				aria-label="Presentación de actividades"
+			>
 				<button
 					type="button"
-					class="rounded-l-lg p-2 transition-colors {viewMode === 'cards'
-						? 'bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-400'
+					class="rounded-md p-2 transition-colors {viewMode === 'cards'
+						? 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-300'
 						: 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'}"
 					aria-pressed={viewMode === 'cards'}
 					title="Vista en tarjetas"
+					aria-label="Vista en tarjetas"
 					onclick={() => setViewMode('cards')}
 				>
 					<LayoutGrid class="h-4 w-4" />
 				</button>
 				<button
 					type="button"
-					class="rounded-r-lg p-2 transition-colors {viewMode === 'table'
-						? 'bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-400'
+					class="rounded-md p-2 transition-colors {viewMode === 'table'
+						? 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-300'
 						: 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'}"
 					aria-pressed={viewMode === 'table'}
 					title="Vista en lista"
+					aria-label="Vista en lista"
 					onclick={() => setViewMode('table')}
 				>
 					<List class="h-4 w-4" />
@@ -298,7 +293,7 @@
 
 	<!-- Content -->
 	{#if filteredInteractives.length === 0}
-		<div class="rounded-xl bg-white p-12 text-center shadow-sm dark:bg-gray-800">
+		<div class="collection-card items-center p-8 text-center sm:p-12">
 			<div
 				class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700"
 			>
@@ -316,7 +311,7 @@
 				</p>
 				<a
 					href={resolve(`/course/${data.courseId}/admin/interactives/new`)}
-					class="bg-primary-600 hover:bg-primary-700 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white"
+					class="collection-primary inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium"
 				>
 					<Plus class="h-4 w-4" />
 					Nueva actividad
@@ -325,39 +320,34 @@
 		</div>
 	{:else if viewMode === 'cards'}
 		<!-- Cards View -->
-		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+		<div class="collection-grid">
 			{#each filteredInteractives as interactive (interactive.id)}
-				<div
-					class="relative rounded-xl bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800"
-				>
+				<div class="collection-card relative">
 					<!-- Card Header -->
-					<div class="border-b border-gray-100 p-4 dark:border-gray-700">
+					<div class="px-5 pt-5">
 						<div class="flex items-start gap-3">
 							<div
-								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {interactive.type ===
-								'agent'
-									? 'bg-green-100 dark:bg-green-900/50'
-									: interactive.type === 'lesson'
-										? 'bg-amber-100 dark:bg-amber-900/30'
-										: 'bg-blue-100 dark:bg-blue-900/50'}"
+								class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500 dark:bg-gray-900/40 dark:text-gray-400"
 							>
 								{#if interactive.type === 'agent'}
-									<Bot class="h-5 w-5 text-green-600 dark:text-green-400" />
+									<Bot class="h-4 w-4" />
 								{:else if interactive.type === 'lesson'}
-									<Route class="h-5 w-5 text-amber-600 dark:text-amber-400" />
+									<Route class="h-4 w-4" />
 								{:else}
-									<MessageSquare class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+									<MessageSquare class="h-4 w-4" />
 								{/if}
 							</div>
 							<div class="min-w-0">
 								<a
 									href={resolve(`/course/${data.courseId}/admin/interactives/${interactive.id}`)}
-									class="hover:text-primary-600 dark:hover:text-primary-400 line-clamp-1 font-semibold text-gray-900 underline-offset-2 hover:underline dark:text-white"
+									class="collection-card-title"
 								>
 									{interactive.name}
 								</a>
-								<div class="mt-1 flex flex-wrap gap-1">
-									<Badge color={getTypeColor(interactive.type)}>{interactive.type}</Badge>
+								<div class="mt-2 flex flex-wrap items-center gap-2">
+									<span class="text-xs text-gray-600 capitalize dark:text-gray-300"
+										>{interactive.type}</span
+									>
 									<Badge color={getStatusColor(interactive.status)}
 										>{getStatusLabel(interactive.status)}</Badge
 									>
@@ -369,7 +359,7 @@
 					<!-- Card Body -->
 					<a
 						href={resolve(`/course/${data.courseId}/admin/interactives/${interactive.id}`)}
-						class="block p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30"
+						class="block flex-1 px-5 py-4"
 						aria-label={`Ver detalles de ${interactive.name}`}
 					>
 						<p class="mb-4 line-clamp-2 text-sm text-gray-600 dark:text-gray-400">
@@ -384,19 +374,17 @@
 					</a>
 
 					<!-- Card Footer -->
-					<div
-						class="flex flex-wrap items-center gap-2 border-t border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50"
-					>
+					<div class="collection-card-footer mx-5 mb-4">
 						<MoodleActivityLinkMenu
 							{interactive}
 							notify={showNotification}
 							label="Enlace Moodle"
 							triggerIdPrefix="interactives-card-moodle-link"
-							buttonClass="inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-primary-200 bg-primary-50 px-3 text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-100 dark:border-primary-500/60 dark:bg-primary-600 dark:text-white dark:hover:bg-primary-500"
+							buttonClass="collection-secondary-action inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
 						/>
 						<Button
 							color="light"
-							class="h-9 w-9 p-0!"
+							class="collection-secondary-action ml-auto h-9 w-9 p-0!"
 							id="dropdown-btn-{interactive.id}"
 							aria-label="Más acciones"
 							title="Más acciones"
@@ -438,7 +426,7 @@
 		</div>
 	{:else}
 		<!-- Table View -->
-		<div class="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
+		<div class="collection-table">
 			<table class="w-full">
 				<thead>
 					<tr class="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
@@ -474,8 +462,10 @@
 								</p>
 							</td>
 							<td class="px-6 py-4">
-								<div class="flex gap-1">
-									<Badge color={getTypeColor(interactive.type)}>{interactive.type}</Badge>
+								<div class="flex flex-wrap items-center gap-2">
+									<span class="text-xs text-gray-600 capitalize dark:text-gray-300"
+										>{interactive.type}</span
+									>
 									<Badge color={getStatusColor(interactive.status)}
 										>{getStatusLabel(interactive.status)}</Badge
 									>

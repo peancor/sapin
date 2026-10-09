@@ -1,0 +1,194 @@
+/* Local to course and activity collections; shared chrome keeps its existing theme. */
+.admin-collection {
+	--collection-surface: #fff;
+	--collection-muted-surface: #f9fafb;
+	--collection-border: #e5e7eb;
+	--collection-text: #111827;
+	--collection-muted: #4b5563;
+	--collection-accent: #cc4522;
+	--collection-focus: #cc4522;
+	color: var(--collection-text);
+}
+
+.dark .admin-collection {
+	--collection-surface: #1f2937;
+	--collection-muted-surface: #263241;
+	--collection-border: #374151;
+	--collection-text: #f3f4f6;
+	--collection-muted: #d1d5db;
+	--collection-accent: #ffbcad;
+	--collection-focus: #ffbcad;
+}
+
+.admin-collection .collection-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.admin-collection .collection-title {
+	font-size: 1.5rem;
+	font-weight: 600;
+	line-height: 1.3;
+	letter-spacing: -0.025em;
+}
+
+.admin-collection .collection-primary {
+	background: #cc4522;
+	color: #fff;
+	box-shadow: none;
+}
+
+.admin-collection .collection-primary:hover {
+	background: #a5371b;
+}
+
+.admin-collection :where(a, button, input):focus-visible {
+	outline: 2px solid var(--collection-focus);
+	outline-offset: 3px;
+}
+
+.admin-collection .collection-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.admin-collection .collection-search {
+	border: 1px solid var(--collection-border);
+	border-radius: 0.5rem;
+	background: var(--collection-surface);
+	color: var(--collection-text);
+	font-size: 0.875rem;
+}
+
+.admin-collection .collection-search::placeholder {
+	color: var(--collection-muted);
+}
+
+.admin-collection .collection-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+	gap: 1rem;
+}
+
+.admin-collection .collection-card {
+	display: flex;
+	min-width: 0;
+	max-width: none;
+	flex-direction: column;
+	gap: 0;
+	border: 1px solid var(--collection-border);
+	border-radius: 0.75rem;
+	background: var(--collection-surface);
+	box-shadow: none;
+}
+
+.admin-collection .collection-card-title {
+	display: block;
+	font-size: 1rem;
+	font-weight: 600;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+	color: var(--collection-text);
+}
+
+.admin-collection a.collection-card-title:hover {
+	color: var(--collection-accent);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.admin-collection .collection-card-footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75rem;
+	margin-top: auto;
+	border-top: 1px solid var(--collection-border);
+	padding-top: 1rem;
+}
+
+.admin-collection .collection-secondary-action {
+	border: 1px solid var(--collection-border);
+	background: var(--collection-surface);
+	color: var(--collection-muted);
+	box-shadow: none;
+}
+
+.admin-collection .collection-secondary-action:hover {
+	background: var(--collection-muted-surface);
+	color: var(--collection-text);
+}
+
+.admin-collection .collection-link {
+	color: var(--collection-accent);
+	font-size: 0.875rem;
+	font-weight: 500;
+	text-underline-offset: 3px;
+}
+
+.admin-collection .collection-link:hover {
+	text-decoration: underline;
+}
+
+.admin-collection .collection-stats {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 1rem;
+	border-block: 1px solid var(--collection-border);
+	padding-block: 1.25rem;
+}
+
+.admin-collection .collection-stats dt {
+	color: var(--collection-muted);
+	font-size: 0.875rem;
+}
+
+.admin-collection .collection-stats dd {
+	margin-top: 0.25rem;
+	font-size: 1.5rem;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.admin-collection .collection-table {
+	/* Keep the table's intrinsic width from expanding the surrounding flex layout. */
+	contain: inline-size;
+	overflow-x: auto;
+	border: 1px solid var(--collection-border);
+	border-radius: 0.75rem;
+	background: var(--collection-surface);
+}
+
+.admin-collection .collection-table table {
+	min-width: 44rem;
+}
+
+@media (max-width: 479px) {
+	.admin-collection .collection-stats {
+		grid-template-columns: 1fr;
+		gap: 0.75rem;
+	}
+
+	.admin-collection .collection-stats > div {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+}
+
+@media (pointer: coarse) {
+	.admin-collection :where(button, .collection-link) {
+		min-height: 2.75rem;
+	}
+
+	.admin-collection .collection-search {
+		font-size: 1rem;
+	}
+}
