@@ -62,7 +62,7 @@
 					</h2>
 				</div>
 				<div class="grid gap-3 sm:grid-cols-2">
-					{#each [{ name: 'SvelteKit', desc: 'Framework web moderno' }, { name: 'Svelte 5', desc: 'Framework de componentes reactivos' }, { name: 'Vite', desc: 'Herramienta de compilación' }, { name: 'Node.js', desc: 'Entorno de ejecución JavaScript' }, { name: 'TypeScript', desc: 'Superconjunto tipado de JavaScript' }, { name: 'Express', desc: 'Framework minimalista para Node.js' }] as item}
+					{#each [{ name: 'SvelteKit', desc: 'Framework web moderno' }, { name: 'Svelte 5', desc: 'Framework de componentes reactivos' }, { name: 'Vite', desc: 'Herramienta de compilación' }, { name: 'Node.js', desc: 'Entorno de ejecución JavaScript' }, { name: 'TypeScript', desc: 'Superconjunto tipado de JavaScript' }, { name: 'Express', desc: 'Framework minimalista para Node.js' }] as item (item.name)}
 						<div class="flex items-center gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-900/50">
 							<span class="h-2 w-2 rounded-full bg-orange-500"></span>
 							<div>
@@ -87,7 +87,7 @@
 					<h2 class="text-xl font-semibold text-slate-900 dark:text-white">Base de Datos y ORM</h2>
 				</div>
 				<div class="grid gap-3 sm:grid-cols-2">
-					{#each [{ name: 'SQLite', desc: 'Motor de base de datos SQL ligero' }, { name: 'Drizzle ORM', desc: 'ORM TypeScript para SQL' }, { name: 'Drizzle Kit', desc: 'CLI para migraciones' }] as item}
+					{#each [{ name: 'SQLite', desc: 'Motor de base de datos SQL ligero' }, { name: 'Drizzle ORM', desc: 'ORM TypeScript para SQL' }, { name: 'Drizzle Kit', desc: 'CLI para migraciones' }] as item (item.name)}
 						<div class="flex items-center gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-900/50">
 							<span class="h-2 w-2 rounded-full bg-blue-500"></span>
 							<div>
@@ -112,7 +112,7 @@
 					<h2 class="text-xl font-semibold text-slate-900 dark:text-white">UI y Estilos</h2>
 				</div>
 				<div class="grid gap-3 sm:grid-cols-2">
-					{#each [{ name: 'Tailwind CSS', desc: 'Framework de utilidades CSS' }, { name: 'Flowbite', desc: 'Biblioteca de componentes UI' }, { name: 'Flowbite-Svelte', desc: 'Componentes Svelte' }, { name: 'Lucide Icons', desc: 'Iconos open source' }, { name: 'PostCSS', desc: 'Transformador de CSS' }] as item}
+					{#each [{ name: 'Tailwind CSS', desc: 'Framework de utilidades CSS' }, { name: 'Flowbite', desc: 'Biblioteca de componentes UI' }, { name: 'Flowbite-Svelte', desc: 'Componentes Svelte' }, { name: 'Lucide Icons', desc: 'Iconos open source' }, { name: 'PostCSS', desc: 'Transformador de CSS' }] as item (item.name)}
 						<div class="flex items-center gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-900/50">
 							<span class="h-2 w-2 rounded-full bg-purple-500"></span>
 							<div>
@@ -139,7 +139,7 @@
 					</h2>
 				</div>
 				<div class="grid gap-3 sm:grid-cols-2">
-					{#each [{ name: 'LangChain', desc: 'Framework para aplicaciones LLM' }, { name: 'OpenAI SDK', desc: 'API de OpenAI' }, { name: 'Ollama', desc: 'Modelos de IA locales' }] as item}
+					{#each [{ name: 'LangChain', desc: 'Framework para aplicaciones LLM' }, { name: 'OpenAI SDK', desc: 'API de OpenAI' }, { name: 'Ollama', desc: 'Modelos de IA locales' }] as item (item.name)}
 						<div class="flex items-center gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-900/50">
 							<span class="h-2 w-2 rounded-full bg-emerald-500"></span>
 							<div>

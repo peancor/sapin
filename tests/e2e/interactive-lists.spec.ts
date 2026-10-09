@@ -81,38 +81,44 @@ test('quizzes distinguish repeated text and keep separate answers for each insta
 	expect(errors).toEqual([]);
 });
 
-test('timed quiz creates new options when advancing and retains positional results', async ({
-	page
-}) => {
-	const { responses, errors } = await openComponents(page, [
-		{
-			instanceId: 'timed',
-			componentKey: 'TimedQuizCard',
-			props: {
-				title: 'Quiz con tiempo',
-				questions,
-				timerByDifficultySec: { medium: 300 },
-				autoAdvanceDelayMs: 150
+for (const componentKey of ['TimedQuizCard', 'ImmersiveTimedQuiz']) {
+	test(`${componentKey} creates new options when advancing and retains positional results`, async ({
+		page
+	}) => {
+		const { responses, errors } = await openComponents(page, [
+			{
+				instanceId: 'timed',
+				componentKey,
+				props: {
+					title: 'Quiz con tiempo',
+					questions,
+					timerByDifficultySec: { medium: 300 },
+					autoAdvanceDelayMs: 150
+				}
 			}
+		]);
+		if (componentKey === 'ImmersiveTimedQuiz') {
+			await page.getByRole('button', { name: /Abrir quiz$/ }).click();
+			await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
 		}
-	]);
-	const firstOption = await page
-		.getByRole('button', { name: 'A. Igual', exact: true })
-		.elementHandle();
-	if (!firstOption) throw new Error('The first question did not render.');
-	await page.getByRole('button', { name: 'B. Igual', exact: true }).click();
-	await expect(page.getByText('2/2', { exact: true })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'A. Igual', exact: true })).toBeEnabled();
-	expect(await firstOption.evaluate((node) => node.isConnected)).toBe(false);
-	await page.getByRole('button', { name: 'A. Igual', exact: true }).click();
-	await expect(page.getByText('Resultado final', { exact: true })).toBeVisible();
-	await expect.poll(() => responses.length).toBe(1);
-	expect(responses[0]).toMatchObject({
-		instanceId: 'timed',
-		payload: { answers: [1, 0], score: 1, correctCount: 2, timeoutCount: 0 }
+		const firstOption = await page
+			.getByRole('button', { name: 'A. Igual', exact: true })
+			.elementHandle();
+		if (!firstOption) throw new Error('The first question did not render.');
+		await page.getByRole('button', { name: 'B. Igual', exact: true }).click();
+		await expect(page.getByText('2/2', { exact: true })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'A. Igual', exact: true })).toBeEnabled();
+		expect(await firstOption.evaluate((node) => node.isConnected)).toBe(false);
+		await page.getByRole('button', { name: 'A. Igual', exact: true }).click();
+		await expect(page.getByText('Resultado final', { exact: true })).toBeVisible();
+		await expect.poll(() => responses.length).toBe(1);
+		expect(responses[0]).toMatchObject({
+			instanceId: 'timed',
+			payload: { answers: [1, 0], score: 1, correctCount: 2, timeoutCount: 0 }
+		});
+		expect(errors).toEqual([]);
 	});
-	expect(errors).toEqual([]);
-});
+}
 
 test('identical flashcards retain navigation positions and reset the flipped side', async ({
 	page

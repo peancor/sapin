@@ -89,7 +89,7 @@
 
 	<!-- Filters -->
 	<div class="flex gap-2">
-		{#each filterButtons as btn}
+		{#each filterButtons as btn (btn.id)}
 			<button
 				onclick={() => (activeFilter = btn.id)}
 				class="rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200
@@ -165,7 +165,7 @@
 									Factores de Riesgo
 								</h5>
 								<div class="space-y-2">
-									{#each studentRisk.riskFactors as factor}
+									{#each studentRisk.riskFactors as factor (factor.type)}
 										<div class="flex items-center gap-2 rounded-lg bg-gray-50 p-2 dark:bg-gray-800">
 											<span
 												class="h-2 w-2 rounded-full {factor.severity === 'high'
@@ -188,7 +188,7 @@
 									Acciones Recomendadas
 								</h5>
 								<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-									{#each studentRisk.recommendedActions as action}
+									{#each studentRisk.recommendedActions as action (action)}
 										<div
 											class="flex items-center gap-2 rounded-lg bg-blue-50 p-2 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
 										>

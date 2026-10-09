@@ -1,5 +1,26 @@
 import { test, expect, type Page } from '@playwright/test';
 
+test('analytics preserves distinct groups with identical displayed paths and titles', async ({
+	page
+}) => {
+	const errors: string[] = [];
+	page.on('pageerror', (error) => errors.push(error.message));
+	await login(page, 'admin');
+	await page.goto('/admin/analytics/user/student');
+	const topPages = page
+		.getByRole('heading', { name: 'Páginas Más Visitadas', exact: true })
+		.locator('../..');
+	await expect(topPages.getByText('/', { exact: true })).toHaveCount(2);
+	await page.reload();
+	await expect(topPages.getByText('/', { exact: true })).toHaveCount(2);
+	await page.goto('/admin/analytics/realtime');
+	await expect(page.getByText('/', { exact: true })).toHaveCount(3);
+	// A second real SSE update must preserve all three rows without duplicate keys.
+	await page.waitForTimeout(5500);
+	await expect(page.getByText('/', { exact: true })).toHaveCount(3);
+	expect(errors).toEqual([]);
+});
+
 async function login(page: Page, user = 'student') {
 	await page.goto('/login');
 	await page.getByLabel(/correo electrónico/i).fill(`${user}@example.invalid`);

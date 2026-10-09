@@ -133,7 +133,7 @@
 
 		<!-- Desktop Navigation -->
 		<nav class="hidden items-center gap-8 md:flex">
-			{#each filteredMenuItems as item}
+			{#each filteredMenuItems as item (item.href)}
 				<a
 					href={resolve(...([item.href] as Parameters<typeof resolve>))}
 					class="group hover:text-primary-600 dark:hover:text-primary-400 relative px-1 py-2 text-sm font-semibold tracking-wide text-slate-600 transition-all duration-300 dark:text-slate-300"
@@ -396,7 +396,7 @@
 						Navegación
 					</p>
 					<div class="grid grid-cols-1 gap-3">
-						{#each filteredMenuItems as item}
+						{#each filteredMenuItems as item (item.href)}
 							<a
 								href={resolve(...([item.href] as Parameters<typeof resolve>))}
 								class="hover:bg-primary-50 dark:hover:bg-primary-900/20 group flex items-center gap-4 rounded-2xl bg-slate-50 p-4 text-slate-700 transition-all duration-300 dark:bg-slate-800/50 dark:text-slate-200"

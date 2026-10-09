@@ -92,7 +92,7 @@
 				Sesiones anteriores
 			</h2>
 			<div class="space-y-2">
-				{#each data.userChats as chatSession}
+				{#each data.userChats as chatSession (chatSession.assignmentId)}
 					{#if chatSession}
 						<a
 							href={resolve(`/agent-chat/${data.interactiveLearning.id}/c/${chatSession.id}`)}

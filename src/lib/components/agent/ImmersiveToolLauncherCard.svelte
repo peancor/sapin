@@ -57,7 +57,7 @@
 	<div class="px-4 py-4 sm:px-5">
 		{#if summaryItems.length > 0}
 			<div class="grid gap-2 sm:grid-cols-3">
-				{#each summaryItems as item}
+				{#each summaryItems as item (item.label)}
 					<div
 						class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/60"
 					>

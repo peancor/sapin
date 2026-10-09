@@ -222,6 +222,27 @@ try {
 			})
 			.run();
 	}
+	// Distinct SQL groups that have identical display fallbacks. Keep the synthetic
+	// events inside the realtime window even if the isolated build takes a while.
+	for (const [index, [path, title]] of [
+		['', null],
+		['/', null],
+		['/', '']
+	].entries()) {
+		f.database
+			.insert(s.analyticsEvent)
+			.values({
+				id: `analytics-key-${index}`,
+				visitorId: 'analytics-key-fixture',
+				userId: 'student',
+				type: 'page_view',
+				name: 'page_view',
+				path,
+				title,
+				createdAt: new Date(now.getTime() + 60 * 60 * 1000)
+			})
+			.run();
+	}
 	await f.client.backup(destination);
 } finally {
 	f.client.close();

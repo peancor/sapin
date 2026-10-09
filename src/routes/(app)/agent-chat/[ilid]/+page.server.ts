@@ -35,7 +35,7 @@ export const load = (async ({ params, locals }) => {
 
 	// Cargar chats anteriores del usuario
 	const userChats = await db
-		.select({ chat: schema.chat })
+		.select({ chat: schema.chat, assignmentId: schema.userInteractiveLearningChat.id })
 		.from(schema.userInteractiveLearningChat)
 		.where(
 			and(
@@ -49,6 +49,8 @@ export const load = (async ({ params, locals }) => {
 	return {
 		interactiveLearning,
 		agentActivity,
-		userChats: userChats.map((r) => r.chat).filter(Boolean)
+		userChats: userChats.flatMap((r) =>
+			r.chat ? [{ ...r.chat, assignmentId: r.assignmentId }] : []
+		)
 	};
 }) satisfies PageServerLoad;

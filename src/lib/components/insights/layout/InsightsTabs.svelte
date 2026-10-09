@@ -38,7 +38,7 @@
 
 <div class="border-b border-gray-200 dark:border-gray-700">
 	<nav class="scrollbar-hide -mb-px flex gap-1 overflow-x-auto px-1" aria-label="Tabs">
-		{#each tabs as tab}
+		{#each tabs as tab (tab.id)}
 			<button
 				onclick={() => handleTabClick(tab.id)}
 				disabled={isTabDisabled(tab.id)}

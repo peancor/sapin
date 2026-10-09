@@ -97,7 +97,7 @@
 
 						<!-- Preview of at-risk students -->
 						<div class="max-h-32 space-y-2 overflow-y-auto">
-							{#each metrics.earlyWarning.studentsAtRisk.slice(0, 3) as student}
+							{#each metrics.earlyWarning.studentsAtRisk.slice(0, 3) as student (student.student.id)}
 								<div class="flex items-center gap-2 rounded-lg bg-gray-50 p-2 dark:bg-gray-700/50">
 									<div
 										class="h-2 w-2 rounded-full {student.student.metrics.riskLevel === 'high'

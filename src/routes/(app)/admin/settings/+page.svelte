@@ -727,7 +727,7 @@
 						</p>
 
 						<div class="space-y-3">
-							{#each Object.entries(notificationFormValues.types) as [key, typeConfig]}
+							{#each Object.entries(notificationFormValues.types) as [key, typeConfig] (key)}
 								<div
 									class="flex items-center gap-4 rounded-lg border border-gray-100 p-3 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/30"
 								>
@@ -811,7 +811,7 @@
 						/>
 
 						<div class="grid max-h-48 gap-2 overflow-y-auto">
-							{#each data.adminUsers as adminUser}
+							{#each data.adminUsers as adminUser (adminUser.id)}
 								<label
 									class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-100 p-2 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/30"
 								>

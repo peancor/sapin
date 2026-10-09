@@ -234,7 +234,7 @@
 				onchange={markDirty}
 				class="!rounded-xl"
 			>
-				{#each statusOptions as opt}
+				{#each statusOptions as opt (opt.value)}
 					<option value={opt.value}>{opt.name} - {opt.description}</option>
 				{/each}
 			</Select>

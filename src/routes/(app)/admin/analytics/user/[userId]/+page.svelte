@@ -287,7 +287,7 @@
 				<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Páginas Más Visitadas</h3>
 			</div>
 			<div class="divide-y divide-gray-200 dark:divide-gray-700">
-				{#each userActivity.topPages as page}
+				{#each userActivity.topPages as page (page.key)}
 					<div class="flex items-center justify-between px-5 py-3">
 						<span class="truncate text-sm text-gray-700 dark:text-gray-300" title={page.path}>
 							{page.path}

@@ -316,7 +316,7 @@
 										</div>
 									</div>
 									<div class="max-h-64 space-y-2 overflow-y-auto">
-										{#each data.roles as role}
+										{#each data.roles as role (role.id)}
 											{@const isSelected = selectedRoles.includes(role.id)}
 											<button
 												type="button"
@@ -494,7 +494,7 @@
 							<div
 								class="mb-4 max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700"
 							>
-								{#each data.users as user}
+								{#each data.users as user (user.id)}
 									{@const isSelected = selectedUsers.some((u) => u.id === user.id)}
 									<button
 										type="button"
@@ -531,7 +531,7 @@
 							<div>
 								<Label class="mb-2">Usuarios seleccionados ({selectedUsers.length})</Label>
 								<div class="max-h-40 space-y-2 overflow-y-auto">
-									{#each selectedUsers as user}
+									{#each selectedUsers as user (user.id)}
 										<input type="hidden" name="userIds" value={user.id} />
 										<div
 											class="flex items-center justify-between rounded-lg bg-gray-50 p-2 dark:bg-gray-700"

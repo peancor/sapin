@@ -70,7 +70,7 @@ export interface BatchEventPayload {
 export interface RealtimeStats {
 	activeUsers: number;
 	activeSessions: number;
-	currentPages: { path: string; count: number; title?: string }[];
+	currentPages: { key: string; path: string; count: number; title?: string }[];
 	eventsPerMinute: number;
 	timestamp: number;
 }
@@ -321,6 +321,8 @@ export async function getRealtimeStats(): Promise<RealtimeStats> {
 		activeUsers: activeVisitors[0]?.count || 0,
 		activeSessions: activeSessions[0]?.count || 0,
 		currentPages: currentPages.map((p) => ({
+			// Preserve the SQL group identity before applying display fallbacks.
+			key: JSON.stringify([p.path, p.title]),
 			path: p.path || '/',
 			count: p.count,
 			title: p.title || undefined
@@ -767,7 +769,7 @@ export interface UserActivityDetail {
 		os: string | null;
 	}[];
 	recentEvents: RecentEvent[];
-	topPages: { path: string; views: number }[];
+	topPages: { key: string; path: string; views: number }[];
 	activityByDay: { date: string; pageViews: number }[];
 }
 
@@ -1087,7 +1089,11 @@ export async function getUserActivityDetail(userId: string): Promise<UserActivit
 		},
 		recentSessions,
 		recentEvents,
-		topPages: topPages.map((p) => ({ path: p.path || '/', views: p.views })),
+		topPages: topPages.map((p) => ({
+			key: JSON.stringify(p.path),
+			path: p.path || '/',
+			views: p.views
+		})),
 		activityByDay: activityByDay.map((d) => ({ date: d.date, pageViews: d.pageViews }))
 	};
 }

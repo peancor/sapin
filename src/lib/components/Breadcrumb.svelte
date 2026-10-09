@@ -6,7 +6,7 @@
 
 <nav class="mb-4 text-sm" aria-label="Breadcrumb">
 	<ol class="inline-flex list-none p-0">
-		{#each items as item, index}
+		{#each items as item, index (item.href ?? index)}
 			<li class="flex items-center">
 				{#if index > 0}
 					<span class="mx-2 text-gray-400">/</span>

@@ -665,6 +665,8 @@ La configuración de notificaciones se guarda en `app_setting`.
 
 ## Estado actual de testing
 
+- Las listas de analítica conservan claves del grupo SQL antes de normalizar textos; las sesiones agénticas usan el identificador de asociación. Las pruebas E2E cubren grupos con rutas/títulos visualmente iguales y opciones repetidas en quizzes normales e inmersivos.
+
 - Playwright vive en `tests/e2e/` y `playwright.config.ts`. Instalar el navegador con `npx playwright install chromium`.
 - `magicians.spec.ts` recorre los asistentes de instrucciones y roles: cambio y conservación de selecciones entre pasos, límite y deselección de rasgos, aplicación, guardado y recarga. Los catálogos locales usan sus IDs como claves; los pasos y textos de sublistas tienen valores únicos dentro de cada lista.
 - `interactive-lists.spec.ts` comprueba preguntas/opciones repetidas, respuestas independientes entre instancias, avance del quiz temporizado y navegación de tarjetas idénticas. Simula SSE y recepción de respuestas, sin probar persistencia del servidor. Estos componentes mantienen la identidad por instancia y posición, coherente con sus respuestas indexadas; los textos no son identificadores únicos.

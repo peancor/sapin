@@ -16,7 +16,7 @@
 	interface RealtimeStats {
 		activeUsers: number;
 		activeSessions: number;
-		currentPages: { path: string; count: number; title?: string }[];
+		currentPages: { key: string; path: string; count: number; title?: string }[];
 		eventsPerMinute: number;
 		timestamp: number;
 		enabled?: boolean;
@@ -223,7 +223,7 @@
 
 		{#if stats?.currentPages && stats.currentPages.length > 0}
 			<div class="space-y-3">
-				{#each stats.currentPages as page}
+				{#each stats.currentPages as page (page.key)}
 					<div
 						class="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900"
 					>

@@ -481,7 +481,7 @@
 				</div>
 
 				<div class="mt-8 grid flex-1 gap-4 lg:grid-cols-2">
-					{#each currentQuestion.options as option, optionIndex}
+					{#each currentQuestion.options as option, optionIndex (`${instanceId}:${safeCurrentIndex}:option:${optionIndex}`)}
 						<button
 							type="button"
 							class="min-h-28 rounded-[1.5rem] border px-5 py-5 text-left text-xl font-semibold transition-all sm:min-h-32 sm:px-6 sm:text-2xl {getOptionClass(
@@ -569,7 +569,7 @@
 			</div>
 
 			<div class="mt-6 space-y-3">
-				{#each questions as question, index}
+				{#each questions as question, index (`${instanceId}:question:${index}`)}
 					{@const result = resultPayload.questionResults[index]}
 					<div class="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
 						<div class="flex flex-wrap items-start justify-between gap-3">

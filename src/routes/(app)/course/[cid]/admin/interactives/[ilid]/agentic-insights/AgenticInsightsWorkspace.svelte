@@ -1309,7 +1309,7 @@
 										<div
 											class={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${message.role === 'user' ? 'bg-blue-600 text-white' : 'border border-slate-200 bg-slate-50 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100'}`}
 										>
-											{#each message.parts as part}
+											{#each message.parts as part, partIndex (part.kind === 'tool-call' ? `tool:${part.toolCallId}` : `${message.id}:${partIndex}`)}
 												{#if part.kind === 'text'}
 													<div class="leading-6 whitespace-pre-wrap">{part.content}</div>
 												{:else if part.kind === 'tool-call'}
