@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SvelteDate } from 'svelte/reactivity';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import type { PathnameWithSearchOrHash } from '$app/types';
@@ -307,7 +308,7 @@
 	function applyTemplate(templateId: InsightTemplateId) {
 		const template = getInsightTemplate(templateId);
 		const today = new Date();
-		const last14Days = new Date(today);
+		const last14Days = new SvelteDate(today);
 		last14Days.setDate(today.getDate() - 14);
 
 		selectedTemplateId = templateId;

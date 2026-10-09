@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import 'katex/dist/katex.min.css';
 	import { AlertTriangle, ChevronsUp, KeyRound } from 'lucide-svelte';
 	import { onMount } from 'svelte';
@@ -258,7 +259,7 @@
 		}
 
 		function setupEventSource() {
-			const searchParams = new URLSearchParams();
+			const searchParams = new SvelteURLSearchParams();
 			searchParams.append('question', message);
 
 			// Añadir métricas como parámetro si están disponibles

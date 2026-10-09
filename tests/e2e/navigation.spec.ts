@@ -29,6 +29,38 @@ async function login(page: Page, user = 'student') {
 	await expect(page).not.toHaveURL(/\/login/);
 }
 
+test('registration prefills the invitation and retains edits after validation fails', async ({
+	page
+}) => {
+	await page.goto('/register?invite=URL-INVITATION');
+	const invitation = page.locator('input[name="inviteCode"]');
+	await expect(invitation).toHaveValue('URL-INVITATION');
+	await invitation.fill('EDITED-INVALID-CODE');
+	await page.locator('input[name="email"]').fill('unused@example.invalid');
+	await page.locator('input[name="password"]').fill('Sapin-e2e-2026!');
+	await page.locator('form button[type="submit"]').click();
+	await expect(page.getByText('Código de invitación inválido', { exact: true })).toBeVisible();
+	await expect(invitation).toHaveValue('EDITED-INVALID-CODE');
+	await page.reload();
+	await expect(invitation).toHaveValue('URL-INVITATION');
+});
+
+test('course sidebar opens, closes with Escape and reopens on mobile', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await login(page, 'admin');
+	await page.goto('/admin/courses/course');
+	const courseLink = page.locator('aside a[href="/admin/courses/course/edit"]');
+	await expect(courseLink).toBeHidden();
+	await page.getByRole('button', { name: 'Open sidebar', exact: true }).last().click();
+	await expect(courseLink).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(courseLink).toBeHidden();
+	await page.getByRole('button', { name: 'Open sidebar', exact: true }).last().click();
+	await expect(courseLink).toBeVisible();
+	await courseLink.click();
+	await expect(page).toHaveURL(/\/admin\/courses\/course\/edit$/);
+});
+
 test('file processing displays the failed count returned by the batch service', async ({
 	page
 }) => {

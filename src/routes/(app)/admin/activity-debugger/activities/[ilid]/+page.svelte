@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { page } from '$app/state';
 	import type { Pathname, PathnameWithSearchOrHash } from '$app/types';
 	import { resolve } from '$app/paths';
@@ -51,7 +52,7 @@
 	}
 
 	function tabHref(tabId: string): PathnameWithSearchOrHash {
-		const params = new URLSearchParams(page.url.search);
+		const params = new SvelteURLSearchParams(page.url.search);
 		params.set('tab', tabId);
 		const query = params.toString();
 		return query ? `${activityBaseHref}?${query}` : activityBaseHref;
@@ -62,7 +63,7 @@
 	}
 
 	function sessionLink(chatId: string): PathnameWithSearchOrHash {
-		const params = new URLSearchParams();
+		const params = new SvelteURLSearchParams();
 		params.set('tab', 'timeline');
 		return `/admin/activity-debugger/activities/${data.detail.activityId}/sessions/${chatId}?${params.toString()}`;
 	}

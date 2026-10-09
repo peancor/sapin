@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SvelteMap } from 'svelte/reactivity';
 	import type { PageData } from './$types';
 	import type { PathnameWithSearchOrHash } from '$app/types';
 	import { resolve } from '$app/paths';
@@ -19,7 +20,7 @@
 	let pageError = $state('');
 
 	const groupedTools = $derived.by(() => {
-		const groups = new Map<string, typeof data.availableTools>();
+		const groups = new SvelteMap<string, typeof data.availableTools>();
 		for (const tool of data.availableTools) {
 			const key = `${tool.usageDomain ?? 'general'}:${tool.category}`;
 			const bucket = groups.get(key) ?? [];

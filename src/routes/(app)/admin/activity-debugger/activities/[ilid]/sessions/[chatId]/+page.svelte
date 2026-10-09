@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { page } from '$app/state';
 	import type { Pathname, PathnameWithSearchOrHash } from '$app/types';
 	import { resolve } from '$app/paths';
@@ -73,14 +74,14 @@
 	}
 
 	function tabHref(tabId: string): PathnameWithSearchOrHash {
-		const params = new URLSearchParams(page.url.search);
+		const params = new SvelteURLSearchParams(page.url.search);
 		params.set('tab', tabId);
 		const query = params.toString();
 		return query ? `${sessionBaseHref}?${query}` : sessionBaseHref;
 	}
 
 	function densityHref(density: string): PathnameWithSearchOrHash {
-		const params = new URLSearchParams(page.url.search);
+		const params = new SvelteURLSearchParams(page.url.search);
 		params.set('density', density);
 		const query = params.toString();
 		return query ? `${sessionBaseHref}?${query}` : sessionBaseHref;

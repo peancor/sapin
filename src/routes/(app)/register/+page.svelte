@@ -11,11 +11,7 @@
 	let turnstileToken = $state('');
 	let isSubmitting = $state(false);
 	let turnstile: Turnstile | undefined = $state();
-	let inviteCodeValue = $state('');
-
-	$effect(() => {
-		inviteCodeValue = data.inviteCode || '';
-	});
+	let inviteCodeValue = $derived(data.inviteCode || '');
 
 	function handleTurnstileVerify(token: string) {
 		turnstileToken = token;

@@ -26,17 +26,13 @@
 
 	// Sidebar state
 	const sidebarUi = uiHelpers();
-	let isSidebarOpen = $state(true);
-
-	$effect(() => {
-		isSidebarOpen = sidebarUi.isOpen;
-	});
+	const isSidebarOpen = $derived(sidebarUi.isOpen);
 
 	// Active URL
 	let activeUrl = $derived(page.url.pathname);
 
 	// Course-specific menu items
-	const courseId = data.course.id;
+	const courseId = $derived(data.course.id);
 	const menuItems = $derived([
 		{
 			id: 'overview',

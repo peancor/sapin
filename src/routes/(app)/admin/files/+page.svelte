@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import type { BatchResult } from '$lib/server/files/ImageProcessingQueue';
 	interface MaintenanceResponse {
 		success?: boolean;
@@ -255,7 +256,7 @@
 
 	// Navigation handlers
 	function handleSearch() {
-		const params = new URLSearchParams();
+		const params = new SvelteURLSearchParams();
 		if (searchQuery) params.set('search', searchQuery);
 		if (data.filters.category) params.set('category', data.filters.category);
 		if (data.filters.status) params.set('status', data.filters.status);
@@ -265,7 +266,7 @@
 	}
 
 	function handleFilterChange(filter: string, value: string | boolean) {
-		const params = new URLSearchParams();
+		const params = new SvelteURLSearchParams();
 		if (searchQuery) params.set('search', searchQuery);
 
 		const filters = { ...data.filters, [filter]: value };
@@ -278,7 +279,7 @@
 	}
 
 	function handlePageChange(page: number) {
-		const params = new URLSearchParams(window.location.search);
+		const params = new SvelteURLSearchParams(window.location.search);
 		params.set('page', page.toString());
 		goto(resolve(`/admin/files?${params.toString()}`));
 	}

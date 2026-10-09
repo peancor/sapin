@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 	import {
@@ -92,7 +93,7 @@
 
 	// Navigation with filters
 	function updateFilters() {
-		const params = new URLSearchParams();
+		const params = new SvelteURLSearchParams();
 		if (searchTerm) params.set('search', searchTerm);
 		if (roleFilter && roleFilter !== 'all') params.set('role', roleFilter);
 		params.set('page', '1');
@@ -100,7 +101,7 @@
 	}
 
 	function handlePageChange(newPage: number) {
-		const params = new URLSearchParams($page.url.searchParams);
+		const params = new SvelteURLSearchParams($page.url.searchParams);
 		params.set('page', String(newPage));
 		goto(resolve(`/admin/users?${params.toString()}`));
 	}

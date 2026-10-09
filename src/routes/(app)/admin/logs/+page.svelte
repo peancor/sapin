@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
@@ -139,7 +140,7 @@
 	}
 
 	function applyFilters() {
-		const params = new URLSearchParams();
+		const params = new SvelteURLSearchParams();
 		if (searchQuery) params.set('search', searchQuery);
 		if (selectedAction) params.set('action', selectedAction);
 		if (selectedSeverity) params.set('severity', selectedSeverity);
@@ -159,7 +160,7 @@
 	}
 
 	function goToPage(page: number) {
-		const params = new URLSearchParams();
+		const params = new SvelteURLSearchParams();
 		if (searchQuery) params.set('search', searchQuery);
 		if (selectedAction) params.set('action', selectedAction);
 		if (selectedSeverity) params.set('severity', selectedSeverity);
