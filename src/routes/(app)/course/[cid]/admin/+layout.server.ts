@@ -9,6 +9,7 @@ import {
 } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { ROLE_LEVELS } from '$lib/server/roles';
+import { distinctCourseStudents } from '$lib/server/students/courseStudentRoster';
 
 export const load = (async ({ locals, params }) => {
 	const authUser = locals.user;
@@ -58,15 +59,13 @@ export const load = (async ({ locals, params }) => {
 
 	// Obtener estudiantes matriculados usando el nuevo sistema
 	const courseUsers = await CourseRoleUtils.getCourseUsers(cid);
-	const enrolledStudents = courseUsers
-		.filter((u) => u.role === 'student')
-		.map((u) => ({
-			id: u.userId,
-			username: u.username,
-			email: u.email,
-			image: u.image,
-			role: u.role
-		}));
+	const enrolledStudents = distinctCourseStudents(courseUsers).map((u) => ({
+		id: u.userId,
+		username: u.username,
+		email: u.email,
+		image: u.image,
+		role: u.role
+	}));
 
 	return {
 		course: courseData[0],

@@ -15,6 +15,10 @@ Los [roles de sistema](../src/lib/server/roles.ts) y los
 Las consultas de cursos y usuarios pueden devolver varias asignaciones activas para una
 misma persona y curso. `assignmentId` identifica cada fila; `userId` y `courseId` siguen
 siendo los identificadores para acciones y navegación. Deduplicar esas filas cambia su significado.
+La lista de estudiantes y los contadores de administración del curso proyectan esas
+asignaciones a una fila por persona mediante `distinctCourseStudents`. Esta vista no
+modifica las asignaciones ni el contrato de `getCourseUsers`. Dar de baja a una persona
+desactiva todos sus roles activos de estudiante en ese curso y conserva sus otros roles.
 
 ## Modelos y ejecución agéntica
 

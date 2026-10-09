@@ -8,6 +8,7 @@ import {
 import { eq, inArray } from 'drizzle-orm';
 import { error, fail } from '@sveltejs/kit';
 import { ROLE_LEVELS } from '$lib/server/roles';
+import { distinctCourseStudents } from '$lib/server/students/courseStudentRoster';
 
 async function requireManageUsers(locals: App.Locals, courseId: string) {
 	if (!locals.user) {
@@ -40,16 +41,14 @@ function rejectMismatchedCourse(formData: FormData, courseId: string) {
 export const load = (async ({ params }) => {
 	// Get enrolled students usando el nuevo sistema de roles por curso
 	const courseUsers = await CourseRoleUtils.getCourseUsers(params.cid);
-	const students = courseUsers
-		.filter((u) => u.role === 'student')
-		.map((u) => ({
-			id: u.userId,
-			visitorId: u.userId,
-			userId: u.userId,
-			username: u.username,
-			email: u.email,
-			image: u.image
-		}));
+	const students = distinctCourseStudents(courseUsers).map((u) => ({
+		id: u.userId,
+		visitorId: u.userId,
+		userId: u.userId,
+		username: u.username,
+		email: u.email,
+		image: u.image
+	}));
 	const studentIds = students.map((s) => s.userId);
 
 	// Get course activities

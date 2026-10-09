@@ -54,6 +54,30 @@ try {
 			updatedAt: now
 		})
 		.run();
+	// Independent roster for destructive enrollment tests; keep navigation fixtures intact.
+	f.database
+		.insert(s.course)
+		.values({
+			id: 'roster',
+			name: 'Lista de estudiantes',
+			slug: 'roster',
+			createdAt: now,
+			updatedAt: now
+		})
+		.run();
+	for (const [id, userId, role, isActive] of [
+		['roster-admin-teacher', 'admin', 'teacher', true],
+		['roster-admin-a', 'admin', 'student', true],
+		['roster-admin-b', 'admin', 'student', true],
+		['roster-student-a', 'student2', 'student', true],
+		['roster-student-b', 'student2', 'student', true],
+		['roster-inactive', 'teacher', 'student', false]
+	] as const) {
+		f.database
+			.insert(s.courseRole)
+			.values({ id, courseId: 'roster', userId, role, isActive, assignedAt: now })
+			.run();
+	}
 	// Course membership alone does not grant access to the student dashboard.
 	for (const [name, level] of [
 		['admin', ROLE_LEVELS.ADMIN],
