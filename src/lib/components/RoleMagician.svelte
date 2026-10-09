@@ -417,7 +417,7 @@
 
 			<!-- Progress bar -->
 			<div class="flex items-center gap-2">
-				{#each [1, 2, 3, 4] as step}
+				{#each [1, 2, 3, 4] as step (step)}
 					<div class="flex items-center">
 						<button
 							type="button"
@@ -464,7 +464,7 @@
 				</p>
 
 				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-					{#each roleArchetypes as archetype}
+					{#each roleArchetypes as archetype (archetype.id)}
 						<button
 							type="button"
 							class="group relative rounded-xl border-2 p-4 text-left transition-all duration-200 hover:shadow-lg {selectedArchetype?.id ===
@@ -477,7 +477,7 @@
 							<h4 class="mb-1 font-semibold text-gray-900 dark:text-white">{archetype.name}</h4>
 							<p class="mb-3 text-xs text-gray-600 dark:text-gray-400">{archetype.description}</p>
 							<div class="flex flex-wrap gap-1">
-								{#each archetype.bestFor.slice(0, 2) as tag}
+								{#each archetype.bestFor.slice(0, 2) as tag (tag)}
 									<Badge color={getBadgeColor(archetype.color)} class="text-xs">{tag}</Badge>
 								{/each}
 							</div>
@@ -553,7 +553,7 @@
 							Rasgos de personalidad <span class="text-gray-400">(máx. 3)</span>
 						</span>
 						<div class="flex flex-wrap gap-2">
-							{#each personalityTraits as trait}
+							{#each personalityTraits as trait (trait.id)}
 								<button
 									type="button"
 									class="flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-all {selectedPersonality.includes(
@@ -576,7 +576,7 @@
 							>Grupo de edad objetivo</span
 						>
 						<div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-							{#each ageGroups as age}
+							{#each ageGroups as age (age.id)}
 								<button
 									type="button"
 									class="rounded-lg border p-3 text-left transition-all {customizations.ageGroup ===
@@ -596,7 +596,7 @@
 					<div>
 						<span class="mb-2 block text-sm font-medium dark:text-white">Tono de comunicación</span>
 						<div class="flex flex-wrap gap-2">
-							{#each toneOptions as tone}
+							{#each toneOptions as tone (tone.id)}
 								<button
 									type="button"
 									class="flex items-center gap-2 rounded-lg border px-4 py-2 transition-all {customizations.tone ===
@@ -618,7 +618,7 @@
 							Adaptaciones especiales <span class="text-gray-400">(opcional)</span>
 						</span>
 						<div class="flex flex-wrap gap-2">
-							{#each specialNeedsOptions as need}
+							{#each specialNeedsOptions as need (need.id)}
 								<button
 									type="button"
 									class="rounded-lg border px-3 py-2 text-sm transition-all {customizations.specialNeeds.includes(
@@ -644,7 +644,7 @@
 				</p>
 
 				<div class="grid gap-4 md:grid-cols-2">
-					{#each teachingApproaches as approach}
+					{#each teachingApproaches as approach (approach.id)}
 						<button
 							type="button"
 							class="rounded-xl border-2 p-5 text-left transition-all hover:shadow-md {selectedApproach?.id ===
@@ -661,7 +661,7 @@
 							<div class="space-y-1">
 								<span class="text-xs font-medium text-gray-500 dark:text-gray-400">Técnicas:</span>
 								<ul class="text-xs text-gray-600 dark:text-gray-400">
-									{#each approach.techniques as technique}
+									{#each approach.techniques as technique (technique)}
 										<li class="flex items-center gap-1">
 											<span class="text-green-500">✓</span>
 											{technique}

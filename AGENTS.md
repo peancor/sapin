@@ -666,6 +666,7 @@ La configuración de notificaciones se guarda en `app_setting`.
 ## Estado actual de testing
 
 - Playwright vive en `tests/e2e/` y `playwright.config.ts`. Instalar el navegador con `npx playwright install chromium`.
+- `magicians.spec.ts` recorre los asistentes de instrucciones y roles: cambio y conservación de selecciones entre pasos, límite y deselección de rasgos, aplicación, guardado y recarga. Los catálogos locales usan sus IDs como claves; los pasos y textos de sublistas tienen valores únicos dentro de cada lista.
 - `interactive-lists.spec.ts` comprueba preguntas/opciones repetidas, respuestas independientes entre instancias, avance del quiz temporizado y navegación de tarjetas idénticas. Simula SSE y recepción de respuestas, sin probar persistencia del servidor. Estos componentes mantienen la identidad por instancia y posición, coherente con sus respuestas indexadas; los textos no son identificadores únicos.
 - `scripts/e2e-server.mjs` genera una BD nueva con las migraciones oficiales en `output/e2e/run-*`, compila en modo test y ejecuta `build/index.js` en `127.0.0.1:4187`. No reutiliza servidores ni la BD habitual; anula credenciales externas y separa ficheros. No ejecutar simultáneamente con Vite o un build en el mismo checkout.
 - La suite cubre login, persistencia de formato TipTap, navegación de lecciones, subida de imágenes y autorización/rechazo HITL. Los eventos SSE y la respuesta de confirmación HITL se simulan: no prueban por sí solos la ejecución del endpoint de confirmación.

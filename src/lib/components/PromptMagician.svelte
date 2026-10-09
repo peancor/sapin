@@ -554,7 +554,7 @@
 
 			<!-- Progress bar -->
 			<div class="flex items-center gap-2">
-				{#each [1, 2, 3, 4] as step}
+				{#each [1, 2, 3, 4] as step (step)}
 					<div class="flex items-center">
 						<button
 							type="button"
@@ -603,7 +603,7 @@
 				</p>
 
 				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-					{#each learningStrategies as strategy}
+					{#each learningStrategies as strategy (strategy.id)}
 						<button
 							type="button"
 							class="group relative rounded-xl border-2 p-4 text-left transition-all duration-200 hover:shadow-lg {selectedStrategy?.id ===
@@ -616,7 +616,7 @@
 							<h4 class="mb-1 font-semibold text-gray-900 dark:text-white">{strategy.name}</h4>
 							<p class="mb-3 text-xs text-gray-600 dark:text-gray-400">{strategy.description}</p>
 							<div class="flex flex-wrap gap-1">
-								{#each strategy.benefits.slice(0, 2) as benefit}
+								{#each strategy.benefits.slice(0, 2) as benefit (benefit)}
 									<Badge color={getBadgeColor(strategy.color)} class="text-xs">{benefit}</Badge>
 								{/each}
 							</div>
@@ -640,7 +640,7 @@
 							<span class="text-2xl">{selectedStrategy.icon}</span>
 							<div>
 								<div class="mb-2 flex flex-wrap gap-2">
-									{#each selectedStrategy.benefits as benefit}
+									{#each selectedStrategy.benefits as benefit (benefit)}
 										<Badge color="blue">{benefit}</Badge>
 									{/each}
 								</div>
@@ -662,7 +662,7 @@
 				</p>
 
 				<div class="grid gap-4 md:grid-cols-2">
-					{#each activityTypes as activity}
+					{#each activityTypes as activity (activity.id)}
 						{@const engagement = getEngagementBadge(activity.engagementLevel)}
 						<button
 							type="button"
@@ -684,7 +684,7 @@
 								<span class="text-xs font-medium text-gray-500 dark:text-gray-400">Estructura:</span
 								>
 								<div class="flex flex-wrap gap-1">
-									{#each activity.structure as step, i}
+									{#each activity.structure as step, i (step)}
 										<span
 											class="inline-flex items-center rounded bg-gray-100 px-2 py-1 text-xs dark:bg-gray-700"
 										>
@@ -752,7 +752,7 @@
 							<span class="mb-2 block text-sm font-medium dark:text-white">Nivel de dificultad</span
 							>
 							<div class="flex flex-wrap gap-2">
-								{#each difficultyLevels as level}
+								{#each difficultyLevels as level (level.id)}
 									<button
 										type="button"
 										class="flex items-center gap-2 rounded-lg border px-4 py-2 transition-all {customizations.difficulty ===
@@ -775,7 +775,7 @@
 							>Estilo de retroalimentación</span
 						>
 						<div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-							{#each feedbackStyles as style}
+							{#each feedbackStyles as style (style.id)}
 								<button
 									type="button"
 									class="rounded-lg border p-3 text-left transition-all {customizations.feedbackStyle ===
@@ -798,7 +798,7 @@
 					<div>
 						<span class="mb-2 block text-sm font-medium dark:text-white">Tipo de evaluación</span>
 						<div class="flex flex-wrap gap-2">
-							{#each assessmentTypes as type}
+							{#each assessmentTypes as type (type.id)}
 								<button
 									type="button"
 									class="rounded-lg border px-4 py-2 transition-all {customizations.assessmentType ===
