@@ -69,6 +69,8 @@ Las versiones y comandos disponibles se consultan en [package.json](package.json
 ### Preparación
 
 - Instala desde el lockfile con `npm ci`.
+- Conserva saltos de línea LF: `.gitattributes` fija el checkout de texto y `.prettierrc`
+  fija el formato, independientemente de `core.autocrlf` en cada ordenador.
 - Consulta [.env.example](.env.example) y el consumidor de cada variable antes de cambiarla.
   `DATABASE_URL` es obligatoria; el entorno local habitual usa `local.db`.
 - Comprueba el estado de Git y los procesos existentes antes de trabajar.
