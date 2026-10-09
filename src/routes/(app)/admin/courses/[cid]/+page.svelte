@@ -340,7 +340,7 @@
 			<div class="p-5">
 				{#if data.teachers && data.teachers.length > 0}
 					<div class="space-y-3">
-						{#each data.teachers.slice(0, 5) as teacher (teacher.id)}
+						{#each data.teachers.slice(0, 5) as teacher (teacher.assignmentId)}
 							<div class="flex items-center justify-between">
 								<div class="flex items-center gap-3">
 									<img
@@ -412,7 +412,7 @@
 			<div class="p-5">
 				{#if data.students && data.students.length > 0}
 					<div class="space-y-3">
-						{#each data.students.slice(0, 5) as student (student.id)}
+						{#each data.students.slice(0, 5) as student (student.assignmentId)}
 							<div class="flex items-center gap-3">
 								<img
 									src={student.image || '/images/default_avatar.png'}

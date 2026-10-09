@@ -294,6 +294,9 @@ Los roles se cargan desde las tablas `role` y `user_role`, filtrando asignacione
 
 ### Roles de curso
 
+- `CourseRoleUtils.getUserCourses` devuelve una fila por asignación activa, con `assignmentId` como identidad única y `courseId` como destino de navegación. Dashboard, estudiante y profesor conservan esa granularidad y usan la asignación como clave de lista; no deduplican cursos ni modifican permisos. Las pruebas E2E incluyen varios roles, un rol repetido y una asignación inactiva en un mismo curso.
+- `getCourseUsers` también expone `assignmentId`: las listas de docentes y estudiantes en administración de cursos lo usan como clave, conservando `userId` para las acciones sobre usuarios. Así admiten varias asignaciones activas de una misma persona sin colisiones al renderizar.
+
 `CourseRoleUtils.ts` define niveles propios:
 
 - `owner = 100`

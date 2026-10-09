@@ -31,6 +31,7 @@ export const load = (async ({ locals }) => {
 				.where(eq(courseInteractiveLearning.courseId, c.courseId));
 
 			return {
+				assignmentId: c.assignmentId,
 				id: c.courseId,
 				name: c.courseName,
 				description: c.courseDescription,

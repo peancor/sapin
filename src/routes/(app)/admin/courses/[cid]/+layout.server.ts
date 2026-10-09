@@ -79,6 +79,7 @@ export const load = (async ({ locals, params }) => {
 	const teachers = courseUsers
 		.filter((u) => ['owner', 'admin', 'teacher', 'assistant'].includes(u.role))
 		.map((u) => ({
+			assignmentId: u.assignmentId,
 			id: u.userId,
 			username: u.username,
 			email: u.email,
@@ -89,6 +90,7 @@ export const load = (async ({ locals, params }) => {
 	const students = courseUsers
 		.filter((u) => u.role === 'student')
 		.map((u) => ({
+			assignmentId: u.assignmentId,
 			id: u.userId,
 			username: u.username,
 			email: u.email,

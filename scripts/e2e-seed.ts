@@ -10,6 +10,27 @@ if (!destination || existsSync(destination)) throw new Error('Se requiere una BD
 const f = radarFixture();
 try {
 	const now = new Date();
+	// Multiple active assignments for the same course, including a repeated role.
+	// The inactive assignment must never appear in the course lists.
+	for (const [id, role, isActive] of [
+		['teacher-assistant', 'assistant', true],
+		['teacher-student', 'student', true],
+		['teacher-student-repeat', 'student', true],
+		['teacher-repeat', 'teacher', true],
+		['teacher-inactive', 'owner', false]
+	] as const) {
+		f.database
+			.insert(s.courseRole)
+			.values({
+				id,
+				courseId: 'course',
+				userId: 'teacher',
+				role,
+				isActive,
+				assignedAt: now
+			})
+			.run();
+	}
 	f.database
 		.insert(s.user)
 		.values({

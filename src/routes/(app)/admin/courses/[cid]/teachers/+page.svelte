@@ -240,7 +240,7 @@
 						</TableHeadCell>
 					</TableHead>
 					<TableBody>
-						{#each filteredTeachers as teacher (teacher.id)}
+						{#each filteredTeachers as teacher (teacher.assignmentId)}
 							<TableBodyRow>
 								<TableBodyCell>
 									<Checkbox

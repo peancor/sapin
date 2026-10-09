@@ -18,6 +18,7 @@ export const load = (async ({ locals }) => {
 	const teacherCourses = userCourses
 		.filter((c) => ['owner', 'admin', 'teacher', 'assistant'].includes(c.role))
 		.map((c) => ({
+			assignmentId: c.assignmentId,
 			id: c.courseId,
 			name: c.courseName,
 			description: c.courseDescription,

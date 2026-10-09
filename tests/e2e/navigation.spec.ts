@@ -32,6 +32,40 @@ test('student follows course and agent links and returns to the activity', async
 	await expect(page).toHaveURL(/\/agent-chat\/agent$/);
 });
 
+test('course lists preserve distinct active role assignments without duplicate keys', async ({
+	page
+}) => {
+	const pageErrors: string[] = [];
+	page.on('pageerror', (error) => pageErrors.push(error.message));
+	await login(page, 'teacher');
+	await page.goto('/dashboard');
+	await expect(page.getByRole('link', { name: 'Gestionar', exact: true })).toHaveCount(3);
+	await expect(page.getByRole('link', { name: 'Continuar', exact: true })).toHaveCount(2);
+	await page.getByRole('link', { name: 'Gestionar', exact: true }).first().click();
+	await expect(page).toHaveURL(/\/course\/course\/admin$/);
+	await page.goto('/teacher');
+	await expect(page.getByRole('link', { name: 'Administrar curso', exact: true })).toHaveCount(3);
+	await page.reload();
+	await expect(page.getByRole('link', { name: 'Administrar curso', exact: true })).toHaveCount(3);
+	await page.goto('/student');
+	await expect(page.getByRole('link', { name: 'Continuar Aprendiendo', exact: true })).toHaveCount(
+		5
+	);
+	await page.getByRole('link', { name: 'Continuar Aprendiendo', exact: true }).first().click();
+	await expect(page).toHaveURL(/\/course\/course\/run$/);
+	expect(pageErrors).toEqual([]);
+});
+
+test('student course navigation does not grant course administration access', async ({ page }) => {
+	await login(page);
+	await page.goto('/dashboard');
+	await expect(page.getByRole('link', { name: 'Gestionar', exact: true })).toHaveCount(0);
+	await expect(page.getByRole('link', { name: 'Continuar', exact: true })).toHaveCount(1);
+	const adminResponse = await page.request.get('/course/course/admin', { maxRedirects: 0 });
+	expect(adminResponse.status()).toBe(303);
+	expect(adminResponse.headers().location).toBe('/');
+});
+
 test('notification navigation preserves filters after reload and back navigation', async ({
 	page
 }) => {
@@ -50,12 +84,18 @@ test('notification navigation preserves filters after reload and back navigation
 });
 
 test('admin navigation retains course and user identifiers and return query', async ({ page }) => {
+	const pageErrors: string[] = [];
+	page.on('pageerror', (error) => pageErrors.push(error.message));
 	await login(page, 'admin');
 	await page.goto('/admin/courses/course');
 	await page.locator('a[href="/admin/courses/course/edit"]').first().click();
 	await expect(page).toHaveURL(/\/admin\/courses\/course\/edit$/);
 	await page.locator('a[href="/admin/courses/course/teachers"]').first().click();
 	await expect(page).toHaveURL(/\/admin\/courses\/course\/teachers$/);
+	await expect(page.getByRole('row').filter({ hasText: 'teacher@example.invalid' })).toHaveCount(3);
+	await page.locator('a[href="/admin/courses/course/students"]').first().click();
+	await expect(page).toHaveURL(/\/admin\/courses\/course\/students$/);
+	await expect(page.getByRole('row').filter({ hasText: 'teacher@example.invalid' })).toHaveCount(2);
 	await page.goto('/admin/users/student');
 	await page.locator('a[href="/admin/users/student/edit"]').first().click();
 	await expect(page).toHaveURL(/\/admin\/users\/student\/edit$/);
@@ -64,6 +104,7 @@ test('admin navigation retains course and user identifiers and return query', as
 	await page.goto('/admin/analytics/user/student');
 	await page.locator('a[href="/admin/analytics?tab=users"]').click();
 	await expect(page).toHaveURL(/\/admin\/analytics\?tab=users$/);
+	expect(pageErrors).toEqual([]);
 });
 
 test('invitation breadcrumbs lead to the existing course overview and course list', async ({

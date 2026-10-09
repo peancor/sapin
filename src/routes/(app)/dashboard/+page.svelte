@@ -172,7 +172,7 @@
 			</div>
 
 			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-				{#each data.teachingCourses.slice(0, 6) as course, i}
+				{#each data.teachingCourses.slice(0, 6) as course, i (course.assignmentId)}
 					<Card class="group overflow-hidden border-0 transition-all duration-300 hover:shadow-xl">
 						<div
 							class="relative h-40 bg-gradient-to-br {teacherGradients[
@@ -289,7 +289,7 @@
 
 		{#if data.learningCourses.length > 0}
 			<div class="space-y-4">
-				{#each data.learningCourses.slice(0, 4) as course, i}
+				{#each data.learningCourses.slice(0, 4) as course, i (course.assignmentId)}
 					<div
 						class="group relative overflow-hidden rounded-xl bg-gradient-to-r {studentGradients[
 							i % studentGradients.length

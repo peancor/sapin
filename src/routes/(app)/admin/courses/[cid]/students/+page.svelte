@@ -365,7 +365,7 @@
 						</TableHeadCell>
 					</TableHead>
 					<TableBody>
-						{#each filteredStudents as student (student.id)}
+						{#each filteredStudents as student (student.assignmentId)}
 							<TableBodyRow>
 								<TableBodyCell>
 									<Checkbox

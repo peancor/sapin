@@ -16,6 +16,7 @@ export const load = (async ({ locals }) => {
 	// Obtener cursos del usuario usando el nuevo sistema de roles por curso
 	const userCourses = await CourseRoleUtils.getUserCourses(user.id);
 	const studentCourses = userCourses.map((c) => ({
+		assignmentId: c.assignmentId,
 		id: c.courseId,
 		name: c.courseName,
 		description: c.courseDescription,

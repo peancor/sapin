@@ -30,7 +30,7 @@
 	</div>
 
 	<div class="space-y-6">
-		{#each data.courses as course, i}
+		{#each data.courses as course, i (course.assignmentId)}
 			<div
 				class="group relative overflow-hidden rounded-xl bg-gradient-to-r {gradients[
 					i % gradients.length

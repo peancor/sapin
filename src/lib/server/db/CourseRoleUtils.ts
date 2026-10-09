@@ -272,6 +272,7 @@ async function revokeCourseRole(
 async function getCourseUsers(courseId: string) {
 	const users = await db
 		.select({
+			assignmentId: courseRole.id,
 			userId: courseRole.userId,
 			role: courseRole.role,
 			assignedAt: courseRole.assignedAt,
@@ -293,11 +294,13 @@ async function getCourseUsers(courseId: string) {
 }
 
 /**
- * Obtiene todos los cursos donde un usuario tiene roles
+ * Devuelve una fila por asignación activa, incluso si varias pertenecen al mismo curso.
+ * assignmentId identifica la fila; courseId sigue siendo el destino de navegación.
  */
 async function getUserCourses(userId: string) {
 	const courses = await db
 		.select({
+			assignmentId: courseRole.id,
 			courseId: courseRole.courseId,
 			role: courseRole.role,
 			assignedAt: courseRole.assignedAt,
