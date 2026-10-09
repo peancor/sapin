@@ -448,7 +448,6 @@ Responde de forma concisa y útil. Si usas información del contexto, menciona d
 				console.log(`[RAG Chat] System prompt includes context: ${searchSuccess}`);
 
 				const modelMessages: ModelMessage[] = [
-					{ role: 'system', content: systemPrompt },
 					...messages.map((m) => ({
 						role: m.role as 'user' | 'assistant',
 						content: m.content
@@ -471,7 +470,9 @@ Responde de forma concisa y útil. Si usas información del contexto, menciona d
 
 				const result = streamText({
 					model: openrouter.chat(selectedModel),
+					system: systemPrompt,
 					messages: modelMessages,
+					allowSystemInMessages: false,
 					temperature: 0.7
 				});
 

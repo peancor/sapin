@@ -1,3 +1,4 @@
+import { toModelPrompt } from '$lib/server/ai/modelPrompt';
 import { streamText, stepCountIs, type ModelMessage } from 'ai';
 import type { AgentContext, AgentStreamPart, ToolDefinitionResolved } from '$lib/types/agent';
 import { ModelResolver } from '$lib/server/ai/services/ModelResolver';
@@ -314,7 +315,7 @@ export class AgentEngine {
 			memoryContextExact: params.memoryContext ?? null,
 			requestPayload: {
 				modelName: params.modelName,
-				messages: params.messages,
+				...toModelPrompt(params.messages),
 				tools: params.runtimeTools,
 				toolChoice: params.toolChoice,
 				cacheStrategy: params.cacheStrategy,
@@ -506,7 +507,7 @@ export class AgentEngine {
 
 			const result = streamText({
 				model,
-				messages,
+				...toModelPrompt(messages),
 				tools: useTools,
 				toolChoice,
 				stopWhen: stepCountIs(config.maxToolRoundtrips),
@@ -793,7 +794,7 @@ export class AgentEngine {
 
 			const result = streamText({
 				model,
-				messages,
+				...toModelPrompt(messages),
 				tools: useTools,
 				toolChoice,
 				stopWhen: stepCountIs(config.maxToolRoundtrips),

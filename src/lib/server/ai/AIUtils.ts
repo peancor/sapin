@@ -1,3 +1,4 @@
+import { toModelPrompt } from './modelPrompt';
 import { generateText, NoObjectGeneratedError, Output, streamText, type ModelMessage } from 'ai';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
@@ -166,7 +167,7 @@ export class AIUtils {
 
 		const result = streamText({
 			model,
-			messages,
+			...toModelPrompt(messages),
 			temperature: 0.7,
 			onFinish: async (finishResult) => {
 				const durationMs = Date.now() - startTime;
@@ -356,7 +357,7 @@ export class AIUtils {
 		try {
 			const result = await generateText({
 				model,
-				messages,
+				...toModelPrompt(messages),
 				temperature: options?.temperature
 			});
 
@@ -465,7 +466,7 @@ export class AIUtils {
 		try {
 			const result = await generateText({
 				model,
-				messages,
+				...toModelPrompt(messages),
 				temperature: options?.temperature,
 				maxOutputTokens: options?.maxOutputTokens,
 				abortSignal: options?.abortSignal,
@@ -752,7 +753,7 @@ export class AIUtils {
 				ragSources,
 				requestPayload: {
 					modelName,
-					messages,
+					...toModelPrompt(messages),
 					temperature
 				},
 				messageCount: messages.length,
@@ -767,7 +768,7 @@ export class AIUtils {
 		try {
 			return streamText({
 				model,
-				messages,
+				...toModelPrompt(messages),
 				temperature,
 				onFinish: async (finishResult) => {
 					const durationMs = Date.now() - startTime;
