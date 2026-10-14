@@ -71,6 +71,10 @@ Las versiones y comandos disponibles se consultan en [package.json](package.json
 - Instala desde el lockfile con `npm ci`.
 - Conserva saltos de línea LF: `.gitattributes` fija el checkout de texto y `.prettierrc`
   fija el formato, independientemente de `core.autocrlf` en cada ordenador.
+  `.editorconfig` y la configuración del editor mantienen LF al guardar. En clones anteriores
+  a esta regla, Git puede conservar archivos locales CRLF sin mostrar diferencias de contenido:
+  compruébalo con `git ls-files --eol` y ejecuta `npm run format` una vez en cada clon afectado.
+  No uses `reset --hard` para normalizar ni cambies Prettier a `endOfLine: auto`.
 - Consulta [.env.example](.env.example) y el consumidor de cada variable antes de cambiarla.
   `DATABASE_URL` es obligatoria; el entorno local habitual usa `local.db`.
 - Comprueba el estado de Git y los procesos existentes antes de trabajar.
