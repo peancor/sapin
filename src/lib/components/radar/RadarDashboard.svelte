@@ -15,6 +15,8 @@
 		RefreshCw
 	} from 'lucide-svelte';
 	import EChart from '$lib/components/charts/EChart.svelte';
+	import type { RadarAction } from '$lib/types/radarActions';
+	import RadarActionLibrary from '$lib/components/radar/RadarActionLibrary.svelte';
 	import RadarActionsPanel from '$lib/components/radar/RadarActionsPanel.svelte';
 	import RadarSettingsFields from '$lib/components/radar/RadarSettingsFields.svelte';
 	import RadarText from '$lib/components/radar/RadarText.svelte';
@@ -108,6 +110,14 @@
 	}
 
 	let showStart = $state(false);
+	let showPreparation = $state(false);
+	let preparedActions = $state<RadarAction[]>([]);
+	async function prepareActions() {
+		showPreparation = true;
+		await tick();
+		document.getElementById('radar-action-library-heading')?.focus();
+	}
+
 	let busy = $state(false);
 	let loading = $state(false);
 	let error = $state('');
@@ -579,6 +589,7 @@
 			</p>
 		</div>
 		<div class="flex flex-wrap gap-2">
+			<Button color="alternative" onclick={prepareActions}>Preparar acciones</Button>
 			{#if selectedRun}<Button color="alternative" onclick={() => selectRun(null)}
 					>Ver historial</Button
 				>{/if}
@@ -591,6 +602,13 @@
 				>{/if}
 		</div>
 	</header>
+	{#if showPreparation}<RadarActionLibrary
+			{api}
+			bind:actions={preparedActions}
+			onclose={() => {
+				showPreparation = false;
+			}}
+		/>{/if}
 
 	{#if error}<div
 			role="alert"
@@ -913,7 +931,13 @@
 			comprensión.
 		</p>
 
-		{#key run.id}<RadarActionsPanel {api} runId={run.id} />{/key}
+		{#key run.id}<RadarActionsPanel
+				{api}
+				{run}
+				serverTime={snapshot.serverTime}
+				bind:actions={preparedActions}
+				onprepare={prepareActions}
+			/>{/key}
 
 		<section class="{panelClass} overflow-hidden" aria-labelledby="analysis-heading">
 			<div

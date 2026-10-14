@@ -97,7 +97,11 @@ sobrescribe la configuración nueva. Las configuraciones reutilizables pertenece
 sin vínculo mutable con seguimientos ya creados. Las vistas lista, barras y nube comparten
 agregados; las preferencias visuales se guardan localmente por usuario y curso.
 
-Las acciones docentes son definiciones versionadas de actividad o curso. Al pulsar
+Las acciones docentes son definiciones versionadas de actividad o curso. Su editor
+es independiente de los seguimientos y permite prepararlas antes de la clase. Los
+botones y resultados pertenecen al seguimiento seleccionado; los avisos de
+disponibilidad consideran su inicio, cierre y la duración de los dos periodos en
+comparativas, con la hora del servidor como referencia. Al pulsar
 un botón se crea una ejecución idempotente con una copia de su definición y una
 instantánea de observaciones, categorías y cobertura; las identidades se sustituyen
 por identificadores locales y no se copian textos de mensajes. El planificador

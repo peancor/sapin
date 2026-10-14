@@ -32,11 +32,27 @@ Los recuentos representan consultas registradas, no asistencia ni comprensión. 
 
 ### Acciones del profesor
 
-En **Acciones del radar**, cada botón guarda un nombre, una pregunta o instrucciones,
+En **Preparar acciones**, cada botón guarda un nombre, una pregunta o instrucciones,
 el ámbito (actividad o curso), el intervalo y la presentación preferida. Se puede
 editar, duplicar y eliminar. La edición exige la revisión vigente para evitar
 sobrescribir cambios de otro profesor. Las acciones compartidas del curso pueden
 ser modificadas por los docentes con permiso de analítica.
+
+La preparación está disponible antes de iniciar un seguimiento y también durante
+la clase. Guardar una acción no crea un seguimiento ni ejecuta IA. El panel de
+ejecución muestra los botones preparados, sus resultados y el historial del
+seguimiento seleccionado; el editor se abre por separado. No hay una pantalla
+independiente de biblioteca del curso en esta versión.
+
+Cada acción explica cuándo se puede ejecutar. Sin seguimiento, indica que estará
+disponible al iniciarlo; las comparativas indican la duración mínima de dos
+periodos. Durante la clase, la comparación muestra el tiempo restante y se habilita
+al completar ambos periodos. Si la duración prevista es insuficiente, propone
+ampliar el seguimiento o reducir el intervalo. Los intervalos recientes permiten
+analizar el tiempo transcurrido aunque todavía no se haya completado toda la ventana.
+Un seguimiento cerrado mantiene su intervalo: esperar no desbloquea una comparación
+que no tenga duración suficiente. El servidor sigue comprobando estas condiciones
+al ejecutar; los avisos de la interfaz no sustituyen esa validación.
 
 **Ejecutar** fija una instantánea y añade una ejecución al historial. El resultado
 no cambia con los mensajes posteriores ni con nuevas clasificaciones. Ejecutar de

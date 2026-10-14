@@ -3,7 +3,14 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { zodSchema } from 'ai';
-import { radarActionExecution, radarObservation, message, user } from '$lib/server/db/schema';
+import {
+	radarActionExecution,
+	radarObservation,
+	radarRun,
+	message,
+	user
+} from '$lib/server/db/schema';
+import { radarActionAvailability } from '$lib/utils/radarActionAvailability';
 import type { RadarActionInput } from '$lib/types/radarActions';
 import { RadarActionRepository } from './RadarActionRepository';
 import { RadarActionWorker, type RadarActionAI } from './RadarActionWorker';
@@ -65,6 +72,40 @@ test('action schemas retain Gemini-compatible array bounds', async () => {
 		actionPlanSchema.safeParse({ ...plan, queries: Array(7).fill(plan.queries[0]) }).success,
 		false
 	);
+});
+
+test('actions can be prepared without a run and comparison availability matches server validation', () => {
+	const f = radarFixture();
+	try {
+		f.database.delete(radarRun).where(eq(radarRun.id, f.run.id)).run();
+		const repo = new RadarActionRepository(f.repository);
+		const action = repo.save('course', 'activity', {
+			...definition,
+			window: 'compare',
+			minutes: 1
+		});
+		assert.equal(f.repository.history('course', 'activity').active, null);
+		assert.equal(repo.list('course', 'activity')[0].id, action.id);
+		const run = f.repository.create('course', 'activity', 'teacher', {
+			title: 'Clase preparada',
+			durationMinutes: 30,
+			modelId: 'model'
+		});
+		const view = f.repository.view(run);
+		f.advance(119998);
+		assert.equal(radarActionAvailability(action, view, +f.now()).available, false);
+		assert.throws(
+			() => repo.enqueue(run.id, 'teacher', action.id, 1, randomUUID()),
+			/intervalos completos/
+		);
+		f.advance(1);
+		assert.equal(radarActionAvailability(action, view, +f.now()).available, true);
+		const execution = repo.enqueue(run.id, 'teacher', action.id, 1, randomUUID());
+		assert.equal(execution.state, 'queued');
+		assert.equal(execution.actionId, action.id);
+	} finally {
+		f.client.close();
+	}
 });
 test('actions enforce scopes, revisions and preserve historical definitions after delete', () => {
 	const f = setup();
