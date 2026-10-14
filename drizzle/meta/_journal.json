@@ -162,6 +162,13 @@
 			"when": 1791967719954,
 			"tag": "0022_far_tenebrous",
 			"breakpoints": true
+		},
+		{
+			"idx": 23,
+			"version": "6",
+			"when": 1791973184048,
+			"tag": "0023_reflective_iron_monger",
+			"breakpoints": true
 		}
 	]
 }

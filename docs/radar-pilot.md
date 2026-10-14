@@ -30,6 +30,56 @@ Los recuentos representan consultas registradas, no asistencia ni comprensión. 
 
 ## Instalación y funcionamiento
 
+### Acciones del profesor
+
+En **Acciones del radar**, cada botón guarda un nombre, una pregunta o instrucciones,
+el ámbito (actividad o curso), el intervalo y la presentación preferida. Se puede
+editar, duplicar y eliminar. La edición exige la revisión vigente para evitar
+sobrescribir cambios de otro profesor. Las acciones compartidas del curso pueden
+ser modificadas por los docentes con permiso de analítica.
+
+**Ejecutar** fija una instantánea y añade una ejecución al historial. El resultado
+no cambia con los mensajes posteriores ni con nuevas clasificaciones. Ejecutar de
+nuevo crea otra instantánea. Se puede usar todo el seguimiento, los últimos 1–120
+minutos o comparar dos periodos consecutivos de esa duración. La comparación exige
+que hayan transcurrido ambos periodos completos. Los seguimientos cerrados usan su
+hora de cierre como final del intervalo.
+
+Las operaciones disponibles son recuentos de mensajes, estudiantes distintos y
+mensajes con posible confusión; agrupaciones por tema, intención o minuto; y
+porcentajes, cocientes, diferencias, sumas o medias de dos valores agregados. Las
+cifras las calcula el servidor sobre la clasificación existente. No se evalúan
+respuestas ni se obtienen notas u otros resultados de actividades que el radar no
+recoge. Una petición fuera de ese alcance debe explicarse como limitación.
+
+El resultado combina texto, estadísticas, tablas y gráficos. Buscar etiquetas,
+cambiar la vista, seleccionar periodos o explorar la diferencia opera localmente,
+sin nuevas llamadas a IA. Los gráficos grandes permiten ampliar el intervalo
+visible; la tabla asociada ofrece los mismos valores y acceso a evidencias. Las
+evidencias de cada fila son una muestra de hasta diez mensajes del periodo actual.
+El texto utiliza hasta 24 mensajes, recortados a 1.000 caracteres; no representa
+una lectura exhaustiva. La cobertura muestra mensajes pendientes y no analizables.
+
+Cada ejecución conserva su configuración, modelo, cobertura, uso y coste disponible.
+Usa el modelo del seguimiento y carga el uso al profesor que la inicia, con las
+cuotas habituales. Hace como máximo dos peticiones secuenciales sin reintentos
+automáticos: planificación y explicación. La cola admite dos acciones activas por
+profesor y seguimiento y procesa hasta dos globalmente. Las ejecuciones interrumpidas
+caducan como fallidas; repetirlas requiere otro clic. No se conserva texto original
+de conversaciones en la instantánea. El borrado de fuentes retira los resultados y
+bloquea la publicación de ejecuciones que dependían de ellas.
+
+Ejemplos de instrucciones:
+
+- «Muestra los temas que han generado más consultas y cuántos estudiantes distintos han preguntado por cada uno.»
+- «Compara los mensajes por intención entre estos dos periodos y explica las limitaciones de la comparación.»
+- «Calcula el cociente entre mensajes y estudiantes participantes y muestra ambos recuentos.»
+
+Las acciones requieren la migración `0023_reflective_iron_monger.sql`, que añade su
+biblioteca y ejecuciones. No modifica las categorías del radar ni los mensajes.
+
+### Planificador y migraciones
+
 Aplicar la migración oficial con el procedimiento habitual del proyecto (`npm run db:migrate`) antes de arrancar la versión nueva. La migración `0021_fancy_kabuki.sql` añade cinco tablas e índices; no transforma transcripciones existentes. La cadena completa se verifica en SQLite temporal en los tests del radar.
 
 La personalización requiere también `0022_far_tenebrous.sql`: añade las configuraciones
@@ -88,4 +138,4 @@ La aceptación del piloto requiere que el docente confirme que las agrupaciones 
 
 `load.test.ts` simula cien estudiantes, dos mil mensajes en noventa minutos, una ráfaga de cien y cincuenta consultas equivalentes a cinco dashboards. En la comprobación local inicial, incorporar las observaciones tomó aproximadamente 189 ms y el p95 de consulta fue 11 ms, con SQLite en memoria. El procesamiento con cliente simulado terminó sin duplicados. Estas medidas no incluyen HTTP, red ni latencia o coste de IA y no sustituyen la prueba en el entorno del piloto.
 
-Antes de desplegar, repetir `npm test`, `npm run check`, `npm run lint` y `npm run build`. La base inicial del repositorio presenta problemas de formato generalizados y advertencias Svelte anteriores al radar; revisar por separado cualquier diagnóstico de los archivos modificados. Comprobar también tema claro/oscuro, teclado, apertura de chats, desconexión/reconexión y seguimiento desde dos profesores.
+Antes de desplegar, repetir `npm test`, `npm run check`, `npm run lint` y las pruebas E2E pertinentes (que incluyen compilación). Distinguir los diagnósticos nuevos de los existentes. Comprobar también tema claro/oscuro, teclado, apertura de chats, desconexión/reconexión y seguimiento desde dos profesores. Las pruebas de acciones usan IA simulada: validan cálculos, permisos, instantáneas y presentación, pero no la calidad de las respuestas de un proveedor real.

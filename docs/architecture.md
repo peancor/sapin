@@ -97,6 +97,20 @@ sobrescribe la configuración nueva. Las configuraciones reutilizables pertenece
 sin vínculo mutable con seguimientos ya creados. Las vistas lista, barras y nube comparten
 agregados; las preferencias visuales se guardan localmente por usuario y curso.
 
+Las acciones docentes son definiciones versionadas de actividad o curso. Al pulsar
+un botón se crea una ejecución idempotente con una copia de su definición y una
+instantánea de observaciones, categorías y cobertura; las identidades se sustituyen
+por identificadores locales y no se copian textos de mensajes. El planificador
+revalida el permiso del ejecutor y procesa una planificación estructurada, cálculos
+deterministas y una explicación estructurada. Ambas peticiones reutilizan modelos,
+cuotas y registro de uso de AIUtils, atribuidos al ejecutor. Los componentes solo
+reciben datasets calculados y tipos de bloque admitidos, nunca código generado.
+Los filtros visuales son locales. La publicación comprueba la versión de evidencias
+y la existencia de las observaciones; borrar fuentes purga instantánea y resultado.
+La recuperación marca ejecuciones interrumpidas como fallidas, sin repetir consumo
+automáticamente. Las acciones no modifican la clasificación ni ejecutan herramientas
+con efectos sobre el alumnado.
+
 ## HTML, traducciones y build
 
 [SafeHtml](../src/lib/components/SafeHtml.svelte) sanitiza el HTML final después de renderizar

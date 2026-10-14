@@ -15,6 +15,7 @@
 		RefreshCw
 	} from 'lucide-svelte';
 	import EChart from '$lib/components/charts/EChart.svelte';
+	import RadarActionsPanel from '$lib/components/radar/RadarActionsPanel.svelte';
 	import RadarSettingsFields from '$lib/components/radar/RadarSettingsFields.svelte';
 	import RadarText from '$lib/components/radar/RadarText.svelte';
 	import { theme } from '$lib/stores/theme';
@@ -911,6 +912,8 @@
 			Estos datos describen consultas registradas: no indican asistencia, atención ni un nivel de
 			comprensión.
 		</p>
+
+		{#key run.id}<RadarActionsPanel {api} runId={run.id} />{/key}
 
 		<section class="{panelClass} overflow-hidden" aria-labelledby="analysis-heading">
 			<div

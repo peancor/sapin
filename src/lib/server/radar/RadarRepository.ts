@@ -11,6 +11,7 @@ import {
 	interactiveLearning,
 	message,
 	radarAnalysis,
+	radarActionExecution,
 	radarPreset,
 	radarObservation,
 	radarObservationTopic,
@@ -97,6 +98,16 @@ export function invalidateRadarChats(tx: RadarTransaction, chatIds: string[]) {
 	invalidateRuns(tx, ids);
 }
 function invalidateRuns(tx: RadarTransaction, ids: string[]) {
+	tx.update(radarActionExecution)
+		.set({
+			state: 'invalidated',
+			snapshot: null,
+			result: null,
+			error: 'Se han eliminado datos de origen. Ejecuta de nuevo la acción.',
+			leaseUntil: null
+		})
+		.where(inArray(radarActionExecution.runId, ids))
+		.run();
 	tx.update(radarRun)
 		.set({
 			summary: null,

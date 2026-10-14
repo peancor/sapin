@@ -16,3 +16,4 @@ export * from './memory';
 export * from './agentWorkspace';
 export * from './lesson';
 export * from './radar';
+export * from './radarActions';
