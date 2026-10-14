@@ -14,7 +14,13 @@ import { user } from './users';
 import { interactiveLearning, courseInteractiveLearning } from './interactive';
 import { message, chat } from './chat';
 import { agentMessage } from './agent';
-import type { RadarAnalysisState, RadarIntent, RadarRunState } from '$lib/types/radar';
+import type {
+	RadarAnalysisState,
+	RadarIntent,
+	RadarRunState,
+	RadarView,
+	RadarMetric
+} from '$lib/types/radar';
 
 export const radarRun = sqliteTable(
 	'radar_run',
@@ -35,6 +41,19 @@ export const radarRun = sqliteTable(
 		modelId: text('model_id').notNull(),
 		modelName: text('model_name').notNull(),
 		context: text('context'),
+		instructions: text('instructions').notNull().default(''),
+		settingsRevision: integer('settings_revision').notNull().default(1),
+		summarySettingsRevision: integer('summary_settings_revision'),
+		summaryInstructions: text('summary_instructions'),
+		// Audit reference resolved at read time; never blocks deletion of a user.
+		settingsUpdatedBy: text('settings_updated_by'),
+		settingsUpdatedAt: integer('settings_updated_at', { mode: 'timestamp_ms' }),
+		initialView: text('initial_view').$type<RadarView>().notNull().default('list'),
+		initialMetric: text('initial_metric').$type<RadarMetric>().notNull().default('students'),
+		synthesisCoverage: text('synthesis_coverage', { mode: 'json' }).$type<{
+			includedTopics: number;
+			totalTopics: number;
+		}>(),
 		startsAt: integer('starts_at', { mode: 'timestamp_ms' }).notNull(),
 		endsAt: integer('ends_at', { mode: 'timestamp_ms' }).notNull(),
 		state: text('state').$type<RadarRunState>().notNull().default('active'),
@@ -153,6 +172,8 @@ export const radarAnalysis = sqliteTable(
 		owner: text('owner').notNull(),
 		modelId: text('model_id').notNull(),
 		analyzerVersion: text('analyzer_version').notNull(),
+		settingsRevision: integer('settings_revision').notNull().default(1),
+		instructions: text('instructions').notNull().default(''),
 		state: text('state')
 			.$type<'processing' | 'success' | 'partial' | 'error' | 'abandoned'>()
 			.notNull(),
@@ -170,4 +191,21 @@ export const radarAnalysis = sqliteTable(
 		error: text('error')
 	},
 	(t) => [index('radar_analysis_run_idx').on(t.runId, t.startedAt)]
+);
+
+export const radarPreset = sqliteTable(
+	'radar_preset',
+	{
+		id: text('id').primaryKey(),
+		courseId: text('course_id')
+			.notNull()
+			.references(() => course.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		context: text('context').notNull().default(''),
+		instructions: text('instructions').notNull().default(''),
+		initialView: text('initial_view').$type<RadarView>().notNull().default('list'),
+		initialMetric: text('initial_metric').$type<RadarMetric>().notNull().default('students'),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(t) => [index('radar_preset_course_idx').on(t.courseId)]
 );

@@ -15,6 +15,7 @@
 		RefreshCw
 	} from 'lucide-svelte';
 	import EChart from '$lib/components/charts/EChart.svelte';
+	import RadarSettingsFields from '$lib/components/radar/RadarSettingsFields.svelte';
 	import RadarText from '$lib/components/radar/RadarText.svelte';
 	import { theme } from '$lib/stores/theme';
 	import {
@@ -48,6 +49,63 @@
 	let duration = $state(90);
 	let modelId = $state(untrack(() => data.radarModels.find((model) => model.isDefault)?.id ?? ''));
 	let context = $state('');
+	let instructions = $state('');
+	let initialView = $state<'list' | 'bars' | 'cloud'>('list');
+	let initialMetric = $state<'students' | 'messages'>('students');
+	let topicView = $state<'list' | 'bars' | 'cloud'>('list');
+	let topicMetric = $state<'students' | 'messages'>('students');
+	let configuring = $state(false);
+	let editedInstructions = $state('');
+	let editedContext = $state('');
+	let editedRevision = $state(0);
+	let settingsView = $state<'list' | 'bars' | 'cloud'>('list');
+	let settingsMetric = $state<'students' | 'messages'>('students');
+	let hasPersonalView = false;
+	const preferenceKey = $derived(
+		`sapin:radar:view:${page.data.user?.id ?? 'anonymous'}:${data.course.id}`
+	);
+	function saveViewPreference() {
+		hasPersonalView = true;
+		try {
+			localStorage.setItem(preferenceKey, JSON.stringify({ view: topicView, metric: topicMetric }));
+		} catch {
+			/* The view remains usable when storage is unavailable. */
+		}
+	}
+	function configure() {
+		if (!run) return;
+		editedInstructions = run.instructions;
+		editedContext = run.context ?? '';
+		editedRevision = run.settingsRevision;
+		settingsView = topicView;
+		settingsMetric = topicMetric;
+		configuring = true;
+	}
+	async function saveInstructions(event: SubmitEvent) {
+		event.preventDefault();
+		if (!run) return;
+		busy = true;
+		error = '';
+		try {
+			await request(`/runs/${run.id}`, {
+				method: 'PATCH',
+				body: JSON.stringify({
+					instructions: editedInstructions.trim(),
+					settingsRevision: editedRevision
+				})
+			});
+			configuring = false;
+			await refreshSnapshot(true);
+			notice =
+				'Instrucciones aplicadas. El resumen y las sugerencias se actualizarán conservando la clasificación.';
+		} catch (cause) {
+			error = failure(cause);
+			await refreshSnapshot(true);
+		} finally {
+			busy = false;
+		}
+	}
+
 	let showStart = $state(false);
 	let busy = $state(false);
 	let loading = $state(false);
@@ -76,15 +134,17 @@
 	let historyInFlight = false;
 
 	const run = $derived(snapshot?.run ?? null);
-	const topics = $derived.by(() => {
-		const position = new Map(topicOrder.map((id, index) => [id, index]));
-		return [...(snapshot?.topics ?? [])].sort(
-			(a, b) =>
-				(position.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
-					(position.get(b.id) ?? Number.MAX_SAFE_INTEGER) || a.id.localeCompare(b.id)
-		);
-	});
+	const topics = $derived(
+		[...(snapshot?.topics ?? [])].sort(
+			(a, b) => b[topicMetric] - a[topicMetric] || a.id.localeCompare(b.id)
+		)
+	);
 	const visibleTopics = $derived(showAllTopics ? topics : topics.slice(0, 5));
+	const cloudTopics = $derived(
+		[...visibleTopics].sort((a, b) => topicOrder.indexOf(a.id) - topicOrder.indexOf(b.id))
+	);
+	const largestTopic = $derived(Math.max(1, ...topics.map((topic) => topic[topicMetric])));
+
 	const coverage = $derived(snapshot?.statistics.coverage);
 	const textTotal = $derived((coverage?.processed ?? 0) + (coverage?.pending ?? 0));
 	const coveragePercent = $derived(
@@ -210,8 +270,15 @@
 			});
 			if (!mounted || version !== requestVersion) return;
 			const changed = snapshot?.run.publishedVersion !== next.run.publishedVersion;
-			if (changed || snapshot?.window !== next.window)
-				topicOrder = next.topics.map((topic) => topic.id);
+			if (!snapshot && !hasPersonalView) {
+				topicView = next.run.initialView ?? 'list';
+				topicMetric = next.run.initialMetric ?? 'students';
+			}
+			const existingIds = new Set(topicOrder);
+			topicOrder = [
+				...topicOrder,
+				...next.topics.filter((topic) => !existingIds.has(topic.id)).map((topic) => topic.id)
+			];
 			snapshot = next;
 			lastRefreshed = next.serverTime;
 			pollingError = '';
@@ -253,6 +320,7 @@
 		pollingError = '';
 		notice = '';
 		editing = false;
+		configuring = false;
 		showAllTopics = false;
 		topicOrder = [];
 		showStart = false;
@@ -341,7 +409,10 @@
 					title: title.trim(),
 					durationMinutes: duration,
 					modelId,
-					context: context.trim() || undefined
+					context: context.trim() || undefined,
+					instructions: instructions.trim(),
+					initialView,
+					initialMetric
 				})
 			});
 			history = { ...history, active: created };
@@ -451,6 +522,20 @@
 
 	onMount(() => {
 		mounted = true;
+		try {
+			const stored = JSON.parse(localStorage.getItem(preferenceKey) ?? 'null');
+			if (
+				stored &&
+				['list', 'bars', 'cloud'].includes(stored.view) &&
+				['students', 'messages'].includes(stored.metric)
+			) {
+				topicView = stored.view;
+				topicMetric = stored.metric;
+				hasPersonalView = true;
+			}
+		} catch {
+			/* Ignore unavailable or outdated personal preferences. */
+		}
 		// Hydration may mount this component before the SvelteKit router is initialized.
 		// Loading the initial selection must not perform shallow navigation.
 		void selectRun(page.url.searchParams.get('run') ?? history.active?.id ?? null, false);
@@ -585,6 +670,13 @@
 						placeholder="Tema, objetivos o conceptos que vas a explicar. Ayuda a interpretar las preguntas."
 					></textarea></label
 				>
+				<RadarSettingsFields
+					{api}
+					bind:context
+					bind:instructions
+					bind:initialView
+					bind:initialMetric
+				/>
 				{#if !data.radarModels.length}<p class="text-sm text-amber-700 dark:text-amber-300">
 						No hay modelos habilitados para analizar. Un administrador debe habilitar uno antes de
 						empezar.
@@ -644,6 +736,11 @@
 					</p>
 				</div>
 				<div class="flex flex-wrap gap-2">
+					{#if run.state === 'active'}<Button
+							color="alternative"
+							onclick={configure}
+							disabled={busy}>Configurar</Button
+						>{/if}
 					<Button
 						color="alternative"
 						onclick={() => runAction('analyze')}
@@ -659,6 +756,60 @@
 						>{/if}
 				</div>
 			</div>
+
+			{#if configuring && run.state === 'active'}
+				<form
+					class="mt-5 space-y-4 rounded-xl bg-gray-50 p-4 dark:bg-gray-900/40"
+					onsubmit={saveInstructions}
+				>
+					<h3 class="font-semibold">Configurar el resumen y las sugerencias</h3>
+					<RadarSettingsFields
+						{api}
+						contextEditable={false}
+						bind:context={editedContext}
+						bind:instructions={editedInstructions}
+						bind:initialView={settingsView}
+						bind:initialMetric={settingsMetric}
+					/>
+					{#if editedRevision !== run.settingsRevision}<p
+							role="alert"
+							class="text-sm text-amber-700 dark:text-amber-300"
+						>
+							Otro docente ha cambiado las instrucciones. Copia tus cambios si deseas conservarlos y
+							vuelve a abrir Configurar para cargar la versión actual.
+						</p>{/if}
+					<p class="text-xs text-gray-500 dark:text-gray-400">
+						Se aplica a este seguimiento para todo el profesorado. Actualizar el resumen utiliza la
+						cuota de IA del seguimiento.
+					</p>
+					<div class="flex flex-wrap gap-2">
+						<Button
+							type="submit"
+							disabled={busy ||
+								editedRevision !== run.settingsRevision ||
+								editedInstructions.trim() === run.instructions}>Aplicar y actualizar resumen</Button
+						><Button
+							color="alternative"
+							onclick={() => {
+								configuring = false;
+							}}>Cancelar</Button
+						>
+					</div>
+				</form>
+			{/if}
+			<details class="mt-4 border-t border-gray-100 pt-3 dark:border-gray-700">
+				<summary class="cursor-pointer text-sm font-medium"
+					>Instrucciones activas · versión {run.settingsRevision}</summary
+				>
+				<p class="mt-2 text-sm whitespace-pre-wrap">
+					{run.instructions || 'Resumen general, sin instrucciones adicionales.'}
+				</p>
+				{#if run.settingsUpdatedBy}<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+						Último cambio: {run.settingsUpdatedBy}{run.settingsUpdatedAt
+							? ` · ${dateTime(run.settingsUpdatedAt)}`
+							: ''}
+					</p>{/if}
+			</details>
 			{#if editing && run.state === 'active'}<form
 					class="mt-5 grid items-end gap-4 rounded-xl bg-gray-50 p-4 md:grid-cols-[2fr_1fr_auto] dark:bg-gray-900/40"
 					onsubmit={saveRun}
@@ -783,6 +934,27 @@
 					>
 						{run.error} Las estadísticas siguen disponibles; el análisis conserva su última versión.
 					</p>{/if}
+				{#if run.summarySettingsRevision !== null && run.summarySettingsRevision !== undefined}
+					<details class="text-xs text-gray-500 dark:text-gray-400">
+						<summary class="cursor-pointer"
+							>Instrucciones del resumen visible · versión {run.summarySettingsRevision}</summary
+						>
+						<p class="mt-2 whitespace-pre-wrap">
+							{run.summaryInstructions || 'Sin instrucciones adicionales.'}
+						</p>
+					</details>
+				{/if}
+				{#if run.summary && run.summarySettingsRevision !== run.settingsRevision}<p
+						role="status"
+						class="text-sm text-amber-700 dark:text-amber-300"
+					>
+						El resumen y las sugerencias visibles corresponden a las instrucciones anteriores. La
+						actualización está pendiente; se conserva el último resultado.
+					</p>{/if}
+				{#if run.synthesisCoverage}<p class="text-xs text-gray-500 dark:text-gray-400">
+						Cobertura del resumen: {run.synthesisCoverage.includedTopics} de {run.synthesisCoverage
+							.totalTopics} temas.
+					</p>{/if}
 				{#if run.summary}<div
 						class="max-w-4xl text-base leading-7 text-gray-700 dark:text-gray-200"
 					>
@@ -860,6 +1032,37 @@
 						>
 					</div>
 				</div>
+				<div class="flex flex-wrap items-end gap-3">
+					<label class="text-sm font-medium"
+						>Vista<select
+							class={inputClass}
+							value={topicView}
+							onchange={(event) => {
+								topicView = event.currentTarget.value as typeof topicView;
+								saveViewPreference();
+							}}
+							><option value="list">Lista</option><option value="bars">Barras</option><option
+								value="cloud">Nube de temas</option
+							></select
+						></label
+					>
+					<label class="text-sm font-medium"
+						>{topicView === 'cloud' ? 'Tamaño por' : 'Ordenar por'}<select
+							class={inputClass}
+							value={topicMetric}
+							onchange={(event) => {
+								topicMetric = event.currentTarget.value as typeof topicMetric;
+								saveViewPreference();
+							}}
+							><option value="students">Alumnos distintos</option><option value="messages"
+								>Mensajes</option
+							></select
+						></label
+					>
+					<p class="text-xs text-gray-500 dark:text-gray-400">
+						Preferencias personales. Cambiar de vista no consume IA.
+					</p>
+				</div>
 				{#if !topics.length}<div class="{panelClass} px-6 py-10 text-center">
 						<MessageSquare class="mx-auto mb-3 h-7 w-7 text-gray-300 dark:text-gray-600" />
 						<p class="font-medium">
@@ -873,72 +1076,133 @@
 								: 'Cuando el alumnado empiece a preguntar, verás qué temas reúnen más consultas y qué aclaraciones podrían ayudar.'}
 						</p>
 					</div>{/if}
-				{#each visibleTopics as topic (topic.id)}
-					<article
-						class="{panelClass} overflow-hidden {selectedTopic?.id === topic.id
-							? 'ring-primary-400 ring-2'
-							: ''}"
+				{#if topicView === 'cloud' && topics.length}
+					<div
+						class="{panelClass} flex flex-wrap items-center justify-center gap-5 p-6"
+						aria-label="Nube de temas"
 					>
-						<div class="p-5">
-							<div class="flex items-start justify-between gap-4">
-								<h3 class="text-lg leading-6 font-semibold">{topic.title}</h3>
-								<span
-									class="shrink-0 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 dark:bg-sky-900/30 dark:text-sky-200"
-									>{count(topic.students)}
-									{topic.students === 1 ? 'estudiante' : 'estudiantes'}</span
-								>
-							</div>
-							<div class="mt-2 text-sm text-gray-600 dark:text-gray-300">
-								<RadarText text={topic.description} />
-							</div>
-							<div class="mt-3 flex flex-wrap gap-1.5">
-								{#each topicIntents(topic) as intent (intent)}<span
-										class="rounded-md bg-gray-100 px-2 py-1 text-[11px] text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-										>{intent}</span
-									>{/each}
-							</div>
-							{#if topic.confusionCount > 0}<p
-									class="mt-3 text-xs font-medium text-amber-700 dark:text-amber-300"
-								>
-									{count(topic.confusionCount)}
-									{topic.confusionCount === 1
-										? 'mensaje con posible confusión'
-										: 'mensajes con posibles confusiones'} · Interpretación apoyada en evidencias
-								</p>{/if}
-							{#if topic.suggestion}<div
-									class="border-primary-400 bg-primary-50/60 dark:bg-primary-900/10 mt-4 rounded-xl border-l-2 p-3"
-								>
-									<p class="text-primary-800 dark:text-primary-300 mb-1 text-xs font-semibold">
-										Una aclaración que podría ayudar
-									</p>
-									<div class="text-sm text-gray-700 dark:text-gray-200">
-										<RadarText text={topic.suggestion} />
-									</div>
-								</div>{/if}
-						</div>
-						<div
-							class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-5 py-3 dark:border-gray-700"
-						>
-							<div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
-								<span>{count(topic.messages)} {topic.messages === 1 ? 'mensaje' : 'mensajes'}</span
-								><span>Última consulta: {time(topic.lastAt)}</span
-								>{#if topic.trend?.percent !== null && topic.trend?.percent !== undefined}<span
-										>{topic.trend.percent > 0 ? '+' : ''}{Math.round(topic.trend.percent)} % frente a
-										los 5 min anteriores</span
-									>{:else if topic.trend && topic.trend.current > 0 && topic.trend.previous === 0}<span
-										>Sin consultas en los 5 min anteriores</span
-									>{/if}
-							</div>
+						{#each cloudTopics as topic (topic.id)}
 							<button
-								class="text-primary-700 dark:text-primary-400 inline-flex items-center gap-1 text-sm font-semibold hover:underline"
+								type="button"
+								class="max-w-full rounded-lg px-2 py-3 text-center font-semibold break-words text-sky-800 hover:bg-sky-50 focus-visible:ring-2 dark:text-sky-200 dark:hover:bg-sky-900/30"
+								style:font-size={`${1 + 1.5 * Math.sqrt(topic[topicMetric] / largestTopic)}rem`}
 								onclick={(event) => openEvidence(topic, event.currentTarget)}
 								aria-expanded={selectedTopic?.id === topic.id}
 								aria-controls="radar-evidence"
-								>Ver evidencias <ArrowUpRight class="h-4 w-4" /></button
+								>{topic.title}<span class="mt-1 block text-xs font-normal"
+									>{count(topic[topicMetric])}
+									{topicMetric === 'students' ? 'alumnos distintos' : 'mensajes'}</span
+								></button
 							>
+						{/each}
+					</div>
+				{:else if topicView === 'bars' && topics.length}
+					<div class="{panelClass} space-y-4 p-5" aria-label="Barras de temas">
+						{#each visibleTopics as topic (topic.id)}
+							<button
+								type="button"
+								class="block w-full rounded-lg text-left focus-visible:ring-2"
+								onclick={(event) => openEvidence(topic, event.currentTarget)}
+								aria-expanded={selectedTopic?.id === topic.id}
+								aria-controls="radar-evidence"
+								><span class="mb-2 flex justify-between gap-3 text-sm"
+									><span>{topic.title}</span><span class="shrink-0"
+										>{count(topic[topicMetric])}
+										{topicMetric === 'students' ? 'alumnos' : 'mensajes'}</span
+									></span
+								><span class="block h-3 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700"
+									><span
+										class="block h-full rounded-full bg-sky-500"
+										style:width={`${(100 * topic[topicMetric]) / largestTopic}%`}
+									></span></span
+								></button
+							>
+						{/each}
+					</div>
+				{:else}
+					{#each visibleTopics as topic (topic.id)}
+						<article
+							class="{panelClass} overflow-hidden {selectedTopic?.id === topic.id
+								? 'ring-primary-400 ring-2'
+								: ''}"
+						>
+							<div class="p-5">
+								<div class="flex items-start justify-between gap-4">
+									<h3 class="text-lg leading-6 font-semibold">{topic.title}</h3>
+									<span
+										class="shrink-0 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 dark:bg-sky-900/30 dark:text-sky-200"
+										>{count(topic.students)}
+										{topic.students === 1 ? 'estudiante' : 'estudiantes'}</span
+									>
+								</div>
+								<div class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+									<RadarText text={topic.description} />
+								</div>
+								<div class="mt-3 flex flex-wrap gap-1.5">
+									{#each topicIntents(topic) as intent (intent)}<span
+											class="rounded-md bg-gray-100 px-2 py-1 text-[11px] text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+											>{intent}</span
+										>{/each}
+								</div>
+								{#if topic.confusionCount > 0}<p
+										class="mt-3 text-xs font-medium text-amber-700 dark:text-amber-300"
+									>
+										{count(topic.confusionCount)}
+										{topic.confusionCount === 1
+											? 'mensaje con posible confusión'
+											: 'mensajes con posibles confusiones'} · Interpretación apoyada en evidencias
+									</p>{/if}
+								{#if topic.suggestion}<div
+										class="border-primary-400 bg-primary-50/60 dark:bg-primary-900/10 mt-4 rounded-xl border-l-2 p-3"
+									>
+										<p class="text-primary-800 dark:text-primary-300 mb-1 text-xs font-semibold">
+											Una aclaración que podría ayudar
+										</p>
+										<div class="text-sm text-gray-700 dark:text-gray-200">
+											<RadarText text={topic.suggestion} />
+										</div>
+									</div>{/if}
+							</div>
+							<div
+								class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-5 py-3 dark:border-gray-700"
+							>
+								<div
+									class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400"
+								>
+									<span
+										>{count(topic.messages)} {topic.messages === 1 ? 'mensaje' : 'mensajes'}</span
+									><span>Última consulta: {time(topic.lastAt)}</span
+									>{#if topic.trend?.percent !== null && topic.trend?.percent !== undefined}<span
+											>{topic.trend.percent > 0 ? '+' : ''}{Math.round(topic.trend.percent)} % frente
+											a los 5 min anteriores</span
+										>{:else if topic.trend && topic.trend.current > 0 && topic.trend.previous === 0}<span
+											>Sin consultas en los 5 min anteriores</span
+										>{/if}
+								</div>
+								<button
+									class="text-primary-700 dark:text-primary-400 inline-flex items-center gap-1 text-sm font-semibold hover:underline"
+									onclick={(event) => openEvidence(topic, event.currentTarget)}
+									aria-expanded={selectedTopic?.id === topic.id}
+									aria-controls="radar-evidence"
+									>Ver evidencias <ArrowUpRight class="h-4 w-4" /></button
+								>
+							</div>
+						</article>
+					{/each}
+				{/if}
+				{#if topicView !== 'list' && visibleTopics.some((topic) => topic.suggestion)}
+					<details class="{panelClass} p-5">
+						<summary class="cursor-pointer text-sm font-semibold"
+							>Sugerencias para los temas visibles</summary
+						>
+						<div class="mt-4 space-y-4">
+							{#each visibleTopics.filter((topic) => topic.suggestion) as topic (topic.id)}<div>
+									<h3 class="mb-1 text-sm font-semibold">{topic.title}</h3>
+									<RadarText text={topic.suggestion ?? ''} />
+								</div>{/each}
 						</div>
-					</article>
-				{/each}
+					</details>
+				{/if}
 				{#if topics.length > 5}<button
 						class="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
 						onclick={() => {

@@ -22,6 +22,16 @@ export const radarIntentLabels: Record<RadarIntent, string> = {
 export type RadarRunState = 'active' | 'finalizing' | 'finalized';
 export type RadarAnalysisState = 'current' | 'pending' | 'processing' | 'partial' | 'blocked';
 export type RadarWindow = 'recent' | 'all';
+export type RadarView = 'list' | 'bars' | 'cloud';
+export type RadarMetric = 'students' | 'messages';
+export interface RadarPreset {
+	id: string;
+	name: string;
+	context: string;
+	instructions: string;
+	initialView: RadarView;
+	initialMetric: RadarMetric;
+}
 export interface RadarModel {
 	id: string;
 	name: string;
@@ -40,6 +50,15 @@ export interface RadarRunView {
 	modelId: string;
 	modelName: string;
 	context: string | null;
+	instructions: string;
+	settingsRevision: number;
+	summarySettingsRevision: number | null;
+	summaryInstructions: string | null;
+	settingsUpdatedBy: string | null;
+	settingsUpdatedAt: string | null;
+	initialView: RadarView;
+	initialMetric: RadarMetric;
+	synthesisCoverage: { includedTopics: number; totalTopics: number } | null;
 	error: string | null;
 	summary: string | null;
 	analyzedAt: string | null;

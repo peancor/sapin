@@ -2,11 +2,40 @@
 
 El radar sigue una actividad de chat normal o agéntico durante una clase. El alumnado utiliza sus conversaciones habituales. El docente lo abre desde la administración de la actividad, en **Radar de dudas**, y elige título, duración, modelo habilitado y contexto opcional.
 
+Puede añadir **Instrucciones para el resumen y las sugerencias**, hasta 4000 caracteres,
+para indicar foco, estilo y ejemplos. Estas preferencias no cambian la clasificación ni los
+recuentos. El contexto sigue describiendo la clase y queda fijado al iniciar el seguimiento.
+Las configuraciones guardadas incluyen contexto, instrucciones, vista y criterio de tamaño;
+están disponibles para el profesorado del curso. Cargar o eliminar una configuración no
+modifica seguimientos existentes. Se admiten hasta cien configuraciones por curso.
+
+Durante un seguimiento activo, **Configurar** permite aplicar nuevas instrucciones y
+actualizar la síntesis conservando los resultados anteriores mientras se procesa. La interfaz
+identifica la revisión y las instrucciones del resultado visible; si otro docente ha editado,
+es necesario cargar la versión actual antes de aplicar cambios. Las instrucciones y su revisión
+quedan registradas con cada ejecución. El consumo sigue imputándose al creador del seguimiento.
+
+Las vistas **Lista**, **Barras** y **Nube de temas** usan los mismos datos e intervalo. Se puede
+comparar por alumnos distintos o mensajes, con acceso a las evidencias. La nube agrupa temas,
+no palabras literales; su orden relativo se conserva mientras se actualiza la pantalla. Las
+preferencias visuales son locales al navegador, usuario y curso, sin nuevas llamadas de IA.
+
+La síntesis intenta incluir todos los temas y un catálogo compacto, dentro del presupuesto
+del modelo. Prioriza coincidencias de términos del foco docente con títulos, descripciones e
+intenciones; esa selección no interpreta semánticamente instrucciones arbitrarias. Si falta
+espacio se reduce el detalle, y la interfaz muestra cuántos temas tienen cobertura en el resumen.
+Las pruebas con IA simulada comprueban el flujo y la coherencia, no la calidad de la personalización.
+
 Los recuentos representan consultas registradas, no asistencia ni comprensión. La ventana reciente abarca cinco minutos; en seguimientos cerrados termina en la hora de cierre. Las agrupaciones pueden solaparse. Un mensaje sin texto cuenta como interacción, pero no se envía al modelo.
 
 ## Instalación y funcionamiento
 
 Aplicar la migración oficial con el procedimiento habitual del proyecto (`npm run db:migrate`) antes de arrancar la versión nueva. La migración `0021_fancy_kabuki.sql` añade cinco tablas e índices; no transforma transcripciones existentes. La cadena completa se verifica en SQLite temporal en los tests del radar.
+
+La personalización requiere también `0022_far_tenebrous.sql`: añade las configuraciones
+del curso y los campos de instrucciones, revisión y procedencia. Los seguimientos anteriores
+mantienen instrucciones vacías y vista de lista; sus resúmenes previos no tienen revisión
+registrada hasta una nueva síntesis.
 
 El servidor revisa trabajo cada diez segundos, con ciclos automáticos separados al menos un minuto. El dashboard consulta cada cinco segundos mientras está visible. Cerrar el navegador no detiene la clase. El botón **Analizar ahora** adelanta trabajo pendiente; no reclasifica lo ya procesado.
 

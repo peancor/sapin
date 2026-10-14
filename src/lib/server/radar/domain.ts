@@ -1,15 +1,29 @@
 import { z } from 'zod';
 import {
 	radarIntents,
+	radarIntentLabels,
 	type RadarSnapshot,
 	type RadarTopicView,
 	type RadarWindow
 } from '$lib/types/radar';
 
-export const ANALYZER_VERSION = 'radar-1';
+export const ANALYZER_VERSION = 'radar-2';
 export const RECENT_MS = 5 * 60_000;
+const presentationFields = {
+	instructions: z.string().trim().max(4000).default(''),
+	initialView: z.enum(['list', 'bars', 'cloud']).default('list'),
+	initialMetric: z.enum(['students', 'messages']).default('students')
+};
+export const presetSchema = z
+	.object({
+		name: z.string().trim().min(1).max(100),
+		context: z.string().trim().max(6000).default(''),
+		...presentationFields
+	})
+	.strict();
 export const createRunSchema = z
 	.object({
+		...presentationFields,
 		title: z.string().trim().min(1).max(160),
 		durationMinutes: z.number().int().min(15).max(240).default(90),
 		modelId: z.string().min(1).max(200),
@@ -19,12 +33,19 @@ export const createRunSchema = z
 export const patchRunSchema = z
 	.object({
 		title: z.string().trim().min(1).max(160).optional(),
-		endsAt: z.iso.datetime().optional()
+		endsAt: z.iso.datetime().optional(),
+		instructions: z.string().trim().max(4000).optional(),
+		settingsRevision: z.number().int().min(1).optional()
 	})
 	.strict()
 	.refine(
-		(value) => value.title !== undefined || value.endsAt !== undefined,
+		(value) =>
+			value.title !== undefined || value.endsAt !== undefined || value.instructions !== undefined,
 		'Indica un título o una nueva hora de fin.'
+	)
+	.refine(
+		(value) => (value.instructions === undefined) === (value.settingsRevision === undefined),
+		'Las instrucciones requieren la revisión actual de la configuración.'
 	);
 // Gemini through OpenRouter can reject maxItems in structured output schemas.
 // Custom refinements retain the server-side limits without sending that keyword.
@@ -80,6 +101,32 @@ export function normalizeTitle(title: string): string {
 		.toLowerCase()
 		.replace(/[^\p{L}\p{N}]+/gu, ' ')
 		.trim();
+}
+
+/** Prioritize evidence for explicitly named topics/intents; never change their classification. */
+export function prioritizeSynthesisTopics(
+	topics: RadarTopicView[],
+	instructions: string
+): RadarTopicView[] {
+	const words = new Set(
+		normalizeTitle(instructions)
+			.split(' ')
+			.filter((word) => word.length > 3)
+	);
+	const score = (topic: RadarTopicView) => {
+		const terms = new Set(
+			normalizeTitle(
+				`${topic.title} ${topic.description} ${Object.keys(topic.intents)
+					.map((intent) => radarIntentLabels[intent as keyof typeof radarIntentLabels])
+					.join(' ')}`
+			).split(' ')
+		);
+		return [...words].filter((word) => terms.has(word)).length;
+	};
+	return topics
+		.map((topic, index) => ({ topic, index, score: score(topic) }))
+		.sort((a, b) => b.score - a.score || a.index - b.index)
+		.map(({ topic }) => topic);
 }
 export function isInternal(text: string | null): boolean {
 	return /^\[\[.*\]\]$/s.test((text ?? '').trim());

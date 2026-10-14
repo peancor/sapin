@@ -88,6 +88,15 @@ El planificador continúa sin navegador, usa arrendamientos persistentes y está
 durante build y pruebas. Los borrados de usuarios, intentos y chats invalidan interpretaciones
 dependientes y eliminan sus evidencias. Consulta el [piloto del radar](radar-pilot.md).
 
+Las instrucciones docentes del radar afectan exclusivamente a la síntesis y sus sugerencias;
+la extracción mantiene sus categorías y reglas. Cada seguimiento conserva una copia de la
+configuración y una revisión; cambiar instrucciones solicita una síntesis sin reclasificar.
+La publicación comprueba la revisión además del bloqueo y la versión de evidencias. Mientras
+se actualiza, se conserva el resultado previo con su procedencia; un resultado obsoleto no
+sobrescribe la configuración nueva. Las configuraciones reutilizables pertenecen al curso,
+sin vínculo mutable con seguimientos ya creados. Las vistas lista, barras y nube comparten
+agregados; las preferencias visuales se guardan localmente por usuario y curso.
+
 ## HTML, traducciones y build
 
 [SafeHtml](../src/lib/components/SafeHtml.svelte) sanitiza el HTML final después de renderizar

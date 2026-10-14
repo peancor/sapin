@@ -11,6 +11,7 @@ import {
 	interactiveLearning,
 	message,
 	radarAnalysis,
+	radarPreset,
 	radarObservation,
 	radarObservationTopic,
 	radarRun,
@@ -24,7 +25,10 @@ import type {
 	RadarHistory,
 	RadarRunView,
 	RadarSnapshot,
-	RadarWindow
+	RadarWindow,
+	RadarView,
+	RadarMetric,
+	RadarPreset
 } from '$lib/types/radar';
 import {
 	aggregateTopics,
@@ -61,6 +65,15 @@ export function runView(run: Run): RadarRunView {
 		modelId: run.modelId,
 		modelName: run.modelName,
 		context: run.context,
+		instructions: run.instructions,
+		settingsRevision: run.settingsRevision,
+		summarySettingsRevision: run.summarySettingsRevision,
+		summaryInstructions: run.summaryInstructions,
+		settingsUpdatedBy: run.settingsUpdatedBy,
+		settingsUpdatedAt: run.settingsUpdatedAt?.toISOString() ?? null,
+		initialView: run.initialView,
+		initialMetric: run.initialMetric,
+		synthesisCoverage: run.synthesisCoverage,
 		error: run.error,
 		summary: run.summary,
 		publishedVersion: run.publishedVersion,
@@ -87,6 +100,9 @@ function invalidateRuns(tx: RadarTransaction, ids: string[]) {
 	tx.update(radarRun)
 		.set({
 			summary: null,
+			summarySettingsRevision: null,
+			summaryInstructions: null,
+			synthesisCoverage: null,
 			analyzedAt: null,
 			synthesisPending: true,
 			analysisState: 'pending',
@@ -113,6 +129,53 @@ export class RadarRepository {
 	constructor(database: RadarDatabase, now: () => Date = () => new Date()) {
 		this.database = database;
 		this.now = now;
+	}
+	view(run: Run): RadarRunView {
+		const editor = run.settingsUpdatedBy
+			? this.database
+					.select({ name: user.displayName })
+					.from(user)
+					.where(eq(user.id, run.settingsUpdatedBy))
+					.get()
+			: undefined;
+		return { ...runView(run), settingsUpdatedBy: editor?.name ?? null };
+	}
+	presets(courseId: string): RadarPreset[] {
+		return this.database
+			.select()
+			.from(radarPreset)
+			.where(eq(radarPreset.courseId, courseId))
+			.orderBy(radarPreset.name, radarPreset.id)
+			.all();
+	}
+	createPreset(courseId: string, input: Omit<RadarPreset, 'id'>): RadarPreset {
+		return this.database.transaction(
+			(tx) => {
+				const count = tx
+					.select({ count: sql<number>`count(*)` })
+					.from(radarPreset)
+					.where(eq(radarPreset.courseId, courseId))
+					.get()!.count;
+				if (count >= 100)
+					throw new RadarError(
+						400,
+						'El curso admite hasta cien configuraciones. Elimina alguna antes de guardar otra.'
+					);
+				return tx
+					.insert(radarPreset)
+					.values({ ...input, id: nanoid(), courseId, createdAt: this.now() })
+					.returning()
+					.get();
+			},
+			{ behavior: 'immediate' }
+		);
+	}
+	deletePreset(courseId: string, id: string) {
+		const result = this.database
+			.delete(radarPreset)
+			.where(and(eq(radarPreset.id, id), eq(radarPreset.courseId, courseId)))
+			.run();
+		if (!result.changes) throw new RadarError(404, 'Configuración no encontrada en este curso.');
 	}
 	activity(courseId: string, activityId: string) {
 		const row = this.database
@@ -177,8 +240,8 @@ export class RadarRepository {
 			.offset(offset)
 			.all();
 		return {
-			active: active ? runView(active) : null,
-			runs: runs.slice(0, 20).map(runView),
+			active: active ? this.view(active) : null,
+			runs: runs.slice(0, 20).map((run) => this.view(run)),
 			nextOffset: runs.length > 20 ? offset + 20 : null
 		};
 	}
@@ -186,7 +249,15 @@ export class RadarRepository {
 		courseId: string,
 		activityId: string,
 		creatorId: string,
-		input: { title: string; durationMinutes: number; modelId: string; context?: string }
+		input: {
+			title: string;
+			durationMinutes: number;
+			modelId: string;
+			context?: string;
+			instructions?: string;
+			initialView?: RadarView;
+			initialMetric?: RadarMetric;
+		}
 	): Run {
 		const activity = this.activity(courseId, activityId);
 		this.closeExpired();
@@ -221,6 +292,11 @@ export class RadarRepository {
 						modelId: model.id,
 						modelName: model.displayName,
 						context: input.context || null,
+						instructions: input.instructions ?? '',
+						initialView: input.initialView ?? 'list',
+						initialMetric: input.initialMetric ?? 'students',
+						settingsUpdatedBy: creatorId,
+						settingsUpdatedAt: start,
 						startsAt: start,
 						endsAt: new Date(+start + input.durationMinutes * 60000),
 						nextAnalysisAt: start
@@ -231,9 +307,15 @@ export class RadarRepository {
 			{ behavior: 'immediate' }
 		);
 	}
-	patch(id: string, input: { title?: string; endsAt?: string }): Run {
+	patch(
+		id: string,
+		input: { title?: string; endsAt?: string; instructions?: string; settingsRevision?: number },
+		editorId?: string
+	): Run {
 		this.closeExpired();
 		const run = this.get(id);
+		if (input.instructions !== undefined && input.settingsRevision !== run.settingsRevision)
+			throw new RadarError(409, 'La configuración ha cambiado. Actualiza antes de editarla.');
 		if (run.state !== 'active') throw new RadarError(409, 'El seguimiento ya está cerrado.');
 		const end = input.endsAt ? new Date(input.endsAt) : run.endsAt;
 		if (+end < +run.endsAt || +end > +run.startsAt + 240 * 60000 || +end <= +this.now())
@@ -242,10 +324,28 @@ export class RadarRepository {
 			.update(radarRun)
 			.set({
 				...(input.title ? { title: input.title } : {}),
-				...(input.endsAt ? { endsAt: end } : {})
+				...(input.endsAt ? { endsAt: end } : {}),
+				...(input.instructions !== undefined && input.instructions !== run.instructions
+					? {
+							instructions: input.instructions,
+							settingsRevision: run.settingsRevision + 1,
+							settingsUpdatedBy: editorId ?? null,
+							settingsUpdatedAt: this.now(),
+							synthesisPending: true,
+							analysisState: 'pending' as const,
+							error: null,
+							nextAnalysisAt: this.now(),
+							publishedVersion: sql`${radarRun.publishedVersion} + 1`
+						}
+					: {})
 			})
 			.where(
-				and(eq(radarRun.id, id), eq(radarRun.state, 'active'), eq(radarRun.endsAt, run.endsAt))
+				and(
+					eq(radarRun.id, id),
+					eq(radarRun.state, 'active'),
+					eq(radarRun.endsAt, run.endsAt),
+					eq(radarRun.settingsRevision, run.settingsRevision)
+				)
 			)
 			.returning()
 			.get();
@@ -459,7 +559,7 @@ export class RadarRepository {
 			.get()!;
 		const model = this.database.select().from(aiModel).where(eq(aiModel.id, run.modelId)).get();
 		return {
-			run: runView(run),
+			run: this.view(run),
 			window,
 			serverTime: this.now().toISOString(),
 			statistics: statistics(rows, run.startsAt, endpoint),
@@ -669,12 +769,20 @@ export class RadarRepository {
 				.run();
 		});
 	}
-	publishSynthesis(run: Run, owner: string, result: Synthesis, allowed: Map<string, Set<string>>) {
+	publishSynthesis(
+		run: Run,
+		owner: string,
+		result: Synthesis,
+		allowed: Map<string, Set<string>>,
+		coverage = { includedTopics: allowed.size, totalTopics: allowed.size }
+	) {
 		for (const c of result.clarifications)
 			if (!allowed.has(c.topicId) || c.evidenceIds.some((id) => !allowed.get(c.topicId)!.has(id)))
 				throw new Error('Respuesta incompatible: aclaración sin evidencias válidas.');
 		this.database.transaction((tx) => {
-			this.fenced(tx, run, owner);
+			const current = this.fenced(tx, run, owner);
+			if (current.settingsRevision !== run.settingsRevision)
+				throw new Error('El seguimiento cambió de instrucciones durante la síntesis.');
 			tx.update(radarTopic)
 				.set({ suggestion: null, suggestionEvidence: null })
 				.where(eq(radarTopic.runId, run.id))
@@ -687,6 +795,9 @@ export class RadarRepository {
 			tx.update(radarRun)
 				.set({
 					summary: result.summary,
+					summarySettingsRevision: run.settingsRevision,
+					summaryInstructions: run.instructions,
+					synthesisCoverage: coverage,
 					synthesisPending: false,
 					analyzedAt: this.now(),
 					publishedVersion: sql`${radarRun.publishedVersion} + 1`
