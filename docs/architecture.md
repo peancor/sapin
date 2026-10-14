@@ -38,6 +38,17 @@ valida los argumentos con el mismo conversor de esquemas antes de invocar el han
 [ToolExecutor](../src/lib/server/agent/ToolExecutor.ts) resuelve la herramienta habilitada
 y propaga el contexto. El manifiesto y el tipo de entrada del handler deben mantenerse alineados.
 
+La herramienta opcional [get_session_learning_signals](../src/lib/server/agent/tools/getSessionLearningSignals/manifest.ts)
+consulta las métricas de entrada ya guardadas en los mensajes del alumno de la conversación
+actual. Comprueba la relación conversación-usuario-actividad y ofrece el último mensaje,
+los últimos mensajes (máximo 50) o los acumulados de la sesión. Distingue datos desconocidos
+de ceros y devuelve cobertura por métrica; excluye disparadores internos y datos del dispositivo.
+Los tiempos incluyen pausas y los pegados cuentan eventos, sin identificar contenido u origen.
+Se habilita desde el selector de herramientas de la actividad, cuyo catálogo sincroniza los
+builtin. El prompt de la actividad decide cuándo consultarla y cómo actuar: no se inyectan
+resúmenes automáticos ni se impone una política pedagógica. La herramienta no amplía la
+captura del cliente ni observa borradores antes de su envío.
+
 La confirmación humana y las respuestas UI son pasos persistidos del flujo. Una llamada
 pertenece a un mensaje y una conversación: su identificador no basta para autorizarla.
 Las pruebas de confirmación con calculadora ejercitan el endpoint real, incluida la

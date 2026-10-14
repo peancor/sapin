@@ -27,6 +27,7 @@ export { getLearningProgressTimelinePackage } from './getLearningProgressTimelin
 export { getRubricCoverageGapsPackage } from './getRubricCoverageGaps';
 export { getStudentAttemptHistoryPackage } from './getStudentAttemptHistory';
 export { getStudentProgressPackage } from './getStudentProgress';
+export { getSessionLearningSignalsPackage } from './getSessionLearningSignals';
 export { getTeacherInterventionQueuePackage } from './getTeacherInterventionQueue';
 export { measureResponseDepthPackage } from './measureResponseDepth';
 export { recommendNextActivityPackage } from './recommendNextActivity';

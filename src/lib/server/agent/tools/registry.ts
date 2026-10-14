@@ -29,6 +29,7 @@ import {
 	getRubricCoverageGapsPackage,
 	getStudentAttemptHistoryPackage,
 	getStudentProgressPackage,
+	getSessionLearningSignalsPackage,
 	getTeacherInterventionQueuePackage,
 	measureResponseDepthPackage,
 	recommendNextActivityPackage,
@@ -62,6 +63,7 @@ import {
 const ALL_TOOL_PACKAGES: BuiltinToolPackage[] = [
 	searchCourseContentPackage,
 	getStudentProgressPackage,
+	getSessionLearningSignalsPackage,
 	calculateExpressionPackage,
 	getCourseStudentRosterPackage,
 	getActivityNonStartersPackage,
