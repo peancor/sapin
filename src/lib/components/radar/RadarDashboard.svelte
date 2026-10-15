@@ -567,7 +567,7 @@
 	});
 </script>
 
-<svelte:head><title>Radar de dudas · {data.interactive.name}</title></svelte:head>
+<svelte:head><title>Radar de la actividad · {data.interactive.name}</title></svelte:head>
 
 <svelte:window
 	onkeydown={(event) => {
@@ -581,11 +581,11 @@
 			<p
 				class="text-primary-700 dark:text-primary-400 mb-2 flex items-center gap-2 text-xs font-semibold tracking-widest uppercase"
 			>
-				<MessageSquare class="h-4 w-4" /> Durante la clase
+				<MessageSquare class="h-4 w-4" /> Antes y durante la clase
 			</p>
-			<h1 class="text-3xl font-bold tracking-tight">Radar de dudas</h1>
+			<h1 class="text-3xl font-bold tracking-tight">Radar de la actividad</h1>
 			<p class="mt-2 max-w-2xl text-sm leading-6 text-gray-500 dark:text-gray-400">
-				Las preguntas del alumnado, reunidas para orientar tu explicación.
+				Consultas, participación y análisis para orientar la clase.
 			</p>
 		</div>
 		<div class="flex flex-wrap gap-2">

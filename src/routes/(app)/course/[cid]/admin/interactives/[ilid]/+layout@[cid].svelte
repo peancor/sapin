@@ -99,7 +99,7 @@
 			? [
 					{
 						id: 'radar',
-						label: 'Radar de dudas',
+						label: 'Radar de la actividad',
 						href: resolve(`/course/${cid}/admin/interactives/${ilid}/radar`),
 						icon: MessageSquare
 					}
