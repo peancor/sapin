@@ -1,4 +1,7 @@
 <script lang="ts">
+	import AgentToolActivity from '$lib/components/agent/AgentToolActivity.svelte';
+	import { addToolCall, addToolInterface, confirmedToolCall } from '$lib/utils/agentToolActivity';
+	import type { ToolConfirmationOutcome } from '$lib/types/agent';
 	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import 'katex/dist/katex.min.css';
@@ -40,7 +43,7 @@
 	let chatContainer: HTMLDivElement | undefined = $state();
 	let textarea: HTMLTextAreaElement | undefined = $state();
 	let eventSource: EventSource | null = null;
-	let currentAssistantMsgId = '';
+	let currentAssistantMsgId = $state('');
 	let uiResponseOverrides = $state<Record<string, Record<string, unknown>>>({});
 	let activeImmersiveUI = $state<ActiveImmersiveUI | null>(null);
 	let immersiveCanCloseSafely = $state(true);
@@ -205,6 +208,18 @@
 				hitlRiskLevel = part.riskLevel;
 				hitlConfirmationMessage = part.confirmationMessage;
 				hitlOpen = true;
+				messages = messages.map((message) =>
+					message.id !== targetAssistantMsgId
+						? message
+						: {
+								...message,
+								parts: message.parts.map((call) =>
+									call.kind === 'tool-call' && call.toolCallId === hitlToolCallId
+										? { ...call, status: 'awaiting_confirmation' }
+										: call
+								)
+							}
+				);
 				return;
 			}
 
@@ -228,7 +243,7 @@
 						break;
 					case 'tool-call-start':
 						currentTextPartIndex = -1;
-						parts.push({
+						addToolCall(parts, {
 							kind: 'tool-call',
 							toolCallId: part.toolCallId,
 							toolName: part.toolName,
@@ -262,7 +277,7 @@
 									...previous,
 									status: part.status,
 									result: part.result,
-									displayResult: part.displayResult,
+									displayResult: part.displayResult ?? part.errorMessage,
 									durationMs: part.durationMs
 								};
 							}
@@ -271,8 +286,9 @@
 					}
 					case 'ui-component':
 						currentTextPartIndex = -1;
-						parts.push({
+						addToolInterface(parts, {
 							kind: 'ui-component',
+							toolCallId: part.toolCallId,
 							instanceId: part.instanceId,
 							componentKey: part.componentKey,
 							props: part.props,
@@ -302,8 +318,21 @@
 		});
 	}
 
-	function handleHitlConfirm(toolCallId: string) {
+	function handleHitlConfirm(toolCallId: string, outcome: ToolConfirmationOutcome) {
 		hitlOpen = false;
+		isLoading = true;
+		messages = messages.map((message) =>
+			message.id !== currentAssistantMsgId
+				? message
+				: {
+						...message,
+						parts: message.parts.map((call) =>
+							call.kind === 'tool-call' && call.toolCallId === toolCallId
+								? confirmedToolCall(call, outcome)
+								: call
+						)
+					}
+		);
 		const resumeUrl = new URL(apiEndpoint, window.location.origin);
 		resumeUrl.searchParams.set('resume', 'true');
 		resumeUrl.searchParams.set('toolCallId', toolCallId);
@@ -384,24 +413,6 @@
 							>
 								<SafeHtml html={renderMarkdown(part.content)} />
 							</div>
-						{:else if part.kind === 'tool-call'}
-							<div
-								class="mt-2 overflow-hidden rounded-lg border border-blue-200 bg-blue-50 text-xs dark:border-blue-800 dark:bg-blue-950"
-							>
-								<div
-									class="flex items-center gap-2 px-3 py-2 font-medium text-blue-700 dark:text-blue-300"
-								>
-									<span>{part.toolDisplayName}</span>
-									{#if part.durationMs}
-										<span class="ml-auto font-normal opacity-60">{part.durationMs}ms</span>
-									{/if}
-								</div>
-								{#if part.displayResult}
-									<div class="border-t border-current/10 px-3 py-2 opacity-80">
-										{part.displayResult}
-									</div>
-								{/if}
-							</div>
 						{:else if part.kind === 'ui-component'}
 							{@const effectiveUserResponse = getEffectiveUserResponse(part)}
 							<UIComponentRenderer
@@ -418,6 +429,10 @@
 							/>
 						{/if}
 					{/each}
+					<AgentToolActivity
+						parts={message.parts}
+						running={isLoading && message.id === currentAssistantMsgId}
+					/>
 
 					{#if message.role === 'assistant' && isLoading && message === messages[messages.length - 1] && message.parts.length === 0}
 						<div class="flex items-center gap-1 py-1">

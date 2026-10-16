@@ -54,6 +54,18 @@ pertenece a un mensaje y una conversación: su identificador no basta para autor
 Las pruebas de confirmación con calculadora ejercitan el endpoint real, incluida la
 repetición de llamadas y el rechazo de llamadas de otra conversación.
 
+Los chats de agente y de lección presentan las llamadas en un resumen plegado por mensaje;
+los errores, rechazos y resultados destinados al usuario permanecen visibles. El evento SSE
+`ui-component` incluye `toolCallId` para asociar la interfaz con su llamada, también en
+ejecuciones paralelas, y evitar una tarjeta redundante. Es un campo opcional para conservar
+compatibilidad: sin él, solo se asocia mediante un resultado `rendered` con el mismo
+`instanceId`. El historial sigue omitiendo las llamadas que generaron interfaces y la revisión
+docente mantiene su presentación detallada. Estos criterios visuales no alteran la persistencia,
+los permisos ni el estado de ejecución del servidor.
+Los endpoints de confirmación devuelven también `status` (`completed` o `failed`)
+junto con el resultado: autorizar una acción no implica que su ejecución haya tenido éxito.
+El diálogo transmite ese resultado al chat antes de reanudar la conversación.
+
 ## Lecciones, revisiones y progreso
 
 [LessonRevisionService](../src/lib/server/lesson/LessonRevisionService.ts),

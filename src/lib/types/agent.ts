@@ -58,6 +58,7 @@ export interface ToolConfirmRequiredPart {
 
 export interface UIComponentPart {
 	type: 'ui-component';
+	toolCallId?: string;
 	instanceId: string;
 	componentKey: string;
 	props: Record<string, unknown>;
@@ -160,6 +161,12 @@ export interface ToolResult {
 }
 
 // ─── Mensajes Cliente → Servidor ───
+
+export interface ToolConfirmationOutcome {
+	status?: 'completed' | 'failed';
+	result?: unknown;
+	displayText?: string;
+}
 
 export interface ToolConfirmationRequest {
 	toolCallId: string;
@@ -281,6 +288,7 @@ export type AgentDisplayPart =
 	  }
 	| {
 			kind: 'ui-component';
+			toolCallId?: string;
 			instanceId: string;
 			componentKey: string;
 			props: Record<string, unknown>;

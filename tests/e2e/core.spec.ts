@@ -97,7 +97,11 @@ test('real tool confirmation enforces chat scope, executes once and records reje
 	expect(foreign.status()).toBe(404);
 	const approved = await send('approve-call', true);
 	expect(approved.status()).toBe(200);
-	expect(await approved.json()).toMatchObject({ success: true, result: { result: 5 } });
+	expect(await approved.json()).toMatchObject({
+		success: true,
+		status: 'completed',
+		result: { result: 5 }
+	});
 	expect((await send('approve-call', true)).status()).toBe(409);
 	const rejected = await send('reject-call', false);
 	expect(await rejected.json()).toMatchObject({ success: true, rejected: true });

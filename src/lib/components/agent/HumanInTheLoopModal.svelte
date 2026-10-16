@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { ToolConfirmationOutcome } from '$lib/types/agent';
 	import { ShieldAlert, ShieldCheck, Shield, AlertTriangle, X } from 'lucide-svelte';
 
 	interface Props {
@@ -10,7 +11,7 @@
 		riskLevel: 'low' | 'medium' | 'high';
 		confirmationMessage: string;
 		apiBase: string;
-		onConfirm?: (toolCallId: string) => void;
+		onConfirm?: (toolCallId: string, outcome: ToolConfirmationOutcome) => void;
 		onReject?: (toolCallId: string) => void;
 		onError?: (message: string) => void;
 	}
@@ -44,8 +45,9 @@
 				onError?.(`Error al autorizar: ${res.status} ${text}`);
 				return;
 			}
+			const outcome: ToolConfirmationOutcome = await res.json();
 			isOpen = false;
-			onConfirm?.(toolCallId);
+			onConfirm?.(toolCallId, outcome);
 		} catch (err) {
 			onError?.(`Error de red: ${err instanceof Error ? err.message : String(err)}`);
 		} finally {

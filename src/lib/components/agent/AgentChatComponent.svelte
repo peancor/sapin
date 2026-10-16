@@ -1,4 +1,7 @@
 <script lang="ts">
+	import AgentToolActivity from '$lib/components/agent/AgentToolActivity.svelte';
+	import { addToolCall, addToolInterface, confirmedToolCall } from '$lib/utils/agentToolActivity';
+	import type { ToolConfirmationOutcome } from '$lib/types/agent';
 	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { resolve } from '$app/paths';
@@ -447,7 +450,7 @@
 	}
 
 	// ─── SSE stream (reusable for initial send + HITL resume) ───
-	let currentAssistantMsgId = '';
+	let currentAssistantMsgId = $state('');
 
 	function startStream(url: string, assistantMsgId?: string) {
 		// Use the stored assistantMsgId on resume if not provided
@@ -494,6 +497,18 @@
 				hitlRiskLevel = p.riskLevel;
 				hitlConfirmationMessage = p.confirmationMessage;
 				hitlOpen = true;
+				messages = messages.map((message) =>
+					message.id !== targetMsgId
+						? message
+						: {
+								...message,
+								parts: message.parts.map((call) =>
+									call.kind === 'tool-call' && call.toolCallId === hitlToolCallId
+										? { ...call, status: 'awaiting_confirmation' }
+										: call
+								)
+							}
+				);
 				// Stream closes on its own after this event; no further SSE events expected
 				return;
 			}
@@ -519,7 +534,7 @@
 
 					case 'tool-call-start': {
 						currentTextPartIndex = -1; // próximo text es nuevo bloque
-						parts.push({
+						addToolCall(parts, {
 							kind: 'tool-call',
 							toolCallId: part.toolCallId,
 							toolName: part.toolName,
@@ -545,8 +560,9 @@
 
 					case 'ui-component': {
 						currentTextPartIndex = -1;
-						parts.push({
+						addToolInterface(parts, {
 							kind: 'ui-component',
+							toolCallId: part.toolCallId,
 							instanceId: part.instanceId,
 							componentKey: part.componentKey,
 							props: part.props,
@@ -570,7 +586,7 @@
 									args: prev.args,
 									status: part.status,
 									result: part.result,
-									displayResult: part.displayResult,
+									displayResult: part.displayResult ?? part.errorMessage,
 									durationMs: part.durationMs
 								};
 							}
@@ -607,8 +623,21 @@
 	}
 
 	// ─── HITL handlers ───
-	function handleHitlConfirm(toolCallId: string) {
+	function handleHitlConfirm(toolCallId: string, outcome: ToolConfirmationOutcome) {
 		hitlOpen = false;
+		isLoading = true;
+		messages = messages.map((message) =>
+			message.id !== currentAssistantMsgId
+				? message
+				: {
+						...message,
+						parts: message.parts.map((call) =>
+							call.kind === 'tool-call' && call.toolCallId === toolCallId
+								? confirmedToolCall(call, outcome)
+								: call
+						)
+					}
+		);
 		// Re-open the SSE stream in resume mode to get the agent's follow-up
 		const resumeUrl = new URL(apiEndpoint, window.location.origin);
 		resumeUrl.searchParams.set('resume', 'true');
@@ -720,74 +749,6 @@
 								attachment={part}
 								variant={msg.role === 'user' ? 'chat-user' : 'chat-assistant'}
 							/>
-						{:else if part.kind === 'tool-call'}
-							<!-- Bloque de Tool Call -->
-							<div
-								class="mt-2 rounded-lg border
-                                {part.status === 'completed'
-									? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'
-									: part.status === 'failed'
-										? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950'
-										: 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950'}
-                                overflow-hidden text-xs"
-							>
-								<!-- Header de la herramienta -->
-								<div
-									class="flex items-center gap-2 px-3 py-2 font-medium
-                                    {part.status === 'completed'
-										? 'text-green-700 dark:text-green-300'
-										: part.status === 'failed'
-											? 'text-red-700 dark:text-red-300'
-											: 'text-blue-700 dark:text-blue-300'}"
-								>
-									{#if part.status === 'executing'}
-										<svg class="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
-											<circle
-												class="opacity-25"
-												cx="12"
-												cy="12"
-												r="10"
-												stroke="currentColor"
-												stroke-width="4"
-											/>
-											<path
-												class="opacity-75"
-												fill="currentColor"
-												d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-											/>
-										</svg>
-									{:else if part.status === 'completed'}
-										<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M5 13l4 4L19 7"
-											/>
-										</svg>
-									{:else if part.status === 'failed'}
-										<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M6 18L18 6M6 6l12 12"
-											/>
-										</svg>
-									{/if}
-									<span>{part.toolDisplayName}</span>
-									{#if part.durationMs}
-										<span class="ml-auto font-normal opacity-60">{part.durationMs}ms</span>
-									{/if}
-								</div>
-
-								<!-- Resultado (si hay) -->
-								{#if part.displayResult}
-									<div class="border-t border-current/10 px-3 py-2 opacity-80">
-										{part.displayResult}
-									</div>
-								{/if}
-							</div>
 						{:else if part.kind === 'ui-component'}
 							{@const effectiveUserResponse = getEffectiveUserResponse(part)}
 							<UIComponentRenderer
@@ -804,6 +765,10 @@
 							/>
 						{/if}
 					{/each}
+					<AgentToolActivity
+						parts={msg.parts}
+						running={isLoading && msg.id === currentAssistantMsgId}
+					/>
 
 					<!-- Loading indicator para el último mensaje del assistant -->
 					{#if msg.role === 'assistant' && isLoading && msg === messages[messages.length - 1] && msg.parts.length === 0}

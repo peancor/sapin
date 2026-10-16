@@ -244,6 +244,7 @@ export class AgentStreamProcessor {
 					if (isUISentinel(toolOutput)) {
 						yield {
 							type: 'ui-component',
+							toolCallId,
 							instanceId: toolOutput.instanceId,
 							componentKey: toolOutput.componentKey,
 							props: toolOutput.props,

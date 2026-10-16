@@ -20,5 +20,21 @@
 	"allRightsReserved": "All rights reserved",
 	"privacyPolicy": "Privacy Policy",
 	"cookiePolicy": "Cookie Policy",
-	"attributions": "Attributions"
+	"attributions": "Attributions",
+	"agent_activity_summary": "Agent activity · {count} actions",
+	"agent_activity_one": "Agent activity · 1 action",
+	"agent_activity_executing": "Running: {name}…",
+	"agent_activity_parallel": "Running tools · {count} in progress",
+	"agent_activity_failures": "{count} actions · {failed} failed",
+	"agent_activity_completed": "Completed",
+	"agent_activity_failed": "Failed",
+	"agent_activity_rejected": "Action not authorized",
+	"agent_activity_confirmation": "Awaiting authorization",
+	"agent_activity_response": "Waiting for your response",
+	"agent_activity_interrupted": "Activity interrupted",
+	"agent_activity_running": "Running",
+	"agent_activity_error": "The action could not be completed.",
+	"agent_activity_finalized": "Activity finished.",
+	"agent_activity_one_failure": "{count} actions · 1 failed",
+	"agent_activity_single_failure": "1 action · 1 failed"
 }

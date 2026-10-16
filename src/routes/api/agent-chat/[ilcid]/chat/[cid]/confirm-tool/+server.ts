@@ -193,6 +193,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
 	return json({
 		success: true,
+		status: execResult.success ? 'completed' : 'failed',
 		result: resultData,
 		displayText: execResult.displayText
 	});

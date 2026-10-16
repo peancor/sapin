@@ -21,5 +21,21 @@
 	"allRightsReserved": "Todos los derechos reservados",
 	"privacyPolicy": "Política de Privacidad",
 	"cookiePolicy": "Política de Cookies",
-	"attributions": "Atribuciones"
+	"attributions": "Atribuciones",
+	"agent_activity_summary": "Actividad del agente · {count} acciones",
+	"agent_activity_one": "Actividad del agente · 1 acción",
+	"agent_activity_executing": "Ejecutando: {name}…",
+	"agent_activity_parallel": "Ejecutando herramientas · {count} en curso",
+	"agent_activity_failures": "{count} acciones · {failed} fallidas",
+	"agent_activity_completed": "Completada",
+	"agent_activity_failed": "Fallida",
+	"agent_activity_rejected": "Acción no autorizada",
+	"agent_activity_confirmation": "Pendiente de autorización",
+	"agent_activity_response": "Esperando tu respuesta",
+	"agent_activity_interrupted": "Actividad interrumpida",
+	"agent_activity_running": "En ejecución",
+	"agent_activity_error": "No se pudo completar la acción.",
+	"agent_activity_finalized": "Actividad finalizada.",
+	"agent_activity_one_failure": "{count} acciones · 1 fallida",
+	"agent_activity_single_failure": "1 acción · 1 fallida"
 }

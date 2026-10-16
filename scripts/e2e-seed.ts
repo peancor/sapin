@@ -191,6 +191,73 @@ try {
 		.set({ publishedRevisionId: 'revision' })
 		.where(eq(s.interactiveLearningLesson.id, 'lesson'))
 		.run();
+	// Separate lesson fixture for the shared agent runtime; never invokes a provider.
+	const toolLessonDefinition = JSON.stringify({
+		version: '2',
+		entryBlockId: 'tutor',
+		blocks: [
+			{
+				id: 'tutor',
+				kind: 'agent',
+				title: 'Tutor de herramientas',
+				body: 'Prueba de actividad',
+				next: 'end',
+				agentConfig: {
+					runtimeMode: 'agent',
+					interactionMode: 'multi_turn',
+					executionTrigger: 'on_user_submit',
+					autoStartOnEnter: false,
+					promptTemplate: 'Contenido ficticio'
+				}
+			},
+			{ id: 'end', kind: 'end', title: 'Fin', body: 'Fin de la prueba' }
+		]
+	});
+	f.database
+		.insert(s.interactiveLearning)
+		.values({
+			id: 'tool-lesson',
+			name: 'Lección de herramientas',
+			slug: 'tool-lesson',
+			type: 'lesson',
+			content: toolLessonDefinition,
+			status: 'published',
+			createdAt: now,
+			updatedAt: now
+		})
+		.run();
+	f.database
+		.insert(s.courseInteractiveLearning)
+		.values({
+			id: 'tool-lesson',
+			courseId: 'course',
+			interactiveLearningId: 'tool-lesson',
+			order: 2,
+			createdAt: now
+		})
+		.run();
+	f.database
+		.insert(s.interactiveLearningLesson)
+		.values({ id: 'tool-lesson', createdAt: now, updatedAt: now })
+		.run();
+	f.database
+		.insert(s.interactiveLearningLessonRevision)
+		.values({
+			id: 'tool-revision',
+			interactiveLearningId: 'tool-lesson',
+			revisionNumber: 1,
+			status: 'published',
+			definitionJson: toolLessonDefinition,
+			publishedAt: now,
+			createdAt: now,
+			updatedAt: now
+		})
+		.run();
+	f.database
+		.update(s.interactiveLearningLesson)
+		.set({ publishedRevisionId: 'tool-revision' })
+		.where(eq(s.interactiveLearningLesson.id, 'tool-lesson'))
+		.run();
 	f.database
 		.insert(s.interactiveLearningAgent)
 		.values({ id: 'agent', createdAt: now, finalizationEnabled: false })
@@ -254,6 +321,35 @@ try {
 				toolDefinitionId: 'calculator',
 				arguments: JSON.stringify({ expression: '2+3' }),
 				status: 'awaiting_confirmation',
+				createdAt: now
+			})
+			.run();
+	}
+	// Persisted results exercise reload without sending a model request.
+	f.database
+		.insert(s.agentMessage)
+		.values({
+			id: 'tool-history',
+			chatId: 'agent-chat',
+			role: 'assistant',
+			textContent: 'Historial de herramientas ficticio',
+			createdAt: now
+		})
+		.run();
+	for (const [id, status, result] of [
+		['history-success', 'completed', {}],
+		['history-failure', 'failed', { error: 'Error histórico ficticio' }],
+		['history-finalized', 'completed', { finalized: true }]
+	] as const) {
+		f.database
+			.insert(s.agentToolCall)
+			.values({
+				id,
+				messageId: 'tool-history',
+				toolName: id,
+				arguments: '{}',
+				status,
+				result: JSON.stringify(result),
 				createdAt: now
 			})
 			.run();
