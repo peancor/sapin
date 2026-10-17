@@ -20,6 +20,11 @@ asignaciones a una fila por persona mediante `distinctCourseStudents`. Esta vist
 modifica las asignaciones ni el contrato de `getCourseUsers`. Dar de baja a una persona
 desactiva todos sus roles activos de estudiante en ese curso y conserva sus otros roles.
 
+Las exportaciones de estudiantes de ambas pantallas usan el mismo
+[contrato CSV](student-csv.md), con `externalId` separado del identificador interno.
+La importación conserva el formato antiguo de Moodle, valida conflictos entre correo
+e identidad externa e inscribe sin sobrescribir identidades existentes.
+
 ## Modelos y ejecución agéntica
 
 [AIUtils](../src/lib/server/ai/AIUtils.ts) centraliza generación, cuotas y registro de uso.

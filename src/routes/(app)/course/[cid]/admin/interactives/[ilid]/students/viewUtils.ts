@@ -2,13 +2,12 @@ import type { LessonReviewAttemptSummary } from '$lib/types/lessonReview';
 import { saveBlobAs, type SaveBlobResult } from '$lib/utils/browserFileSave';
 
 export type StudentsBadgeColor = 'gray' | 'green' | 'red' | 'yellow';
-export type CsvCell = string | number | boolean | null | undefined;
+import { buildCsvContent } from '$lib/utils/csv';
+import type { CsvCell } from '$lib/utils/csv';
+export { buildCsvContent, escapeCsvCell, CSV_BOM } from '$lib/utils/csv';
+export type { CsvCell } from '$lib/utils/csv';
 export type ActivityStudentsCsvKind = 'chat' | 'agent' | 'lesson';
 
-export const CSV_BOM = '\uFEFF';
-
-const CSV_SEPARATOR = ';';
-const CSV_LINE_ENDING = '\r\n';
 const csvStudentCollator = new Intl.Collator('es', {
 	sensitivity: 'base',
 	numeric: true
@@ -43,26 +42,6 @@ export function formatDate(
 		hour: '2-digit',
 		minute: '2-digit'
 	});
-}
-
-function normalizeCsvCell(cell: CsvCell): string {
-	return cell == null ? '' : String(cell).replace(/\r\n|\r|\n/g, '\n');
-}
-
-export function escapeCsvCell(cell: CsvCell): string {
-	const value = normalizeCsvCell(cell);
-
-	if (!/[";\n]/.test(value)) {
-		return value;
-	}
-
-	return `"${value.replace(/"/g, '""')}"`;
-}
-
-export function buildCsvContent(rows: CsvCell[][]): string {
-	return `${CSV_BOM}${rows
-		.map((row) => row.map((cell) => escapeCsvCell(cell)).join(CSV_SEPARATOR))
-		.join(CSV_LINE_ENDING)}`;
 }
 
 function formatFilenameDate(date: Date): string {

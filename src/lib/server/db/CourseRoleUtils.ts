@@ -279,7 +279,8 @@ async function getCourseUsers(courseId: string) {
 			username: user.username,
 			email: user.email,
 			image: user.image,
-			alias: user.alias
+			alias: user.alias,
+			externalId: user.externalId
 		})
 		.from(courseRole)
 		.innerJoin(user, eq(courseRole.userId, user.id))

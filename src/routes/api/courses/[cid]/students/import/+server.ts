@@ -1,15 +1,15 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { parse } from 'csv-parse/sync';
+import {
+	parseStudentCsv,
+	resolveStudentCsvUser,
+	StudentCsvError
+} from '$lib/server/students/studentCsvImport';
+import { db } from '$lib/server/db';
+import { user, course } from '$lib/server/db/schema';
+import { eq } from 'drizzle-orm';
+import { ROLE_LEVELS } from '$lib/server/roles';
 import { DBUserUtils, CourseRoleUtils } from '$lib/server/db';
-
-interface CsvRecord {
-	id: string;
-	email: string;
-	firstname: string;
-	lastname: string;
-	fullname: string;
-}
 
 /**
  * Detecta si el contenido parece ser UTF-8 válido.
@@ -43,7 +43,7 @@ function sanitizeCsvContent(buffer: ArrayBuffer): string {
 		encoding = 'utf-8';
 	} else if ((bytes[0] === 0xfe && bytes[1] === 0xff) || (bytes[0] === 0xff && bytes[1] === 0xfe)) {
 		// UTF-16 BOM (BE o LE) - no soportado
-		throw new Error('El archivo parece estar en UTF-16. Por favor, guárdelo como UTF-8.');
+		throw new StudentCsvError('El archivo parece estar en UTF-16. Por favor, guárdelo como UTF-8.');
 	} else {
 		// Sin BOM - detectar codificación
 		if (!isValidUtf8(bytes)) {
@@ -76,17 +76,22 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 	}
 
 	// Verificar permisos de gestión de estudiantes en el curso
-	const hasPermission = await CourseRoleUtils.userHasCoursePermission(
-		locals.user.id,
-		params.cid!,
-		'manageUsers'
-	);
+	const hasPermission =
+		locals.user.highestRoleLevel >= ROLE_LEVELS.ADMIN ||
+		(await CourseRoleUtils.userHasCoursePermission(locals.user.id, params.cid!, 'manageUsers'));
 	if (!hasPermission) {
 		return json(
 			{ error: 'No tienes permisos para importar estudiantes en este curso' },
 			{ status: 403 }
 		);
 	}
+
+	const [targetCourse] = await db
+		.select({ id: course.id })
+		.from(course)
+		.where(eq(course.id, params.cid!))
+		.limit(1);
+	if (!targetCourse) return json({ error: 'Curso no encontrado' }, { status: 404 });
 
 	try {
 		const formData = await request.formData();
@@ -100,78 +105,28 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 		// Leer como ArrayBuffer para poder detectar BOM y sanitizar
 		const buffer = await file.arrayBuffer();
 		const text = sanitizeCsvContent(buffer);
-		const records = parse(text, {
-			columns: true,
-			skip_empty_lines: true,
-			trim: true
-		});
-
-		// Validar que el CSV no esté vacío
-		if (records.length === 0) {
-			return json(
-				{
-					error: 'Empty CSV',
-					message:
-						'El archivo CSV está vacío. Por favor, proporciona un archivo con al menos una fila de datos.'
-				},
-				{ status: 400 }
-			);
-		}
-
-		// Validar headers requeridos
-		const requiredHeaders = ['id', 'email', 'firstname', 'lastname', 'fullname'];
-		const firstRecord = records[0] as Record<string, unknown>;
-		const csvHeaders = Object.keys(firstRecord);
-		const missingHeaders = requiredHeaders.filter((header) => !csvHeaders.includes(header));
-
-		if (missingHeaders.length > 0) {
-			return json(
-				{
-					error: 'Invalid CSV format',
-					message: `El archivo CSV no contiene las columnas requeridas. Faltan: ${missingHeaders.join(', ')}. Se esperan: ${requiredHeaders.join(', ')}`
-				},
-				{ status: 400 }
-			);
-		}
+		const records = parseStudentCsv(text);
 
 		const results = [];
 		for (let index = 0; index < records.length; index++) {
-			const record = records[index] as CsvRecord;
+			const record = records[index];
 			const rowNumber = index + 2; // +1 para filas (row 1 es header), +1 para offset 0-based
-			const { id: externalId, email, firstname, lastname, fullname } = record as CsvRecord;
+			const { externalId, email, firstname, fullname } = record;
 
 			try {
-				// Validar que los campos requeridos no estén vacíos
-				const missingFields = [];
-				if (!externalId || String(externalId).trim() === '') missingFields.push('id');
-				if (!email || String(email).trim() === '') missingFields.push('email');
-				if (!firstname || String(firstname).trim() === '') missingFields.push('firstname');
-				if (!lastname || String(lastname).trim() === '') missingFields.push('lastname');
-				if (!fullname || String(fullname).trim() === '') missingFields.push('fullname');
-
-				if (missingFields.length > 0) {
-					results.push({
-						rowNumber,
-						email: email || 'N/A',
-						status: 'error',
-						message: `Campos requeridos vacíos: ${missingFields.join(', ')}`
-					});
-					continue;
-				}
-
-				// Validar formato de email
-				const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-				if (!emailRegex.test(String(email).trim())) {
-					results.push({
-						rowNumber,
-						email,
-						status: 'error',
-						message: 'Email inválido'
-					});
-					continue;
-				}
-
-				let userId = await DBUserUtils.existsUserWithExternalId(String(externalId).trim());
+				const [byEmail] = await db
+					.select({ id: user.id, email: user.email, externalId: user.externalId })
+					.from(user)
+					.where(eq(user.email, email))
+					.limit(1);
+				const [byExternalId] = externalId
+					? await db
+							.select({ id: user.id, email: user.email, externalId: user.externalId })
+							.from(user)
+							.where(eq(user.externalId, externalId))
+							.limit(1)
+					: [];
+				let userId = resolveStudentCsvUser(record, byExternalId ?? null, byEmail ?? null);
 				if (!userId) {
 					// Register user if they don't exist
 					userId = await DBUserUtils.registerUserFromEmailAndExternalId(
@@ -179,18 +134,27 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 						String(externalId).trim(),
 						String(fullname).trim(),
 						String(firstname).trim(),
-						String(lastname).trim()
+						''
 					);
 				}
 
 				// Enroll user in the course usando el nuevo sistema de roles
-				await CourseRoleUtils.assignCourseRole(courseId, userId, 'student');
+				const alreadyEnrolled = await CourseRoleUtils.userHasCourseRole(
+					userId,
+					courseId,
+					'student'
+				);
+				if (!alreadyEnrolled) {
+					const enrollment = await CourseRoleUtils.assignCourseRole(courseId, userId, 'student');
+					if (!enrollment.success)
+						throw new Error(enrollment.error || 'No se pudo inscribir al estudiante');
+				}
 
 				results.push({
 					rowNumber,
 					email,
 					status: 'success',
-					message: 'Importado exitosamente'
+					message: alreadyEnrolled ? 'Ya estaba inscrito en el curso' : 'Importado exitosamente'
 				});
 			} catch (error) {
 				results.push({
@@ -209,6 +173,8 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 			successCount: results.filter((r) => r.status === 'success').length
 		});
 	} catch (error) {
+		if (error instanceof StudentCsvError)
+			return json({ error: 'Invalid CSV format', message: error.message }, { status: 400 });
 		console.error('Error processing CSV import:', error);
 		return json(
 			{

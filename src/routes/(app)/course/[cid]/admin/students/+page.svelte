@@ -1,4 +1,6 @@
 <script lang="ts">
+	import StudentCsvHelp from '$lib/components/StudentCsvHelp.svelte';
+	import { buildStudentCsv } from '$lib/utils/studentCsv';
 	import type { PageData } from './$types';
 	import {
 		Button,
@@ -436,19 +438,7 @@
 			(student) => selectedStudents.length === 0 || selectedStudents.includes(student.id)
 		);
 
-		// Create CSV content
-		const headers = ['ID', 'Nombre de usuario', 'Email', 'ID Externo'];
-		const csvContent = [
-			headers.join(','),
-			...studentsToExport.map((student) =>
-				[
-					student.id,
-					student.username || '',
-					student.email
-					// student.externalId || ''
-				].join(',')
-			)
-		].join('\n');
+		const csvContent = buildStudentCsv(studentsToExport);
 
 		// Create download link and trigger download
 		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -656,11 +646,7 @@
 			</div>
 		{/if}
 
-		<p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-			Sube un archivo CSV con las siguientes columnas: <strong
-				>id, email, firstname, lastname, fullname</strong
-			>
-		</p>
+		<StudentCsvHelp />
 
 		<div class="space-y-4">
 			{#if isImporting}
@@ -689,8 +675,8 @@
 					<p class="mb-2 font-semibold">Requisitos del CSV:</p>
 					<ul class="list-inside list-disc space-y-1">
 						<li>Codificación: UTF-8 (recomendado) o Windows-1252</li>
-						<li>Separador: coma (,)</li>
-						<li>Columnas requeridas: id, email, firstname, lastname, fullname</li>
+						<li>Separador: coma (,) o punto y coma (;)</li>
+						<li>Columnas: externalId, email, fullname; firstname es opcional</li>
 						<li>Email debe ser válido (ejemplo@dominio.com)</li>
 					</ul>
 				</div>

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import StudentCsvHelp from '$lib/components/StudentCsvHelp.svelte';
+	import { buildStudentCsv } from '$lib/utils/studentCsv';
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
@@ -229,13 +231,7 @@
 				? data.students.filter((s) => selectedStudents.includes(s.id))
 				: data.students;
 
-		const headers = ['ID', 'Username', 'Email'];
-		const csvContent = [
-			headers.join(','),
-			...studentsToExport.map((student) =>
-				[student.id, student.username || '', student.email || ''].join(',')
-			)
-		].join('\n');
+		const csvContent = buildStudentCsv(studentsToExport);
 
 		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
 		const url = URL.createObjectURL(blob);
@@ -539,10 +535,7 @@
 			</div>
 		{/if}
 
-		<p class="text-sm text-gray-600 dark:text-gray-400">
-			Sube un archivo CSV con las columnas: <strong>id, email, firstname, lastname, fullname</strong
-			>
-		</p>
+		<StudentCsvHelp />
 
 		{#if isImporting}
 			<div class="flex flex-col items-center justify-center py-8">
@@ -564,8 +557,8 @@
 				<p class="mb-2 font-semibold">Requisitos del CSV:</p>
 				<ul class="list-inside list-disc space-y-1">
 					<li>Codificación: UTF-8 o Windows-1252</li>
-					<li>Separador: coma (,)</li>
-					<li>Columnas requeridas: id, email, firstname, lastname, fullname</li>
+					<li>Separador: coma (,) o punto y coma (;)</li>
+					<li>Columnas: externalId, email, fullname; firstname es opcional</li>
 					<li>Email debe ser válido</li>
 				</ul>
 			</div>

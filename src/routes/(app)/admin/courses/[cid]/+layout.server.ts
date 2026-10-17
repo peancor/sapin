@@ -93,6 +93,8 @@ export const load = (async ({ locals, params }) => {
 			assignmentId: u.assignmentId,
 			id: u.userId,
 			username: u.username,
+			alias: u.alias,
+			externalId: u.externalId,
 			email: u.email,
 			image: u.image
 		}));

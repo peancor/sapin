@@ -22,6 +22,12 @@ try {
 			updatedAt: now
 		})
 		.run();
+	for (const id of ['csv-source', 'csv-target']) {
+		f.database
+			.insert(s.course)
+			.values({ id, name: id, slug: id, status: 'published', createdAt: now, updatedAt: now })
+			.run();
+	}
 	// Multiple active assignments for the same course, including a repeated role.
 	// The inactive assignment must never appear in the course lists.
 	for (const [id, role, isActive] of [

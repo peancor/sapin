@@ -46,6 +46,8 @@ export const load = (async ({ params }) => {
 		visitorId: u.userId,
 		userId: u.userId,
 		username: u.username,
+		alias: u.alias,
+		externalId: u.externalId,
 		email: u.email,
 		image: u.image
 	}));
