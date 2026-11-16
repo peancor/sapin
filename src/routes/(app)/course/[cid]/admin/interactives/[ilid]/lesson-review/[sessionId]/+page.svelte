@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import {
@@ -419,8 +420,7 @@
 								<div
 									class="prose prose-sm dark:prose-invert mt-2 max-w-none text-slate-700 dark:text-slate-200"
 								>
-									<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-									{@html renderRichText(visit.contentSummary)}
+									<SafeHtml html={renderRichText(visit.contentSummary)} />
 								</div>
 							{/if}
 
@@ -506,8 +506,7 @@
 										<div
 											class="prose prose-sm dark:prose-invert mt-3 max-w-none text-slate-700 dark:text-slate-200"
 										>
-											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-											{@html renderRichText(visit.check.feedback)}
+											<SafeHtml html={renderRichText(visit.check.feedback)} />
 										</div>
 									{/if}
 								</div>
@@ -560,8 +559,7 @@
 													<div
 														class="prose prose-sm dark:prose-invert mt-2 max-w-none text-slate-700 dark:text-slate-200"
 													>
-														<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-														{@html renderRichText(transcriptMessage.content)}
+														<SafeHtml html={renderRichText(transcriptMessage.content)} />
 													</div>
 												</div>
 											{/each}

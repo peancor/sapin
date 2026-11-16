@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { onMount, tick } from 'svelte';
 	import {
 		Button,
@@ -868,8 +869,7 @@
 										>
 											{#if message.role === 'assistant'}
 												<div class="prose prose-sm dark:prose-invert max-w-none">
-													<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-													{@html marked(message.content)}
+													<SafeHtml html={marked.parse(message.content, { async: false })} />
 												</div>
 											{:else}
 												<p class="whitespace-pre-wrap">{message.content}</p>

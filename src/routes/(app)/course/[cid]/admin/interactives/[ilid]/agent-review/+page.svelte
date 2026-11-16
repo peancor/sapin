@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -578,8 +579,7 @@
 											<div
 												class="prose prose-sm dark:prose-invert mt-1 line-clamp-2 max-w-none break-words text-slate-700 dark:text-slate-200 [&_p]:my-0 [&_ul]:my-1"
 											>
-												<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-												{@html renderRichText(getSessionSummaryText(session))}
+												<SafeHtml html={renderRichText(getSessionSummaryText(session))} />
 											</div>
 										</div>
 									</div>
@@ -694,8 +694,7 @@
 												<div
 													class="prose prose-sm dark:prose-invert mt-2 max-h-24 max-w-none overflow-hidden break-words text-slate-700 dark:text-slate-200"
 												>
-													<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-													{@html renderRichText(getSessionSummaryText(session))}
+													<SafeHtml html={renderRichText(getSessionSummaryText(session))} />
 												</div>
 											</div>
 										</div>
@@ -873,8 +872,7 @@
 										<div
 											class="prose prose-sm dark:prose-invert mt-2 max-w-none break-words text-slate-700 dark:text-slate-200"
 										>
-											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-											{@html renderRichText(session.finalization.payload.summary)}
+											<SafeHtml html={renderRichText(session.finalization.payload.summary)} />
 										</div>
 
 										{#if session.finalization.payload.feedback}
@@ -887,8 +885,7 @@
 												<div
 													class="prose prose-sm dark:prose-invert mt-2 max-w-none break-words text-slate-600 dark:text-slate-300"
 												>
-													<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-													{@html renderRichText(session.finalization.payload.feedback)}
+													<SafeHtml html={renderRichText(session.finalization.payload.feedback)} />
 												</div>
 											</div>
 										{/if}
@@ -905,8 +902,9 @@
 														<div
 															class="prose prose-sm dark:prose-invert mt-1 max-w-none font-medium break-words text-slate-800 dark:text-slate-100"
 														>
-															<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-															{@html renderRichText(session.finalization.payload.result)}
+															<SafeHtml
+																html={renderRichText(session.finalization.payload.result)}
+															/>
 														</div>
 													</div>
 												{/if}
@@ -934,10 +932,11 @@
 										<div
 											class="prose prose-sm dark:prose-invert mt-2 max-w-none break-words text-slate-700 dark:text-slate-200"
 										>
-											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-											{@html renderRichText(
-												session.previewText || 'Sin contenido textual util registrado.'
-											)}
+											<SafeHtml
+												html={renderRichText(
+													session.previewText || 'Sin contenido textual util registrado.'
+												)}
+											/>
 										</div>
 
 										{#if session.latestText}
@@ -950,8 +949,7 @@
 												<div
 													class="prose prose-sm dark:prose-invert mt-2 max-w-none break-words text-slate-600 dark:text-slate-300"
 												>
-													<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-													{@html renderRichText(session.latestText)}
+													<SafeHtml html={renderRichText(session.latestText)} />
 												</div>
 											</div>
 										{/if}

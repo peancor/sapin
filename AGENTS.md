@@ -49,6 +49,8 @@ Las versiones y comandos disponibles se consultan en [package.json](package.json
 - El HTML dinámico de chats, informes, lecciones y ejercicios pasa por
   `src/lib/components/SafeHtml.svelte`, que sanitiza el resultado final también en SSR.
   No insertes HTML sin limpiar ni añadas excepciones de ESLint para omitir esa protección.
+  `renderMarkdownMath`, `marked` y KaTeX generan HTML pero no lo sanitizan: pasa su salida
+  por `SafeHtml` (`<SafeHtml html={renderMarkdownMath(texto)} />`), nunca por `{@html}`.
 - Mantén la compatibilidad de Markdown, fórmulas y contenido guardado al modificar renderizadores.
 - No edites a mano `src/lib/paraglide/`, `.svelte-kit/`, `build/` ni `node_modules/`.
   Modifica sus fuentes o generadores.
