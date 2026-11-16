@@ -161,7 +161,7 @@ export const actions = {
 		}
 
 		const now = new Date();
-		let successCount = 0;
+		let successCount: number;
 
 		try {
 			// Inserción directa en batch para mejor rendimiento

@@ -82,7 +82,8 @@ export async function parseDocx(buffer: ArrayBuffer): Promise<string> {
 		return result.value;
 	} catch (error) {
 		throw new Error(
-			`Error parsing DOCX file: ${error instanceof Error ? error.message : 'Unknown error'}`
+			`Error parsing DOCX file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+			{ cause: error }
 		);
 	}
 }
@@ -104,7 +105,8 @@ export async function parsePdf(buffer: ArrayBuffer): Promise<string> {
 		return result.text;
 	} catch (error) {
 		throw new Error(
-			`Error parsing PDF file: ${error instanceof Error ? error.message : 'Unknown error'}`
+			`Error parsing PDF file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+			{ cause: error }
 		);
 	}
 }

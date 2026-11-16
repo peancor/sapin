@@ -599,7 +599,7 @@ export class LessonPackageService {
 			exportedId: string;
 			record: Omit<InteractiveLearningFile, 'createdAt'> & { createdAt: Date };
 		}> = [];
-		let importedRevisionCount = 0;
+		let importedRevisionCount: number;
 
 		try {
 			for (const resource of manifest.resources) {

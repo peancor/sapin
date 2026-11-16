@@ -47,7 +47,7 @@ export class InsightsAgentMessageService {
 
 			if (message.role === 'assistant') {
 				for (const toolCall of toolCallsMap.get(message.id) ?? []) {
-					let args: Record<string, unknown> = {};
+					let args: Record<string, unknown>;
 					let result: unknown;
 
 					try {

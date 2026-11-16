@@ -910,7 +910,7 @@
 			const predictedExitAtMs = currentTimeTrial.visibleDurationMs + currentTimeTrial.occlusionMs;
 			const startX = width * 0.12;
 			const endX = width * 0.86;
-			let x = startX;
+			let x: number;
 			let visible = true;
 			if (currentElapsedMs < currentTimeTrial.visibleDurationMs) {
 				x = lerp(startX, tunnelStart, currentElapsedMs / currentTimeTrial.visibleDurationMs);

@@ -69,7 +69,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 
 	const configRecord = await DBInsightsAgentUtils.getOrCreateConfig(ilid);
 	const enabledTools = await DBInsightsAgentUtils.getEnabledToolsForActivity(ilid);
-	let parsedScope: Record<string, unknown> | null = null;
+	let parsedScope: Record<string, unknown> | null;
 	try {
 		parsedScope = run.scope ? (JSON.parse(run.scope) as Record<string, unknown>) : null;
 	} catch {

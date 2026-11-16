@@ -1332,7 +1332,7 @@
 		const edgeId = getEdgeIdFromConnection(connection);
 		if (!edgeId) return false;
 
-		let previousTargetId: string | null = null;
+		let previousTargetId: string | null;
 
 		if (sourceBlock.kind === 'choice') {
 			if (!connection.sourceHandle?.startsWith('out:choice:')) return false;

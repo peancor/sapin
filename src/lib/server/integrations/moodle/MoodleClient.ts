@@ -125,7 +125,7 @@ export class MoodleClient {
 			return data as T;
 		} catch (error) {
 			if (error instanceof Error && error.name === 'AbortError') {
-				throw new Error('La solicitud a Moodle excedió el tiempo límite');
+				throw new Error('La solicitud a Moodle excedió el tiempo límite', { cause: error });
 			}
 			throw error;
 		} finally {

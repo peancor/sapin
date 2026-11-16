@@ -2353,7 +2353,7 @@ export class LessonService {
 			totalQuestions > 0
 				? questionResults.reduce((sum, result) => sum + result.score, 0) / totalQuestions
 				: 0;
-		let feedback = '';
+		let feedback: string;
 		const passed = score >= config.passingScore;
 		const isCorrect = correctCount === totalQuestions;
 		const exhausted =

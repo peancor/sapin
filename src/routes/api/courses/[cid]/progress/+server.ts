@@ -73,7 +73,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 		)
 		.get();
 
-	let progressEventType: 'started' | 'progressed' | 'completed' = 'progressed';
+	let progressEventType: 'started' | 'progressed' | 'completed';
 
 	if (existingProgress) {
 		if (status === 'completed') {

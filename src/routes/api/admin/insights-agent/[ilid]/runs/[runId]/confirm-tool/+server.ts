@@ -82,7 +82,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 	const config = await DBInsightsAgentUtils.getOrCreateConfig(params.ilid);
 	const enabledTools = await DBInsightsAgentUtils.getEnabledToolsForActivity(params.ilid);
 
-	let toolArgs: Record<string, unknown> = {};
+	let toolArgs: Record<string, unknown>;
 	try {
 		toolArgs = JSON.parse(toolCall.arguments) as Record<string, unknown>;
 	} catch {
