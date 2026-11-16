@@ -314,6 +314,8 @@
 									name="smtpHost"
 									type="text"
 									placeholder="smtp.gmail.com"
+									autocomplete="off"
+									spellcheck="false"
 									bind:value={emailFormValues.smtpHost}
 								/>
 							</div>
@@ -347,6 +349,12 @@
 									name="smtpUser"
 									type="text"
 									placeholder="usuario@dominio.com"
+									autocomplete="off"
+									spellcheck="false"
+									autocapitalize="none"
+									data-1p-ignore
+									data-lpignore="true"
+									data-bwignore
 									bind:value={emailFormValues.smtpUser}
 								/>
 							</div>
@@ -357,6 +365,10 @@
 									name="smtpPass"
 									type="password"
 									placeholder="••••••••"
+									autocomplete="new-password"
+									data-1p-ignore
+									data-lpignore="true"
+									data-bwignore
 									bind:value={emailFormValues.smtpPass}
 								/>
 							</div>
@@ -382,6 +394,8 @@
 									name="fromEmail"
 									type="email"
 									placeholder="noreply@tudominio.com"
+									autocomplete="off"
+									spellcheck="false"
 									bind:value={emailFormValues.fromEmail}
 								/>
 							</div>
@@ -445,6 +459,9 @@
 							name="testEmail"
 							type="email"
 							placeholder="email@prueba.com"
+							aria-label="Email de prueba"
+							autocomplete="off"
+							spellcheck="false"
 							bind:value={testEmail}
 							class="flex-1"
 						/>

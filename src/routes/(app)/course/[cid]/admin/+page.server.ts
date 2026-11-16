@@ -11,7 +11,7 @@ import {
 	chat,
 	message
 } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import { auditService, auditAction } from '$lib/server/logging';
 import { getCourseLearningAnalytics } from '$lib/server/db/LearningAnalyticsUtils';
@@ -62,6 +62,19 @@ export const actions = {
 		const interactiveId = data.get('id')?.toString();
 
 		if (!interactiveId) throw error(400, 'Interactive ID is required');
+
+		// Solo se pueden borrar actividades vinculadas a este curso
+		const [link] = await db
+			.select({ id: courseInteractiveLearning.interactiveLearningId })
+			.from(courseInteractiveLearning)
+			.where(
+				and(
+					eq(courseInteractiveLearning.courseId, params.cid),
+					eq(courseInteractiveLearning.interactiveLearningId, interactiveId)
+				)
+			)
+			.limit(1);
+		if (!link) throw error(404, 'La actividad no pertenece a este curso');
 
 		// Obtener nombre de la actividad antes de eliminarla (para el audit log)
 		const [activityData] = await db

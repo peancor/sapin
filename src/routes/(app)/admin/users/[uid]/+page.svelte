@@ -94,7 +94,7 @@
 					</h2>
 					<div class="flex flex-wrap gap-1">
 						{#if data.roles && data.roles.length > 0}
-							{#each data.roles.sort((a, b) => b.level - a.level) as r (r.id)}
+							{#each data.roles.toSorted((a, b) => b.level - a.level) as r (r.id)}
 								<Badge color={getRoleBadgeColorByLevel(r.level)} class="font-medium">
 									{r.displayName}
 								</Badge>
@@ -141,7 +141,7 @@
 					<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Roles</p>
 					{#if data.roles && data.roles.length > 0}
 						<div class="mt-1 flex flex-wrap gap-1">
-							{#each data.roles.sort((a, b) => b.level - a.level) as r (r.id)}
+							{#each data.roles.toSorted((a, b) => b.level - a.level) as r (r.id)}
 								<Badge color={getRoleBadgeColorByLevel(r.level)} class="text-xs">
 									{r.displayName}
 								</Badge>

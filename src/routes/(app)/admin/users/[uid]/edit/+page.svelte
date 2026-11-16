@@ -136,6 +136,11 @@
 					<Input
 						type="email"
 						name="email"
+						autocomplete="off"
+						spellcheck="false"
+						data-1p-ignore
+						data-lpignore="true"
+						data-bwignore
 						value={data.user.email}
 						placeholder="usuario@ejemplo.com"
 						required
@@ -155,6 +160,12 @@
 					<Input
 						type="text"
 						name="username"
+						autocomplete="off"
+						spellcheck="false"
+						autocapitalize="none"
+						data-1p-ignore
+						data-lpignore="true"
+						data-bwignore
 						value={data.user.username || ''}
 						placeholder="Nombre de usuario"
 						class="ps-10"
@@ -170,7 +181,13 @@
 						<Lock class="h-4 w-4" />
 						Nueva contraseña
 					</span>
-					<Input type="password" name="password" placeholder="••••••••" class="ps-10">
+					<Input
+						type="password"
+						name="password"
+						placeholder="••••••••"
+						autocomplete="new-password"
+						class="ps-10"
+					>
 						{#snippet left()}
 							<Lock class="h-5 w-5 text-gray-400" />
 						{/snippet}
@@ -292,7 +309,7 @@
 				{/if}
 
 				<div class="space-y-3">
-					{#each data.availableRoles.sort((a, b) => b.level - a.level) as role (role.id)}
+					{#each data.availableRoles.toSorted((a, b) => b.level - a.level) as role (role.id)}
 						<div
 							class="flex items-center justify-between rounded-lg border p-4 transition-colors {selectedRoleIds.includes(
 								role.id

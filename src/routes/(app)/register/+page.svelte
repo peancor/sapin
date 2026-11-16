@@ -125,6 +125,9 @@
 						id="inviteCode"
 						type="text"
 						name="inviteCode"
+						autocomplete="off"
+						spellcheck="false"
+						autocapitalize="none"
 						bind:value={inviteCodeValue}
 						required
 						placeholder="XXXX-XXXX-XXXX-XXXX"
@@ -143,6 +146,8 @@
 						id="email"
 						type="email"
 						name="email"
+						autocomplete="username"
+						spellcheck="false"
 						required
 						class="w-full rounded-lg border border-gray-300 bg-white p-3
                                text-gray-900 transition-colors focus:border-transparent focus:ring-2
@@ -159,6 +164,7 @@
 						id="password"
 						type="password"
 						name="password"
+						autocomplete="new-password"
 						required
 						minlength="6"
 						class="w-full rounded-lg border border-gray-300 bg-white p-3

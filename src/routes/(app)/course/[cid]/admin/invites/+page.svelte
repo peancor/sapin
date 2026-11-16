@@ -298,6 +298,8 @@
 							type="email"
 							id="email"
 							name="email"
+							autocomplete="off"
+							spellcheck="false"
 							bind:value={email}
 							placeholder="usuario@ejemplo.com"
 						/>

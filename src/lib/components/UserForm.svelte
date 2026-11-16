@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import { Modal, Button, Label, Input, Select, Helper, Badge } from 'flowbite-svelte';
-	import { UserPlus, Mail, User, Lock, Shield } from 'lucide-svelte';
+	import { Modal, Button, Label, Input, Helper, Badge } from 'flowbite-svelte';
+	import { UserPlus, Mail, User, Lock, Shield, Eye, EyeOff } from 'lucide-svelte';
 
 	interface RoleOption {
 		id: string;
@@ -12,27 +13,51 @@
 		description?: string | null;
 	}
 
+	type Field = 'email' | 'username' | 'password' | 'roleId';
+
 	interface Props {
 		show: boolean;
-		onClose: () => void;
 		availableRoles?: RoleOption[];
+		onCreated?: (message: string) => void;
 	}
 
-	let { show = $bindable(false), onClose, availableRoles = [] }: Props = $props();
+	let { show = $bindable(false), availableRoles = [], onCreated }: Props = $props();
 
+	const uid = $props.id();
+	const ids = {
+		title: `${uid}-title`,
+		description: `${uid}-description`,
+		email: `${uid}-email`,
+		username: `${uid}-username`,
+		password: `${uid}-password`,
+		passwordHelp: `${uid}-password-help`,
+		roles: `${uid}-roles`,
+		error: `${uid}-error`,
+		discard: `${uid}-discard`
+	};
+
+	const MIN_PASSWORD_LENGTH = 8;
+
+	let formEl = $state<HTMLFormElement | null>(null);
 	let error = $state('');
+	let errorField = $state<Field | null>(null);
 	let loading = $state(false);
+	let dirty = $state(false);
+	let confirmDiscard = $state(false);
+	let showPassword = $state(false);
+	// Valores controlados: un re-render (p. ej. al marcar un error) no debe vaciar los campos
+	let values = $state({ email: '', username: '', password: '' });
 	let selectedRoleId = $state('');
 
-	// Roles legacy para fallback si no hay roles del nuevo sistema
-	const legacyRoles = [
-		{ value: 'student', name: 'Estudiante' },
-		{ value: 'teacher', name: 'Profesor' },
-		{ value: 'admin', name: 'Administrador' }
-	];
-
-	// Usar roles del nuevo sistema si están disponibles
-	const hasNewRoles = $derived(availableRoles && availableRoles.length > 0);
+	const sortedRoles = $derived(availableRoles.toSorted((a, b) => b.level - a.level));
+	// Preselecciona el rol de menor nivel (normalmente estudiante) para evitar
+	// crear cuentas con privilegios por descuido.
+	const defaultRoleId = $derived(
+		sortedRoles.find((r) => r.name === 'student')?.id ?? sortedRoles.at(-1)?.id ?? ''
+	);
+	const effectiveRoleId = $derived(
+		sortedRoles.some((r) => r.id === selectedRoleId) ? selectedRoleId : defaultRoleId
+	);
 
 	function getRoleBadgeColor(level: number): 'red' | 'purple' | 'blue' | 'yellow' | 'green' {
 		if (level >= 100) return 'red';
@@ -42,156 +67,332 @@
 		return 'green';
 	}
 
-	function handleClose() {
+	function resetState() {
 		error = '';
+		errorField = null;
+		loading = false;
+		dirty = false;
+		confirmDiscard = false;
+		showPassword = false;
+		values = { email: '', username: '', password: '' };
 		selectedRoleId = '';
+	}
+
+	function close() {
+		resetState();
 		show = false;
-		onClose();
+	}
+
+	// Esc, el botón de cierre y "Cancelar" pasan por aquí. Si hay datos escritos se pide
+	// confirmación: así un Esc para cerrar el desplegable de autocompletado o un clic
+	// accidental no hace desaparecer el formulario.
+	function handleCancel(event: Event) {
+		if (loading) {
+			event.preventDefault();
+			return;
+		}
+		if (dirty && !confirmDiscard) {
+			event.preventDefault();
+			confirmDiscard = true;
+			return;
+		}
+		resetState();
+	}
+
+	function requestCancel() {
+		if (confirmDiscard) {
+			confirmDiscard = false;
+			return;
+		}
+		const event = new Event('cancel', { cancelable: true });
+		handleCancel(event);
+		if (!event.defaultPrevented) close();
+	}
+
+	async function focusField(field: Field | null) {
+		await tick();
+		if (!formEl) return;
+		const target =
+			field === 'roleId'
+				? (formEl.querySelector<HTMLInputElement>('input[name="roleId"]:checked') ??
+					formEl.querySelector<HTMLInputElement>('input[name="roleId"]'))
+				: field
+					? formEl.querySelector<HTMLInputElement>(`[name="${field}"]`)
+					: formEl.querySelector<HTMLElement>(`#${CSS.escape(ids.error)}`);
+		target?.focus();
+	}
+
+	function invalidProps(field: Field) {
+		return errorField === field
+			? { 'aria-invalid': 'true' as const, 'aria-errormessage': ids.error }
+			: {};
 	}
 </script>
 
-<Modal bind:open={show} size="md" dismissable outsideclose class="backdrop:bg-gray-900/50">
+<Modal
+	bind:open={show}
+	size="md"
+	outsideclose={false}
+	oncancel={handleCancel}
+	aria-labelledby={ids.title}
+	aria-describedby={ids.description}
+	class="backdrop:bg-gray-900/50"
+>
 	{#snippet header()}
 		<div class="flex items-center gap-3">
 			<div
-				class="bg-primary-100 dark:bg-primary-900 flex h-10 w-10 items-center justify-center rounded-full"
+				class="bg-primary-100 dark:bg-primary-900 flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+				aria-hidden="true"
 			>
 				<UserPlus class="text-primary-600 dark:text-primary-400 h-5 w-5" />
 			</div>
 			<div>
-				<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Añadir nuevo usuario</h3>
-				<p class="text-sm text-gray-500 dark:text-gray-400">
-					Complete los campos para crear una cuenta
+				<h2 id={ids.title} class="text-lg font-semibold text-gray-900 dark:text-white">
+					Añadir nuevo usuario
+				</h2>
+				<p id={ids.description} class="text-sm text-gray-500 dark:text-gray-400">
+					La cuenta se crea para otra persona; no uses tus propias credenciales.
 				</p>
 			</div>
 		</div>
 	{/snippet}
 
 	<form
+		bind:this={formEl}
 		method="POST"
 		action="?/addUser"
+		autocomplete="off"
+		aria-labelledby={ids.title}
+		class="space-y-5"
+		oninput={() => {
+			dirty = true;
+			confirmDiscard = false;
+			if (errorField) errorField = null;
+		}}
 		use:enhance={() => {
 			loading = true;
 			error = '';
+			errorField = null;
+			confirmDiscard = false;
 			return async ({ result }) => {
 				loading = false;
 				if (result.type === 'success') {
+					const message =
+						(result.data as { message?: string } | undefined)?.message ??
+						'Usuario creado correctamente.';
+					close();
 					await invalidateAll();
-					handleClose();
+					onCreated?.(message);
 				} else if (result.type === 'failure') {
-					error = (result.data as { message?: string })?.message || 'Error al crear usuario';
+					const data = result.data as { message?: string; field?: Field } | undefined;
+					error = data?.message ?? 'No se pudo crear el usuario.';
+					errorField = data?.field ?? null;
+					focusField(errorField);
+				} else if (result.type === 'error') {
+					error = 'No tienes permisos o la sesión ha caducado. Recarga la página.';
+					focusField(null);
 				}
 			};
 		}}
-		class="space-y-5"
 	>
-		{#if error}
-			<div
-				class="rounded-lg bg-red-50 p-4 text-sm text-red-800 dark:bg-red-900/50 dark:text-red-400"
-			>
-				{error}
-			</div>
-		{/if}
+		<div
+			id={ids.error}
+			role="alert"
+			tabindex="-1"
+			class="rounded-lg bg-red-50 p-4 text-sm text-red-800 dark:bg-red-900/50 dark:text-red-300"
+			hidden={!error}
+		>
+			{error}
+		</div>
 
 		<div class="space-y-4">
-			<Label class="space-y-2">
-				<span>Correo electrónico</span>
-				<Input type="email" name="email" placeholder="usuario@ejemplo.com" required class="ps-10">
-					{#snippet left()}
-						<Mail class="h-5 w-5 text-gray-500 dark:text-gray-400" />
-					{/snippet}
-				</Input>
-			</Label>
-
-			<Label class="space-y-2">
-				<span>Nombre de usuario</span>
-				<Input type="text" name="username" placeholder="Nombre de usuario" required class="ps-10">
-					{#snippet left()}
-						<User class="h-5 w-5 text-gray-500 dark:text-gray-400" />
-					{/snippet}
-				</Input>
-			</Label>
-
-			<Label class="space-y-2">
-				<span>Contraseña</span>
-				<Input type="password" name="password" placeholder="••••••••" required class="ps-10">
-					{#snippet left()}
-						<Lock class="h-5 w-5 text-gray-500 dark:text-gray-400" />
-					{/snippet}
-				</Input>
-				<Helper class="text-xs">Mínimo 8 caracteres recomendados</Helper>
-			</Label>
-
-			<!-- Selección de rol -->
 			<div class="space-y-2">
-				<Label>
-					<span class="flex items-center gap-2">
-						<Shield class="h-4 w-4 text-gray-500" />
-						Rol del usuario
-					</span>
-				</Label>
+				<Label for={ids.email}>Correo electrónico <span aria-hidden="true">*</span></Label>
+				<Input
+					id={ids.email}
+					type="email"
+					name="email"
+					bind:value={values.email}
+					placeholder="usuario@ejemplo.com…"
+					required
+					maxlength={255}
+					autocomplete="off"
+					spellcheck="false"
+					autocapitalize="none"
+					enterkeyhint="next"
+					data-1p-ignore
+					data-lpignore="true"
+					data-bwignore
+					class="ps-10"
+					{...invalidProps('email')}
+				>
+					{#snippet left()}
+						<Mail class="h-5 w-5 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+					{/snippet}
+				</Input>
+			</div>
 
-				{#if hasNewRoles}
-					<!-- Nuevo sistema de roles -->
-					<input type="hidden" name="roleId" value={selectedRoleId} />
-					<div class="grid gap-2">
-						{#each availableRoles.sort((a, b) => b.level - a.level) as roleOption (roleOption.id)}
-							<button
-								type="button"
-								class="flex items-center gap-3 rounded-lg border p-3 text-left transition-all {selectedRoleId ===
-								roleOption.id
-									? 'border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-900/20'
-									: 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-700'}"
-								onclick={() => (selectedRoleId = roleOption.id)}
+			<div class="space-y-2">
+				<Label for={ids.username}>Nombre de usuario <span aria-hidden="true">*</span></Label>
+				<Input
+					id={ids.username}
+					type="text"
+					name="username"
+					bind:value={values.username}
+					placeholder="p. ej. mgarcia…"
+					required
+					maxlength={64}
+					autocomplete="off"
+					spellcheck="false"
+					autocapitalize="none"
+					autocorrect="off"
+					enterkeyhint="next"
+					data-1p-ignore
+					data-lpignore="true"
+					data-bwignore
+					class="ps-10"
+					{...invalidProps('username')}
+				>
+					{#snippet left()}
+						<User class="h-5 w-5 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+					{/snippet}
+				</Input>
+			</div>
+
+			<div class="space-y-2">
+				<Label for={ids.password}>Contraseña inicial <span aria-hidden="true">*</span></Label>
+				<div class="relative">
+					<Input
+						id={ids.password}
+						type={showPassword ? 'text' : 'password'}
+						name="password"
+						bind:value={values.password}
+						required
+						minlength={MIN_PASSWORD_LENGTH}
+						maxlength={255}
+						autocomplete="new-password"
+						spellcheck="false"
+						autocapitalize="none"
+						enterkeyhint="done"
+						aria-describedby={ids.passwordHelp}
+						class="ps-10 pe-11"
+						{...invalidProps('password')}
+					>
+						{#snippet left()}
+							<Lock class="h-5 w-5 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+						{/snippet}
+					</Input>
+					<button
+						type="button"
+						class="focus-visible:ring-primary-500 absolute inset-y-0 end-0 flex w-11 items-center justify-center rounded-e-lg text-gray-500 hover:text-gray-900 focus-visible:ring-2 focus-visible:outline-none dark:text-gray-400 dark:hover:text-white"
+						aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+						aria-pressed={showPassword}
+						aria-controls={ids.password}
+						onclick={() => (showPassword = !showPassword)}
+					>
+						{#if showPassword}
+							<EyeOff class="h-5 w-5" aria-hidden="true" />
+						{:else}
+							<Eye class="h-5 w-5" aria-hidden="true" />
+						{/if}
+					</button>
+				</div>
+				<Helper id={ids.passwordHelp} class="text-xs">
+					Mínimo {MIN_PASSWORD_LENGTH} caracteres. Comunícasela a la persona por un canal seguro.
+				</Helper>
+			</div>
+
+			<fieldset
+				class="space-y-2"
+				aria-describedby={errorField === 'roleId' ? ids.error : undefined}
+			>
+				<legend
+					class="mb-2 flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white"
+				>
+					<Shield class="h-4 w-4 text-gray-500" aria-hidden="true" />
+					Rol del usuario <span aria-hidden="true">*</span>
+				</legend>
+
+				{#if sortedRoles.length > 0}
+					<div class="grid gap-2" id={ids.roles}>
+						{#each sortedRoles as roleOption (roleOption.id)}
+							{@const optionId = `${uid}-role-${roleOption.id}`}
+							<label
+								for={optionId}
+								class="has-checked:border-primary-500 has-checked:bg-primary-50 dark:has-checked:border-primary-400 dark:has-checked:bg-primary-900/20 has-focus-visible:ring-primary-500 flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 transition-colors hover:border-gray-300 hover:bg-gray-50 has-focus-visible:ring-2 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-700"
 							>
-								<div
-									class="flex h-8 w-8 items-center justify-center rounded-full {selectedRoleId ===
-									roleOption.id
-										? 'bg-primary-100 dark:bg-primary-800'
-										: 'bg-gray-100 dark:bg-gray-600'}"
-								>
-									<input
-										type="radio"
-										name="roleSelection"
-										value={roleOption.id}
-										checked={selectedRoleId === roleOption.id}
-										class="text-primary-600 h-4 w-4"
-										onchange={() => (selectedRoleId = roleOption.id)}
-									/>
-								</div>
-								<div class="flex-1">
-									<div class="flex items-center gap-2">
-										<span class="font-medium text-gray-900 dark:text-white"
-											>{roleOption.displayName}</span
-										>
+								<input
+									id={optionId}
+									type="radio"
+									name="roleId"
+									value={roleOption.id}
+									checked={roleOption.id === effectiveRoleId}
+									onchange={() => (selectedRoleId = roleOption.id)}
+									required
+									class="text-primary-600 focus:ring-primary-500 h-4 w-4 shrink-0 border-gray-300"
+								/>
+								<span class="min-w-0 flex-1">
+									<span class="flex flex-wrap items-center gap-2">
+										<span class="font-medium text-gray-900 dark:text-white">
+											{roleOption.displayName}
+										</span>
 										<Badge color={getRoleBadgeColor(roleOption.level)} class="text-xs">
 											Nivel {roleOption.level}
 										</Badge>
-									</div>
+									</span>
 									{#if roleOption.description}
-										<p class="text-xs text-gray-500 dark:text-gray-400">{roleOption.description}</p>
+										<span class="block text-xs text-gray-500 dark:text-gray-400">
+											{roleOption.description}
+										</span>
 									{/if}
-								</div>
-							</button>
+								</span>
+							</label>
 						{/each}
 					</div>
-					{#if !selectedRoleId}
-						<Helper color="red" class="text-xs">Selecciona un rol para el usuario</Helper>
-					{/if}
 				{:else}
-					<!-- Sistema legacy de roles -->
-					<Select name="role" items={legacyRoles} placeholder="Selecciona un rol" required />
+					<p
+						class="rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+					>
+						No tienes roles asignables. Revisa la configuración de roles antes de crear usuarios.
+					</p>
 				{/if}
-			</div>
+			</fieldset>
 		</div>
 
 		<div
-			class="flex items-center justify-end gap-3 border-t border-gray-200 pt-5 dark:border-gray-700"
+			id={ids.discard}
+			role="status"
+			class="rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+			hidden={!confirmDiscard}
 		>
-			<Button color="alternative" onclick={handleClose} disabled={loading}>Cancelar</Button>
-			<Button type="submit" color="primary" disabled={loading}>
+			Hay datos sin guardar. ¿Quieres descartarlos y cerrar?
+		</div>
+
+		<div
+			class="flex flex-wrap items-center justify-end gap-3 border-t border-gray-200 pt-5 dark:border-gray-700"
+		>
+			<!-- "Descartar" aparece a la izquierda para no desplazar los botones existentes:
+			     un segundo clic en el mismo sitio nunca descarta los datos. -->
+			{#if confirmDiscard}
+				<Button type="button" color="red" outline aria-describedby={ids.discard} onclick={close}>
+					Descartar y cerrar
+				</Button>
+			{/if}
+			<Button type="button" color="alternative" onclick={requestCancel} disabled={loading}>
+				{confirmDiscard ? 'Seguir editando' : 'Cancelar'}
+			</Button>
+			<Button
+				type="submit"
+				color="primary"
+				disabled={loading || sortedRoles.length === 0}
+				aria-busy={loading}
+			>
 				{#if loading}
-					<svg class="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24">
+					<svg
+						class="mr-2 h-4 w-4 animate-spin motion-reduce:hidden"
+						viewBox="0 0 24 24"
+						aria-hidden="true"
+					>
 						<circle
 							class="opacity-25"
 							cx="12"
@@ -207,7 +408,7 @@
 							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
 						></path>
 					</svg>
-					Guardando...
+					Creando usuario…
 				{:else}
 					Crear usuario
 				{/if}

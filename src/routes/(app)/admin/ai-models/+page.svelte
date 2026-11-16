@@ -742,6 +742,12 @@
 					id="providerBaseUrl"
 					name="baseUrl"
 					placeholder="http://localhost:1234/v1"
+					type="url"
+					autocomplete="off"
+					spellcheck="false"
+					data-1p-ignore
+					data-lpignore="true"
+					data-bwignore
 					value={editingProvider?.baseUrl || ''}
 				/>
 			</div>
@@ -752,7 +758,12 @@
 					id="providerApiKey"
 					name="apiKey"
 					type="password"
-					placeholder="sk-..."
+					placeholder="sk-…"
+					autocomplete="off"
+					spellcheck="false"
+					data-1p-ignore
+					data-lpignore="true"
+					data-bwignore
 					value={editingProvider?.apiKey || ''}
 				/>
 				<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">

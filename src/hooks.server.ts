@@ -1,5 +1,7 @@
 import { sequence } from '@sveltejs/kit/hooks';
-import type { Handle } from '@sveltejs/kit';
+import { error, redirect, type Handle } from '@sveltejs/kit';
+import { isAdmin } from '$lib/server/roles';
+import { CourseRoleUtils } from '$lib/server/db';
 import * as auth from '$lib/server/auth.js';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import '$lib/server/logging';
@@ -91,6 +93,56 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	return resolve(event);
 };
 
+/**
+ * Las acciones de formulario se ejecutan antes que las funciones `load`, por lo que la
+ * comprobación de `admin/+layout.server.ts` no las protege. Este guard aplica la misma regla
+ * a cualquier petición (GET o acción) de las páginas de administración del sistema.
+ * `bootstrap` reinicia el layout y gestiona su propio acceso inicial.
+ */
+const ADMIN_ROUTE_PREFIX = '/(app)/admin';
+const ADMIN_PUBLIC_ROUTES = ['/(app)/admin/bootstrap'];
+const COURSE_ADMIN_ROUTE_PREFIX = '/(app)/course/[cid]/admin';
+
+const handleAdminGuard: Handle = async ({ event, resolve }) => {
+	const routeId = event.route.id;
+	const isAdminRoute =
+		routeId !== null &&
+		(routeId === ADMIN_ROUTE_PREFIX || routeId.startsWith(`${ADMIN_ROUTE_PREFIX}/`)) &&
+		!ADMIN_PUBLIC_ROUTES.some((publicRoute) => routeId.startsWith(publicRoute));
+
+	if (isAdminRoute) {
+		if (!event.locals.user) error(401, 'No autenticado');
+		if (!isAdmin(event.locals.user.highestRoleLevel)) {
+			error(403, 'Acceso denegado: se requiere rol de administrador');
+		}
+	}
+
+	// Misma regla que `course/[cid]/admin/+layout.server.ts`: admin del sistema o rol de curso
+	// >= assistant. Las peticiones de lectura conservan la redirección del layout.
+	const isCourseAdminRoute =
+		routeId === COURSE_ADMIN_ROUTE_PREFIX || routeId?.startsWith(`${COURSE_ADMIN_ROUTE_PREFIX}/`);
+	if (isCourseAdminRoute && event.params.cid) {
+		const isRead = event.request.method === 'GET' || event.request.method === 'HEAD';
+		const authUser = event.locals.user;
+		if (!authUser) {
+			if (isRead) redirect(303, '/login');
+			error(401, 'No autenticado');
+		}
+		if (!isAdmin(authUser.highestRoleLevel)) {
+			const courseRole = await CourseRoleUtils.getUserHighestCourseRole(
+				authUser.id,
+				event.params.cid
+			);
+			if (!courseRole || courseRole.level < CourseRoleUtils.COURSE_ROLE_LEVELS.assistant) {
+				if (isRead) redirect(303, '/');
+				error(403, 'Acceso denegado a la administración del curso');
+			}
+		}
+	}
+
+	return resolve(event);
+};
+
 // creating a handle to use the paraglide middleware
 const paraglideHandle: Handle = ({ event, resolve }) =>
 	paraglideMiddleware(event.request, ({ request: localizedRequest, locale }) => {
@@ -102,4 +154,9 @@ const paraglideHandle: Handle = ({ event, resolve }) =>
 		});
 	});
 
-export const handle: Handle = sequence(handleLogging, handleAuth, paraglideHandle);
+export const handle: Handle = sequence(
+	handleLogging,
+	handleAuth,
+	handleAdminGuard,
+	paraglideHandle
+);

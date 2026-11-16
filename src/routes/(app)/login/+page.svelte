@@ -46,6 +46,9 @@
 						id="email"
 						type="email"
 						name="identifier"
+						autocomplete="username"
+						spellcheck="false"
+						autocapitalize="none"
 						required
 						placeholder={m.enter_email()}
 						class="w-full rounded-lg border border-gray-300 bg-white p-3
@@ -63,6 +66,7 @@
 						id="password"
 						type="password"
 						name="password"
+						autocomplete="current-password"
 						required
 						class="w-full rounded-lg border border-gray-300 bg-white p-3
                                text-gray-900 transition-colors focus:border-transparent focus:ring-2

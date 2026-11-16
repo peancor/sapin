@@ -180,7 +180,7 @@
 					</P>
 					<div class="flex flex-wrap justify-center gap-2 sm:justify-start">
 						{#if data.roles && data.roles.length > 0}
-							{#each data.roles.sort((a, b) => b.level - a.level) as r (r.id)}
+							{#each data.roles.toSorted((a, b) => b.level - a.level) as r (r.id)}
 								<Badge color={getRoleBadgeColorByLevel(r.level)} class="text-sm">
 									<GraduationCap class="me-1 h-3 w-3" />
 									{r.displayName}
@@ -216,6 +216,9 @@
 						<Input
 							id="username"
 							name="username"
+							autocomplete="username"
+							spellcheck="false"
+							autocapitalize="none"
 							bind:value={username}
 							placeholder="Tu nombre de usuario"
 							required
@@ -278,6 +281,7 @@
 							type="password"
 							id="currentPassword"
 							name="currentPassword"
+							autocomplete="current-password"
 							bind:value={currentPassword}
 							placeholder="Tu contraseña actual"
 							required
@@ -290,6 +294,7 @@
 							type="password"
 							id="password"
 							name="password"
+							autocomplete="new-password"
 							bind:value={password}
 							placeholder="Mínimo 6 caracteres"
 							required
@@ -306,6 +311,7 @@
 						<Input
 							type="password"
 							id="confirmPassword"
+							autocomplete="new-password"
 							bind:value={confirmPassword}
 							placeholder="Repite la contraseña"
 							color={!passwordMatch ? 'red' : 'green'}
