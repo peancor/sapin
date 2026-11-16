@@ -66,12 +66,14 @@
 			<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Detalles del Usuario</h1>
 			<p class="text-sm text-gray-500 dark:text-gray-400">Información completa del usuario</p>
 		</div>
-		<a href={resolve(`/admin/users/${data.user.id}/edit`)}>
-			<Button color="primary" class="flex items-center gap-2">
-				<PencilLine size={16} />
-				Editar
-			</Button>
-		</a>
+		<Button
+			href={resolve(`/admin/users/${data.user.id}/edit`)}
+			color="primary"
+			class="flex items-center gap-2"
+		>
+			<PencilLine size={16} />
+			Editar
+		</Button>
 	</div>
 
 	<!-- User Profile Card -->
@@ -214,17 +216,13 @@
 
 	<!-- Actions -->
 	<div class="flex gap-3">
-		<a href={resolve('/admin/users')}>
-			<Button color="alternative">
-				<ArrowLeft size={16} class="mr-2" />
-				Volver a usuarios
-			</Button>
-		</a>
-		<a href={resolve(`/admin/users/${data.user.id}/edit`)}>
-			<Button color="primary">
-				<PencilLine size={16} class="mr-2" />
-				Editar usuario
-			</Button>
-		</a>
+		<Button href={resolve('/admin/users')} color="alternative">
+			<ArrowLeft size={16} class="mr-2" />
+			Volver a usuarios
+		</Button>
+		<Button href={resolve(`/admin/users/${data.user.id}/edit`)} color="primary">
+			<PencilLine size={16} class="mr-2" />
+			Editar usuario
+		</Button>
 	</div>
 </div>

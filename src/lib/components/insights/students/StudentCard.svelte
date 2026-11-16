@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Checkbox } from 'flowbite-svelte';
 	import type { StudentData } from '$lib/types/insights';
 	import { insightsStore } from '$lib/stores/insights';
 	import { formatDistanceToNow } from 'date-fns';
@@ -53,42 +52,46 @@
 	}
 </script>
 
-<button
-	class="w-full rounded-xl border-2 p-4 text-left transition-all duration-200
+<!-- Tarjeta seleccionable: una etiqueta con un checkbox real, sin controles anidados en un botón -->
+<label
+	class="block w-full cursor-pointer rounded-xl border-2 p-4 text-left transition-all duration-200 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500
         {isSelected
 		? 'border-blue-500 bg-blue-50 shadow-md dark:bg-blue-900/20'
 		: 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600'}"
-	onclick={toggleSelection}
 >
-	<div class="flex items-start gap-3">
-		<!-- Checkbox -->
-		<div class="pt-1">
-			<Checkbox checked={isSelected} class="pointer-events-none" />
-		</div>
+	<span class="flex items-start gap-3">
+		<span class="pt-1">
+			<input
+				type="checkbox"
+				checked={isSelected}
+				onchange={toggleSelection}
+				class="h-4 w-4 rounded border-gray-300 bg-gray-100 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+			/>
+		</span>
 
-		<!-- Content -->
-		<div class="min-w-0 flex-1">
+		<!-- Content (solo contenido de frase dentro de <label>) -->
+		<span class="block min-w-0 flex-1">
 			<!-- Header -->
-			<div class="mb-2 flex items-center gap-2">
-				<h4 class="truncate font-semibold text-gray-900 dark:text-white">
+			<span class="mb-2 flex items-center gap-2">
+				<span class="truncate font-semibold text-gray-900 dark:text-white">
 					{student.alias || student.username}
-				</h4>
+				</span>
 				<span
 					class="rounded-full px-2 py-0.5 text-xs font-medium {riskColors[
 						student.metrics.riskLevel
 					]}"
 				>
-					{riskLabels[student.metrics.riskLevel]}
+					Riesgo: {riskLabels[student.metrics.riskLevel]}
 				</span>
-			</div>
+			</span>
 
 			<!-- Email -->
-			<p class="mb-2 truncate text-sm text-gray-500 dark:text-gray-400">
+			<span class="mb-2 block truncate text-sm text-gray-500 dark:text-gray-400">
 				{student.email}
-			</p>
+			</span>
 
 			<!-- Metrics -->
-			<div class="flex flex-wrap items-center gap-2 text-xs">
+			<span class="flex flex-wrap items-center gap-2 text-xs">
 				<span class="rounded-md px-2 py-1 {statusColors[student.metrics.completionStatus]}">
 					{statusLabels[student.metrics.completionStatus]}
 				</span>
@@ -100,17 +103,17 @@
 						Engagement: {student.metrics.engagementScore}%
 					</span>
 				{/if}
-			</div>
+			</span>
 
 			<!-- Last Activity -->
-			<p class="mt-2 text-xs text-gray-400 dark:text-gray-500">
+			<span class="mt-2 block text-xs text-gray-400 dark:text-gray-500">
 				{getLastActivityText()}
-			</p>
-		</div>
+			</span>
+		</span>
 
-		<!-- Engagement Score Circle -->
+		<!-- Engagement Score Circle (decorativo: el valor ya se lee en las métricas) -->
 		{#if student.metrics.engagementScore !== undefined}
-			<div class="relative h-12 w-12 flex-shrink-0">
+			<span class="relative h-12 w-12 flex-shrink-0" aria-hidden="true">
 				<svg class="h-12 w-12 -rotate-90 transform" viewBox="0 0 36 36">
 					<circle
 						cx="18"
@@ -141,7 +144,7 @@
 				>
 					{student.metrics.engagementScore}
 				</span>
-			</div>
+			</span>
 		{/if}
-	</div>
-</button>
+	</span>
+</label>

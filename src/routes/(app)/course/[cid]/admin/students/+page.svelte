@@ -31,6 +31,8 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import DiscardChangesPrompt from '$lib/components/DiscardChangesPrompt.svelte';
+	import { DiscardGuard } from '$lib/utils/discardGuard.svelte';
 
 	interface ImportResult {
 		status: 'success' | 'error' | 'skipped';
@@ -112,6 +114,15 @@
 	let moodleToken = $state('');
 	let moodleCourseId = $state('');
 	let moodleStep = $state<1 | 2>(1);
+	// El asistente pierde la previsualización (y obliga a repetir la consulta) si se cierra
+	const moodleGuard = new DiscardGuard(
+		() =>
+			moodleStep === 2 ||
+			moodleToken !== '' ||
+			moodleCourseId !== '' ||
+			moodleBaseUrl !== DEFAULT_MOODLE_URL
+	);
+	const importGuard = new DiscardGuard(() => csvFile !== null);
 	let moodlePreviewRows = $state<MoodlePreviewRow[]>([]);
 	let moodlePreviewSummary = $state<MoodlePreviewSummary>({
 		total: 0,
@@ -150,6 +161,7 @@
 		if (!csvFile) return;
 
 		isImporting = true;
+		importGuard.busy = true;
 		importValidationError = null;
 		importProgress = 0;
 
@@ -171,6 +183,7 @@
 					importValidationError =
 						responseData.message || responseData.error || 'Error desconocido durante la validación';
 					isImporting = false;
+					importGuard.busy = false;
 					return;
 				}
 
@@ -204,6 +217,7 @@
 			);
 		} finally {
 			isImporting = false;
+			importGuard.busy = false;
 		}
 	}
 
@@ -214,7 +228,15 @@
 		}
 	}
 
+	function openImportModal() {
+		csvFile = null;
+		importValidationError = null;
+		importGuard.reset();
+		showImportModal = true;
+	}
+
 	function closeModal() {
+		importGuard.reset();
 		showImportModal = false;
 		csvFile = null;
 		importValidationError = null;
@@ -226,6 +248,7 @@
 	}
 
 	function closeMoodleImportModal() {
+		moodleGuard.reset();
 		showMoodleImportModal = false;
 		resetMoodleWizard();
 	}
@@ -249,6 +272,7 @@
 		moodleError = null;
 		isLoadingMoodlePreview = false;
 		isConfirmingMoodleImport = false;
+		moodleGuard.reset();
 	}
 
 	function closeMoodleResultsModal() {
@@ -264,6 +288,7 @@
 		}
 
 		isLoadingMoodlePreview = true;
+		moodleGuard.busy = true;
 		moodleError = null;
 
 		try {
@@ -294,6 +319,7 @@
 			moodleError = error instanceof Error ? error.message : 'Error desconocido';
 		} finally {
 			isLoadingMoodlePreview = false;
+			moodleGuard.busy = false;
 		}
 	}
 
@@ -304,6 +330,7 @@
 		}
 
 		isConfirmingMoodleImport = true;
+		moodleGuard.busy = true;
 		moodleError = null;
 
 		try {
@@ -335,6 +362,7 @@
 			);
 			moodleResultSummary = responseData.summary || { total: 0, success: 0, skipped: 0, errors: 0 };
 
+			moodleGuard.reset();
 			showMoodleImportModal = false;
 			showMoodleResultsModal = true;
 			moodleToken = '';
@@ -343,6 +371,7 @@
 			moodleError = error instanceof Error ? error.message : 'Error desconocido';
 		} finally {
 			isConfirmingMoodleImport = false;
+			moodleGuard.busy = false;
 		}
 	}
 
@@ -473,7 +502,7 @@
 				Acciones
 			</Button>
 			<Dropdown>
-				<DropdownItem onclick={() => (showImportModal = true)}>
+				<DropdownItem onclick={openImportModal}>
 					<Upload class="mr-2 h-4 w-4" />
 					Importar desde CSV
 				</DropdownItem>
@@ -572,7 +601,11 @@
 			<Table striped={true} class="w-full min-w-full">
 				<TableHead>
 					<TableHeadCell class="w-10 p-4">
-						<Checkbox checked={allSelected} onchange={toggleSelectAll} />
+						<Checkbox
+							checked={allSelected}
+							onchange={toggleSelectAll}
+							aria-label="Seleccionar todos los estudiantes"
+						/>
 					</TableHeadCell>
 					<TableHeadCell>Estudiante</TableHeadCell>
 					<TableHeadCell>Acciones</TableHeadCell>
@@ -584,6 +617,7 @@
 								<Checkbox
 									checked={selectedStudents.includes(student.id)}
 									onchange={() => toggleSelection(student.id)}
+									aria-label={`Seleccionar a ${student.username || student.email}`}
 								/>
 							</TableBodyCell>
 							<TableBodyCell>
@@ -633,9 +667,17 @@
 </div>
 
 <!-- Import Modal -->
-<Modal bind:open={showImportModal} size="md">
+<Modal
+	bind:open={showImportModal}
+	size="md"
+	outsideclose={false}
+	oncancel={importGuard.handleCancel}
+	aria-labelledby="csvImportTitle"
+>
 	<div class="p-4">
-		<h3 class="mb-4 text-xl font-semibold dark:text-white">Importar Estudiantes desde CSV</h3>
+		<h3 id="csvImportTitle" class="mb-4 text-xl font-semibold dark:text-white">
+			Importar Estudiantes desde CSV
+		</h3>
 
 		{#if importValidationError}
 			<div
@@ -664,6 +706,7 @@
 				<input
 					type="file"
 					accept=".csv"
+					aria-label="Fichero CSV de estudiantes"
 					onchange={handleFileChange}
 					disabled={isImporting}
 					class="block w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:placeholder-gray-400"
@@ -681,8 +724,18 @@
 					</ul>
 				</div>
 
+				<DiscardChangesPrompt
+					guard={importGuard}
+					ondiscard={closeModal}
+					message="Has elegido un fichero sin importarlo. ¿Quieres descartarlo y cerrar?"
+				/>
+
 				<div class="flex justify-end gap-2">
-					<Button color="alternative" onclick={closeModal} disabled={isImporting}>Cancelar</Button>
+					<Button
+						color="alternative"
+						onclick={() => importGuard.requestClose() && closeModal()}
+						disabled={isImporting}>Cancelar</Button
+					>
 					<Button color="purple" onclick={handleCsvUpload} disabled={!csvFile || isImporting}>
 						<Upload class="mr-2 h-4 w-4" />
 						Importar
@@ -694,9 +747,15 @@
 </Modal>
 
 <!-- Moodle Import Modal -->
-<Modal bind:open={showMoodleImportModal} size="xl">
+<Modal
+	bind:open={showMoodleImportModal}
+	size="xl"
+	outsideclose={false}
+	oncancel={moodleGuard.handleCancel}
+	aria-labelledby="moodleImportTitle"
+>
 	<div class="p-4">
-		<h3 class="mb-4 text-xl font-semibold dark:text-white">
+		<h3 id="moodleImportTitle" class="mb-4 text-xl font-semibold dark:text-white">
 			Asistente de Importación desde Moodle
 		</h3>
 
@@ -708,6 +767,14 @@
 				<p class="mt-1 text-sm text-red-700 dark:text-red-300">{moodleError}</p>
 			</div>
 		{/if}
+
+		<div class="mb-4">
+			<DiscardChangesPrompt
+				guard={moodleGuard}
+				ondiscard={closeMoodleImportModal}
+				message="Si cierras el asistente perderás los datos de conexión y la previsualización. ¿Quieres cerrarlo?"
+			/>
+		</div>
 
 		{#if moodleStep === 1}
 			<div class="space-y-4">
@@ -802,7 +869,7 @@
 				<div class="flex justify-end gap-2">
 					<Button
 						color="alternative"
-						onclick={closeMoodleImportModal}
+						onclick={() => moodleGuard.requestClose() && closeMoodleImportModal()}
 						disabled={isLoadingMoodlePreview}
 					>
 						Cancelar
@@ -916,7 +983,7 @@
 					</Button>
 					<Button
 						color="alternative"
-						onclick={closeMoodleImportModal}
+						onclick={() => moodleGuard.requestClose() && closeMoodleImportModal()}
 						disabled={isConfirmingMoodleImport}
 					>
 						Cancelar

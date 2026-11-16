@@ -5,6 +5,8 @@
 	import { enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import DiscardChangesPrompt from '$lib/components/DiscardChangesPrompt.svelte';
+	import { DiscardGuard } from '$lib/utils/discardGuard.svelte';
 	import { Button, Modal, Toast, Input, Badge, Dropdown, DropdownItem } from 'flowbite-svelte';
 	import MoodleActivityLinkMenu from '$lib/components/MoodleActivityLinkMenu.svelte';
 	import {
@@ -53,6 +55,21 @@
 	// Modal de importación
 	let importModal = $state(false);
 	let importFile = $state<File | null>(null);
+	const importGuard = new DiscardGuard(() => importFile !== null);
+
+	function openImportModal() {
+		importFile = null;
+		importResult = null;
+		importGuard.reset();
+		importModal = true;
+	}
+
+	function closeImportModal() {
+		importGuard.reset();
+		importModal = false;
+		importFile = null;
+		importResult = null;
+	}
 	let importing = $state(false);
 	let importResult = $state<{
 		activityId: string;
@@ -162,6 +179,7 @@
 		}
 
 		importing = true;
+		importGuard.busy = true;
 		try {
 			const formData = new FormData();
 			formData.append('courseId', data.courseId);
@@ -192,6 +210,7 @@
 			showNotification(e instanceof Error ? e.message : 'Error al importar la actividad', 'error');
 		} finally {
 			importing = false;
+			importGuard.busy = false;
 		}
 	}
 
@@ -219,11 +238,7 @@
 			</p>
 		</div>
 		<div class="flex flex-wrap items-center gap-2">
-			<Button
-				color="alternative"
-				class="collection-secondary-action"
-				onclick={() => (importModal = true)}
-			>
+			<Button color="alternative" class="collection-secondary-action" onclick={openImportModal}>
 				<Upload class="mr-2 h-4 w-4" />
 				Importar
 			</Button>
@@ -246,6 +261,7 @@
 			/>
 			<Input
 				type="search"
+				autocomplete="off"
 				aria-label="Buscar actividades"
 				placeholder="Buscar actividades..."
 				bind:value={searchQuery}
@@ -565,7 +581,13 @@
 </Modal>
 
 <!-- Import Modal -->
-<Modal bind:open={importModal} size="md">
+<Modal
+	bind:open={importModal}
+	size="md"
+	outsideclose={false}
+	oncancel={importGuard.handleCancel}
+	aria-labelledby="importActivityTitle"
+>
 	<div class="space-y-4">
 		<div class="text-center">
 			<div
@@ -573,15 +595,18 @@
 			>
 				<Upload class="h-6 w-6 text-blue-600 dark:text-blue-400" />
 			</div>
-			<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-white">Importar actividad</h3>
+			<h3 id="importActivityTitle" class="mb-2 text-lg font-medium text-gray-900 dark:text-white">
+				Importar actividad
+			</h3>
 			<p class="text-sm text-gray-500 dark:text-gray-400">
 				Selecciona un JSON de actividad o un paquete .sapinlesson.zip
 			</p>
 		</div>
 
 		<div class="mt-4">
+			<!-- El input queda accesible por teclado (sr-only, no display:none); el foco se ve en la etiqueta -->
 			<label
-				class="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-6 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
+				class="has-[:focus-visible]:ring-primary-500 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-6 transition-colors hover:bg-gray-100 has-[:focus-visible]:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
 			>
 				<Upload class="mb-2 h-8 w-8 text-gray-400" />
 				<span class="text-sm text-gray-500 dark:text-gray-400">
@@ -590,7 +615,7 @@
 				<input
 					type="file"
 					accept=".json,.zip,.sapinlesson.zip,application/zip"
-					class="hidden"
+					class="sr-only"
 					onchange={handleFileSelect}
 				/>
 			</label>
@@ -627,15 +652,14 @@
 			</div>
 		{/if}
 
+		<DiscardChangesPrompt
+			guard={importGuard}
+			ondiscard={closeImportModal}
+			message="Has elegido un fichero sin importarlo. ¿Quieres descartarlo y cerrar?"
+		/>
+
 		<div class="flex justify-end gap-3 pt-4">
-			<Button
-				color="alternative"
-				onclick={() => {
-					importModal = false;
-					importFile = null;
-					importResult = null;
-				}}
-			>
+			<Button color="alternative" onclick={() => importGuard.requestClose() && closeImportModal()}>
 				Cancelar
 			</Button>
 			<Button color="primary" onclick={importActivity} disabled={!importFile || importing}>

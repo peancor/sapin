@@ -144,7 +144,9 @@
 				>
 					<Search class="h-4 w-4 text-slate-400" />
 					<input
-						type="text"
+						type="search"
+						autocomplete="off"
+						aria-label="Buscar actividad, curso, modelo o estado"
 						name="search"
 						value={filters.search ?? ''}
 						placeholder="Buscar actividad, curso, modelo o estado..."

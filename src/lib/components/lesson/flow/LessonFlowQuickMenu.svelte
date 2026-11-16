@@ -159,6 +159,9 @@
 					<p class="mt-1 text-xs leading-5 text-[#506173] dark:text-stone-400">{subtitle}</p>
 				{/if}
 				<input
+					type="search"
+					autocomplete="off"
+					aria-label="Buscar acción o tipo de bloque"
 					bind:this={inputElement}
 					value={query}
 					class="mt-2.5 w-full rounded-xl border border-[#d9e6dc] bg-white px-3 py-2 text-sm text-[#0f2537] shadow-sm outline-hidden transition placeholder:text-stone-400 focus:border-[#2e7d32] focus:ring-2 focus:ring-[#a8e063]/35 dark:border-stone-700 dark:bg-stone-950 dark:text-white dark:placeholder:text-stone-500 dark:focus:border-emerald-600"

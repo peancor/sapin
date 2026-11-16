@@ -318,30 +318,29 @@
 									<div class="max-h-64 space-y-2 overflow-y-auto">
 										{#each data.roles as role (role.id)}
 											{@const isSelected = selectedRoles.includes(role.id)}
-											<button
-												type="button"
-												class="flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors {isSelected
+											<!-- Una etiqueta con un checkbox real (no un checkbox dentro de un botón) -->
+											<label
+												class="has-[:focus-visible]:ring-primary-500 flex w-full cursor-pointer items-center justify-between rounded-lg border p-3 text-left transition-colors has-[:focus-visible]:ring-2 {isSelected
 													? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
 													: 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'}"
-												onclick={() => toggleRole(role.id)}
 											>
-												<div class="flex items-center gap-2">
+												<span class="flex items-center gap-2">
 													<input
 														type="checkbox"
 														name="roles"
 														value={role.id}
 														checked={isSelected}
 														class="text-primary-600 h-4 w-4 rounded border-gray-300"
-														onchange={() => {}}
+														onchange={() => toggleRole(role.id)}
 													/>
 													<span class="text-sm font-medium text-gray-900 dark:text-white">
 														{role.displayName}
 													</span>
-												</div>
+												</span>
 												<Badge color={getRoleBadgeColor(role.level)} class="text-xs">
 													Nivel {role.level}
 												</Badge>
-											</button>
+											</label>
 										{/each}
 									</div>
 									{#if selectedRoles.length > 0}
@@ -478,14 +477,21 @@
 						<!-- Search -->
 						<div class="mb-4 flex gap-2">
 							<Input
-								type="text"
+								type="search"
+								autocomplete="off"
+								aria-label="Buscar usuarios por email o nombre"
 								placeholder="Buscar por email o nombre..."
 								bind:value={searchQuery}
 								class="flex-1"
 								onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearch())}
 							/>
-							<Button color="alternative" size="sm" onclick={handleSearch}>
-								<Search class="h-4 w-4" />
+							<Button
+								color="alternative"
+								size="sm"
+								onclick={handleSearch}
+								aria-label="Buscar usuarios"
+							>
+								<Search class="h-4 w-4" aria-hidden="true" />
 							</Button>
 						</div>
 
@@ -547,9 +553,10 @@
 											<button
 												type="button"
 												class="rounded p-1 text-gray-400 transition-colors hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/30"
+												aria-label={`Quitar a ${user.username || user.email}`}
 												onclick={() => removeUser(user.id)}
 											>
-												<X class="h-4 w-4" />
+												<X class="h-4 w-4" aria-hidden="true" />
 											</button>
 										</div>
 									{/each}

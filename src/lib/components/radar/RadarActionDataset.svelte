@@ -97,6 +97,7 @@
 				class={inputClass}
 				bind:value={filter}
 				type="search"
+				autocomplete="off"
 				placeholder="Buscar etiqueta"
 			/></label
 		>

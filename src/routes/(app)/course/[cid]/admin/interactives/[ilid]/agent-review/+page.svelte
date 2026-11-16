@@ -304,6 +304,8 @@
 						<input
 							bind:value={searchTerm}
 							type="search"
+							autocomplete="off"
+							aria-label="Buscar por nombre de estudiante"
 							placeholder="Buscar por nombre de estudiante..."
 							class="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pr-12 pl-12 text-sm text-slate-900 shadow-sm transition outline-none focus:border-sky-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-sky-700"
 						/>

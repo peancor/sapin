@@ -126,13 +126,19 @@
 		return 'green';
 	}
 
-	const courseRoleOptions = [
-		{ value: 'student', name: 'Estudiante' },
-		{ value: 'assistant', name: 'Asistente' },
-		{ value: 'grader', name: 'Calificador' },
-		{ value: 'teacher', name: 'Profesor' },
-		{ value: 'admin', name: 'Admin de curso' }
+	// Niveles de rol de curso: el servidor rechaza roles por encima del nivel del emisor
+	const allCourseRoleOptions = [
+		{ value: 'student', name: 'Estudiante', level: 10 },
+		{ value: 'assistant', name: 'Asistente', level: 50 },
+		{ value: 'grader', name: 'Calificador', level: 30 },
+		{ value: 'teacher', name: 'Profesor', level: 70 },
+		{ value: 'admin', name: 'Admin de curso', level: 90 }
 	];
+	const courseRoleOptions = $derived(
+		allCourseRoleOptions
+			.filter((option) => option.level <= data.maxCourseRoleLevel)
+			.map(({ value, name }) => ({ value, name }))
+	);
 </script>
 
 <div class="space-y-6">
@@ -447,8 +453,14 @@
 						{#if inv.isActive && !inv.isExpired && !inv.isFullyUsed}
 							<form method="POST" action="?/deactivate" use:enhance>
 								<input type="hidden" name="inviteId" value={inv.id} />
-								<Button type="submit" size="xs" color="red" outline>
-									<Ban class="h-3 w-3" />
+								<Button
+									type="submit"
+									size="xs"
+									color="red"
+									outline
+									aria-label={`Desactivar invitación ${inv.code}`}
+								>
+									<Ban class="h-3 w-3" aria-hidden="true" />
 								</Button>
 							</form>
 						{/if}

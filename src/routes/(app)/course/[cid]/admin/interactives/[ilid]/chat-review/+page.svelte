@@ -203,6 +203,8 @@
 							<Search
 								size="md"
 								placeholder="Buscar chats..."
+								autocomplete="off"
+								aria-label="Buscar chats"
 								bind:value={searchTerm}
 								class="w-full"
 							/>
@@ -211,8 +213,9 @@
 								type="submit"
 								size="sm"
 								class="absolute top-0 right-0 bottom-0 flex h-full items-center justify-center rounded-l-none"
+								aria-label="Buscar chats"
 							>
-								<SearchIcon class="h-4 w-4" />
+								<SearchIcon class="h-4 w-4" aria-hidden="true" />
 							</Button>
 						</div>
 					</form>

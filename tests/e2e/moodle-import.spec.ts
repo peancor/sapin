@@ -49,6 +49,15 @@ test('Moodle import distinguishes defaults from help and preserves the review st
 	expect(previews).toHaveLength(0);
 	await token.fill('fictitious-token');
 	await course.fill('42');
+	// Con datos escritos, Esc y un clic fuera no cierran el asistente
+	const wizard = page.getByRole('dialog', { name: 'Asistente de Importación desde Moodle' });
+	await page.keyboard.press('Escape');
+	await expect(wizard).toBeVisible();
+	await expect(wizard.getByText(/perderás los datos de conexión/)).toBeVisible();
+	await wizard.getByRole('button', { name: 'Seguir editando', exact: true }).click();
+	await page.mouse.click(5, 5);
+	await expect(wizard).toBeVisible();
+	await expect(token).toHaveValue('fictitious-token');
 	await page.getByRole('button', { name: 'Revisar estudiantes', exact: true }).click();
 	await expect(
 		page.getByText('Paso 2 de 2 · Revisa el resultado y confirma la importación.')
@@ -70,6 +79,10 @@ test('Moodle import distinguishes defaults from help and preserves the review st
 	await url.fill('https://moodle.example.invalid');
 	await expect(url).toHaveValue('https://moodle.example.invalid');
 	await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+	// Cancelar con cambios pide confirmación antes de descartarlos
+	await expect(wizard).toBeVisible();
+	await wizard.getByRole('button', { name: 'Descartar y cerrar', exact: true }).click();
+	await expect(wizard).toBeHidden();
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.getByRole('button', { name: 'Acciones', exact: true }).click();
 	await page.getByText('Importar desde Moodle', { exact: true }).click();

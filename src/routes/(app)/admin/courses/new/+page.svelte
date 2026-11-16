@@ -381,7 +381,9 @@
 									<SearchOutline class="h-5 w-5 text-gray-400" />
 								</div>
 								<input
-									type="text"
+									type="search"
+									autocomplete="off"
+									aria-label="Buscar profesor por nombre o email"
 									placeholder="Buscar profesor por nombre o email..."
 									bind:value={teacherSearchTerm}
 									class="w-full rounded-xl border border-gray-200 bg-white py-3 pr-10 pl-12 text-gray-900 placeholder-gray-400 transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"

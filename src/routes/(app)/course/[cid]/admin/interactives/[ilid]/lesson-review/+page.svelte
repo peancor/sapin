@@ -325,6 +325,8 @@
 					<input
 						bind:value={searchTerm}
 						type="search"
+						autocomplete="off"
+						aria-label="Buscar por estudiante, alias o email"
 						placeholder="Buscar por estudiante, alias o email..."
 						class="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pr-4 pl-12 text-sm text-slate-900 transition outline-none focus:border-amber-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-amber-700"
 						onchange={syncFilters}

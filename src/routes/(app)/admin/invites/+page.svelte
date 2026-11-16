@@ -531,8 +531,14 @@
 						{#if inv.isActive && !inv.isExpired && !inv.isFullyUsed}
 							<form method="POST" action="?/deactivate" use:enhance>
 								<input type="hidden" name="inviteId" value={inv.id} />
-								<Button type="submit" size="xs" color="red" outline>
-									<Ban class="h-3 w-3" />
+								<Button
+									type="submit"
+									size="xs"
+									color="red"
+									outline
+									aria-label={`Desactivar invitación ${inv.code}`}
+								>
+									<Ban class="h-3 w-3" aria-hidden="true" />
 								</Button>
 							</form>
 						{/if}

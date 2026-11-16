@@ -3,6 +3,8 @@
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import DiscardChangesPrompt from '$lib/components/DiscardChangesPrompt.svelte';
+	import { DiscardGuard } from '$lib/utils/discardGuard.svelte';
 	import {
 		Button,
 		Input,
@@ -61,6 +63,9 @@
 	let showProviderModal = $state(false);
 	let showModelModal = $state(false);
 	let showQuotaModal = $state(false);
+	const providerGuard = new DiscardGuard();
+	const modelGuard = new DiscardGuard();
+	const quotaGuard = new DiscardGuard();
 	let editingProvider = $state<(typeof data.providers)[0] | null>(null);
 	let editingModel = $state<(typeof data.models)[0] | null>(null);
 	let editingQuota = $state<(typeof data.quotas)[0] | null>(null);
@@ -162,21 +167,27 @@
 
 	function openProviderModal(provider?: (typeof data.providers)[0]) {
 		editingProvider = provider || null;
+		providerGuard.reset();
 		showProviderModal = true;
 	}
 
 	function openModelModal(model?: (typeof data.models)[0]) {
 		editingModel = model || null;
 		modelDraft = createModelDraft(model);
+		modelGuard.reset();
 		showModelModal = true;
 	}
 
 	function openQuotaModal(quota?: (typeof data.quotas)[0]) {
 		editingQuota = quota || null;
+		quotaGuard.reset();
 		showQuotaModal = true;
 	}
 
 	function closeModals() {
+		providerGuard.reset();
+		modelGuard.reset();
+		quotaGuard.reset();
 		showProviderModal = false;
 		showModelModal = false;
 		showQuotaModal = false;
@@ -187,6 +198,7 @@
 	}
 
 	function closeModelModal() {
+		modelGuard.reset();
 		showModelModal = false;
 		editingModel = null;
 		modelDraft = createModelDraft();
@@ -368,7 +380,13 @@
 										{#if !model.isDefault}
 											<form method="POST" action="?/setDefaultModel" use:enhance>
 												<input type="hidden" name="id" value={model.id} />
-												<Button size="xs" color="light" type="submit" title="Hacer predeterminado">
+												<Button
+													size="xs"
+													color="light"
+													type="submit"
+													title="Hacer predeterminado"
+													aria-label={`Hacer predeterminado ${model.displayName}`}
+												>
 													<Star class="h-3 w-3" />
 												</Button>
 											</form>
@@ -377,13 +395,19 @@
 											size="xs"
 											color="light"
 											onclick={() => openModelModal({ model, provider })}
+											aria-label={`Editar modelo ${model.displayName}`}
 										>
 											<Pencil class="h-3 w-3" />
 										</Button>
 										<form method="POST" action="?/deleteModel" use:enhance>
 											<input type="hidden" name="id" value={model.id} />
-											<Button size="xs" color="red" type="submit">
-												<Trash2 class="h-3 w-3" />
+											<Button
+												size="xs"
+												color="red"
+												type="submit"
+												aria-label={`Eliminar modelo ${model.displayName}`}
+											>
+												<Trash2 class="h-3 w-3" aria-hidden="true" />
 											</Button>
 										</form>
 									</div>
@@ -433,7 +457,7 @@
 									<span class="text-xs">{provider.baseUrl || '-'}</span>
 								</TableBodyCell>
 								<TableBodyCell>
-									{#if provider.apiKey}
+									{#if provider.hasApiKey}
 										<Badge color="green">Configurada</Badge>
 									{:else}
 										<Badge color="gray">No configurada</Badge>
@@ -446,13 +470,23 @@
 								</TableBodyCell>
 								<TableBodyCell>
 									<div class="flex gap-2">
-										<Button size="xs" color="light" onclick={() => openProviderModal(provider)}>
+										<Button
+											size="xs"
+											color="light"
+											onclick={() => openProviderModal(provider)}
+											aria-label={`Editar proveedor ${provider.displayName}`}
+										>
 											<Pencil class="h-3 w-3" />
 										</Button>
 										<form method="POST" action="?/deleteProvider" use:enhance>
 											<input type="hidden" name="id" value={provider.id} />
-											<Button size="xs" color="red" type="submit">
-												<Trash2 class="h-3 w-3" />
+											<Button
+												size="xs"
+												color="red"
+												type="submit"
+												aria-label={`Eliminar proveedor ${provider.displayName}`}
+											>
+												<Trash2 class="h-3 w-3" aria-hidden="true" />
 											</Button>
 										</form>
 									</div>
@@ -529,17 +563,28 @@
 									<div class="flex gap-2">
 										<form method="POST" action="?/resetQuota" use:enhance>
 											<input type="hidden" name="id" value={quota.id} />
-											<Button size="xs" color="light" type="submit" title="Resetear cuota">
+											<Button
+												size="xs"
+												color="light"
+												type="submit"
+												title="Resetear cuota"
+												aria-label="Resetear cuota"
+											>
 												<RotateCcw class="h-3 w-3" />
 											</Button>
 										</form>
-										<Button size="xs" color="light" onclick={() => openQuotaModal(quota)}>
+										<Button
+											size="xs"
+											color="light"
+											onclick={() => openQuotaModal(quota)}
+											aria-label="Editar cuota"
+										>
 											<Pencil class="h-3 w-3" />
 										</Button>
 										<form method="POST" action="?/deleteQuota" use:enhance>
 											<input type="hidden" name="id" value={quota.id} />
-											<Button size="xs" color="red" type="submit">
-												<Trash2 class="h-3 w-3" />
+											<Button size="xs" color="red" type="submit" aria-label="Eliminar cuota">
+												<Trash2 class="h-3 w-3" aria-hidden="true" />
 											</Button>
 										</form>
 									</div>
@@ -686,10 +731,14 @@
 	title={editingProvider ? 'Editar Proveedor' : 'Nuevo Proveedor'}
 	bind:open={showProviderModal}
 	size="md"
+	outsideclose={false}
+	oncancel={providerGuard.handleCancel}
 >
 	<form
 		method="POST"
 		action={editingProvider ? '?/updateProvider' : '?/createProvider'}
+		oninput={providerGuard.markDirty}
+		onchange={providerGuard.markDirty}
 		use:enhance={() => {
 			return async ({ result }) => {
 				if (result.type === 'success') {
@@ -758,17 +807,32 @@
 					id="providerApiKey"
 					name="apiKey"
 					type="password"
-					placeholder="sk-…"
+					placeholder={editingProvider?.hasApiKey ? '•••••••• (guardada)' : 'sk-…'}
 					autocomplete="off"
 					spellcheck="false"
 					data-1p-ignore
 					data-lpignore="true"
 					data-bwignore
-					value={editingProvider?.apiKey || ''}
+					aria-describedby="providerApiKeyHelp"
 				/>
-				<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-					La API key se almacena de forma segura en la base de datos
+				<p id="providerApiKeyHelp" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+					{#if editingProvider?.hasApiKey}
+						Hay una API key guardada; no se muestra. Déjalo vacío para conservarla o escribe una
+						nueva para sustituirla.
+					{:else}
+						La API key se guarda en el servidor y no vuelve a mostrarse.
+					{/if}
 				</p>
+				{#if editingProvider?.hasApiKey}
+					<label class="mt-2 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+						<input
+							type="checkbox"
+							name="clearApiKey"
+							class="text-primary-600 focus:ring-primary-500 h-4 w-4 rounded border-gray-300"
+						/>
+						Eliminar la API key guardada
+					</label>
+				{/if}
 			</div>
 
 			{#if editingProvider}
@@ -779,8 +843,16 @@
 			{/if}
 		</div>
 
+		<div class="mt-4">
+			<DiscardChangesPrompt guard={providerGuard} ondiscard={closeModals} />
+		</div>
+
 		<div class="mt-6 flex justify-end gap-3">
-			<Button color="alternative" onclick={closeModals}>Cancelar</Button>
+			<Button
+				type="button"
+				color="alternative"
+				onclick={() => providerGuard.requestClose() && closeModals()}>Cancelar</Button
+			>
 			<Button type="submit" color="primary">
 				{editingProvider ? 'Guardar' : 'Crear'}
 			</Button>
@@ -793,11 +865,14 @@
 	title={editingModel ? 'Editar Modelo' : 'Nuevo Modelo'}
 	bind:open={showModelModal}
 	size="lg"
-	permanent
+	outsideclose={false}
+	oncancel={modelGuard.handleCancel}
 >
 	<form
 		method="POST"
 		action={editingModel ? '?/updateModel' : '?/createModel'}
+		oninput={modelGuard.markDirty}
+		onchange={modelGuard.markDirty}
 		use:enhance={() => {
 			return async ({ result }) => {
 				if (result.type === 'success') {
@@ -940,8 +1015,16 @@
 			</div>
 		</div>
 
+		<div class="mt-4">
+			<DiscardChangesPrompt guard={modelGuard} ondiscard={closeModelModal} />
+		</div>
+
 		<div class="mt-6 flex justify-end gap-3">
-			<Button type="button" color="alternative" onclick={closeModelModal}>Cancelar</Button>
+			<Button
+				type="button"
+				color="alternative"
+				onclick={() => modelGuard.requestClose() && closeModelModal()}>Cancelar</Button
+			>
 			<Button type="submit" color="primary">
 				{editingModel ? 'Guardar' : 'Crear'}
 			</Button>
@@ -950,10 +1033,18 @@
 </Modal>
 
 <!-- Quota Modal -->
-<Modal title={editingQuota ? 'Editar Cuota' : 'Nueva Cuota'} bind:open={showQuotaModal} size="md">
+<Modal
+	title={editingQuota ? 'Editar Cuota' : 'Nueva Cuota'}
+	bind:open={showQuotaModal}
+	size="md"
+	outsideclose={false}
+	oncancel={quotaGuard.handleCancel}
+>
 	<form
 		method="POST"
 		action={editingQuota ? '?/updateQuota' : '?/createQuota'}
+		oninput={quotaGuard.markDirty}
+		onchange={quotaGuard.markDirty}
 		use:enhance={() => {
 			return async ({ result }) => {
 				if (result.type === 'success') {
@@ -1049,8 +1140,16 @@
 			</p>
 		</div>
 
+		<div class="mt-4">
+			<DiscardChangesPrompt guard={quotaGuard} ondiscard={closeModals} />
+		</div>
+
 		<div class="mt-6 flex justify-end gap-3">
-			<Button color="alternative" onclick={closeModals}>Cancelar</Button>
+			<Button
+				type="button"
+				color="alternative"
+				onclick={() => quotaGuard.requestClose() && closeModals()}>Cancelar</Button
+			>
 			<Button type="submit" color="primary">
 				{editingQuota ? 'Guardar' : 'Crear'}
 			</Button>

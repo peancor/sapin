@@ -656,13 +656,16 @@
 			</div>
 			<div class="mb-3 grid grid-cols-1 gap-2 md:grid-cols-3">
 				<input
-					type="text"
+					type="search"
+					autocomplete="off"
+					aria-label="Buscar estudiantes por nombre o email"
 					bind:value={studentHeatmapSearch}
 					oninput={() => (studentHeatmapPage = 1)}
 					placeholder="Buscar por nombre o email"
 					class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				/>
 				<select
+					aria-label="Ordenar estudiantes"
 					bind:value={studentHeatmapSortMode}
 					onchange={() => (studentHeatmapPage = 1)}
 					class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
@@ -673,6 +676,7 @@
 					<option value="name_desc">Orden: nombre Z-A</option>
 				</select>
 				<select
+					aria-label="Filtrar actividades del mapa de calor"
 					bind:value={studentHeatmapActivityFilter}
 					onchange={() => (studentHeatmapPage = 1)}
 					class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"

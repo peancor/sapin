@@ -1,9 +1,44 @@
 import type { PageServerLoad, Actions } from './$types';
 import { db, InvitationUtils, CourseRoleUtils } from '$lib/server/db';
-import { course } from '$lib/server/db/schema';
+import { course, invite } from '$lib/server/db/schema';
 import { error, fail } from '@sveltejs/kit';
 import { createInviteSchema } from '$lib/server/db/InvitationUtils';
-import { eq } from 'drizzle-orm';
+import { ROLE_LEVELS } from '$lib/server/roles';
+import { and, eq } from 'drizzle-orm';
+
+type CourseRoleName = keyof typeof CourseRoleUtils.COURSE_ROLE_LEVELS;
+
+function isCourseRoleName(value: string): value is CourseRoleName {
+	return Object.hasOwn(CourseRoleUtils.COURSE_ROLE_LEVELS, value);
+}
+
+/**
+ * Comprueba que el usuario puede gestionar invitaciones en el curso y devuelve
+ * el nivel de rol de curso máximo que puede conceder. Un admin de sistema puede
+ * conceder cualquier rol; el resto, como mucho su propio nivel de rol en el curso.
+ * Las escalas de rol de sistema y de curso son distintas y no se comparan entre sí.
+ */
+async function requireInviteManager(
+	cid: string,
+	user: { id: string; highestRoleLevel: number } | null | undefined
+): Promise<number> {
+	if (!user?.id) throw error(401, 'No autenticado');
+
+	if (user.highestRoleLevel >= ROLE_LEVELS.ADMIN) {
+		return CourseRoleUtils.COURSE_ROLE_LEVELS.owner;
+	}
+
+	const hasPermission = await CourseRoleUtils.userHasCoursePermission(user.id, cid, 'manageUsers');
+	if (!hasPermission) {
+		throw error(403, 'No tienes permisos para gestionar invitaciones en este curso');
+	}
+
+	const highestRole = await CourseRoleUtils.getUserHighestCourseRole(user.id, cid);
+	if (!highestRole) {
+		throw error(403, 'No tienes permisos para gestionar invitaciones en este curso');
+	}
+	return highestRole.level;
+}
 
 export const load = (async ({ params, locals }) => {
 	const { cid } = params;
@@ -19,27 +54,21 @@ export const load = (async ({ params, locals }) => {
 	if (!courseData) throw error(404, 'Curso no encontrado');
 
 	// Check permission - user must have manageUsers permission in this course
-	const hasPermission = await CourseRoleUtils.userHasCoursePermission(
-		locals.user.id,
-		cid,
-		'manageUsers'
-	);
-	if (!hasPermission && locals.user.highestRoleLevel < 90) {
-		throw error(403, 'No tienes permisos para gestionar invitaciones en este curso');
-	}
+	const maxCourseRoleLevel = await requireInviteManager(cid, locals.user);
 
 	const [invites, stats] = await Promise.all([
 		InvitationUtils.getCourseInvites(cid),
 		InvitationUtils.getInviteStats(cid)
 	]);
 
-	return { course: courseData, invites, stats };
+	return { course: courseData, invites, stats, maxCourseRoleLevel };
 }) satisfies PageServerLoad;
 
 export const actions = {
 	generate: async ({ request, params, locals }) => {
 		if (!locals.user?.id) throw error(401, 'No autenticado');
 		const { cid } = params;
+		const maxCourseRoleLevel = await requireInviteManager(cid, locals.user);
 
 		// Verify course
 		const [courseData] = await db
@@ -62,6 +91,14 @@ export const actions = {
 
 		if (inviteTypeValue === 'course_role') {
 			const courseRole = formData.get('courseRole')?.toString() || 'student';
+			if (!isCourseRoleName(courseRole)) {
+				return fail(400, { message: 'Rol de curso no válido' });
+			}
+			if (CourseRoleUtils.COURSE_ROLE_LEVELS[courseRole] > maxCourseRoleLevel) {
+				return fail(403, {
+					message: 'No puedes generar invitaciones con un rol superior al tuyo en el curso'
+				});
+			}
 			config = {
 				type: 'course_role',
 				courseId: cid,
@@ -98,13 +135,19 @@ export const actions = {
 		}
 	},
 
-	deactivate: async ({ request, locals }) => {
-		if (!locals.user?.id) throw error(401, 'No autenticado');
+	deactivate: async ({ request, params, locals }) => {
+		await requireInviteManager(params.cid, locals.user);
 		const formData = await request.formData();
 		const inviteId = formData.get('inviteId')?.toString();
 		if (!inviteId) return fail(400, { message: 'ID de invitación requerido' });
 
-		await InvitationUtils.deactivateInvite(inviteId);
+		const [target] = await db
+			.select({ id: invite.id })
+			.from(invite)
+			.where(and(eq(invite.id, inviteId), eq(invite.courseId, params.cid)));
+		if (!target) return fail(404, { message: 'Invitación no encontrada en este curso' });
+
+		await InvitationUtils.deactivateInvite(target.id);
 		return { success: true };
 	}
 } satisfies Actions;

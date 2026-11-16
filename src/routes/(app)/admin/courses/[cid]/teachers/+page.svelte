@@ -17,6 +17,8 @@
 		Input
 	} from 'flowbite-svelte';
 	import { Users, UserPlus, Trash2, Search, X } from 'lucide-svelte';
+	import DiscardChangesPrompt from '$lib/components/DiscardChangesPrompt.svelte';
+	import { DiscardGuard } from '$lib/utils/discardGuard.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -33,6 +35,21 @@
 	// Selection state
 	let selectedTeachers = $state<string[]>([]);
 	let selectedToAdd = $state<string[]>([]);
+	const addGuard = new DiscardGuard(() => selectedToAdd.length > 0);
+
+	function openAddModal() {
+		selectedToAdd = [];
+		addSearchTerm = '';
+		addGuard.reset();
+		showAddModal = true;
+	}
+
+	function closeAddModal() {
+		addGuard.reset();
+		showAddModal = false;
+		selectedToAdd = [];
+		addSearchTerm = '';
+	}
 	let allSelected = $state(false);
 
 	// Loading states
@@ -168,7 +185,7 @@
 				{data.teachers.length} profesores asignados al curso
 			</p>
 		</div>
-		<Button color="primary" onclick={() => (showAddModal = true)}>
+		<Button color="primary" onclick={openAddModal}>
 			<UserPlus class="mr-2 h-4 w-4" />
 			Añadir Profesores
 		</Button>
@@ -183,13 +200,17 @@
 					<Search class="h-4 w-4 text-gray-400" />
 				</div>
 				<Input
-					type="text"
+					type="search"
+					autocomplete="off"
+					aria-label="Buscar por nombre o email"
 					placeholder="Buscar por nombre o email..."
 					bind:value={searchTerm}
 					class="pl-10"
 				/>
 				{#if searchTerm}
 					<button
+						type="button"
+						aria-label="Limpiar búsqueda"
 						onclick={() => (searchTerm = '')}
 						class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
 					>
@@ -230,7 +251,11 @@
 				<Table striped>
 					<TableHead>
 						<TableHeadCell class="w-12">
-							<Checkbox checked={allSelected} onchange={toggleSelectAll} />
+							<Checkbox
+								checked={allSelected}
+								onchange={toggleSelectAll}
+								aria-label="Seleccionar todos los profesores"
+							/>
 						</TableHeadCell>
 						<TableHeadCell>Profesor</TableHeadCell>
 						<TableHeadCell>Email</TableHeadCell>
@@ -246,6 +271,7 @@
 									<Checkbox
 										checked={selectedTeachers.includes(teacher.id)}
 										onchange={() => toggleSelection(teacher.id)}
+										aria-label={`Seleccionar a ${teacher.username || teacher.email}`}
 									/>
 								</TableBodyCell>
 								<TableBodyCell>
@@ -298,7 +324,7 @@
 					<p class="text-gray-500 dark:text-gray-400">
 						Añade profesores para que puedan gestionar el curso
 					</p>
-					<Button color="primary" size="sm" class="mt-4" onclick={() => (showAddModal = true)}>
+					<Button color="primary" size="sm" class="mt-4" onclick={openAddModal}>
 						<UserPlus class="mr-2 h-4 w-4" />
 						Añadir primer profesor
 					</Button>
@@ -309,7 +335,13 @@
 </div>
 
 <!-- Add Teachers Modal -->
-<Modal title="Añadir Profesores" bind:open={showAddModal} size="lg">
+<Modal
+	title="Añadir Profesores"
+	bind:open={showAddModal}
+	size="lg"
+	outsideclose={false}
+	oncancel={addGuard.handleCancel}
+>
 	<div class="space-y-4">
 		<!-- Search in modal -->
 		<div class="relative">
@@ -317,7 +349,9 @@
 				<Search class="h-4 w-4 text-gray-400" />
 			</div>
 			<Input
-				type="text"
+				type="search"
+				autocomplete="off"
+				aria-label="Buscar profesores disponibles"
 				placeholder="Buscar profesores disponibles..."
 				bind:value={addSearchTerm}
 				class="pl-10"
@@ -362,6 +396,12 @@
 				No hay más profesores disponibles para añadir
 			</p>
 		{/if}
+
+		<DiscardChangesPrompt
+			guard={addGuard}
+			ondiscard={closeAddModal}
+			message="Hay profesores seleccionados sin añadir. ¿Quieres descartar la selección y cerrar?"
+		/>
 	</div>
 
 	{#snippet footer()}
@@ -380,12 +420,9 @@
 			<input type="hidden" name="teacherIds" value={JSON.stringify(selectedToAdd)} />
 			<div class="flex justify-end gap-3">
 				<Button
+					type="button"
 					color="alternative"
-					onclick={() => {
-						showAddModal = false;
-						selectedToAdd = [];
-						addSearchTerm = '';
-					}}
+					onclick={() => addGuard.requestClose() && closeAddModal()}
 				>
 					Cancelar
 				</Button>

@@ -680,7 +680,12 @@ export class AIModelService {
 			.select({
 				log: table.aiUsageLog,
 				model: table.aiModel,
-				user: table.user
+				// Solo campos de presentación: nunca enviar la fila completa (hash de contraseña)
+				user: {
+					id: table.user.id,
+					username: table.user.username,
+					email: table.user.email
+				}
 			})
 			.from(table.aiUsageLog)
 			.leftJoin(table.aiModel, eq(table.aiUsageLog.modelId, table.aiModel.id))
@@ -703,7 +708,12 @@ export class AIModelService {
 		return await db
 			.select({
 				userId: table.aiUsageLog.userId,
-				user: table.user,
+				// Solo campos de presentación: nunca enviar la fila completa (hash de contraseña)
+				user: {
+					id: table.user.id,
+					username: table.user.username,
+					email: table.user.email
+				},
 				totalTokens: sql<number>`SUM(${table.aiUsageLog.totalTokens})`,
 				totalRequests: sql<number>`COUNT(*)`,
 				totalCost: sql<number>`SUM(${table.aiUsageLog.estimatedCost})`

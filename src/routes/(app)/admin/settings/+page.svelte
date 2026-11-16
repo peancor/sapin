@@ -749,7 +749,7 @@
 									class="flex items-center gap-4 rounded-lg border border-gray-100 p-3 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/30"
 								>
 									<div class="min-w-0 flex-1">
-										<div class="flex items-center gap-3">
+										<label class="flex cursor-pointer items-center gap-3">
 											<input
 												type="checkbox"
 												name={`type_${key}`}
@@ -764,7 +764,7 @@
 											<span class="text-sm font-medium text-gray-900 dark:text-white">
 												{notificationTypeLabels[key]}
 											</span>
-										</div>
+										</label>
 									</div>
 									{#if typeConfig.enabled}
 										<div class="flex items-center gap-4 text-xs">

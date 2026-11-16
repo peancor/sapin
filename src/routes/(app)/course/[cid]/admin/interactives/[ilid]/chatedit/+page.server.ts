@@ -10,7 +10,7 @@ import {
 	fileType
 } from '$lib/server/db/schema';
 import type { InteractiveLearningStatusType } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { fileStorageService } from '$lib/server/files/FileStorageService';
@@ -308,6 +308,38 @@ async function findPointIdsByDocumentId(
 	return pointIds;
 }
 
+/**
+ * Comprueba sesión, permisos de staff en `cid` y que `ilid` pertenece a `cid`
+ * antes de devolver la configuración del chat. Las acciones de formulario no
+ * heredan la protección del `load`, así que cada una debe llamarla.
+ */
+async function requireChatAdminContext(
+	cid: string,
+	ilid: string,
+	locals: { user?: { id: string; highestRoleLevel: number } | null }
+) {
+	if (!locals.user) throw error(401, 'No autorizado');
+
+	const access = await CourseInteractiveAuthUtils.userCanAdminCourseInteractive(
+		locals.user.id,
+		cid,
+		ilid,
+		locals.user.highestRoleLevel
+	);
+	if (!access.allowed) {
+		throw error(403, access.reason || 'No tienes permisos para editar esta actividad');
+	}
+
+	const chat = await db
+		.select()
+		.from(interactiveLearningChat)
+		.where(eq(interactiveLearningChat.id, ilid))
+		.get();
+	if (!chat) throw error(404, 'Chat not found');
+
+	return { user: locals.user, chat };
+}
+
 export const load = (async ({ params, locals }) => {
 	// Verificación de seguridad (defensa en profundidad)
 	if (!locals.user) {
@@ -346,7 +378,12 @@ export const load = (async ({ params, locals }) => {
 	const courseInteractive = await db
 		.select()
 		.from(courseInteractiveLearning)
-		.where(eq(courseInteractiveLearning.interactiveLearningId, params.ilid))
+		.where(
+			and(
+				eq(courseInteractiveLearning.interactiveLearningId, params.ilid),
+				eq(courseInteractiveLearning.courseId, params.cid)
+			)
+		)
 		.get();
 
 	const courseData = courseInteractive
@@ -479,6 +516,7 @@ export const load = (async ({ params, locals }) => {
 
 export const actions = {
 	updateChat: async ({ request, params, locals }) => {
+		const { chat } = await requireChatAdminContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const name = formData.get('name')?.toString() ?? '';
 		const description = formData.get('description')?.toString();
@@ -511,14 +549,6 @@ export const actions = {
 				: null,
 			topP: formData.get('topP') ? parseFloat(formData.get('topP')?.toString() || '0') : null
 		};
-
-		const chat = await db
-			.select()
-			.from(interactiveLearningChat)
-			.where(eq(interactiveLearningChat.id, params.ilid))
-			.get();
-
-		if (!chat) throw error(404, 'Chat not found');
 
 		// Obtener nombre de la actividad para el log
 		await db
@@ -596,7 +626,8 @@ export const actions = {
 
 	// ========== RAG Actions ==========
 
-	updateRagSettings: async ({ request, params }) => {
+	updateRagSettings: async ({ request, params, locals }) => {
+		const { chat } = await requireChatAdminContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 
 		const ragChunkSize = parseInt(formData.get('ragChunkSize')?.toString() || '1000', 10);
@@ -694,13 +725,6 @@ export const actions = {
 			);
 		}
 
-		const chat = await db
-			.select()
-			.from(interactiveLearningChat)
-			.where(eq(interactiveLearningChat.id, params.ilid))
-			.get();
-
-		if (!chat) throw error(404, 'Chat not found');
 		const previousRagConfig = resolveRagConfig(chat.ragConfig);
 		const ragDocuments = await db
 			.select({
@@ -804,18 +828,12 @@ export const actions = {
 	},
 
 	uploadRagDocument: async ({ request, params, locals }) => {
+		const { chat } = await requireChatAdminContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const file = formData.get('file') as File;
 
 		if (!file) throw error(400, 'No file provided');
 
-		const chat = await db
-			.select()
-			.from(interactiveLearningChat)
-			.where(eq(interactiveLearningChat.id, params.ilid))
-			.get();
-
-		if (!chat) throw error(404, 'Chat not found');
 		const readyChat = await ensureRagReady(chat);
 
 		// Upload original file to new storage system for reference
@@ -932,20 +950,14 @@ export const actions = {
 		}
 	},
 
-	uploadRagText: async ({ request, params }) => {
+	uploadRagText: async ({ request, params, locals }) => {
+		const { chat } = await requireChatAdminContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const text = formData.get('text')?.toString();
 		const name = formData.get('name')?.toString() || 'Direct Input';
 
 		if (!text) throw error(400, 'No text provided');
 
-		const chat = await db
-			.select()
-			.from(interactiveLearningChat)
-			.where(eq(interactiveLearningChat.id, params.ilid))
-			.get();
-
-		if (!chat) throw error(404, 'Chat not found');
 		const readyChat = await ensureRagReady(chat);
 
 		const now = new Date();
@@ -1035,23 +1047,21 @@ export const actions = {
 	},
 
 	deleteRagDocument: async ({ request, params, locals }) => {
+		const { chat } = await requireChatAdminContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const documentId = formData.get('documentId')?.toString();
 
 		if (!documentId) throw error(400, 'No document ID provided');
 
-		const chat = await db
-			.select()
-			.from(interactiveLearningChat)
-			.where(eq(interactiveLearningChat.id, params.ilid))
-			.get();
-
-		if (!chat) throw error(404, 'Chat not found');
-
 		const document = await db
 			.select()
 			.from(interactiveLearningRagDocument)
-			.where(eq(interactiveLearningRagDocument.id, documentId))
+			.where(
+				and(
+					eq(interactiveLearningRagDocument.id, documentId),
+					eq(interactiveLearningRagDocument.interactiveLearningId, chat.id)
+				)
+			)
 			.get();
 
 		if (!document) throw error(404, 'Document not found');
@@ -1118,13 +1128,7 @@ export const actions = {
 	},
 
 	reindexRagDocuments: async ({ params, locals }) => {
-		const chat = await db
-			.select()
-			.from(interactiveLearningChat)
-			.where(eq(interactiveLearningChat.id, params.ilid))
-			.get();
-
-		if (!chat) throw error(404, 'Chat not found');
+		const { chat } = await requireChatAdminContext(params.cid, params.ilid, locals);
 		const readyChat = await ensureRagReady(chat);
 		const ragConfig = resolveRagConfig(readyChat.ragConfig);
 
@@ -1267,20 +1271,13 @@ export const actions = {
 	// ========== Original File Actions ==========
 
 	uploadFile: async ({ request, params, locals }) => {
+		const { chat } = await requireChatAdminContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const file = formData.get('file') as File;
 		const type = formData.get('type')?.toString() as keyof typeof fileType;
 
 		if (!file) throw error(400, 'No file provided');
 		if (!type || !fileType[type]) throw error(400, 'Invalid file type');
-
-		const chat = await db
-			.select()
-			.from(interactiveLearningChat)
-			.where(eq(interactiveLearningChat.id, params.ilid))
-			.get();
-
-		if (!chat) throw error(404, 'Chat not found');
 
 		// Upload using new file storage system
 		const result = await fileStorageService.upload({
@@ -1313,7 +1310,8 @@ export const actions = {
 		return { success: true };
 	},
 
-	deleteFile: async ({ request, locals }) => {
+	deleteFile: async ({ request, locals, params }) => {
+		await requireChatAdminContext(params.cid, params.ilid, locals);
 		const formData = await request.formData();
 		const fileId = formData.get('fileId')?.toString();
 
@@ -1322,7 +1320,12 @@ export const actions = {
 		const fileRecord = await db
 			.select()
 			.from(interactiveLearningFile)
-			.where(eq(interactiveLearningFile.id, fileId))
+			.where(
+				and(
+					eq(interactiveLearningFile.id, fileId),
+					eq(interactiveLearningFile.interactiveLearningId, params.ilid)
+				)
+			)
 			.get();
 
 		if (!fileRecord) throw error(404, 'File not found');
@@ -1341,7 +1344,14 @@ export const actions = {
 			throw error(500, deleteStorageResult.error || 'Error deleting file from storage');
 		}
 
-		await db.delete(interactiveLearningFile).where(eq(interactiveLearningFile.id, fileId));
+		await db
+			.delete(interactiveLearningFile)
+			.where(
+				and(
+					eq(interactiveLearningFile.id, fileId),
+					eq(interactiveLearningFile.interactiveLearningId, params.ilid)
+				)
+			);
 
 		return { success: true };
 	}

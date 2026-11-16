@@ -215,12 +215,14 @@
 			</p>
 		</div>
 		<div class="flex gap-2">
-			<a href={resolve('/admin/logs/settings')}>
-				<Button color="alternative" class="flex items-center gap-2">
-					<Settings class="h-4 w-4" />
-					Configuracion
-				</Button>
-			</a>
+			<Button
+				href={resolve('/admin/logs/settings')}
+				color="alternative"
+				class="flex items-center gap-2"
+			>
+				<Settings class="h-4 w-4" />
+				Configuracion
+			</Button>
 			<Button
 				color="red"
 				outline
@@ -287,6 +289,7 @@
 				<Input
 					id="logs-search"
 					type="search"
+					autocomplete="off"
 					placeholder="Buscar en logs..."
 					bind:value={searchQuery}
 				>

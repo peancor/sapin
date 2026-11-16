@@ -18,6 +18,17 @@ function getSubmittedModelCapabilities(data: FormData): string[] {
 	return data.get('supportsVision') === 'on' ? ['text', 'vision'] : ['text'];
 }
 
+/**
+ * La API key nunca se envía al navegador: el formulario solo necesita saber si existe.
+ * Al editar, un campo vacío conserva la clave guardada (ver `updateProvider`).
+ */
+function redactProvider<T extends { apiKey: string | null }>(
+	provider: T
+): Omit<T, 'apiKey'> & { hasApiKey: boolean } {
+	const { apiKey, ...rest } = provider;
+	return { ...rest, hasApiKey: Boolean(apiKey) };
+}
+
 export const load = (async () => {
 	// Seed defaults si es necesario
 	await AIModelService.seedDefaultProviders();
@@ -47,8 +58,11 @@ export const load = (async () => {
 	const topUsers = await AIModelService.getTopUsersByUsage(startOfMonth, now, 5);
 
 	return {
-		providers,
-		models,
+		providers: providers.map(redactProvider),
+		models: models.map(({ model, provider }) => ({
+			model,
+			provider: provider ? redactProvider(provider) : null
+		})),
 		quotas,
 		usageStats,
 		dailyStats,
@@ -111,7 +125,8 @@ export const actions = {
 				displayName: data.get('displayName')?.toString(),
 				type: data.get('type')?.toString() as keyof typeof table.aiProviderType,
 				baseUrl: data.get('baseUrl')?.toString() || undefined,
-				apiKey: data.get('apiKey')?.toString() || undefined,
+				// Vacío = conservar la clave guardada; `clearApiKey` la elimina de forma explícita
+				apiKey: data.get('clearApiKey') === 'on' ? '' : data.get('apiKey')?.toString() || undefined,
 				isActive: data.get('isActive') === 'on'
 			});
 			return { success: true, message: 'Proveedor actualizado' };

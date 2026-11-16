@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import DiscardChangesPrompt from '$lib/components/DiscardChangesPrompt.svelte';
+	import { DiscardGuard } from '$lib/utils/discardGuard.svelte';
 	import {
 		Button,
 		Card,
@@ -48,6 +50,18 @@
 
 	// Modal para crear colección
 	let showCreateModal = $state(false);
+	const createGuard = new DiscardGuard();
+
+	function openCreateModal() {
+		createGuard.reset();
+		showCreateModal = true;
+	}
+
+	function closeCreateModal() {
+		createGuard.reset();
+		showCreateModal = false;
+		newCollectionName = '';
+	}
 	let newCollectionName = $state('');
 	let newVectorSize = $state(1536); // Default para OpenAI embeddings
 	let newDistance = $state('Cosine');
@@ -126,8 +140,7 @@
 				throw new Error(data.error || 'Error al crear colección');
 			}
 
-			showCreateModal = false;
-			newCollectionName = '';
+			closeCreateModal();
 			await fetchStatus();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Error al crear colección';
@@ -228,11 +241,7 @@
 				<RefreshCw class="mr-2 h-4 w-4 {loading ? 'animate-spin' : ''}" />
 				Actualizar
 			</Button>
-			<Button
-				color="primary"
-				onclick={() => (showCreateModal = true)}
-				disabled={!connectionStatus?.connected}
-			>
+			<Button color="primary" onclick={openCreateModal} disabled={!connectionStatus?.connected}>
 				<Plus class="mr-2 h-4 w-4" />
 				Nueva Colección
 			</Button>
@@ -320,7 +329,7 @@
 						<p class="mb-4 text-gray-500 dark:text-gray-400">
 							Crea tu primera colección para empezar a almacenar vectores
 						</p>
-						<Button color="primary" onclick={() => (showCreateModal = true)}>
+						<Button color="primary" onclick={openCreateModal}>
 							<Plus class="mr-2 h-4 w-4" />
 							Crear Colección
 						</Button>
@@ -426,8 +435,16 @@
 </div>
 
 <!-- Modal: Crear Colección -->
-<Modal bind:open={showCreateModal} title="Crear Nueva Colección" size="md">
+<Modal
+	bind:open={showCreateModal}
+	title="Crear Nueva Colección"
+	size="md"
+	outsideclose={false}
+	oncancel={createGuard.handleCancel}
+>
 	<form
+		oninput={createGuard.markDirty}
+		onchange={createGuard.markDirty}
 		onsubmit={(e) => {
 			e.preventDefault();
 			createCollection();
@@ -454,12 +471,16 @@
 				<Label for="distance" class="mb-2">Función de Distancia</Label>
 				<Select id="distance" bind:value={newDistance} items={distanceOptions} />
 			</div>
+
+			<DiscardChangesPrompt guard={createGuard} ondiscard={closeCreateModal} />
 		</div>
 	</form>
 
 	{#snippet footer()}
 		<div class="flex justify-end gap-2">
-			<Button color="alternative" onclick={() => (showCreateModal = false)}>Cancelar</Button>
+			<Button color="alternative" onclick={() => createGuard.requestClose() && closeCreateModal()}
+				>Cancelar</Button
+			>
 			<Button
 				color="primary"
 				onclick={createCollection}

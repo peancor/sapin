@@ -110,6 +110,7 @@
 			</div>
 			<Input
 				type="search"
+				autocomplete="off"
 				aria-label="Buscar actividades"
 				placeholder="Buscar por nombre, descripción o tipo..."
 				bind:value={searchTerm}

@@ -24,7 +24,8 @@ export default ts.config(
 		}
 	},
 	{
-		files: ['**/*.svelte'],
+		// Los módulos con runas (`*.svelte.ts`) también necesitan el parser de TypeScript
+		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
 
 		languageOptions: {
 			parserOptions: {

@@ -2,6 +2,8 @@
 	import { Modal, Label, Input, Textarea, Button } from 'flowbite-svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { BookOpen, Loader2 } from 'lucide-svelte';
+	import DiscardChangesPrompt from '$lib/components/DiscardChangesPrompt.svelte';
+	import { DiscardGuard } from '$lib/utils/discardGuard.svelte';
 
 	interface Props {
 		show?: boolean;
@@ -13,6 +15,9 @@
 	let description = $state('');
 	let context = $state('');
 	let isSubmitting = $state(false);
+	const guard = new DiscardGuard();
+	const uid = $props.id();
+	const titleId = `${uid}-title`;
 
 	// Available course banners
 	const courseBanners = [
@@ -31,6 +36,7 @@
 		if (!name.trim()) return;
 
 		isSubmitting = true;
+		guard.busy = true;
 		try {
 			const response = await fetch('/api/courses', {
 				method: 'POST',
@@ -50,14 +56,17 @@
 				name = '';
 				description = '';
 				context = '';
+				guard.reset();
 				show = false;
 			}
 		} finally {
 			isSubmitting = false;
+			guard.busy = false;
 		}
 	}
 
 	function handleClose() {
+		guard.reset();
 		show = false;
 		name = '';
 		description = '';
@@ -65,8 +74,17 @@
 	}
 </script>
 
-<Modal bind:open={show} size="lg" autoclose={false} class="w-full">
+<Modal
+	bind:open={show}
+	size="lg"
+	autoclose={false}
+	outsideclose={false}
+	oncancel={guard.handleCancel}
+	aria-labelledby={titleId}
+	class="w-full"
+>
 	<form
+		oninput={guard.markDirty}
 		onsubmit={(e) => {
 			e.preventDefault();
 			handleSubmit();
@@ -77,11 +95,14 @@
 		<div class="flex items-center gap-4">
 			<div
 				class="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg"
+				aria-hidden="true"
 			>
 				<BookOpen class="h-6 w-6 text-white" />
 			</div>
 			<div>
-				<h3 class="text-xl font-bold text-gray-900 dark:text-white">Crear nuevo curso</h3>
+				<h3 id={titleId} class="text-xl font-bold text-gray-900 dark:text-white">
+					Crear nuevo curso
+				</h3>
 				<p class="text-sm text-gray-500 dark:text-gray-400">
 					Completa la información básica para empezar
 				</p>
@@ -131,9 +152,16 @@
 			/>
 		</div> -->
 
+		<DiscardChangesPrompt {guard} ondiscard={handleClose} />
+
 		<!-- Actions -->
 		<div class="flex justify-end gap-3 pt-2">
-			<Button color="alternative" onclick={handleClose} class="!rounded-xl">Cancelar</Button>
+			<Button
+				type="button"
+				color="alternative"
+				onclick={() => guard.requestClose() && handleClose()}
+				class="!rounded-xl">Cancelar</Button
+			>
 			<Button
 				type="submit"
 				disabled={isSubmitting || !name.trim()}

@@ -499,7 +499,14 @@
 			}}
 			class="flex flex-1 gap-2"
 		>
-			<Input type="search" placeholder="Buscar archivos..." bind:value={searchQuery} class="flex-1">
+			<Input
+				type="search"
+				autocomplete="off"
+				aria-label="Buscar archivos"
+				placeholder="Buscar archivos..."
+				bind:value={searchQuery}
+				class="flex-1"
+			>
 				{#snippet left()}
 					<Search class="h-4 w-4 text-gray-400" />
 				{/snippet}
@@ -588,6 +595,7 @@
 						<Checkbox
 							checked={selectedFiles.length === data.files.length && data.files.length > 0}
 							onchange={toggleSelectAll}
+							aria-label="Seleccionar todos los ficheros"
 						/>
 					</TableHeadCell>
 					<TableHeadCell>Archivo</TableHeadCell>
@@ -606,6 +614,7 @@
 								<Checkbox
 									checked={selectedFiles.includes(file.id)}
 									onchange={() => toggleSelect(file.id)}
+									aria-label={`Seleccionar ${file.displayName || file.name}`}
 								/>
 							</TableBodyCell>
 							<TableBodyCell>

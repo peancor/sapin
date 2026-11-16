@@ -372,18 +372,18 @@
 			</p>
 		</div>
 		<div class="flex gap-2">
-			<a href={resolve('/admin/analytics/realtime')}>
-				<Button color="alternative" class="flex items-center gap-2">
-					<Radio class="h-4 w-4" />
-					Tiempo Real
-				</Button>
-			</a>
-			<a href={resolve('/admin/settings')}>
-				<Button color="light" class="flex items-center gap-2">
-					<Settings class="h-4 w-4" />
-					Configuración
-				</Button>
-			</a>
+			<Button
+				href={resolve('/admin/analytics/realtime')}
+				color="alternative"
+				class="flex items-center gap-2"
+			>
+				<Radio class="h-4 w-4" />
+				Tiempo Real
+			</Button>
+			<Button href={resolve('/admin/settings')} color="light" class="flex items-center gap-2">
+				<Settings class="h-4 w-4" />
+				Configuración
+			</Button>
 		</div>
 	</div>
 
@@ -447,7 +447,14 @@
 				}}
 				class="flex gap-2"
 			>
-				<Input type="search" placeholder="Buscar usuarios..." bind:value={searchQuery} class="w-64">
+				<Input
+					type="search"
+					autocomplete="off"
+					aria-label="Buscar usuarios"
+					placeholder="Buscar usuarios..."
+					bind:value={searchQuery}
+					class="w-64"
+				>
 					{#snippet left()}
 						<Search class="h-4 w-4 text-gray-400" />
 					{/snippet}

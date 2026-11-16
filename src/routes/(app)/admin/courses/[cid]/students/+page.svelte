@@ -29,6 +29,8 @@
 		Download,
 		Menu
 	} from 'lucide-svelte';
+	import DiscardChangesPrompt from '$lib/components/DiscardChangesPrompt.svelte';
+	import { DiscardGuard } from '$lib/utils/discardGuard.svelte';
 
 	interface ImportResult {
 		status: 'success' | 'error';
@@ -54,6 +56,7 @@
 	// Selection state
 	let selectedStudents = $state<string[]>([]);
 	let selectedToAdd = $state<string[]>([]);
+	const addGuard = new DiscardGuard(() => selectedToAdd.length > 0);
 	let allSelected = $state(false);
 
 	// Loading states
@@ -69,6 +72,28 @@
 		errors: 0
 	});
 	let importValidationError = $state<string | null>(null);
+	const importGuard = new DiscardGuard(() => csvFile !== null);
+
+	function openAddModal() {
+		selectedToAdd = [];
+		addSearchTerm = '';
+		addGuard.reset();
+		showAddModal = true;
+	}
+
+	function closeAddModal() {
+		addGuard.reset();
+		showAddModal = false;
+		selectedToAdd = [];
+		addSearchTerm = '';
+	}
+
+	function openImportModal() {
+		csvFile = null;
+		importValidationError = null;
+		importGuard.reset();
+		showImportModal = true;
+	}
 
 	// Toast state
 	let showToast = $state(false);
@@ -173,6 +198,7 @@
 		if (!csvFile) return;
 
 		isImporting = true;
+		importGuard.busy = true;
 		importValidationError = null;
 
 		const formData = new FormData();
@@ -192,6 +218,7 @@
 					importValidationError =
 						responseData.message || responseData.error || 'Error de validación';
 					isImporting = false;
+					importGuard.busy = false;
 					return;
 				}
 				throw new Error(responseData.message || responseData.error || 'Error desconocido');
@@ -206,6 +233,7 @@
 				errors: importResults.filter((r: ImportResult) => r.status === 'error').length
 			};
 
+			importGuard.reset();
 			showImportModal = false;
 			showImportResultsModal = true;
 			csvFile = null;
@@ -221,6 +249,7 @@
 			);
 		} finally {
 			isImporting = false;
+			importGuard.busy = false;
 		}
 	}
 
@@ -248,6 +277,7 @@
 
 	// Close import modal
 	function closeImportModal() {
+		importGuard.reset();
 		showImportModal = false;
 		csvFile = null;
 		importValidationError = null;
@@ -276,11 +306,11 @@
 				Acciones
 			</Button>
 			<Dropdown>
-				<DropdownItem onclick={() => (showAddModal = true)}>
+				<DropdownItem onclick={openAddModal}>
 					<UserPlus class="mr-2 h-4 w-4" />
 					Inscribir Estudiantes
 				</DropdownItem>
-				<DropdownItem onclick={() => (showImportModal = true)}>
+				<DropdownItem onclick={openImportModal}>
 					<Upload class="mr-2 h-4 w-4" />
 					Importar desde CSV
 				</DropdownItem>
@@ -301,13 +331,17 @@
 					<Search class="h-4 w-4 text-gray-400" />
 				</div>
 				<Input
-					type="text"
+					type="search"
+					autocomplete="off"
+					aria-label="Buscar por nombre o email"
 					placeholder="Buscar por nombre o email..."
 					bind:value={searchTerm}
 					class="pl-10"
 				/>
 				{#if searchTerm}
 					<button
+						type="button"
+						aria-label="Limpiar búsqueda"
 						onclick={() => (searchTerm = '')}
 						class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
 					>
@@ -352,7 +386,11 @@
 				<Table striped>
 					<TableHead>
 						<TableHeadCell class="w-12">
-							<Checkbox checked={allSelected} onchange={toggleSelectAll} />
+							<Checkbox
+								checked={allSelected}
+								onchange={toggleSelectAll}
+								aria-label="Seleccionar todos los estudiantes"
+							/>
 						</TableHeadCell>
 						<TableHeadCell>Estudiante</TableHeadCell>
 						<TableHeadCell>Email</TableHeadCell>
@@ -367,6 +405,7 @@
 									<Checkbox
 										checked={selectedStudents.includes(student.id)}
 										onchange={() => toggleSelection(student.id)}
+										aria-label={`Seleccionar a ${student.username || student.email}`}
 									/>
 								</TableBodyCell>
 								<TableBodyCell>
@@ -415,11 +454,11 @@
 						Inscribe estudiantes para que puedan acceder al curso
 					</p>
 					<div class="mt-4 flex justify-center gap-2">
-						<Button color="primary" size="sm" onclick={() => (showAddModal = true)}>
+						<Button color="primary" size="sm" onclick={openAddModal}>
 							<UserPlus class="mr-2 h-4 w-4" />
 							Inscribir
 						</Button>
-						<Button color="alternative" size="sm" onclick={() => (showImportModal = true)}>
+						<Button color="alternative" size="sm" onclick={openImportModal}>
 							<Upload class="mr-2 h-4 w-4" />
 							Importar CSV
 						</Button>
@@ -431,7 +470,13 @@
 </div>
 
 <!-- Add Students Modal -->
-<Modal title="Inscribir Estudiantes" bind:open={showAddModal} size="lg">
+<Modal
+	title="Inscribir Estudiantes"
+	bind:open={showAddModal}
+	size="lg"
+	outsideclose={false}
+	oncancel={addGuard.handleCancel}
+>
 	<div class="space-y-4">
 		<!-- Search in modal -->
 		<div class="relative">
@@ -439,7 +484,9 @@
 				<Search class="h-4 w-4 text-gray-400" />
 			</div>
 			<Input
-				type="text"
+				type="search"
+				autocomplete="off"
+				aria-label="Buscar usuarios disponibles"
 				placeholder="Buscar usuarios disponibles..."
 				bind:value={addSearchTerm}
 				class="pl-10"
@@ -484,6 +531,12 @@
 				No hay más usuarios disponibles para inscribir
 			</p>
 		{/if}
+
+		<DiscardChangesPrompt
+			guard={addGuard}
+			ondiscard={closeAddModal}
+			message="Hay estudiantes seleccionados sin inscribir. ¿Quieres descartar la selección y cerrar?"
+		/>
 	</div>
 
 	{#snippet footer()}
@@ -502,12 +555,9 @@
 			<input type="hidden" name="studentIds" value={JSON.stringify(selectedToAdd)} />
 			<div class="flex justify-end gap-3">
 				<Button
+					type="button"
 					color="alternative"
-					onclick={() => {
-						showAddModal = false;
-						selectedToAdd = [];
-						addSearchTerm = '';
-					}}
+					onclick={() => addGuard.requestClose() && closeAddModal()}
 				>
 					Cancelar
 				</Button>
@@ -524,7 +574,13 @@
 </Modal>
 
 <!-- Import CSV Modal -->
-<Modal title="Importar Estudiantes desde CSV" bind:open={showImportModal} size="md">
+<Modal
+	title="Importar Estudiantes desde CSV"
+	bind:open={showImportModal}
+	size="md"
+	outsideclose={false}
+	oncancel={importGuard.handleCancel}
+>
 	<div class="space-y-4">
 		{#if importValidationError}
 			<div
@@ -546,6 +602,7 @@
 			<input
 				type="file"
 				accept=".csv"
+				aria-label="Fichero CSV de estudiantes"
 				onchange={handleFileChange}
 				disabled={isImporting}
 				class="block w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:placeholder-gray-400"
@@ -563,11 +620,21 @@
 				</ul>
 			</div>
 		{/if}
+
+		<DiscardChangesPrompt
+			guard={importGuard}
+			ondiscard={closeImportModal}
+			message="Has elegido un fichero sin importarlo. ¿Quieres descartarlo y cerrar?"
+		/>
 	</div>
 
 	{#snippet footer()}
 		<div class="flex justify-end gap-2">
-			<Button color="alternative" onclick={closeImportModal} disabled={isImporting}>
+			<Button
+				color="alternative"
+				onclick={() => importGuard.requestClose() && closeImportModal()}
+				disabled={isImporting}
+			>
 				Cancelar
 			</Button>
 			<Button color="primary" onclick={handleCsvUpload} disabled={!csvFile || isImporting}>

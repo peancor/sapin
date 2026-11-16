@@ -232,6 +232,7 @@
 			/>
 			<input
 				type="search"
+				autocomplete="off"
 				aria-label="Buscar cursos"
 				bind:value={searchTerm}
 				placeholder="Buscar cursos por nombre o descripción..."

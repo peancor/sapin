@@ -494,8 +494,12 @@
 									triggerIdPrefix="dashboard-moodle-link"
 									buttonClass="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white p-1.5 text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 								/>
-								<Button color="light" class="!p-1.5">
-									<MoreVertical class="h-4 w-4" />
+								<Button
+									color="light"
+									class="!p-1.5"
+									aria-label={`Más acciones para ${interactive.name}`}
+								>
+									<MoreVertical class="h-4 w-4" aria-hidden="true" />
 								</Button>
 								<Dropdown>
 									<DropdownItem href={getPreviewUrl(interactive)}>

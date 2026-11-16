@@ -3,6 +3,8 @@
 	import { Modal, Button, Badge } from 'flowbite-svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
+	import DiscardChangesPrompt from '$lib/components/DiscardChangesPrompt.svelte';
+	import { DiscardGuard } from '$lib/utils/discardGuard.svelte';
 
 	interface Props {
 		open: boolean;
@@ -27,6 +29,11 @@
 	});
 	let generatedRole = $state('');
 	let isGenerating = $state(false);
+	const guard = new DiscardGuard(
+		() => currentStep > 1 || selectedArchetype !== null || generatedRole !== ''
+	);
+	const uid = $props.id();
+	const titleId = `${uid}-title`;
 
 	// Arquetipos de roles educativos basados en investigación pedagógica
 	interface RoleArchetype {
@@ -331,6 +338,7 @@
 			tone: 'friendly'
 		};
 		generatedRole = '';
+		guard.reset();
 		open = false;
 		onclose?.();
 	}
@@ -396,18 +404,27 @@
 	}
 </script>
 
-<Modal bind:open size="xl" title="" class="role-magician-modal" outsideclose>
+<Modal
+	bind:open
+	size="xl"
+	title=""
+	class="role-magician-modal"
+	outsideclose={false}
+	oncancel={guard.handleCancel}
+	aria-labelledby={titleId}
+>
 	<div class="min-h-[70vh]">
 		<!-- Header con progreso -->
 		<div class="mb-6 border-b border-gray-200 pb-4 dark:border-gray-700">
 			<div class="mb-4 flex items-center gap-3">
 				<div
+					aria-hidden="true"
 					class="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-2xl shadow-lg"
 				>
 					🧙‍♂️
 				</div>
 				<div>
-					<h2 class="text-xl font-bold text-gray-900 dark:text-white">
+					<h2 id={titleId} class="text-xl font-bold text-gray-900 dark:text-white">
 						Asistente de Creación de Roles
 					</h2>
 					<p class="text-sm text-gray-500 dark:text-gray-400">
@@ -709,27 +726,36 @@
 	</div>
 
 	{#snippet footer()}
-		<div class="flex w-full items-center justify-between">
-			<div>
-				{#if currentStep > 1}
-					<Button color="light" onclick={prevStep}>← Anterior</Button>
-				{/if}
-			</div>
-			<div class="flex gap-2">
-				<Button color="alternative" onclick={resetAndClose}>Cancelar</Button>
-				{#if currentStep < 3}
-					<Button
-						color="purple"
-						onclick={nextStep}
-						disabled={currentStep === 1 && !selectedArchetype}
+		<div class="flex w-full flex-col gap-3">
+			<DiscardChangesPrompt
+				{guard}
+				ondiscard={resetAndClose}
+				message="Si cierras el asistente perderás lo que has configurado. ¿Quieres cerrarlo?"
+			/>
+			<div class="flex w-full items-center justify-between">
+				<div>
+					{#if currentStep > 1}
+						<Button color="light" onclick={prevStep}>← Anterior</Button>
+					{/if}
+				</div>
+				<div class="flex gap-2">
+					<Button color="alternative" onclick={() => guard.requestClose() && resetAndClose()}
+						>Cancelar</Button
 					>
-						Siguiente →
-					</Button>
-				{:else if currentStep === 3}
-					<Button color="purple" onclick={generateRole}>✨ Generar Rol</Button>
-				{:else}
-					<Button color="green" onclick={applyRole}>✓ Aplicar Rol</Button>
-				{/if}
+					{#if currentStep < 3}
+						<Button
+							color="purple"
+							onclick={nextStep}
+							disabled={currentStep === 1 && !selectedArchetype}
+						>
+							Siguiente →
+						</Button>
+					{:else if currentStep === 3}
+						<Button color="purple" onclick={generateRole}>✨ Generar Rol</Button>
+					{:else}
+						<Button color="green" onclick={applyRole}>✓ Aplicar Rol</Button>
+					{/if}
+				</div>
 			</div>
 		</div>
 	{/snippet}

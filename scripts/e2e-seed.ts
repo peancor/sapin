@@ -381,6 +381,93 @@ try {
 			})
 			.run();
 	}
+	// Resources of a course where "teacher" has no role. Course admin actions in "course"
+	// must never modify them by sending their IDs (cross-course authorization tests).
+	f.database
+		.insert(s.course)
+		.values({
+			id: 'foreign-course',
+			name: 'Curso ajeno',
+			slug: 'foreign-course',
+			status: 'published',
+			createdAt: now,
+			updatedAt: now
+		})
+		.run();
+	f.database
+		.insert(s.interactiveLearning)
+		.values({
+			id: 'foreign-chat',
+			name: 'Chat ajeno',
+			slug: 'foreign-chat',
+			type: 'chat',
+			content: '{}',
+			status: 'published',
+			createdAt: now,
+			updatedAt: now
+		})
+		.run();
+	f.database
+		.insert(s.courseInteractiveLearning)
+		.values({
+			id: 'foreign-relation',
+			courseId: 'foreign-course',
+			interactiveLearningId: 'foreign-chat',
+			order: 7,
+			createdAt: now
+		})
+		.run();
+	f.database.insert(s.interactiveLearningChat).values({ id: 'foreign-chat', createdAt: now }).run();
+	f.database
+		.insert(s.interactiveLearningRagDocument)
+		.values({
+			id: 'foreign-rag',
+			interactiveLearningId: 'foreign-chat',
+			name: 'foreign-rag',
+			originalPath: '/uploads/foreign.pdf',
+			fileType: 'pdf',
+			createdAt: now,
+			updatedAt: now
+		})
+		.run();
+	f.database
+		.insert(s.interactiveLearningFile)
+		.values({
+			id: 'foreign-activity-file',
+			interactiveLearningId: 'foreign-chat',
+			name: 'foreign.pdf',
+			path: '/api/files/foreign-activity-file',
+			type: 'DOCUMENT',
+			size: 1,
+			mimeType: 'application/pdf',
+			createdAt: now
+		})
+		.run();
+	f.database
+		.insert(s.courseFile)
+		.values({
+			id: 'foreign-course-file',
+			courseId: 'foreign-course',
+			name: 'foreign.pdf',
+			path: '/uploads/foreign-course.pdf',
+			type: 'DOCUMENT',
+			size: 1,
+			mimeType: 'application/pdf',
+			createdAt: now
+		})
+		.run();
+	f.database
+		.insert(s.invite)
+		.values({
+			id: 'foreign-invite',
+			code: 'FOREIGN-INVITE',
+			config: { type: 'course_student', courseId: 'foreign-course' },
+			createdBy: 'admin',
+			expiresAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+			createdAt: now,
+			courseId: 'foreign-course'
+		})
+		.run();
 	await f.client.backup(destination);
 } finally {
 	f.client.close();

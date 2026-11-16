@@ -117,14 +117,19 @@ export const actions: Actions = {
 
 		try {
 			// Eliminar la relación con el curso
-			await db
+			const deleted = await db
 				.delete(courseInteractiveLearning)
 				.where(
 					and(
 						eq(courseInteractiveLearning.interactiveLearningId, id),
 						eq(courseInteractiveLearning.courseId, params.cid)
 					)
-				);
+				)
+				.returning({ id: courseInteractiveLearning.interactiveLearningId });
+
+			if (deleted.length === 0) {
+				return fail(404, { message: 'Actividad no encontrada en este curso' });
+			}
 
 			return { success: true };
 		} catch (e) {
@@ -141,9 +146,12 @@ export const actions: Actions = {
 		if (!id) {
 			return fail(400, { message: 'ID requerido' });
 		}
+		if (!Number.isFinite(order)) {
+			return fail(400, { message: 'Orden no válido' });
+		}
 
 		try {
-			await db
+			const updated = await db
 				.update(courseInteractiveLearning)
 				.set({ order })
 				.where(
@@ -151,7 +159,12 @@ export const actions: Actions = {
 						eq(courseInteractiveLearning.interactiveLearningId, id),
 						eq(courseInteractiveLearning.courseId, params.cid)
 					)
-				);
+				)
+				.returning({ id: courseInteractiveLearning.interactiveLearningId });
+
+			if (updated.length === 0) {
+				return fail(404, { message: 'Actividad no encontrada en este curso' });
+			}
 
 			return { success: true };
 		} catch (e) {

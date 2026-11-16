@@ -408,7 +408,8 @@
 					</div>
 					<input
 						id="search"
-						type="text"
+						type="search"
+						autocomplete="off"
 						bind:value={searchQuery}
 						placeholder="Buscar por nombre o display name..."
 						class="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 pl-10 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"

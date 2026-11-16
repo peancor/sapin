@@ -3,6 +3,8 @@
 	import { Modal, Button, Badge } from 'flowbite-svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
+	import DiscardChangesPrompt from '$lib/components/DiscardChangesPrompt.svelte';
+	import { DiscardGuard } from '$lib/utils/discardGuard.svelte';
 
 	interface Props {
 		open: boolean;
@@ -29,6 +31,15 @@
 	});
 	let generatedPrompt = $state('');
 	let isGenerating = $state(false);
+	const guard = new DiscardGuard(
+		() =>
+			currentStep > 1 ||
+			selectedStrategy !== null ||
+			selectedActivity !== null ||
+			generatedPrompt !== ''
+	);
+	const uid = $props.id();
+	const titleId = `${uid}-title`;
 
 	// Estrategias de aprendizaje basadas en investigación educativa
 	interface LearningStrategy {
@@ -444,6 +455,7 @@
 			includeResources: false
 		};
 		generatedPrompt = '';
+		guard.reset();
 		open = false;
 		onclose?.();
 	}
@@ -533,18 +545,27 @@
 	}
 </script>
 
-<Modal bind:open size="xl" title="" class="prompt-magician-modal" outsideclose>
+<Modal
+	bind:open
+	size="xl"
+	title=""
+	class="prompt-magician-modal"
+	outsideclose={false}
+	oncancel={guard.handleCancel}
+	aria-labelledby={titleId}
+>
 	<div class="min-h-[70vh]">
 		<!-- Header con progreso -->
 		<div class="mb-6 border-b border-gray-200 pb-4 dark:border-gray-700">
 			<div class="mb-4 flex items-center gap-3">
 				<div
+					aria-hidden="true"
 					class="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-2xl shadow-lg"
 				>
 					✨
 				</div>
 				<div>
-					<h2 class="text-xl font-bold text-gray-900 dark:text-white">
+					<h2 id={titleId} class="text-xl font-bold text-gray-900 dark:text-white">
 						Asistente de Instrucciones
 					</h2>
 					<p class="text-sm text-gray-500 dark:text-gray-400">
@@ -872,30 +893,39 @@
 	</div>
 
 	{#snippet footer()}
-		<div class="flex w-full items-center justify-between">
-			<div>
-				{#if currentStep > 1}
-					<Button color="light" onclick={prevStep}>← Anterior</Button>
-				{/if}
-			</div>
-			<div class="flex gap-2">
-				<Button color="alternative" onclick={resetAndClose}>Cancelar</Button>
-				{#if currentStep < 3}
-					<Button
-						color="blue"
-						onclick={nextStep}
-						disabled={(currentStep === 1 && !selectedStrategy) ||
-							(currentStep === 2 && !selectedActivity)}
+		<div class="flex w-full flex-col gap-3">
+			<DiscardChangesPrompt
+				{guard}
+				ondiscard={resetAndClose}
+				message="Si cierras el asistente perderás lo que has configurado. ¿Quieres cerrarlo?"
+			/>
+			<div class="flex w-full items-center justify-between">
+				<div>
+					{#if currentStep > 1}
+						<Button color="light" onclick={prevStep}>← Anterior</Button>
+					{/if}
+				</div>
+				<div class="flex gap-2">
+					<Button color="alternative" onclick={() => guard.requestClose() && resetAndClose()}
+						>Cancelar</Button
 					>
-						Siguiente →
-					</Button>
-				{:else if currentStep === 3}
-					<Button color="blue" onclick={generatePrompt} disabled={!customizations.topic}>
-						✨ Generar Instrucciones
-					</Button>
-				{:else}
-					<Button color="green" onclick={applyPrompt}>✓ Aplicar Instrucciones</Button>
-				{/if}
+					{#if currentStep < 3}
+						<Button
+							color="blue"
+							onclick={nextStep}
+							disabled={(currentStep === 1 && !selectedStrategy) ||
+								(currentStep === 2 && !selectedActivity)}
+						>
+							Siguiente →
+						</Button>
+					{:else if currentStep === 3}
+						<Button color="blue" onclick={generatePrompt} disabled={!customizations.topic}>
+							✨ Generar Instrucciones
+						</Button>
+					{:else}
+						<Button color="green" onclick={applyPrompt}>✓ Aplicar Instrucciones</Button>
+					{/if}
+				</div>
 			</div>
 		</div>
 	{/snippet}

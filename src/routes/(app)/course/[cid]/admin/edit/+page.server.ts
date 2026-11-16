@@ -10,7 +10,7 @@ import {
 	interactiveLearningChat
 } from '$lib/server/db/schema';
 import type { CourseStatusType } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { fileStorageService } from '$lib/server/files/FileStorageService';
@@ -130,17 +130,26 @@ export const actions = {
 		return { success: true };
 	},
 
-	updateOrder: async ({ request }) => {
+	updateOrder: async ({ request, params }) => {
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 		const newOrder = parseInt(data.get('order')?.toString() || '0');
 
 		if (!id) throw error(400, 'Interactive Learning ID is required');
+		if (!Number.isFinite(newOrder)) throw error(400, 'Invalid order');
 
-		await db
+		const updated = await db
 			.update(courseInteractiveLearning)
 			.set({ order: newOrder })
-			.where(eq(courseInteractiveLearning.interactiveLearningId, id));
+			.where(
+				and(
+					eq(courseInteractiveLearning.interactiveLearningId, id),
+					eq(courseInteractiveLearning.courseId, params.cid)
+				)
+			)
+			.returning({ id: courseInteractiveLearning.interactiveLearningId });
+
+		if (updated.length === 0) throw error(404, 'Interactive Learning not found in this course');
 
 		return { success: true };
 	},
@@ -183,23 +192,31 @@ export const actions = {
 		return { success: true };
 	},
 
-	deleteFile: async ({ request, locals }) => {
+	deleteFile: async ({ request, params, locals }) => {
 		const formData = await request.formData();
 		const fileId = formData.get('fileId')?.toString();
 
 		if (!fileId) throw error(400, 'No file ID provided');
 
-		// Get file data to extract storage file ID
-		const fileData = await db.select().from(courseFile).where(eq(courseFile.id, fileId)).get();
+		// Only files that belong to this course can be deleted from here
+		const fileData = await db
+			.select()
+			.from(courseFile)
+			.where(and(eq(courseFile.id, fileId), eq(courseFile.courseId, params.cid)))
+			.get();
+
+		if (!fileData) throw error(404, 'File not found in this course');
 
 		// If file is in new system, delete it from storage
-		if (fileData?.path && fileData.path.startsWith('/api/files/')) {
+		if (fileData.path && fileData.path.startsWith('/api/files/')) {
 			const storageFileId = fileData.path.replace('/api/files/', '');
 			await fileStorageService.delete(storageFileId, locals.user?.id || 'system');
 		}
 
 		// Delete from database
-		await db.delete(courseFile).where(eq(courseFile.id, fileId));
+		await db
+			.delete(courseFile)
+			.where(and(eq(courseFile.id, fileId), eq(courseFile.courseId, params.cid)));
 
 		return { success: true };
 	}
