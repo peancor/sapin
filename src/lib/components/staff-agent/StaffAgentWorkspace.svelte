@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { confirmDialog, promptDialog } from '$lib/stores/dialogs.svelte';
 	import { base, resolve } from '$app/paths';
 	import type { Pathname, PathnameWithSearchOrHash } from '$app/types';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -120,7 +121,12 @@
 
 	async function renameThread(thread: ThreadSummary) {
 		const current = thread.title?.trim() || 'Nuevo hilo';
-		const nextTitle = window.prompt('Nuevo nombre del hilo', current);
+		const nextTitle = await promptDialog({
+			title: 'Renombrar hilo',
+			label: 'Nuevo nombre del hilo',
+			value: current,
+			confirmLabel: 'Guardar'
+		});
 		if (nextTitle === null) return;
 
 		actionError = '';
@@ -145,7 +151,12 @@
 	}
 
 	async function deleteThread(thread: ThreadSummary) {
-		const confirmed = window.confirm('Este hilo se ocultara para el staff. ¿Quieres borrarlo?');
+		const confirmed = await confirmDialog({
+			title: '¿Borrar este hilo?',
+			message: 'El hilo se ocultará para el staff.',
+			confirmLabel: 'Borrar',
+			destructive: true
+		});
 		if (!confirmed) return;
 
 		actionError = '';

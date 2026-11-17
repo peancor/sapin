@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { notify } from '$lib/stores/toasts.svelte';
 	import { Image, Upload, Trash2, Camera } from 'lucide-svelte';
 
 	interface Props {
@@ -41,13 +42,13 @@
 
 		if (file) {
 			if (file.size > 5 * 1024 * 1024) {
-				alert('El archivo debe ser menor a 5MB');
+				notify('El archivo debe ser menor a 5MB', 'error');
 				if (fileInput) fileInput.value = '';
 				return;
 			}
 
 			if (!file.type.startsWith('image/')) {
-				alert('Solo se permiten archivos de imagen');
+				notify('Solo se permiten archivos de imagen', 'error');
 				if (fileInput) fileInput.value = '';
 				return;
 			}

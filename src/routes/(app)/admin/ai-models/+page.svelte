@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { confirmSubmit } from '$lib/stores/dialogs.svelte';
 	import type { PageData, ActionData } from './$types';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import { enhance } from '$app/forms';
@@ -399,7 +400,18 @@
 										>
 											<Pencil class="h-3 w-3" />
 										</Button>
-										<form method="POST" action="?/deleteModel" use:enhance>
+										<form
+											method="POST"
+											action="?/deleteModel"
+											use:enhance
+											onsubmit={(event) =>
+												confirmSubmit(event, {
+													title: `¿Eliminar el modelo ${model.displayName}?`,
+													message: 'Esta acción no se puede deshacer.',
+													confirmLabel: 'Eliminar',
+													destructive: true
+												})}
+										>
 											<input type="hidden" name="id" value={model.id} />
 											<Button
 												size="xs"
@@ -478,7 +490,18 @@
 										>
 											<Pencil class="h-3 w-3" />
 										</Button>
-										<form method="POST" action="?/deleteProvider" use:enhance>
+										<form
+											method="POST"
+											action="?/deleteProvider"
+											use:enhance
+											onsubmit={(event) =>
+												confirmSubmit(event, {
+													title: `¿Eliminar el proveedor ${provider.displayName}?`,
+													message: 'Esta acción no se puede deshacer.',
+													confirmLabel: 'Eliminar',
+													destructive: true
+												})}
+										>
 											<input type="hidden" name="id" value={provider.id} />
 											<Button
 												size="xs"
@@ -581,7 +604,18 @@
 										>
 											<Pencil class="h-3 w-3" />
 										</Button>
-										<form method="POST" action="?/deleteQuota" use:enhance>
+										<form
+											method="POST"
+											action="?/deleteQuota"
+											use:enhance
+											onsubmit={(event) =>
+												confirmSubmit(event, {
+													title: '¿Eliminar esta cuota?',
+													message: 'Esta acción no se puede deshacer.',
+													confirmLabel: 'Eliminar',
+													destructive: true
+												})}
+										>
 											<input type="hidden" name="id" value={quota.id} />
 											<Button size="xs" color="red" type="submit" aria-label="Eliminar cuota">
 												<Trash2 class="h-3 w-3" aria-hidden="true" />

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { confirmDialog } from '$lib/stores/dialogs.svelte';
 	import { isImeComposing } from '$lib/utils/composer';
 	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { onMount, tick } from 'svelte';
@@ -325,13 +326,13 @@
 	}
 
 	async function clearCollection() {
-		if (
-			!confirm(
-				'¿Estás seguro de que deseas eliminar todos los documentos? Esta acción no se puede deshacer.'
-			)
-		) {
-			return;
-		}
+		const confirmed = await confirmDialog({
+			title: '¿Eliminar todos los documentos?',
+			message: 'Se vaciará la colección de prueba. Esta acción no se puede deshacer.',
+			confirmLabel: 'Eliminar todo',
+			destructive: true
+		});
+		if (!confirmed) return;
 
 		try {
 			const response = await fetch('/api/admin/qdrant/rag-test', {

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { confirmDialog } from '$lib/stores/dialogs.svelte';
 	import { resolve } from '$app/paths';
 	import { ragDocumentLink } from '$lib/utils/ragDocumentLink';
 	import { untrack, onDestroy } from 'svelte';
@@ -245,9 +246,12 @@
 	async function handleDeleteDocument(documentId: string) {
 		const documentToDelete = ragDocuments.find((doc) => doc.id === documentId);
 		const documentLabel = documentToDelete?.name ? `"${documentToDelete.name}"` : 'este documento';
-		const shouldDelete = window.confirm(
-			`¿Seguro que deseas eliminar ${documentLabel}? Esta acción no se puede deshacer.`
-		);
+		const shouldDelete = await confirmDialog({
+			title: `¿Eliminar ${documentLabel}?`,
+			message: 'Se eliminarán el documento y sus embeddings. Esta acción no se puede deshacer.',
+			confirmLabel: 'Eliminar',
+			destructive: true
+		});
 		if (!shouldDelete) return;
 
 		deletingDocumentId = documentId;

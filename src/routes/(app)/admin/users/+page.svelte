@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { notify as showToastMessage } from '$lib/stores/toasts.svelte';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
@@ -31,7 +32,6 @@
 		Badge,
 		Avatar,
 		Tooltip,
-		Toast,
 		Modal,
 		PaginationNav
 	} from 'flowbite-svelte';
@@ -43,10 +43,6 @@
 	let showBulkDeleteModal = $state(false);
 	let deleting = $state(false);
 	let deleteError = $state('');
-
-	let toastMessage = $state('');
-	let toastType = $state<'success' | 'error'>('success');
-	let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
 	let selectedUsers = $state<string[]>([]);
 
@@ -93,13 +89,6 @@
 		const params = new SvelteURLSearchParams(page.url.searchParams);
 		params.set('page', String(newPage));
 		goto(resolve(`/admin/users?${params.toString()}`));
-	}
-
-	function showToastMessage(message: string, type: 'success' | 'error') {
-		toastMessage = message;
-		toastType = type;
-		clearTimeout(toastTimer);
-		toastTimer = setTimeout(() => (toastMessage = ''), 5000);
 	}
 
 	function toggleSelection(userId: string) {
@@ -566,13 +555,4 @@
 			</form>
 		</div>
 	</Modal>
-
-	<!-- Región viva siempre presente para que los lectores de pantalla anuncien el resultado -->
-	<div role="status" aria-live="polite" class="fixed end-4 bottom-4 z-50">
-		{#if toastMessage}
-			<Toast color={toastType === 'success' ? 'green' : 'red'} onclose={() => (toastMessage = '')}>
-				{toastMessage}
-			</Toast>
-		{/if}
-	</div>
 </div>

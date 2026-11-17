@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { notify as showToastMessage } from '$lib/stores/toasts.svelte';
 	import StudentCsvHelp from '$lib/components/StudentCsvHelp.svelte';
 	import { buildStudentCsv } from '$lib/utils/studentCsv';
 	import type { PageData } from './$types';
@@ -9,7 +10,6 @@
 		Modal,
 		Checkbox,
 		Avatar,
-		Toast,
 		Table,
 		TableBody,
 		TableBodyCell,
@@ -87,9 +87,6 @@
 	let studentToUnenroll = $state<string | null>(null);
 
 	// State for toast messages
-	let showToast = $state(false);
-	let toastMessage = $state('');
-	let toastType = $state<'success' | 'error'>('success');
 
 	// State for selected students
 	let selectedStudents = $state<string[]>([]);
@@ -383,16 +380,6 @@
 	}
 
 	// Display toast message
-	function showToastMessage(message: string, type: 'success' | 'error') {
-		toastMessage = message;
-		toastType = type;
-		showToast = true;
-
-		// Auto-hide toast after 3 seconds
-		setTimeout(() => {
-			showToast = false;
-		}, 3000);
-	}
 
 	// Handle toggle of a single student selection
 	function toggleSelection(studentId: string) {
@@ -1235,41 +1222,3 @@
 		</div>
 	</div>
 </Modal>
-
-<!-- Toast notification -->
-{#if showToast}
-	<div class="toast-container">
-		<Toast class="fixed right-4 bottom-4 z-50" color={toastType === 'success' ? 'green' : 'red'}>
-			{#snippet icon()}
-				{#if toastType === 'success'}
-					<svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-						<path
-							fill-rule="evenodd"
-							d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-							clip-rule="evenodd"
-						></path>
-					</svg>
-				{:else}
-					<svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-						<path
-							fill-rule="evenodd"
-							d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-							clip-rule="evenodd"
-						></path>
-					</svg>
-				{/if}
-			{/snippet}
-
-			{toastMessage}
-		</Toast>
-	</div>
-{/if}
-
-<style>
-	.toast-container {
-		position: fixed;
-		bottom: 1rem;
-		right: 1rem;
-		z-index: 50;
-	}
-</style>

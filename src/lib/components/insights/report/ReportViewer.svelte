@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { confirmDialog } from '$lib/stores/dialogs.svelte';
+	import { notify } from '$lib/stores/toasts.svelte';
 	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { Card, Button } from 'flowbite-svelte';
 	import { marked } from 'marked';
@@ -44,7 +46,7 @@
 			saveAs(blob, filename);
 		} catch (error) {
 			console.error('Error exporting to DOCX:', error);
-			alert('Error al exportar el informe a DOCX. Por favor, intentalo de nuevo.');
+			notify('Error al exportar el informe a DOCX. Por favor, inténtalo de nuevo.', 'error');
 		} finally {
 			isExportingDocx = false;
 		}
@@ -64,7 +66,7 @@
 			saveAs(blob, filename);
 		} catch (error) {
 			console.error('Error exporting to Markdown:', error);
-			alert('Error al exportar el informe a Markdown. Por favor, intentalo de nuevo.');
+			notify('Error al exportar el informe a Markdown. Por favor, inténtalo de nuevo.', 'error');
 		} finally {
 			isExportingMd = false;
 		}
@@ -74,10 +76,14 @@
 		insightsStore.setActiveView('generate');
 	}
 
-	function handleClearCache() {
-		if (confirm('Seguro que deseas borrar el informe almacenado en cache?')) {
-			insightsStore.clearCache(ilid);
-		}
+	async function handleClearCache() {
+		const confirmed = await confirmDialog({
+			title: '¿Borrar el informe guardado?',
+			message: 'Se eliminará el informe almacenado en caché en este navegador.',
+			confirmLabel: 'Borrar',
+			destructive: true
+		});
+		if (confirmed) insightsStore.clearCache(ilid);
 	}
 </script>
 

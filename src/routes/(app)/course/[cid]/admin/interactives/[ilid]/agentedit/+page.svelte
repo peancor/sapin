@@ -1,10 +1,10 @@
 <script lang="ts">
+	import { notify } from '$lib/stores/toasts.svelte';
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { ArrowLeft, Bot } from 'lucide-svelte';
-	import { Toast } from 'flowbite-svelte';
 	import RagSection from '$lib/components/RagSection.svelte';
 	import ChatConfigForm from '$lib/components/ChatConfigForm.svelte';
 	import AgentConfigForm from '$lib/components/agent/AgentConfigForm.svelte';
@@ -40,9 +40,6 @@
 	let finalizationConfig = $state('');
 	let requireFinalizationToolCall = $state(true);
 
-	let showToast = $state(false);
-	let toastMessage = $state('');
-	let toastType = $state<'success' | 'error'>('success');
 	let isDirty = $state(false);
 
 	$effect(() => {
@@ -98,18 +95,15 @@
 
 			if (result.type === 'success') {
 				isDirty = false;
-				showToast = true;
-				toastMessage = 'Agente actualizado correctamente';
-				toastType = 'success';
+				notify('Agente actualizado correctamente', 'success');
 			} else {
-				showToast = true;
-				toastMessage =
+				notify(
 					result.type === 'failure' && result.data && 'message' in result.data
 						? String(result.data.message)
-						: 'Error al guardar los cambios';
-				toastType = 'error';
+						: 'Error al guardar los cambios',
+					'error'
+				);
 			}
-			setTimeout(() => (showToast = false), 3000);
 		};
 	};
 </script>
@@ -232,11 +226,3 @@
 		/>
 	</div>
 </div>
-
-{#if showToast}
-	<div class="fixed right-4 bottom-4 z-50">
-		<Toast color={toastType === 'success' ? 'green' : 'red'}>
-			{toastMessage}
-		</Toast>
-	</div>
-{/if}

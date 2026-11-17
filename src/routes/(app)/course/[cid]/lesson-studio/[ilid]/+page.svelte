@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { confirmSubmit } from '$lib/stores/dialogs.svelte';
 	/* eslint-disable svelte/no-navigation-without-resolve */
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
@@ -301,12 +302,13 @@
 					method="POST"
 					action="?/discardDraft"
 					onsubmit={(event) => {
-						if (
-							hasDraftChanges &&
-							!window.confirm('Vas a descartar el borrador y volver al publicado actual.')
-						) {
-							event.preventDefault();
-						}
+						if (!hasDraftChanges) return;
+						confirmSubmit(event, {
+							title: '¿Descartar el borrador?',
+							message: 'Se perderán los cambios y la lección volverá a la versión publicada.',
+							confirmLabel: 'Descartar',
+							destructive: true
+						});
 					}}
 				>
 					<button

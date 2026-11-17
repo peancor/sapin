@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { notify as showToastMessage } from '$lib/stores/toasts.svelte';
 	import type { PageData } from './$types';
 	import {
 		Users,
@@ -13,7 +14,7 @@
 		TrendingUp,
 		Bot
 	} from 'lucide-svelte';
-	import { Modal, Dropdown, DropdownItem, Button, Toast, Badge } from 'flowbite-svelte';
+	import { Modal, Dropdown, DropdownItem, Button, Badge } from 'flowbite-svelte';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import MoodleActivityLinkMenu from '$lib/components/MoodleActivityLinkMenu.svelte';
@@ -22,20 +23,6 @@
 
 	let deleteModal = $state(false);
 	let interactiveToDelete = $state<(typeof data.interactives)[number] | null>(null);
-
-	// Toast notification state
-	let showToast = $state(false);
-	let toastMessage = $state('');
-	let toastType = $state<'success' | 'error'>('success');
-
-	function showToastMessage(message: string, type: 'success' | 'error') {
-		toastMessage = message;
-		toastType = type;
-		showToast = true;
-		setTimeout(() => {
-			showToast = false;
-		}, 6000);
-	}
 
 	function confirmDelete(interactive: (typeof data.interactives)[number]) {
 		interactiveToDelete = interactive;
@@ -591,41 +578,3 @@
 		</form>
 	</div>
 </Modal>
-
-<!-- Toast notification -->
-{#if showToast}
-	<div class="fixed right-4 bottom-4 z-50">
-		<Toast color={toastType === 'success' ? 'green' : 'red'}>
-			{#snippet icon()}
-				{#if toastType === 'success'}
-					<svg
-						class="h-5 w-5"
-						fill="currentColor"
-						viewBox="0 0 20 20"
-						xmlns="http://www.w3.org/2000/svg"
-					>
-						<path
-							fill-rule="evenodd"
-							d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-							clip-rule="evenodd"
-						></path>
-					</svg>
-				{:else}
-					<svg
-						class="h-5 w-5"
-						fill="currentColor"
-						viewBox="0 0 20 20"
-						xmlns="http://www.w3.org/2000/svg"
-					>
-						<path
-							fill-rule="evenodd"
-							d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-							clip-rule="evenodd"
-						></path>
-					</svg>
-				{/if}
-			{/snippet}
-			{toastMessage}
-		</Toast>
-	</div>
-{/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { confirmDialog, confirmSubmit } from '$lib/stores/dialogs.svelte';
 	import { isImeComposing } from '$lib/utils/composer';
 	import '@xyflow/svelte/dist/style.css';
 
@@ -1692,9 +1693,12 @@
 		const destination = resolve(`/course/${cid}/lesson-studio/${ilid}/blocks/${blockId}`);
 
 		if (hasUnsavedChanges) {
-			const shouldSaveFirst = window.confirm(
-				'Hay cambios sin guardar en el mapa. Para editar el bloque en detalle conviene guardar primero las conexiones y posiciones actuales. ¿Quieres guardar el mapa y abrir el editor detallado?'
-			);
+			const shouldSaveFirst = await confirmDialog({
+				title: 'Hay cambios sin guardar en el mapa',
+				message:
+					'Para editar el bloque en detalle conviene guardar primero las conexiones y posiciones actuales. ¿Quieres guardar el mapa y abrir el editor detallado?',
+				confirmLabel: 'Guardar y abrir'
+			});
 
 			if (!shouldSaveFirst) return;
 			const saved = await saveFlow();
@@ -1751,13 +1755,13 @@
 		if (!selectedBlock) return;
 		const blockId = selectedBlock.id;
 		const blockTitle = selectedBlock.title;
-		if (
-			!window.confirm(
-				`Vas a eliminar "${blockTitle}" y sus conexiones. Esta acción no se puede deshacer.`
-			)
-		) {
-			return;
-		}
+		const confirmed = await confirmDialog({
+			title: `¿Eliminar «${blockTitle}»?`,
+			message: 'Se eliminarán el bloque y sus conexiones. Esta acción no se puede deshacer.',
+			confirmLabel: 'Eliminar',
+			destructive: true
+		});
+		if (!confirmed) return;
 
 		actionError = '';
 		actionMessage = '';
@@ -2289,12 +2293,13 @@
 						method="POST"
 						action="?/discardDraft"
 						onsubmit={(event) => {
-							if (
-								hasDraftChanges &&
-								!window.confirm('Vas a descartar el borrador actual del canvas.')
-							) {
-								event.preventDefault();
-							}
+							if (!hasDraftChanges) return;
+							confirmSubmit(event, {
+								title: '¿Descartar el borrador?',
+								message: 'Se perderán los cambios actuales del canvas.',
+								confirmLabel: 'Descartar',
+								destructive: true
+							});
 						}}
 					>
 						<button

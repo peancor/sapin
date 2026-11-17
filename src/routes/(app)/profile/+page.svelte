@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { confirmSubmit } from '$lib/stores/dialogs.svelte';
 	import type { ActionData, PageData } from './$types';
 	import { enhance } from '$app/forms';
 	import {
@@ -199,12 +200,19 @@
 								action="?/deleteAvatar"
 								method="POST"
 								use:enhance={handleAvatarSuccess('Avatar eliminado correctamente')}
+								onsubmit={(event) =>
+									confirmSubmit(event, {
+										title: '¿Eliminar tu avatar?',
+										confirmLabel: 'Eliminar',
+										destructive: true
+									})}
 							>
 								<button
 									type="submit"
+									aria-label="Eliminar avatar"
 									class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-red-600 shadow-lg transition-colors hover:bg-red-700"
 								>
-									<Trash2 class="h-4 w-4 text-white" />
+									<Trash2 class="h-4 w-4 text-white" aria-hidden="true" />
 								</button>
 								<Tooltip>Eliminar avatar</Tooltip>
 							</form>

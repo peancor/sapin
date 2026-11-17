@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { confirmDialog } from '$lib/stores/dialogs.svelte';
 	import { browser } from '$app/environment';
 	import { X } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
@@ -26,7 +27,15 @@
 	let closeButton: HTMLButtonElement | null = $state(null);
 
 	async function requestClose() {
-		if (!canCloseSafely && !window.confirm(closePrompt)) return;
+		if (!canCloseSafely) {
+			const confirmed = await confirmDialog({
+				title: '¿Cerrar la herramienta?',
+				message: closePrompt,
+				confirmLabel: 'Cerrar',
+				destructive: true
+			});
+			if (!confirmed) return;
+		}
 		onclose?.();
 	}
 

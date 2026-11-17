@@ -1,9 +1,10 @@
 <script lang="ts">
+	import { notify as showToastMessage } from '$lib/stores/toasts.svelte';
 	import { resolve } from '$app/paths';
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import { Button, Label, Input, Textarea, Select, Toast, Badge } from 'flowbite-svelte';
+	import { Button, Label, Input, Textarea, Select, Badge } from 'flowbite-svelte';
 	import {
 		Save,
 		Image as ImageIcon,
@@ -31,11 +32,6 @@
 	let dragOver = $state(false);
 	let imageInputRef = $state<HTMLInputElement | null>(null);
 
-	// Toast state
-	let showToast = $state(false);
-	let toastMessage = $state('');
-	let toastType = $state<'success' | 'error'>('success');
-
 	// Sync with data changes
 	$effect(() => {
 		name = data.course.name;
@@ -57,13 +53,6 @@
 			showToastMessage(form.imageError, 'error');
 		}
 	});
-
-	function showToastMessage(message: string, type: 'success' | 'error') {
-		toastMessage = message;
-		toastType = type;
-		showToast = true;
-		setTimeout(() => (showToast = false), 3000);
-	}
 
 	const statusOptions = [
 		{ value: 'draft', name: 'Borrador' },
@@ -508,19 +497,3 @@
 		</div>
 	</div>
 </div>
-
-<!-- Toast notification -->
-{#if showToast}
-	<div class="fixed right-4 bottom-4 z-50">
-		<Toast color={toastType === 'success' ? 'green' : 'red'}>
-			{#snippet icon()}
-				{#if toastType === 'success'}
-					<CheckCircle class="h-5 w-5" />
-				{:else}
-					<AlertCircle class="h-5 w-5" />
-				{/if}
-			{/snippet}
-			{toastMessage}
-		</Toast>
-	</div>
-{/if}

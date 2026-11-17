@@ -1,19 +1,12 @@
 <script lang="ts">
+	import { confirmSubmit } from '$lib/stores/dialogs.svelte';
+	import { notify } from '$lib/stores/toasts.svelte';
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
 	import type { CourseStatusType } from '$lib/server/db/schema';
-	import {
-		FileText,
-		Image,
-		Trash2,
-		Save,
-		FolderOpen,
-		CheckCircle,
-		AlertCircle,
-		Loader2
-	} from 'lucide-svelte';
+	import { FileText, Image, Trash2, Save, FolderOpen, CheckCircle, Loader2 } from 'lucide-svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { Toast, Button } from 'flowbite-svelte';
+	import { Button } from 'flowbite-svelte';
 	import CourseConfigForm from '$lib/components/CourseConfigForm.svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -36,19 +29,13 @@
 	let isUploading = $state(false);
 	let isSaving = $state(false);
 	let isDirty = $state(false);
-	let showToast = $state(false);
-	let toastMessage = $state('');
-	let toastType = $state<'success' | 'error'>('success');
 
 	function markDirty() {
 		isDirty = true;
 	}
 
 	function showNotification(message: string, type: 'success' | 'error') {
-		toastMessage = message;
-		toastType = type;
-		showToast = true;
-		setTimeout(() => (showToast = false), 3000);
+		notify(message, type);
 	}
 
 	async function handleFileUpload(type: 'document' | 'image') {
@@ -222,14 +209,27 @@
 								</p>
 							</div>
 						</div>
-						<form method="POST" action="?/deleteFile" use:enhance class="flex-shrink-0">
+						<form
+							method="POST"
+							action="?/deleteFile"
+							use:enhance
+							class="flex-shrink-0"
+							onsubmit={(event) =>
+								confirmSubmit(event, {
+									title: `¿Eliminar «${file.name}»?`,
+									message: 'Esta acción no se puede deshacer.',
+									confirmLabel: 'Eliminar',
+									destructive: true
+								})}
+						>
 							<input type="hidden" name="fileId" value={file.id} />
+							<!-- Visible también con foco de teclado, no solo al pasar el ratón. -->
 							<button
 								type="submit"
-								class="rounded-lg p-2 text-gray-400 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
-								title="Eliminar archivo"
+								class="rounded-lg p-2 text-gray-500 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 dark:text-gray-400 dark:hover:bg-red-900/20"
+								aria-label={`Eliminar ${file.name}`}
 							>
-								<Trash2 class="h-4 w-4" />
+								<Trash2 class="h-4 w-4" aria-hidden="true" />
 							</button>
 						</form>
 					</div>
@@ -248,21 +248,3 @@
 		{/if}
 	</div>
 </div>
-
-<!-- Toast Notification -->
-{#if showToast}
-	<Toast
-		class="fixed right-4 bottom-4 z-50"
-		color={toastType === 'success' ? 'green' : 'red'}
-		dismissable
-	>
-		{#snippet icon()}
-			{#if toastType === 'success'}
-				<CheckCircle class="h-5 w-5" />
-			{:else}
-				<AlertCircle class="h-5 w-5" />
-			{/if}
-		{/snippet}
-		{toastMessage}
-	</Toast>
-{/if}

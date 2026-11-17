@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { promptDialog } from '$lib/stores/dialogs.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { Editor } from '@tiptap/core';
 	import StarterKit from '@tiptap/starter-kit';
@@ -240,9 +241,14 @@
 		}
 	});
 
-	function setLink() {
+	async function setLink() {
 		const previousUrl = editor?.getAttributes('link').href;
-		const url = window.prompt('URL del enlace:', previousUrl);
+		const url = await promptDialog({
+			title: 'Enlace',
+			label: 'URL del enlace (déjala vacía para quitarlo)',
+			value: previousUrl ?? '',
+			confirmLabel: 'Aplicar'
+		});
 
 		if (url === null) return;
 

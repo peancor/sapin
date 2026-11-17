@@ -1,10 +1,10 @@
 <script lang="ts">
+	import { notify } from '$lib/stores/toasts.svelte';
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { ArrowLeft } from 'lucide-svelte';
-	import { Toast } from 'flowbite-svelte';
 	import RagSection from '$lib/components/RagSection.svelte';
 	import ChatConfigForm from '$lib/components/ChatConfigForm.svelte';
 	import InteractiveFilesSection from '$lib/components/InteractiveFilesSection.svelte';
@@ -27,9 +27,6 @@
 	let llmContext = $state('');
 	let systemPrompt = $state('');
 
-	let showToast = $state(false);
-	let toastMessage = $state('');
-	let toastType = $state<'success' | 'error'>('success');
 	let isDirty = $state(false);
 
 	$effect(() => {
@@ -75,15 +72,10 @@
 
 			if (result.type === 'success') {
 				isDirty = false;
-				showToast = true;
-				toastMessage = 'Actividad actualizada correctamente';
-				toastType = 'success';
+				notify('Actividad actualizada correctamente', 'success');
 			} else {
-				showToast = true;
-				toastMessage = 'Error al actualizar la actividad';
-				toastType = 'error';
+				notify('Error al actualizar la actividad', 'error');
 			}
-			setTimeout(() => (showToast = false), 3000);
 		};
 	};
 </script>
@@ -169,11 +161,3 @@
 		/>
 	</div>
 </div>
-
-{#if showToast}
-	<div class="fixed right-4 bottom-4 z-50">
-		<Toast color={toastType === 'success' ? 'green' : 'red'}>
-			{toastMessage}
-		</Toast>
-	</div>
-{/if}

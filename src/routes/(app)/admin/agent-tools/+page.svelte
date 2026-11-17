@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { confirmDialog } from '$lib/stores/dialogs.svelte';
 	import type { PageData } from './$types';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import {
@@ -278,7 +279,13 @@
 
 	async function deleteTool(id: string, isSystem: boolean) {
 		if (isSystem) return;
-		if (!confirm('¿Eliminar esta herramienta? Esta acción no se puede deshacer.')) return;
+		const confirmed = await confirmDialog({
+			title: '¿Eliminar esta herramienta?',
+			message: 'Esta acción no se puede deshacer.',
+			confirmLabel: 'Eliminar',
+			destructive: true
+		});
+		if (!confirmed) return;
 
 		try {
 			const res = await fetch(`/api/admin/agent-tools/${id}`, { method: 'DELETE' });

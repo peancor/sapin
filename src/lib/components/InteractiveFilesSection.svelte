@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { notify } from '$lib/stores/toasts.svelte';
+	import { confirmSubmit } from '$lib/stores/dialogs.svelte';
+	import { copyText } from '$lib/utils/clipboard';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { Toast } from 'flowbite-svelte';
 	import {
 		FileText,
 		Image,
@@ -44,25 +46,6 @@
 	let isDragging = $state(false);
 	let isUploading = $state(false);
 	let copiedToken = $state<string | null>(null);
-	let showToast = $state(false);
-	let toastMessage = $state('');
-	let toastType = $state<'success' | 'error'>('success');
-
-	async function copyTextToClipboard(value: string) {
-		try {
-			await navigator.clipboard.writeText(value);
-		} catch {
-			const textarea = document.createElement('textarea');
-			textarea.value = value;
-			textarea.setAttribute('readonly', '');
-			textarea.style.position = 'absolute';
-			textarea.style.left = '-9999px';
-			document.body.appendChild(textarea);
-			textarea.select();
-			document.execCommand('copy');
-			document.body.removeChild(textarea);
-		}
-	}
 
 	async function handleFileUpload(type: 'document' | 'image') {
 		const input = document.createElement('input');
@@ -148,38 +131,42 @@
 		return file.path || resolve('/api/files/[fileId]', { fileId: file.id });
 	}
 
-	async function copyFileUrl(file: { id: string; path?: string | null }) {
-		const absoluteUrl = `${window.location.origin}${getFileUrl(file)}`;
-		await copyTextToClipboard(absoluteUrl);
+	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
-		copiedToken = `url:${file.id}`;
-		showToast = true;
-		toastMessage = 'Enlace copiado al portapapeles';
-		toastType = 'success';
-		setTimeout(() => {
+	// Solo se marca como copiado si el portapapeles aceptó la escritura.
+	async function copyWithFeedback(value: string, token: string, successMessage: string) {
+		const copied = await copyText(value);
+		clearTimeout(copiedTimer);
+		if (!copied) {
 			copiedToken = null;
-			showToast = false;
-		}, 2000);
+			notify('No se pudo copiar. Selecciona el texto y cópialo manualmente.', 'error');
+			return;
+		}
+		copiedToken = token;
+		notify(successMessage, 'success');
+		copiedTimer = setTimeout(() => (copiedToken = null), 2000);
 	}
 
-	async function copyFileName(file: { id: string; name: string }) {
-		await copyTextToClipboard(file.name);
+	function copyFileUrl(file: { id: string; path?: string | null }) {
+		const absoluteUrl = `${window.location.origin}${getFileUrl(file)}`;
+		return copyWithFeedback(absoluteUrl, `url:${file.id}`, 'Enlace copiado al portapapeles');
+	}
 
-		copiedToken = `name:${file.id}`;
-		showToast = true;
-		toastMessage = 'Nombre de imagen copiado al portapapeles';
-		toastType = 'success';
-		setTimeout(() => {
-			copiedToken = null;
-			showToast = false;
-		}, 2000);
+	function copyFileName(file: { id: string; name: string }) {
+		return copyWithFeedback(
+			file.name,
+			`name:${file.id}`,
+			'Nombre de imagen copiado al portapapeles'
+		);
 	}
 
 	function confirmDeleteFile(event: SubmitEvent, fileName: string) {
-		const ok = window.confirm(
-			`Vas a eliminar "${fileName}". Esta accion tambien eliminara el archivo del sistema y no se puede deshacer.`
-		);
-		if (!ok) event.preventDefault();
+		confirmSubmit(event, {
+			title: `¿Eliminar «${fileName}»?`,
+			message: 'También se eliminará el archivo del sistema. Esta acción no se puede deshacer.',
+			confirmLabel: 'Eliminar',
+			destructive: true
+		});
 	}
 </script>
 
@@ -375,11 +362,3 @@
 		{/if}
 	</div>
 </div>
-
-{#if showToast}
-	<div class="fixed right-4 bottom-4 z-50">
-		<Toast color={toastType === 'success' ? 'green' : 'red'}>
-			{toastMessage}
-		</Toast>
-	</div>
-{/if}
