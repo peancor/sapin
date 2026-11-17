@@ -22,6 +22,9 @@ export const actions: Actions = {
 			const userId = event.locals.user?.id;
 			await auth.invalidateSession(event.locals.session.id);
 			auth.deleteSessionTokenCookie(event);
+			// Los `load` de esta misma respuesta ya no deben ver al usuario (cabecera, menú).
+			event.locals.user = null;
+			event.locals.session = null;
 
 			// Audit log - logout
 			await auditService.log({

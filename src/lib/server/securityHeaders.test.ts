@@ -9,6 +9,8 @@ test('añade las cabeceras base y HSTS solo sobre HTTPS', () => {
 	assert.equal(http.get('X-Content-Type-Options'), 'nosniff');
 	assert.equal(http.get('Referrer-Policy'), 'strict-origin-when-cross-origin');
 	assert.match(http.get('Permissions-Policy') ?? '', /camera=\(\)/);
+	assert.equal(http.get('X-Frame-Options'), 'SAMEORIGIN');
+	assert.equal(http.get('Content-Security-Policy'), "frame-ancestors 'self'");
 	assert.equal(http.get('Strict-Transport-Security'), null);
 
 	const https = new Headers();

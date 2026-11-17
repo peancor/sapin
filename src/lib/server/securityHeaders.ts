@@ -2,10 +2,13 @@
  * Cabeceras de seguridad comunes a todas las respuestas. No sustituyen a una CSP: reducen
  * el sniffing de tipos, la fuga de URLs por Referer y el acceso a APIs de dispositivo.
  *
- * No se fija `X-Frame-Options` ni `frame-ancestors`: las actividades pueden abrirse desde
- * Moodle y bloquear el enmarcado debe decidirse por despliegue.
+ * Sapin no se incrusta en otros sitios (desde Moodle se abre como enlace), así que solo se
+ * permite el enmarcado desde el propio origen. Si se añade una CSP completa (`kit.csp`), debe
+ * incluir `frame-ancestors 'self'`, porque aquí no se pisa una CSP ya definida.
  */
 const BASE_HEADERS: Record<string, string> = {
+	'X-Frame-Options': 'SAMEORIGIN',
+	'Content-Security-Policy': "frame-ancestors 'self'",
 	'X-Content-Type-Options': 'nosniff',
 	'Referrer-Policy': 'strict-origin-when-cross-origin',
 	'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'

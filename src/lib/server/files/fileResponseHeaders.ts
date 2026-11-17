@@ -35,7 +35,8 @@ const INLINE_SAFE_TYPES = new Set([
  */
 const EMBED_ONLY_TYPES = new Set(['image/svg+xml']);
 
-const SANDBOX_CSP = "sandbox; default-src 'none'; style-src 'unsafe-inline'";
+const SANDBOX_CSP =
+	"sandbox; default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'self'";
 
 export interface FileResponseInput {
 	mimeType: string | null | undefined;
