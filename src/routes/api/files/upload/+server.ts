@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { fileStorageService } from '$lib/server/files/FileStorageService';
+import { isAdmin } from '$lib/server/roles';
 
 /**
  * POST /api/files/upload
@@ -13,11 +14,19 @@ import { fileStorageService } from '$lib/server/files/FileStorageService';
  * - entityId: ID of the related entity
  * - displayName (optional): Custom display name
  * - visibility (optional): 'public' | 'private' | 'restricted'
+ *
+ * Este endpoint acepta categoría, entidad y visibilidad arbitrarias, así que queda reservado
+ * a administración del sistema. Las subidas de la aplicación usan acciones específicas que
+ * validan la relación con el curso o la actividad antes de llamar a `fileStorageService`.
  */
 export const POST: RequestHandler = async ({ request, locals }) => {
 	// Check authentication
 	if (!locals.user) {
 		throw error(401, 'Authentication required');
+	}
+
+	if (!isAdmin(locals.user.highestRoleLevel)) {
+		throw error(403, 'Acceso denegado: se requiere rol de administrador');
 	}
 
 	try {
@@ -101,6 +110,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Otherwise, return a generic error
-		throw error(500, err instanceof Error ? err.message : 'Upload failed');
+		throw error(500, 'Upload failed');
 	}
 };

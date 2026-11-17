@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { fileStorageService } from '$lib/server/files/FileStorageService';
 import { filePermissionMiddleware } from '$lib/server/files/FilePermissionMiddleware';
+import { buildFileResponseHeaders } from '$lib/server/files/fileResponseHeaders';
 import fs from 'fs/promises';
 import { createReadStream } from 'fs';
 
@@ -50,7 +51,7 @@ export const GET: RequestHandler = async ({ params, locals, url, request }) => {
 		try {
 			await fs.access(filePath);
 		} catch {
-			console.error('File not found on disk:', filePath);
+			console.error('File not found on disk:', fileId);
 			throw error(404, 'File not found on disk');
 		}
 
@@ -76,31 +77,14 @@ export const GET: RequestHandler = async ({ params, locals, url, request }) => {
 		// Read file stats for headers
 		const stats = await fs.stat(filePath);
 
-		// Set appropriate headers
-		const headers = new Headers();
-		headers.set('Content-Type', file.mimeType || 'application/octet-stream');
-		headers.set('Content-Length', stats.size.toString());
-		headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+		// Cabeceras seguras: tipo fiable, sin sniffing, sandbox y caché según visibilidad
+		const headers = buildFileResponseHeaders({
+			mimeType: file.mimeType,
+			fileName: file.displayName || file.name,
+			visibility: file.visibility,
+			forceDownload
+		});
 		headers.set('ETag', `"${file.hash}"`);
-
-		// Set Content-Disposition based on forceDownload
-		if (forceDownload) {
-			headers.set('Content-Disposition', `attachment; filename="${file.displayName || file.name}"`);
-		} else {
-			// Inline display for images, PDFs, etc.
-			if (
-				file.mimeType.startsWith('image/') ||
-				file.mimeType === 'application/pdf' ||
-				file.mimeType.startsWith('text/')
-			) {
-				headers.set('Content-Disposition', `inline; filename="${file.displayName || file.name}"`);
-			} else {
-				headers.set(
-					'Content-Disposition',
-					`attachment; filename="${file.displayName || file.name}"`
-				);
-			}
-		}
 
 		// Check ETag for caching
 		const ifNoneMatch = request.headers.get('if-none-match');
@@ -113,6 +97,8 @@ export const GET: RequestHandler = async ({ params, locals, url, request }) => {
 
 		// Stream the file
 		const fileStream = createReadStream(filePath);
+
+		headers.set('Content-Length', stats.size.toString());
 
 		return new Response(Readable.toWeb(fileStream) as ReadableStream<Uint8Array>, {
 			status: 200,
@@ -127,7 +113,7 @@ export const GET: RequestHandler = async ({ params, locals, url, request }) => {
 		}
 
 		// Otherwise, return a generic error
-		throw error(500, err instanceof Error ? err.message : 'Download failed');
+		throw error(500, 'Download failed');
 	}
 };
 
@@ -194,6 +180,6 @@ export const DELETE: RequestHandler = async ({ params, locals, request }) => {
 		}
 
 		// Otherwise, return a generic error
-		throw error(500, err instanceof Error ? err.message : 'Delete failed');
+		throw error(500, 'Delete failed');
 	}
 };

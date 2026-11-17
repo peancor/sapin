@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 export interface TurnstileValidationResult {
 	success: boolean;
@@ -22,9 +23,16 @@ export async function validateTurnstileToken(
 ): Promise<TurnstileValidationResult> {
 	const secretKey = env.TURNSTILE_SECRET_KEY;
 
-	// If no secret key is configured, skip validation (useful for development)
 	if (!secretKey) {
-		console.warn('TURNSTILE_SECRET_KEY not configured, skipping Turnstile validation');
+		// Con el widget activo (clave pública) pero sin clave secreta, omitir la validación
+		// dejaría la protección desactivada sin que nadie lo note: se rechaza.
+		if (publicEnv.PUBLIC_TURNSTILE_SITE_KEY) {
+			console.error(
+				'TURNSTILE_SECRET_KEY no está configurada pero PUBLIC_TURNSTILE_SITE_KEY sí: se rechaza la verificación'
+			);
+			return { success: false, 'error-codes': ['missing-input-secret'] };
+		}
+		// Turnstile desactivado por completo (desarrollo o despliegue sin Turnstile).
 		return { success: true };
 	}
 

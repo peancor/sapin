@@ -10,24 +10,10 @@ function getClientIP(request: Request): string | null {
 	);
 }
 
+// Sin efectos: cerrar sesión en un GET permitiría hacerlo con un enlace externo o con la
+// precarga de datos al pasar el ratón. El cierre real es la acción POST.
 export const load = (async (event) => {
-	if (event.locals.session) {
-		const userId = event.locals.user?.id;
-		await auth.invalidateSession(event.locals.session.id);
-		auth.deleteSessionTokenCookie(event);
-
-		// Audit log - logout
-		await auditService.log({
-			action: auditAction.USER_LOGOUT,
-			userId: userId,
-			ipAddress: getClientIP(event.request),
-			userAgent: event.request.headers.get('user-agent'),
-			severity: 'info'
-		});
-	}
-	return {
-		message: 'Has cerrado sesión. Redirigiendo a la página principal...'
-	};
+	return { hasSession: Boolean(event.locals.session) };
 }) satisfies PageServerLoad;
 
 export const actions: Actions = {

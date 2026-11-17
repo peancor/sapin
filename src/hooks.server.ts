@@ -10,6 +10,7 @@ import { imageProcessingQueue } from '$lib/server/files/ImageProcessingQueue';
 import { fileCleanupService } from '$lib/server/files/FileCleanupService';
 import { building } from '$app/environment';
 import { startRadarScheduler } from '$lib/server/radar/service';
+import { applySecurityHeaders } from '$lib/server/securityHeaders';
 
 if (!building) startRadarScheduler();
 
@@ -69,6 +70,16 @@ const handleLogging: Handle = async ({ event, resolve }) => {
 	// 	);
 	// }
 
+	return response;
+};
+
+const handleSecurityHeaders: Handle = async ({ event, resolve }) => {
+	const response = await resolve(event);
+	try {
+		applySecurityHeaders(response.headers, { isHttps: event.url.protocol === 'https:' });
+	} catch {
+		// Algunas respuestas (p. ej. las de `fetch` reenviadas) tienen cabeceras inmutables.
+	}
 	return response;
 };
 
@@ -156,6 +167,7 @@ const paraglideHandle: Handle = ({ event, resolve }) =>
 
 export const handle: Handle = sequence(
 	handleLogging,
+	handleSecurityHeaders,
 	handleAuth,
 	handleAdminGuard,
 	paraglideHandle

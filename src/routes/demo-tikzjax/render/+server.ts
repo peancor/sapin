@@ -5,6 +5,7 @@ import {
 	type TikzjaxRenderOptions
 } from '$lib/server/utils/tikzjaxRenderProcess';
 import { z } from 'zod';
+import { isAdmin } from '$lib/server/roles';
 
 const requestSchema = z.object({
 	source: z.string().min(1)
@@ -118,7 +119,15 @@ async function renderSerially<T>(callback: () => Promise<T>): Promise<T> {
 	}
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	// Cada petición lanza un proceso TeX: la demo queda reservada a administración.
+	if (!locals.user) {
+		return json({ error: 'No autenticado.' }, { status: 401 });
+	}
+	if (!isAdmin(locals.user.highestRoleLevel)) {
+		return json({ error: 'Acceso denegado.' }, { status: 403 });
+	}
+
 	try {
 		const parsedBody = requestSchema.safeParse(await request.json());
 		if (!parsedBody.success) {

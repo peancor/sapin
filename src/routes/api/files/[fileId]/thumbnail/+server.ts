@@ -1,9 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { fileStorageService } from '$lib/server/files/FileStorageService';
+import { filePermissionMiddleware } from '$lib/server/files/FilePermissionMiddleware';
+import { buildFileCacheControl } from '$lib/server/files/fileResponseHeaders';
 import { imageProcessor } from '$lib/server/files/ImageProcessor';
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	const { fileId } = params;
 
 	if (!fileId) {
@@ -16,6 +18,20 @@ export const GET: RequestHandler = async ({ params }) => {
 
 		if (!file) {
 			return json({ error: 'File not found' }, { status: 404 });
+		}
+
+		// La miniatura expone el mismo contenido que el fichero: mismos permisos de lectura.
+		const permissionCheck = await filePermissionMiddleware.checkPermission(
+			fileId,
+			locals.user?.id ?? null,
+			'read'
+		);
+
+		if (!permissionCheck.allowed) {
+			return json(
+				{ error: permissionCheck.reason || 'Access denied' },
+				{ status: locals.user ? 403 : 401 }
+			);
 		}
 
 		// Check if it's a processable image
@@ -38,14 +54,13 @@ export const GET: RequestHandler = async ({ params }) => {
 			headers: {
 				'Content-Type': 'image/webp',
 				'Content-Length': thumbnail.buffer.length.toString(),
-				'Cache-Control': 'public, max-age=31536000, immutable'
+				'Cache-Control': buildFileCacheControl(file.visibility),
+				'X-Content-Type-Options': 'nosniff',
+				'Cross-Origin-Resource-Policy': 'same-origin'
 			}
 		});
 	} catch (error) {
 		console.error('Thumbnail endpoint error:', error);
-		return json(
-			{ error: error instanceof Error ? error.message : 'Unknown error' },
-			{ status: 500 }
-		);
+		return json({ error: 'Failed to load thumbnail' }, { status: 500 });
 	}
 };

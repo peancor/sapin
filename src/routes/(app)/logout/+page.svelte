@@ -1,20 +1,27 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { invalidateAll, goto } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import type { PageData } from './$types';
+	import type { ActionData, PageData } from './$types';
 	import { LogOut, CheckCircle2, Sparkles } from 'lucide-svelte';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// Llegada directa por GET con sesión abierta: se pide confirmación mediante POST.
+	const needsConfirmation = $derived(!form && data.hasSession);
 
 	let showSuccess = $state(false);
 
 	onMount(() => {
-		invalidateAll();
-		setTimeout(() => {
+		if (needsConfirmation) return;
+		const successTimer = setTimeout(() => {
 			showSuccess = true;
 		}, 500);
-		setTimeout(() => goto(resolve('/')), 2000);
+		const redirectTimer = setTimeout(() => goto(resolve('/'), { invalidateAll: true }), 2000);
+		return () => {
+			clearTimeout(successTimer);
+			clearTimeout(redirectTimer);
+		};
 	});
 </script>
 
@@ -70,42 +77,68 @@
 
 			<!-- Contenido -->
 			<div class="space-y-6 p-8 text-center">
-				<div>
-					<h2 class="mb-2 text-2xl font-bold text-gray-800 dark:text-white">
-						{#if showSuccess}
-							¡Hasta pronto!
-						{:else}
-							Cerrando sesión...
-						{/if}
-					</h2>
-					<p class="text-gray-600 dark:text-gray-300">
-						{data.message}
-					</p>
-				</div>
-
-				<!-- Barra de progreso animada -->
-				<div class="relative">
-					<div class="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-						<div
-							class="animate-progress h-full rounded-full bg-linear-to-r from-slate-500 via-gray-500 to-zinc-500"
-						></div>
+				{#if needsConfirmation}
+					<div>
+						<h1 class="mb-2 text-2xl font-bold text-gray-800 dark:text-white">¿Cerrar sesión?</h1>
+						<p class="text-gray-600 dark:text-gray-300">
+							Tu sesión sigue abierta en este navegador.
+						</p>
 					</div>
-				</div>
-
-				<!-- Estado del proceso -->
-				<div class="flex items-center justify-center gap-3">
-					<div class="flex items-center gap-2 text-sm">
-						<div class="h-2 w-2 animate-pulse rounded-full bg-green-500"></div>
-						<span class="text-gray-600 dark:text-gray-300">Redirigiendo a inicio...</span>
+					<form method="POST" class="flex items-center justify-center gap-3">
+						<a
+							href={resolve('/dashboard')}
+							class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+						>
+							Cancelar
+						</a>
+						<button
+							type="submit"
+							class="rounded-lg bg-gray-800 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-900 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white"
+						>
+							Cerrar sesión
+						</button>
+					</form>
+				{:else}
+					<div role="status">
+						<h1 class="mb-2 text-2xl font-bold text-gray-800 dark:text-white">
+							{#if showSuccess}
+								¡Hasta pronto!
+							{:else}
+								Cerrando sesión...
+							{/if}
+						</h1>
+						<p class="text-gray-600 dark:text-gray-300">
+							{form?.message ??
+								'No hay ninguna sesión abierta. Redirigiendo a la página principal...'}
+						</p>
 					</div>
-				</div>
+
+					<!-- Barra de progreso animada -->
+					<div class="relative">
+						<div class="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+							<div
+								class="animate-progress h-full rounded-full bg-linear-to-r from-slate-500 via-gray-500 to-zinc-500"
+							></div>
+						</div>
+					</div>
+
+					<!-- Estado del proceso -->
+					<div class="flex items-center justify-center gap-3">
+						<div class="flex items-center gap-2 text-sm">
+							<div class="h-2 w-2 animate-pulse rounded-full bg-green-500"></div>
+							<span class="text-gray-600 dark:text-gray-300">Redirigiendo a inicio...</span>
+						</div>
+					</div>
+				{/if}
 			</div>
 		</div>
 
 		<!-- Texto inferior -->
-		<p class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
-			Serás redirigido automáticamente
-		</p>
+		{#if !needsConfirmation}
+			<p class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+				Serás redirigido automáticamente
+			</p>
+		{/if}
 	</div>
 </div>
 

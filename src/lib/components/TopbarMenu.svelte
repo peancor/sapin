@@ -98,6 +98,8 @@
 				return 'green';
 		}
 	}
+
+	let logoutForm = $state<HTMLFormElement>();
 </script>
 
 <svelte:window onkeydown={closeMobileMenu} />
@@ -348,10 +350,11 @@
 						<div class="h-px bg-slate-100 dark:bg-slate-800"></div>
 					</div>
 
-					<!-- Logout -->
+					<!-- Logout: POST para que ni la precarga ni un enlace externo cierren la sesión -->
+					<form method="POST" action={resolve('/logout')} bind:this={logoutForm} hidden></form>
 					<DropdownGroup class="p-2">
 						<DropdownItem
-							href={resolve('/logout')}
+							onclick={() => logoutForm?.requestSubmit()}
 							class="group/item rounded-xl transition-all duration-200 hover:bg-red-50/50 dark:hover:bg-red-900/20"
 						>
 							<div class="flex items-center gap-3.5">

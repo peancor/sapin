@@ -1,5 +1,4 @@
-import { hash, verify } from '@node-rs/argon2';
-import { encodeBase32LowerCase } from '@oslojs/encoding';
+import { verify } from '@node-rs/argon2';
 import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import * as auth from '$lib/server/auth';
@@ -9,6 +8,21 @@ import type { Actions, PageServerLoad } from './$types';
 import { auditService, auditAction } from '$lib/server/logging';
 import { validateTurnstileToken, getClientIp } from '$lib/server/turnstile';
 import { env } from '$env/dynamic/public';
+import { AttemptLimiter } from '$lib/server/rateLimit';
+
+// Intentos fallidos permitidos en 15 minutos: por IP+cuenta y por IP (esta última es amplia
+// porque un aula o un proxy pueden compartir dirección).
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const accountLimiter = new AttemptLimiter(10, LOGIN_WINDOW_MS);
+const ipLimiter = new AttemptLimiter(100, LOGIN_WINDOW_MS);
+
+function getLimiterAddress(event: { getClientAddress: () => string }): string {
+	try {
+		return event.getClientAddress();
+	} catch {
+		return 'unknown';
+	}
+}
 
 function getClientIP(request: Request): string | null {
 	return (
@@ -48,6 +62,26 @@ export const actions: Actions = {
 			return fail(400, { message: 'Invalid input' });
 		}
 
+		const address = getLimiterAddress(event);
+		const ipKey = `ip:${address}`;
+		const accountKey = `account:${address}:${identifier.trim().toLowerCase()}`;
+		const limit = [ipLimiter.check(ipKey), accountLimiter.check(accountKey)].find(
+			(status) => status.limited
+		);
+		if (limit) {
+			await auditService.log({
+				action: auditAction.USER_LOGIN_FAILED,
+				details: { email: identifier, reason: 'rate_limited' },
+				ipAddress: getClientIP(event.request),
+				userAgent: event.request.headers.get('user-agent'),
+				severity: 'warning'
+			});
+			const minutes = Math.max(1, Math.ceil(limit.retryAfterSeconds / 60));
+			return fail(429, {
+				message: `Demasiados intentos fallidos. Vuelve a intentarlo en ${minutes} min.`
+			});
+		}
+
 		// Check only email field
 		const [user] = await db.select().from(table.user).where(eq(table.user.email, identifier));
 
@@ -60,6 +94,8 @@ export const actions: Actions = {
 				userAgent: event.request.headers.get('user-agent'),
 				severity: 'warning'
 			});
+			ipLimiter.hit(ipKey);
+			accountLimiter.hit(accountKey);
 			return fail(400, { message: 'Invalid credentials' });
 		}
 
@@ -76,8 +112,12 @@ export const actions: Actions = {
 				userAgent: event.request.headers.get('user-agent'),
 				severity: 'warning'
 			});
+			ipLimiter.hit(ipKey);
+			accountLimiter.hit(accountKey);
 			return fail(400, { message: 'Invalid credentials' });
 		}
+
+		accountLimiter.reset(accountKey);
 
 		const sessionToken = auth.generateSessionToken();
 		const session = await auth.createSession(sessionToken, user.id);
@@ -94,76 +134,5 @@ export const actions: Actions = {
 
 		// Redirigir al dashboard tras login exitoso
 		return redirect(302, '/dashboard');
-	},
-	register: async (event) => {
-		const formData = await event.request.formData();
-		const username = formData.get('username');
-		const password = formData.get('password');
-
-		if (!validateUsername(username)) {
-			return fail(400, { message: 'Invalid username' });
-		}
-		if (!validatePassword(password)) {
-			return fail(400, { message: 'Invalid password' });
-		}
-
-		const userId = generateUserId();
-		// Argon2 automatically generates and embeds a secure random salt in the hash
-		const passwordHash = await hash(password, {
-			memoryCost: 65536,
-			timeCost: 3,
-			parallelism: 4,
-			outputLen: 32
-		});
-
-		try {
-			await db.insert(table.user).values({
-				id: userId,
-				username,
-				passwordHash,
-				email: '', // Add appropriate email value
-				createdAt: new Date(),
-				updatedAt: new Date()
-			});
-
-			const sessionToken = auth.generateSessionToken();
-			const session = await auth.createSession(sessionToken, userId);
-			auth.setSessionTokenCookie(event, sessionToken, session.expiresAt);
-
-			// Audit log - user registered
-			await auditService.log({
-				action: auditAction.USER_CREATED,
-				userId: userId,
-				targetType: 'user',
-				targetId: userId,
-				details: { username, registeredVia: 'self_registration' },
-				ipAddress: getClientIP(event.request),
-				userAgent: event.request.headers.get('user-agent'),
-				severity: 'info'
-			});
-		} catch {
-			return fail(500, { message: 'An error has occurred' });
-		}
-		return redirect(302, '/dashboard');
 	}
 };
-
-function generateUserId() {
-	// ID with 120 bits of entropy, or about the same as UUID v4.
-	const bytes = crypto.getRandomValues(new Uint8Array(15));
-	const id = encodeBase32LowerCase(bytes);
-	return id;
-}
-
-function validateUsername(username: unknown): username is string {
-	return (
-		typeof username === 'string' &&
-		username.length >= 3 &&
-		username.length <= 31 &&
-		/^[a-z0-9_-]+$/.test(username)
-	);
-}
-
-function validatePassword(password: unknown): password is string {
-	return typeof password === 'string' && password.length >= 6 && password.length <= 255;
-}
