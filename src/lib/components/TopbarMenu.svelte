@@ -113,7 +113,7 @@
 			<button
 				class="rounded-xl p-2 text-gray-600 transition-all duration-200 hover:bg-gray-100/50 md:hidden dark:text-gray-400 dark:hover:bg-gray-800/50"
 				onclick={onMenuToggle}
-				aria-label="Menu"
+				aria-label="Menú"
 				aria-expanded={isMobileMenuOpen}
 				aria-controls="mobile-navigation"
 			>
@@ -149,10 +149,11 @@
 		</div>
 
 		<!-- Desktop Navigation -->
-		<nav class="hidden items-center gap-8 md:flex">
+		<nav aria-label="Principal" class="hidden items-center gap-8 md:flex">
 			{#each filteredMenuItems as item (item.href)}
 				<a
 					href={resolve(...([item.href] as Parameters<typeof resolve>))}
+					aria-current={$page.url.pathname === item.href ? 'page' : undefined}
 					class="group hover:text-primary-600 dark:hover:text-primary-400 relative px-1 py-2 text-sm font-semibold tracking-wide text-slate-600 transition-all duration-300 dark:text-slate-300"
 				>
 					<span class="relative z-10">{item.label}</span>
@@ -410,7 +411,7 @@
 		transition:slide={{ duration: reducedMotion.current ? 0 : 200 }}
 		class="fixed inset-0 top-14 z-40 overflow-y-auto overscroll-contain bg-white/95 backdrop-blur-xl md:hidden dark:bg-gray-900/95"
 	>
-		<nav class="space-y-6 p-6">
+		<nav aria-label="Principal (móvil)" class="space-y-6 p-6">
 			<div class="space-y-3">
 				<p
 					class="ml-2 text-[10px] font-black tracking-widest text-slate-400 uppercase dark:text-slate-500"

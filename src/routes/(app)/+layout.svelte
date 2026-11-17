@@ -35,10 +35,16 @@
 	});
 </script>
 
+<a href="#contenido" class="skip-link">Saltar al contenido</a>
+
 <div class="flex min-h-screen flex-col bg-white dark:bg-gray-900">
 	<TopbarMenu user={data.user} {isMobileMenuOpen} onMenuToggle={handleMenuToggle} />
 
-	<main class="flex-1 bg-gray-50 pt-16 md:pt-[4.5rem] dark:bg-gray-800">
+	<main
+		id="contenido"
+		tabindex="-1"
+		class="flex-1 bg-gray-50 pt-16 outline-none md:pt-[4.5rem] dark:bg-gray-800"
+	>
 		<div class="container mx-auto px-4 py-4">
 			{@render children()}
 		</div>

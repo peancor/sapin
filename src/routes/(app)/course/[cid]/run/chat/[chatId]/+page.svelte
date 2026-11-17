@@ -37,6 +37,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>{data.interactiveLearning?.name ?? 'Chat'} - SAPIN</title>
+</svelte:head>
+
 <div class="flex h-full flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
 	<!-- Header -->
 	<div class="border-b bg-white shadow-sm dark:bg-gray-800">

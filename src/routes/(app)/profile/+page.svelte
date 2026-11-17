@@ -40,6 +40,7 @@
 	// Estado de UI
 	let success = $state(false);
 	let successMessage = $state('');
+	let errorMessage = $state('');
 	let passwordError = $state('');
 
 	const passwordMatch = $derived(password === confirmPassword || confirmPassword === '');
@@ -54,34 +55,71 @@
 		age = data.user.age?.toString() || '';
 	});
 
-	function handleProfileSuccess() {
+	type ProfileActionResult =
+		| { type: 'success'; data?: { success?: boolean; error?: string } }
+		| { type: 'failure'; data?: { error?: string; message?: string } }
+		| { type: 'error'; error?: { message?: string } }
+		| { type: 'redirect' };
+
+	let successTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function showSuccess(message: string) {
+		errorMessage = '';
+		successMessage = message;
+		success = true;
+		clearTimeout(successTimer);
+		successTimer = setTimeout(() => (success = false), 3000);
+	}
+
+	/** Mensaje de fallo de una acción, o `null` si terminó bien. */
+	function getActionError(result: ProfileActionResult, fallback: string): string | null {
+		if (result.type === 'error') return result.error?.message || fallback;
+		if (result.type === 'failure') return result.data?.error || result.data?.message || fallback;
+		if (result.type === 'success' && result.data?.success === false) {
+			return result.data.error || fallback;
+		}
+		return null;
+	}
+
+	// El resultado se comprueba siempre: anunciar éxito cuando el servidor falló hace creer
+	// al usuario que sus cambios se guardaron.
+	function handleActionResult(successText: string, failureText: string) {
 		return () => {
-			return async () => {
-				successMessage = 'Perfil actualizado correctamente';
-				success = true;
-				setTimeout(() => (success = false), 3000);
+			return async ({ result }: { result: ProfileActionResult }) => {
+				const failure = getActionError(result, failureText);
+				if (failure) {
+					success = false;
+					errorMessage = failure;
+				} else {
+					showSuccess(successText);
+				}
 				await invalidateAll();
 			};
 		};
 	}
 
+	function handleProfileSuccess() {
+		return handleActionResult(
+			'Perfil actualizado correctamente',
+			'No se pudo actualizar el perfil. Inténtalo de nuevo.'
+		);
+	}
+
 	function handlePasswordSuccess() {
 		return () => {
-			return async ({
-				result
-			}: {
-				result: { type: string; data?: { success?: boolean; error?: string } };
-			}) => {
-				if (result.type === 'success' && result.data?.success) {
-					successMessage = 'Contraseña actualizada correctamente';
-					success = true;
-					setTimeout(() => (success = false), 3000);
+			return async ({ result }: { result: ProfileActionResult }) => {
+				const failure = getActionError(
+					result,
+					'No se pudo actualizar la contraseña. Inténtalo de nuevo.'
+				);
+				if (failure) {
+					passwordError = failure;
+				} else {
+					showSuccess('Contraseña actualizada correctamente');
 					currentPassword = '';
 					password = '';
 					confirmPassword = '';
 					passwordError = '';
-				} else if (result.type === 'success' && result.data?.error) {
-					passwordError = result.data.error;
 				}
 				await invalidateAll();
 			};
@@ -89,16 +127,13 @@
 	}
 
 	function handleAvatarSuccess(message: string) {
-		return () => {
-			return async () => {
-				successMessage = message;
-				success = true;
-				setTimeout(() => (success = false), 3000);
-				await invalidateAll();
-			};
-		};
+		return handleActionResult(message, 'No se pudo actualizar el avatar. Inténtalo de nuevo.');
 	}
 </script>
+
+<svelte:head>
+	<title>Mi perfil - SAPIN</title>
+</svelte:head>
 
 <div class="mx-auto max-w-4xl p-6">
 	<Heading tag="h1" class="mb-2">Configuración de Perfil</Heading>
@@ -110,6 +145,13 @@
 		<Alert color="green" class="mb-6" dismissable>
 			<span class="font-medium">¡Éxito!</span>
 			{successMessage}
+		</Alert>
+	{/if}
+
+	{#if errorMessage}
+		<Alert color="red" class="mb-6">
+			<span class="font-medium">No se han guardado los cambios.</span>
+			{errorMessage}
 		</Alert>
 	{/if}
 

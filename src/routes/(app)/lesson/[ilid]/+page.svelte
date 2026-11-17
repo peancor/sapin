@@ -64,6 +64,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>{data.interactiveLearning?.name ?? 'Lección'} - SAPIN</title>
+</svelte:head>
+
 <div class="mx-auto max-w-5xl space-y-8 px-4 py-12">
 	<div class="rounded-3xl bg-white p-8 shadow-sm dark:bg-gray-900/40">
 		<div

@@ -222,10 +222,10 @@
 		</ResponsiveSidebar>
 
 		<!-- Main content -->
-		<main class="flex-1">
+		<div class="flex-1">
 			<div class="p-4 lg:p-6">
 				{@render children()}
 			</div>
-		</main>
+		</div>
 	</div>
 </div>

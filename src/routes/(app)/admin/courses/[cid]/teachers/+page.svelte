@@ -250,17 +250,17 @@
 			<div class="overflow-x-auto">
 				<Table striped>
 					<TableHead>
-						<TableHeadCell class="w-12">
+						<TableHeadCell scope="col" class="w-12">
 							<Checkbox
 								checked={allSelected}
 								onchange={toggleSelectAll}
 								aria-label="Seleccionar todos los profesores"
 							/>
 						</TableHeadCell>
-						<TableHeadCell>Profesor</TableHeadCell>
-						<TableHeadCell>Email</TableHeadCell>
-						<TableHeadCell>Rol</TableHeadCell>
-						<TableHeadCell class="w-20">
+						<TableHeadCell scope="col">Profesor</TableHeadCell>
+						<TableHeadCell scope="col">Email</TableHeadCell>
+						<TableHeadCell scope="col">Rol</TableHeadCell>
+						<TableHeadCell scope="col" class="w-20">
 							<span class="sr-only">Acciones</span>
 						</TableHeadCell>
 					</TableHead>
@@ -336,6 +336,7 @@
 
 <!-- Add Teachers Modal -->
 <Modal
+	aria-label="Añadir Profesores"
 	title="Añadir Profesores"
 	bind:open={showAddModal}
 	size="lg"
@@ -439,7 +440,7 @@
 </Modal>
 
 <!-- Remove Single Teacher Modal -->
-<Modal bind:open={showRemoveModal} size="sm">
+<Modal bind:open={showRemoveModal} aria-label="¿Eliminar profesor?" size="sm">
 	<div class="text-center">
 		<Trash2 class="mx-auto mb-4 h-12 w-12 text-red-500" />
 		<h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">¿Eliminar profesor?</h3>
@@ -473,7 +474,11 @@
 </Modal>
 
 <!-- Bulk Remove Modal -->
-<Modal bind:open={showBulkRemoveModal} size="sm">
+<Modal
+	bind:open={showBulkRemoveModal}
+	aria-label="Eliminar a los profesores seleccionados"
+	size="sm"
+>
 	<div class="text-center">
 		<Trash2 class="mx-auto mb-4 h-12 w-12 text-red-500" />
 		<h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">

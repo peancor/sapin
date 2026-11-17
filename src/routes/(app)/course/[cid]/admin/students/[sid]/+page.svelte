@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { copyText } from '$lib/utils/clipboard';
 	import type { PageData } from './$types';
 	import { Activity, BookOpen, Calendar, Clock } from 'lucide-svelte';
 	import EChart from '$lib/components/charts/EChart.svelte';
@@ -63,9 +64,18 @@
 
 	async function copyLoginLink(externalId: string) {
 		const url = `${window.location.origin}/student/login-with-external-id/${externalId}`;
-		await navigator.clipboard.writeText(url);
-		alert('Link copiado al portapapeles');
+		const copied = await copyText(url);
+		copyStatus = copied
+			? 'Enlace copiado al portapapeles'
+			: 'No se pudo copiar el enlace. Cópialo manualmente.';
+		copyFailed = !copied;
+		clearTimeout(copyTimer);
+		copyTimer = setTimeout(() => (copyStatus = ''), copied ? 2500 : 6000);
 	}
+
+	let copyStatus = $state('');
+	let copyFailed = $state(false);
+	let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const completedCount = $derived(
 		data.stats.activitiesDetail.filter((activity) => activity.status === 'completed').length
@@ -465,4 +475,15 @@
 			</div>
 		</div>
 	</div>
+</div>
+
+<div
+	role="status"
+	class="fixed bottom-4 left-1/2 z-[70] -translate-x-1/2 rounded-lg px-4 py-2 text-sm text-white shadow-lg {copyStatus
+		? copyFailed
+			? 'bg-red-600'
+			: 'bg-gray-900'
+		: 'sr-only'}"
+>
+	{copyStatus}
 </div>

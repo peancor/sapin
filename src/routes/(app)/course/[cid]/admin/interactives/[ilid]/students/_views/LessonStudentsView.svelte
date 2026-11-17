@@ -207,14 +207,14 @@
 	<div class="overflow-x-auto">
 		<Table striped>
 			<TableHead>
-				<TableHeadCell class="w-14"></TableHeadCell>
-				<TableHeadCell>Alumno</TableHeadCell>
-				<TableHeadCell>Último estado</TableHeadCell>
-				<TableHeadCell>Última actividad</TableHeadCell>
-				<TableHeadCell>Intentos</TableHeadCell>
-				<TableHeadCell>Recorrido</TableHeadCell>
-				<TableHeadCell>Alertas</TableHeadCell>
-				<TableHeadCell>Acción</TableHeadCell>
+				<TableHeadCell scope="col" class="w-14"></TableHeadCell>
+				<TableHeadCell scope="col">Alumno</TableHeadCell>
+				<TableHeadCell scope="col">Último estado</TableHeadCell>
+				<TableHeadCell scope="col">Última actividad</TableHeadCell>
+				<TableHeadCell scope="col">Intentos</TableHeadCell>
+				<TableHeadCell scope="col">Recorrido</TableHeadCell>
+				<TableHeadCell scope="col">Alertas</TableHeadCell>
+				<TableHeadCell scope="col">Acción</TableHeadCell>
 			</TableHead>
 			<TableBody class="divide-y">
 				{#each data.lessonStudents as row (row.student.id)}

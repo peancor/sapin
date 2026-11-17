@@ -30,6 +30,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>{data.interactiveLearning?.name ?? 'Agente'} - SAPIN</title>
+</svelte:head>
+
 <div class="mx-auto max-w-2xl px-4 py-8">
 	<!-- Cabecera de la actividad -->
 	<div class="mb-8 text-center">

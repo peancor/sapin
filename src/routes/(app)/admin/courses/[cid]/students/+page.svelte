@@ -385,16 +385,16 @@
 			<div class="overflow-x-auto">
 				<Table striped>
 					<TableHead>
-						<TableHeadCell class="w-12">
+						<TableHeadCell scope="col" class="w-12">
 							<Checkbox
 								checked={allSelected}
 								onchange={toggleSelectAll}
 								aria-label="Seleccionar todos los estudiantes"
 							/>
 						</TableHeadCell>
-						<TableHeadCell>Estudiante</TableHeadCell>
-						<TableHeadCell>Email</TableHeadCell>
-						<TableHeadCell class="w-20">
+						<TableHeadCell scope="col">Estudiante</TableHeadCell>
+						<TableHeadCell scope="col">Email</TableHeadCell>
+						<TableHeadCell scope="col" class="w-20">
 							<span class="sr-only">Acciones</span>
 						</TableHeadCell>
 					</TableHead>
@@ -471,6 +471,7 @@
 
 <!-- Add Students Modal -->
 <Modal
+	aria-label="Inscribir Estudiantes"
 	title="Inscribir Estudiantes"
 	bind:open={showAddModal}
 	size="lg"
@@ -575,6 +576,7 @@
 
 <!-- Import CSV Modal -->
 <Modal
+	aria-label="Importar Estudiantes desde CSV"
 	title="Importar Estudiantes desde CSV"
 	bind:open={showImportModal}
 	size="md"
@@ -605,7 +607,7 @@
 				aria-label="Fichero CSV de estudiantes"
 				onchange={handleFileChange}
 				disabled={isImporting}
-				class="block w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:placeholder-gray-400"
+				class="block w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:placeholder-gray-400"
 			/>
 
 			<div
@@ -646,7 +648,12 @@
 </Modal>
 
 <!-- Import Results Modal -->
-<Modal title="Resultados de la Importación" bind:open={showImportResultsModal} size="lg">
+<Modal
+	aria-label="Resultados de la Importación"
+	title="Resultados de la Importación"
+	bind:open={showImportResultsModal}
+	size="lg"
+>
 	<div class="space-y-4">
 		<!-- Summary -->
 		<div class="grid grid-cols-3 gap-4">
@@ -744,7 +751,7 @@
 </Modal>
 
 <!-- Remove Single Student Modal -->
-<Modal bind:open={showRemoveModal} size="sm">
+<Modal bind:open={showRemoveModal} aria-label="¿Dar de baja al estudiante?" size="sm">
 	<div class="text-center">
 		<Trash2 class="mx-auto mb-4 h-12 w-12 text-red-500" />
 		<h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
@@ -780,7 +787,11 @@
 </Modal>
 
 <!-- Bulk Remove Modal -->
-<Modal bind:open={showBulkRemoveModal} size="sm">
+<Modal
+	bind:open={showBulkRemoveModal}
+	aria-label="Dar de baja a los estudiantes seleccionados"
+	size="sm"
+>
 	<div class="text-center">
 		<Trash2 class="mx-auto mb-4 h-12 w-12 text-red-500" />
 		<h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">

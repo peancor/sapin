@@ -312,7 +312,7 @@
 			<Table hoverable={true} striped={true} class="w-full">
 				<caption class="sr-only">Usuarios del sistema</caption>
 				<TableHead class="bg-gray-50 dark:bg-gray-700">
-					<TableHeadCell class="w-12 p-4!">
+					<TableHeadCell scope="col" class="w-12 p-4!">
 						<Checkbox
 							checked={allSelected}
 							disabled={selectableUsers.length === 0}
@@ -320,11 +320,11 @@
 							aria-label="Seleccionar todos los usuarios de esta página"
 						/>
 					</TableHeadCell>
-					<TableHeadCell>Usuario</TableHeadCell>
-					<TableHeadCell>Email</TableHeadCell>
-					<TableHeadCell>Roles</TableHeadCell>
-					<TableHeadCell>Fecha de registro</TableHeadCell>
-					<TableHeadCell class="text-right">Acciones</TableHeadCell>
+					<TableHeadCell scope="col">Usuario</TableHeadCell>
+					<TableHeadCell scope="col">Email</TableHeadCell>
+					<TableHeadCell scope="col">Roles</TableHeadCell>
+					<TableHeadCell scope="col">Fecha de registro</TableHeadCell>
+					<TableHeadCell scope="col" class="text-right">Acciones</TableHeadCell>
 				</TableHead>
 				<TableBody>
 					{#each data.users as user (user.id)}

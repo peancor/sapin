@@ -600,15 +600,15 @@
 		<div class="overflow-x-auto">
 			<Table striped={true} class="w-full min-w-full">
 				<TableHead>
-					<TableHeadCell class="w-10 p-4">
+					<TableHeadCell scope="col" class="w-10 p-4">
 						<Checkbox
 							checked={allSelected}
 							onchange={toggleSelectAll}
 							aria-label="Seleccionar todos los estudiantes"
 						/>
 					</TableHeadCell>
-					<TableHeadCell>Estudiante</TableHeadCell>
-					<TableHeadCell>Acciones</TableHeadCell>
+					<TableHeadCell scope="col">Estudiante</TableHeadCell>
+					<TableHeadCell scope="col">Acciones</TableHeadCell>
 				</TableHead>
 				<TableBody class="divide-y">
 					{#each data.students as student (student.id)}
@@ -646,15 +646,17 @@
 									<a
 										href={resolve(`/course/${data.courseId}/admin/students/${student.id}`)}
 										class="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+										aria-label={`Ver ficha de ${student.username}`}
 									>
-										<Eye size={16} class="dark:text-white" />
+										<Eye size={16} class="dark:text-white" aria-hidden="true" />
 									</a>
 									<button
 										type="button"
 										class="rounded p-1 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700"
 										onclick={() => confirmUnenrollStudent(student.id)}
+										aria-label={`Dar de baja a ${student.username}`}
 									>
-										<UserMinus size={16} />
+										<UserMinus size={16} aria-hidden="true" />
 									</button>
 								</div>
 							</TableBodyCell>
@@ -709,7 +711,7 @@
 					aria-label="Fichero CSV de estudiantes"
 					onchange={handleFileChange}
 					disabled={isImporting}
-					class="block w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:placeholder-gray-400"
+					class="block w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:placeholder-gray-400"
 				/>
 
 				<div
@@ -800,7 +802,7 @@
 						data-1p-ignore="true"
 						data-lpignore="true"
 						data-bwignore="true"
-						class="block w-full rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+						class="block w-full rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 					/>
 					<p id="moodleUrlHelp" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
 						Dirección de la Universidad de Cantabria rellenada por defecto. Puedes cambiarla si
@@ -826,7 +828,7 @@
 						data-1p-ignore="true"
 						data-lpignore="true"
 						data-bwignore="true"
-						class="block w-full rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+						class="block w-full rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 					/>
 					<p id="moodleTokenHelp" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
 						Pega aquí tu token de acceso al servicio web de Moodle. No es tu contraseña.
@@ -857,7 +859,7 @@
 						data-1p-ignore="true"
 						data-lpignore="true"
 						data-bwignore="true"
-						class="block w-full rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+						class="block w-full rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 					/>
 					<p id="moodleCourseHelp" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
 						Abre tu curso en Moodle y copia el número que aparece después de <code>id=</code> en la
@@ -917,10 +919,10 @@
 					<table class="w-full text-sm">
 						<thead class="sticky top-0 bg-gray-100 dark:bg-gray-800">
 							<tr>
-								<th class="p-2 text-left dark:text-gray-200">Nombre</th>
-								<th class="p-2 text-left dark:text-gray-200">Email</th>
-								<th class="p-2 text-left dark:text-gray-200">Moodle ID</th>
-								<th class="p-2 text-left dark:text-gray-200">Estado</th>
+								<th scope="col" class="p-2 text-left dark:text-gray-200">Nombre</th>
+								<th scope="col" class="p-2 text-left dark:text-gray-200">Email</th>
+								<th scope="col" class="p-2 text-left dark:text-gray-200">Moodle ID</th>
+								<th scope="col" class="p-2 text-left dark:text-gray-200">Estado</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -962,7 +964,7 @@
 						data-1p-ignore="true"
 						data-lpignore="true"
 						data-bwignore="true"
-						class="block w-full rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+						class="block w-full rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 					/>
 					<p
 						id="moodleConfirmTokenHelp"
@@ -1002,7 +1004,7 @@
 </Modal>
 
 <!-- Unenroll confirmation modal -->
-<Modal bind:open={showUnenrollModal} size="xs">
+<Modal bind:open={showUnenrollModal} aria-label="Dar de baja al estudiante" size="xs">
 	<div class="text-center">
 		<h3 class="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
 			¿Estás seguro de que quieres dar de baja a este estudiante del curso?
@@ -1019,7 +1021,11 @@
 </Modal>
 
 <!-- Bulk Unenroll confirmation modal -->
-<Modal bind:open={showBulkUnenrollModal} size="sm">
+<Modal
+	bind:open={showBulkUnenrollModal}
+	aria-label="Dar de baja a los estudiantes seleccionados"
+	size="sm"
+>
 	<div class="text-center">
 		<h3 class="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
 			¿Estás seguro de que quieres dar de baja a {selectedStudents.length} estudiantes del curso?
@@ -1038,7 +1044,7 @@
 </Modal>
 
 <!-- Import Results Modal -->
-<Modal bind:open={showImportResults} size="lg">
+<Modal bind:open={showImportResults} aria-label="Resultados de la importación" size="lg">
 	<div class="p-4">
 		<h3 class="mb-4 text-xl font-semibold dark:text-white">Resultados de la Importación</h3>
 
@@ -1147,7 +1153,11 @@
 </Modal>
 
 <!-- Moodle Import Results Modal -->
-<Modal bind:open={showMoodleResultsModal} size="lg">
+<Modal
+	bind:open={showMoodleResultsModal}
+	aria-label="Resultados de la importación desde Moodle"
+	size="lg"
+>
 	<div class="p-4">
 		<h3 class="mb-4 text-xl font-semibold dark:text-white">
 			Resultados de Importación desde Moodle

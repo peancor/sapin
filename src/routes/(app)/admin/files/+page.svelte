@@ -591,19 +591,19 @@
 		<div class="overflow-x-auto">
 			<Table hoverable={true}>
 				<TableHead>
-					<TableHeadCell class="w-10">
+					<TableHeadCell scope="col" class="w-10">
 						<Checkbox
 							checked={selectedFiles.length === data.files.length && data.files.length > 0}
 							onchange={toggleSelectAll}
 							aria-label="Seleccionar todos los ficheros"
 						/>
 					</TableHeadCell>
-					<TableHeadCell>Archivo</TableHeadCell>
-					<TableHeadCell>Categoría</TableHeadCell>
-					<TableHeadCell>Tamaño</TableHeadCell>
-					<TableHeadCell>Estado</TableHeadCell>
-					<TableHeadCell>Subido</TableHeadCell>
-					<TableHeadCell>Acciones</TableHeadCell>
+					<TableHeadCell scope="col">Archivo</TableHeadCell>
+					<TableHeadCell scope="col">Categoría</TableHeadCell>
+					<TableHeadCell scope="col">Tamaño</TableHeadCell>
+					<TableHeadCell scope="col">Estado</TableHeadCell>
+					<TableHeadCell scope="col">Subido</TableHeadCell>
+					<TableHeadCell scope="col">Acciones</TableHeadCell>
 				</TableHead>
 				<TableBody>
 					{#each data.files as file (file.id)}
@@ -740,7 +740,12 @@
 </div>
 
 <!-- Maintenance Modal -->
-<Modal bind:open={isMaintenanceModalOpen} title="Mantenimiento de Archivos" size="md">
+<Modal
+	aria-label="Mantenimiento de Archivos"
+	bind:open={isMaintenanceModalOpen}
+	title="Mantenimiento de Archivos"
+	size="md"
+>
 	<div class="space-y-4">
 		<p class="text-sm text-gray-500 dark:text-gray-400">
 			Ejecuta tareas de mantenimiento para limpiar archivos eliminados y detectar huérfanos.
@@ -825,7 +830,12 @@
 </Modal>
 
 <!-- Processing Modal -->
-<Modal bind:open={isProcessingModalOpen} title="Procesamiento de Imágenes" size="md">
+<Modal
+	aria-label="Procesamiento de Imágenes"
+	bind:open={isProcessingModalOpen}
+	title="Procesamiento de Imágenes"
+	size="md"
+>
 	<div class="space-y-4">
 		<p class="text-sm text-gray-500 dark:text-gray-400">
 			Gestiona el procesamiento de imágenes (thumbnails y optimización).

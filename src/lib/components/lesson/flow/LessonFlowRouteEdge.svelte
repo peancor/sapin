@@ -170,7 +170,7 @@
 			role="button"
 			tabindex="0"
 			aria-label={`Punto de ruta ${index + 1}`}
-			class="nodrag nopan cursor-grab outline-none"
+			class="nodrag nopan cursor-grab"
 			transform={`translate(${point.x} ${point.y})`}
 			onpointerdown={(event) => startDrag(event, index)}
 			onkeydown={(event) => nudgePoint(event, index)}

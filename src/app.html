@@ -4,11 +4,22 @@
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<!-- Mover el script antes de cualquier otro contenido -->
+		<meta name="color-scheme" content="light dark" />
+		<!-- Aplica el tema antes del primer pintado. Mantener en sincronía con src/lib/stores/theme.ts -->
 		<script>
 			(() => {
-				const theme = localStorage.getItem('theme') || 'light';
-				document.documentElement.classList.toggle('dark', theme === 'dark');
+				let stored = null;
+				try {
+					stored = localStorage.getItem('theme');
+				} catch {
+					// Sin almacenamiento se sigue al sistema.
+				}
+				if (stored !== 'light' && stored !== 'dark') stored = null;
+				document.querySelector('meta[name="color-scheme"]').content = stored ?? 'light dark';
+				const dark = stored
+					? stored === 'dark'
+					: window.matchMedia('(prefers-color-scheme: dark)').matches;
+				document.documentElement.classList.toggle('dark', dark);
 			})();
 		</script>
 		%sveltekit.head%

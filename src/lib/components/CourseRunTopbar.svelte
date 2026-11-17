@@ -107,6 +107,7 @@
 				pill
 				color="light"
 				class="border-none bg-transparent p-2.5! transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+				aria-label={$theme === 'dark' ? 'Activar tema claro' : 'Activar tema oscuro'}
 				onclick={toggleTheme}
 			>
 				{#if $theme === 'dark'}

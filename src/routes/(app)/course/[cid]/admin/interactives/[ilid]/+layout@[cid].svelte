@@ -341,10 +341,10 @@
 		</ResponsiveSidebar>
 
 		<!-- Main content -->
-		<main class="min-h-screen flex-1 lg:ml-64">
+		<div class="min-h-screen flex-1 lg:ml-64">
 			<div class="p-4 lg:p-6">
 				{@render children()}
 			</div>
-		</main>
+		</div>
 	</div>
 </div>

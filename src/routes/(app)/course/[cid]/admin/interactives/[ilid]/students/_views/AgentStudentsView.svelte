@@ -134,12 +134,12 @@
 	<div class="overflow-x-auto">
 		<Table striped>
 			<TableHead>
-				<TableHeadCell class="w-14"></TableHeadCell>
-				<TableHeadCell>Estudiante</TableHeadCell>
-				<TableHeadCell>Estado</TableHeadCell>
-				<TableHeadCell>Última actividad</TableHeadCell>
-				<TableHeadCell>Mensajes</TableHeadCell>
-				<TableHeadCell>Sesiones</TableHeadCell>
+				<TableHeadCell scope="col" class="w-14"></TableHeadCell>
+				<TableHeadCell scope="col">Estudiante</TableHeadCell>
+				<TableHeadCell scope="col">Estado</TableHeadCell>
+				<TableHeadCell scope="col">Última actividad</TableHeadCell>
+				<TableHeadCell scope="col">Mensajes</TableHeadCell>
+				<TableHeadCell scope="col">Sesiones</TableHeadCell>
 			</TableHead>
 			<TableBody class="divide-y">
 				{#each data.students as student (student.id)}

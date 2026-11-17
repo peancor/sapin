@@ -25,6 +25,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Cerrar sesión - SAPIN</title>
+</svelte:head>
+
 <div
 	class="flex min-h-screen items-center justify-center bg-linear-to-br from-slate-50 via-gray-50 to-zinc-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
 >

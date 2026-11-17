@@ -384,13 +384,13 @@
 		<div class="overflow-x-auto">
 			<Table hoverable={true}>
 				<TableHead>
-					<TableHeadCell>Fecha/Hora</TableHeadCell>
-					<TableHeadCell>Severidad</TableHeadCell>
-					<TableHeadCell>Accion</TableHeadCell>
-					<TableHeadCell>Usuario</TableHeadCell>
-					<TableHeadCell>Objetivo</TableHeadCell>
-					<TableHeadCell>IP</TableHeadCell>
-					<TableHeadCell>
+					<TableHeadCell scope="col">Fecha/Hora</TableHeadCell>
+					<TableHeadCell scope="col">Severidad</TableHeadCell>
+					<TableHeadCell scope="col">Accion</TableHeadCell>
+					<TableHeadCell scope="col">Usuario</TableHeadCell>
+					<TableHeadCell scope="col">Objetivo</TableHeadCell>
+					<TableHeadCell scope="col">IP</TableHeadCell>
+					<TableHeadCell scope="col">
 						<span class="sr-only">Acciones</span>
 					</TableHeadCell>
 				</TableHead>
@@ -510,7 +510,12 @@
 </div>
 
 <!-- Cleanup Modal -->
-<Modal title="Limpiar Logs Antiguos" bind:open={showCleanupModal} size="md">
+<Modal
+	aria-label="Limpiar Logs Antiguos"
+	title="Limpiar Logs Antiguos"
+	bind:open={showCleanupModal}
+	size="md"
+>
 	<div class="space-y-4">
 		{#if cleanupResult}
 			{#if cleanupResult.success}
@@ -550,7 +555,12 @@
 </Modal>
 
 <!-- Details Modal -->
-<Modal title="Detalles del Log" bind:open={showDetailsModal} size="lg">
+<Modal
+	aria-label="Detalles del Log"
+	title="Detalles del Log"
+	bind:open={showDetailsModal}
+	size="lg"
+>
 	{#if selectedLog}
 		<div class="space-y-4">
 			<div class="grid grid-cols-2 gap-4">

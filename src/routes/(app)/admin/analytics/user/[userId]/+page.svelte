@@ -357,10 +357,10 @@
 		<div class="overflow-x-auto">
 			<Table hoverable={true}>
 				<TableHead>
-					<TableHeadCell>Hora</TableHeadCell>
-					<TableHeadCell>Tipo</TableHeadCell>
-					<TableHeadCell>Página</TableHeadCell>
-					<TableHeadCell>Evento</TableHeadCell>
+					<TableHeadCell scope="col">Hora</TableHeadCell>
+					<TableHeadCell scope="col">Tipo</TableHeadCell>
+					<TableHeadCell scope="col">Página</TableHeadCell>
+					<TableHeadCell scope="col">Evento</TableHeadCell>
 				</TableHead>
 				<TableBody>
 					{#each userActivity.recentEvents as event (event.id)}

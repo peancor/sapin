@@ -421,14 +421,14 @@
 						<tr
 							class="text-left text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
 						>
-							<th class="px-4 py-3">Alumno</th>
-							<th class="px-4 py-3">Estado</th>
-							<th class="px-4 py-3">Mensajes</th>
-							<th class="px-4 py-3">Tokens</th>
-							<th class="px-4 py-3">Coste</th>
-							<th class="px-4 py-3">Última actividad</th>
-							<th class="px-4 py-3">Alertas</th>
-							<th class="px-4 py-3"></th>
+							<th scope="col" class="px-4 py-3">Alumno</th>
+							<th scope="col" class="px-4 py-3">Estado</th>
+							<th scope="col" class="px-4 py-3">Mensajes</th>
+							<th scope="col" class="px-4 py-3">Tokens</th>
+							<th scope="col" class="px-4 py-3">Coste</th>
+							<th scope="col" class="px-4 py-3">Última actividad</th>
+							<th scope="col" class="px-4 py-3">Alertas</th>
+							<th scope="col" class="px-4 py-3"></th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
@@ -717,13 +717,13 @@
 							<tr
 								class="text-left text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
 							>
-								<th class="px-4 py-3">Inicio</th>
-								<th class="px-4 py-3">Sesión</th>
-								<th class="px-4 py-3">Tipo</th>
-								<th class="px-4 py-3">Modelo</th>
-								<th class="px-4 py-3">Hashes</th>
-								<th class="px-4 py-3">Uso</th>
-								<th class="px-4 py-3">Cache</th>
+								<th scope="col" class="px-4 py-3">Inicio</th>
+								<th scope="col" class="px-4 py-3">Sesión</th>
+								<th scope="col" class="px-4 py-3">Tipo</th>
+								<th scope="col" class="px-4 py-3">Modelo</th>
+								<th scope="col" class="px-4 py-3">Hashes</th>
+								<th scope="col" class="px-4 py-3">Uso</th>
+								<th scope="col" class="px-4 py-3">Cache</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
@@ -876,11 +876,11 @@
 						<tr
 							class="text-left text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
 						>
-							<th class="px-4 py-3">Sesion</th>
-							<th class="px-4 py-3">Modelo</th>
-							<th class="px-4 py-3">Tokens</th>
-							<th class="px-4 py-3">Coste</th>
-							<th class="px-4 py-3">Flags</th>
+							<th scope="col" class="px-4 py-3">Sesion</th>
+							<th scope="col" class="px-4 py-3">Modelo</th>
+							<th scope="col" class="px-4 py-3">Tokens</th>
+							<th scope="col" class="px-4 py-3">Coste</th>
+							<th scope="col" class="px-4 py-3">Flags</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-slate-200 dark:divide-slate-800">

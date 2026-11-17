@@ -85,6 +85,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>{data.course?.name ?? 'Curso'} - SAPIN</title>
+</svelte:head>
+
 <div class="container mx-auto px-4 py-8">
 	{#if data.course.image}
 		<div

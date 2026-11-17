@@ -20,6 +20,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Mis cursos - SAPIN</title>
+</svelte:head>
+
 <div class="mx-auto max-w-[2000px] p-4">
 	<div class="mb-8 flex items-center justify-between">
 		<h1 class="text-3xl font-bold dark:text-white">Mis cursos</h1>

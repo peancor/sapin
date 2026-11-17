@@ -34,22 +34,27 @@
 			<thead>
 				<tr class="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
 					<th
+						scope="col"
 						class="px-4 py-3 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase"
 						>Nombre</th
 					>
 					<th
+						scope="col"
 						class="px-4 py-3 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase"
 						>Clave Frontend</th
 					>
 					<th
+						scope="col"
 						class="px-4 py-3 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase"
 						>Categoría</th
 					>
 					<th
+						scope="col"
 						class="px-4 py-3 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase"
 						>Estado</th
 					>
 					<th
+						scope="col"
 						class="px-4 py-3 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase"
 						>Descripción</th
 					>

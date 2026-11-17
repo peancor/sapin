@@ -20,6 +20,10 @@
 	console.log((() => chatUser())());
 </script>
 
+<svelte:head>
+	<title>Chat - SAPIN</title>
+</svelte:head>
+
 <div class="h-[calc(100dvh-128px)]">
 	<ChatComponent
 		initialMessages={mappedMessages()}

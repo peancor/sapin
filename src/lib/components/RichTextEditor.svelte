@@ -176,7 +176,8 @@
 			contentType: 'markdown',
 			editorProps: {
 				attributes: {
-					class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none p-3',
+					class:
+						'prose prose-sm dark:prose-invert max-w-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-700 p-3',
 					style: `min-height: ${minHeight}`
 				},
 				handlePaste: (_view, event) => {

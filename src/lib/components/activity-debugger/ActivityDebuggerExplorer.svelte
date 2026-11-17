@@ -316,15 +316,15 @@
 						<tr
 							class="text-left text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
 						>
-							<th class="px-6 py-3">Actividad</th>
-							<th class="px-6 py-3">Curso</th>
-							<th class="px-6 py-3">Modelo</th>
-							<th class="px-6 py-3">Sesiones</th>
-							<th class="px-6 py-3">Tokens</th>
-							<th class="px-6 py-3">Coste</th>
-							<th class="px-6 py-3">Última actividad</th>
-							<th class="px-6 py-3">Flags</th>
-							<th class="px-6 py-3"></th>
+							<th scope="col" class="px-6 py-3">Actividad</th>
+							<th scope="col" class="px-6 py-3">Curso</th>
+							<th scope="col" class="px-6 py-3">Modelo</th>
+							<th scope="col" class="px-6 py-3">Sesiones</th>
+							<th scope="col" class="px-6 py-3">Tokens</th>
+							<th scope="col" class="px-6 py-3">Coste</th>
+							<th scope="col" class="px-6 py-3">Última actividad</th>
+							<th scope="col" class="px-6 py-3">Flags</th>
+							<th scope="col" class="px-6 py-3"></th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-slate-200 dark:divide-slate-800">

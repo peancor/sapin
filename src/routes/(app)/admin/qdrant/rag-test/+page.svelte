@@ -965,10 +965,10 @@
 						<div class="max-h-[500px] overflow-auto rounded-lg border dark:border-gray-600">
 							<Table striped>
 								<TableHead>
-									<TableHeadCell>ID</TableHeadCell>
-									<TableHeadCell>Fuente</TableHeadCell>
-									<TableHeadCell>Chunk</TableHeadCell>
-									<TableHeadCell>Contenido</TableHeadCell>
+									<TableHeadCell scope="col">ID</TableHeadCell>
+									<TableHeadCell scope="col">Fuente</TableHeadCell>
+									<TableHeadCell scope="col">Chunk</TableHeadCell>
+									<TableHeadCell scope="col">Contenido</TableHeadCell>
 								</TableHead>
 								<TableBody>
 									{#each documents as doc (doc.id)}
@@ -1040,7 +1040,12 @@
 </div>
 
 <!-- Modal para ver chunk completo -->
-<Modal bind:open={showChunkModal} title="Detalle del Chunk" size="lg">
+<Modal
+	aria-label="Detalle del Chunk"
+	bind:open={showChunkModal}
+	title="Detalle del Chunk"
+	size="lg"
+>
 	{#if selectedChunk}
 		<div class="space-y-4">
 			{#if selectedChunk.score !== undefined}

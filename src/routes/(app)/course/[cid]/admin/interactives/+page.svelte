@@ -446,19 +446,29 @@
 			<table class="w-full">
 				<thead>
 					<tr class="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
-						<th class="px-6 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400"
+						<th
+							scope="col"
+							class="px-6 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400"
 							>Actividad</th
 						>
-						<th class="px-6 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400"
+						<th
+							scope="col"
+							class="px-6 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400"
 							>Tipo</th
 						>
-						<th class="px-6 py-4 text-center text-sm font-medium text-gray-500 dark:text-gray-400"
+						<th
+							scope="col"
+							class="px-6 py-4 text-center text-sm font-medium text-gray-500 dark:text-gray-400"
 							>Participaciones</th
 						>
-						<th class="px-6 py-4 text-center text-sm font-medium text-gray-500 dark:text-gray-400"
+						<th
+							scope="col"
+							class="px-6 py-4 text-center text-sm font-medium text-gray-500 dark:text-gray-400"
 							>Orden</th
 						>
-						<th class="px-6 py-4 text-center text-sm font-medium text-gray-500 dark:text-gray-400"
+						<th
+							scope="col"
+							class="px-6 py-4 text-center text-sm font-medium text-gray-500 dark:text-gray-400"
 							>Acciones</th
 						>
 					</tr>
@@ -545,7 +555,7 @@
 </div>
 
 <!-- Delete Modal -->
-<Modal bind:open={deleteModal} size="sm">
+<Modal bind:open={deleteModal} aria-label="Eliminar actividad" size="sm">
 	<div class="text-center">
 		<div
 			class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30"

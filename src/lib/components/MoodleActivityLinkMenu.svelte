@@ -111,7 +111,12 @@
 	</DropdownItem>
 </Dropdown>
 
-<Modal bind:open={showGuide} size="lg" autoclose={false}>
+<Modal
+	bind:open={showGuide}
+	aria-label="Publicar esta actividad en Moodle"
+	size="lg"
+	autoclose={false}
+>
 	<div class="space-y-6">
 		<div class="flex items-start gap-4">
 			<div

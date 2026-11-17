@@ -487,14 +487,14 @@
 		<div class="overflow-x-auto">
 			<Table hoverable striped class="w-full">
 				<TableHead class="bg-gray-50 dark:bg-gray-700">
-					<TableHeadCell>Herramienta</TableHeadCell>
-					<TableHeadCell>Categoría</TableHeadCell>
-					<TableHeadCell>Ejecutor</TableHeadCell>
-					<TableHeadCell>Dominio</TableHeadCell>
-					<TableHeadCell>Riesgo</TableHeadCell>
-					<TableHeadCell>Confirmación</TableHeadCell>
-					<TableHeadCell>Estado</TableHeadCell>
-					<TableHeadCell class="text-right">Acciones</TableHeadCell>
+					<TableHeadCell scope="col">Herramienta</TableHeadCell>
+					<TableHeadCell scope="col">Categoría</TableHeadCell>
+					<TableHeadCell scope="col">Ejecutor</TableHeadCell>
+					<TableHeadCell scope="col">Dominio</TableHeadCell>
+					<TableHeadCell scope="col">Riesgo</TableHeadCell>
+					<TableHeadCell scope="col">Confirmación</TableHeadCell>
+					<TableHeadCell scope="col">Estado</TableHeadCell>
+					<TableHeadCell scope="col" class="text-right">Acciones</TableHeadCell>
 				</TableHead>
 				<TableBody>
 					{#each filteredTools as tool (tool.id)}

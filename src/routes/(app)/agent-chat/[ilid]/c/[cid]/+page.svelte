@@ -8,6 +8,10 @@
 	const apiEndpoint = $derived(`/api/agent-chat/${data.activityId}/chat/${data.chatId}/ask`);
 </script>
 
+<svelte:head>
+	<title>{data.interactiveLearning?.name ?? 'Chat con agente'} - SAPIN</title>
+</svelte:head>
+
 <div class="flex h-[calc(100dvh-4rem)] flex-col">
 	<!-- Header compacto -->
 	<div

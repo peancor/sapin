@@ -436,6 +436,7 @@
 
 <!-- Modal: Crear Colección -->
 <Modal
+	aria-label="Crear Nueva Colección"
 	bind:open={showCreateModal}
 	title="Crear Nueva Colección"
 	size="md"
@@ -497,6 +498,7 @@
 
 <!-- Modal: Ver Colección -->
 <Modal
+	aria-label="Detalles de Colección: {selectedCollection}"
 	bind:open={showCollectionModal}
 	title="Detalles de Colección: {selectedCollection}"
 	size="xl"
@@ -551,8 +553,8 @@
 					<div class="max-h-64 overflow-auto rounded-lg border dark:border-gray-600">
 						<Table striped>
 							<TableHead>
-								<TableHeadCell>ID</TableHeadCell>
-								<TableHeadCell>Payload</TableHeadCell>
+								<TableHeadCell scope="col">ID</TableHeadCell>
+								<TableHeadCell scope="col">Payload</TableHeadCell>
 							</TableHead>
 							<TableBody>
 								{#each collectionPoints as point (point.id)}
@@ -583,7 +585,12 @@
 </Modal>
 
 <!-- Modal: Confirmar Eliminación -->
-<Modal bind:open={showDeleteModal} title="Confirmar Eliminación" size="sm">
+<Modal
+	aria-label="Confirmar Eliminación"
+	bind:open={showDeleteModal}
+	title="Confirmar Eliminación"
+	size="sm"
+>
 	<p class="text-gray-600 dark:text-gray-400">
 		¿Estás seguro de que deseas eliminar la colección
 		<strong class="text-gray-900 dark:text-white">{collectionToDelete}</strong>?

@@ -529,7 +529,12 @@
 	</div>
 </div>
 
-<Modal bind:open={showRebuildModal} size="sm" class="backdrop-blur-sm">
+<Modal
+	bind:open={showRebuildModal}
+	aria-label="Regenerar progreso"
+	size="sm"
+	class="backdrop-blur-sm"
+>
 	<div class="p-2">
 		<h3 class="mb-2 text-center text-xl font-bold text-gray-900 dark:text-white">
 			Regenerar progreso

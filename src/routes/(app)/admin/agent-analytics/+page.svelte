@@ -73,10 +73,18 @@
 				<table class="w-full text-sm">
 					<thead>
 						<tr class="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
-							<th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Herramienta</th>
-							<th class="px-4 py-2 text-right text-xs font-medium text-gray-500">Total</th>
-							<th class="px-4 py-2 text-right text-xs font-medium text-gray-500">Éxito</th>
-							<th class="px-4 py-2 text-right text-xs font-medium text-gray-500">Rechazadas</th>
+							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500"
+								>Herramienta</th
+							>
+							<th scope="col" class="px-4 py-2 text-right text-xs font-medium text-gray-500"
+								>Total</th
+							>
+							<th scope="col" class="px-4 py-2 text-right text-xs font-medium text-gray-500"
+								>Éxito</th
+							>
+							<th scope="col" class="px-4 py-2 text-right text-xs font-medium text-gray-500"
+								>Rechazadas</th
+							>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -127,10 +135,18 @@
 				<table class="w-full text-sm">
 					<thead>
 						<tr class="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
-							<th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Componente</th>
-							<th class="px-4 py-2 text-right text-xs font-medium text-gray-500">Instancias</th>
-							<th class="px-4 py-2 text-right text-xs font-medium text-gray-500">Respondidas</th>
-							<th class="px-4 py-2 text-right text-xs font-medium text-gray-500">Score prom.</th>
+							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500"
+								>Componente</th
+							>
+							<th scope="col" class="px-4 py-2 text-right text-xs font-medium text-gray-500"
+								>Instancias</th
+							>
+							<th scope="col" class="px-4 py-2 text-right text-xs font-medium text-gray-500"
+								>Respondidas</th
+							>
+							<th scope="col" class="px-4 py-2 text-right text-xs font-medium text-gray-500"
+								>Score prom.</th
+							>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-100 dark:divide-gray-700">

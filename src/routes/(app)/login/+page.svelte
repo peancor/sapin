@@ -16,6 +16,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Iniciar sesión - SAPIN</title>
+</svelte:head>
+
 <div
 	class="flex items-center justify-center bg-gray-50 transition-colors duration-200 dark:bg-gray-900"
 >

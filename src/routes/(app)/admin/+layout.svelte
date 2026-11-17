@@ -268,7 +268,7 @@
 		{/if}
 
 		<!-- Main content -->
-		<main class="flex-1 lg:ml-64">
+		<div class="flex-1 lg:ml-64">
 			<div class="p-4 lg:p-8">
 				<!-- Breadcrumb header -->
 				<div class="mb-6 hidden items-center justify-between lg:flex">
@@ -294,6 +294,6 @@
 					{@render children()}
 				</div>
 			</div>
-		</main>
+		</div>
 	</div>
 </div>

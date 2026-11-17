@@ -905,12 +905,12 @@
 						<tr
 							class="text-left text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
 						>
-							<th class="px-4 py-3">Fecha</th>
-							<th class="px-4 py-3">Modelo</th>
-							<th class="px-4 py-3">Tokens</th>
-							<th class="px-4 py-3">Duración</th>
-							<th class="px-4 py-3">Coste</th>
-							<th class="px-4 py-3">Estado</th>
+							<th scope="col" class="px-4 py-3">Fecha</th>
+							<th scope="col" class="px-4 py-3">Modelo</th>
+							<th scope="col" class="px-4 py-3">Tokens</th>
+							<th scope="col" class="px-4 py-3">Duración</th>
+							<th scope="col" class="px-4 py-3">Coste</th>
+							<th scope="col" class="px-4 py-3">Estado</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-slate-200 dark:divide-slate-800">

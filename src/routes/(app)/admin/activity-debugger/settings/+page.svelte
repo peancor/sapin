@@ -284,11 +284,11 @@
 						<tr
 							class="text-left text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
 						>
-							<th class="px-4 py-3">Target</th>
-							<th class="px-4 py-3">Motivo</th>
-							<th class="px-4 py-3">Creado por</th>
-							<th class="px-4 py-3">Expira</th>
-							<th class="px-4 py-3"></th>
+							<th scope="col" class="px-4 py-3">Target</th>
+							<th scope="col" class="px-4 py-3">Motivo</th>
+							<th scope="col" class="px-4 py-3">Creado por</th>
+							<th scope="col" class="px-4 py-3">Expira</th>
+							<th scope="col" class="px-4 py-3"></th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-slate-200 dark:divide-slate-800">

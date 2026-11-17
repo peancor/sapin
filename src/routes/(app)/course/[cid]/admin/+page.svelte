@@ -552,7 +552,7 @@
 	</div>
 </div>
 
-<Modal bind:open={deleteModal} size="md" autoclose={false}>
+<Modal bind:open={deleteModal} aria-label="Eliminar actividad" size="md" autoclose={false}>
 	<div class="text-center">
 		<h3 class="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
 			¿Estás seguro de que deseas eliminar esta actividad de aprendizaje interactivo?

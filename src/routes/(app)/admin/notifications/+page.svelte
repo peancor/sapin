@@ -175,7 +175,7 @@
 		<nav class="flex gap-4">
 			<button
 				type="button"
-				class="flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors outline-none {activeTab ===
+				class="flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors {activeTab ===
 				'broadcast'
 					? 'text-primary-600 border-primary-600 dark:text-primary-400 dark:border-primary-400'
 					: 'border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}"
@@ -186,7 +186,7 @@
 			</button>
 			<button
 				type="button"
-				class="flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors outline-none {activeTab ===
+				class="flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors {activeTab ===
 				'individual'
 					? 'text-primary-600 border-primary-600 dark:text-primary-400 dark:border-primary-400'
 					: 'border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}"

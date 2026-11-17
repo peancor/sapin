@@ -32,9 +32,56 @@
 @source '../node_modules/flowbite-svelte/dist';
 @source '../node_modules/flowbite-svelte-icons/dist';
 
+/*
+ * Esquema de color: sigue al sistema salvo que el usuario fije uno. El valor vive en
+ * <meta name="color-scheme"> (lo escriben app.html y stores/theme.ts) y aquí se traslada a la
+ * propiedad, que es lo que tiñe controles nativos, barras de desplazamiento y autofill.
+ */
+:root {
+	color-scheme: light dark;
+
+	&:has(> head > meta[name='color-scheme'][content='dark']) {
+		color-scheme: dark;
+	}
+	&:has(> head > meta[name='color-scheme'][content='light']) {
+		color-scheme: light;
+	}
+}
+
 @layer base {
+	/* Evita que el desplazamiento dentro de un diálogo modal arrastre la página de detrás. */
+	dialog:modal {
+		overscroll-behavior: contain;
+	}
+	dialog::backdrop {
+		overflow: hidden;
+		overscroll-behavior: contain;
+	}
+
 	/* disable chrome cancel button */
 	input[type='search']::-webkit-search-cancel-button {
 		display: none;
+	}
+}
+
+@layer components {
+	/* Enlace de salto: fuera de la vista hasta que recibe el foco del teclado. */
+	.skip-link {
+		position: fixed;
+		top: 0.5rem;
+		left: 0.5rem;
+		z-index: 60;
+		transform: translateY(-200%);
+		border-radius: 0.5rem;
+		background: var(--color-white);
+		padding: 0.5rem 1rem;
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: var(--color-primary-800);
+		box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.2);
+
+		&:focus {
+			transform: none;
+		}
 	}
 }

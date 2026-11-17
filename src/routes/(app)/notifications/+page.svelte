@@ -83,6 +83,10 @@
 	const unreadCount = $derived(data.notifications.filter((n) => !n.read).length);
 </script>
 
+<svelte:head>
+	<title>Notificaciones - SAPIN</title>
+</svelte:head>
+
 <div class="container mx-auto max-w-4xl p-6">
 	<!-- Header -->
 	<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

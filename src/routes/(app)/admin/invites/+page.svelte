@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { copyText } from '$lib/utils/clipboard';
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
 	import {
@@ -55,23 +56,35 @@
 		}
 	});
 
+	let copyError = $state('');
+	let copyTimer: ReturnType<typeof setTimeout> | undefined;
+
+	// El portapapeles puede denegarse: solo se marca como copiado si realmente se copió.
+	async function copyWithFeedback(text: string, marker: string) {
+		const copied = await copyText(text);
+		copiedCode = copied ? marker : '';
+		copyError = copied ? '' : 'No se pudo copiar. Selecciona el texto y cópialo manualmente.';
+		clearTimeout(copyTimer);
+		copyTimer = setTimeout(
+			() => {
+				copiedCode = '';
+				copyError = '';
+			},
+			copied ? 2000 : 6000
+		);
+	}
+
 	function copyCode(code: string) {
-		navigator.clipboard.writeText(code);
-		copiedCode = code;
-		setTimeout(() => (copiedCode = ''), 2000);
+		void copyWithFeedback(code, code);
 	}
 
 	function copyInviteUrl(code: string) {
 		const url = `${window.location.origin}/register?invite=${encodeURIComponent(code)}`;
-		navigator.clipboard.writeText(url);
-		copiedCode = code;
-		setTimeout(() => (copiedCode = ''), 2000);
+		void copyWithFeedback(url, code);
 	}
 
 	function copyAllCodes(codes: string[]) {
-		navigator.clipboard.writeText(codes.join('\n'));
-		copiedCode = 'all';
-		setTimeout(() => (copiedCode = ''), 2000);
+		void copyWithFeedback(codes.join('\n'), 'all');
 	}
 
 	function downloadCsv() {
@@ -385,7 +398,12 @@
 	{/if}
 
 	<!-- Generated Codes Modal -->
-	<Modal title="Invitaciones generadas" bind:open={showCodesModal} size="md">
+	<Modal
+		aria-label="Invitaciones generadas"
+		title="Invitaciones generadas"
+		bind:open={showCodesModal}
+		size="md"
+	>
 		{#if generatedCodes}
 			<div class="space-y-3">
 				<p class="text-sm text-gray-600 dark:text-gray-400">
@@ -455,15 +473,15 @@
 	<!-- Invites Table -->
 	<Table striped={true}>
 		<TableHead>
-			<TableHeadCell>Código</TableHeadCell>
-			<TableHeadCell>Tipo</TableHeadCell>
-			<TableHeadCell>Destino</TableHeadCell>
-			<TableHeadCell>Campaña</TableHeadCell>
-			<TableHeadCell>Usos</TableHeadCell>
-			<TableHeadCell>Creado</TableHeadCell>
-			<TableHeadCell>Expira</TableHeadCell>
-			<TableHeadCell>Estado</TableHeadCell>
-			<TableHeadCell>Acciones</TableHeadCell>
+			<TableHeadCell scope="col">Código</TableHeadCell>
+			<TableHeadCell scope="col">Tipo</TableHeadCell>
+			<TableHeadCell scope="col">Destino</TableHeadCell>
+			<TableHeadCell scope="col">Campaña</TableHeadCell>
+			<TableHeadCell scope="col">Usos</TableHeadCell>
+			<TableHeadCell scope="col">Creado</TableHeadCell>
+			<TableHeadCell scope="col">Expira</TableHeadCell>
+			<TableHeadCell scope="col">Estado</TableHeadCell>
+			<TableHeadCell scope="col">Acciones</TableHeadCell>
 		</TableHead>
 		<TableBody>
 			{#each filteredInvites as inv (inv.id)}
@@ -554,4 +572,14 @@
 			{/if}
 		</TableBody>
 	</Table>
+</div>
+
+<!-- Resultado de copiar: visible si falla, y anunciado a lectores de pantalla. -->
+<div
+	role="status"
+	class="fixed bottom-4 left-1/2 z-[70] -translate-x-1/2 rounded-lg px-4 py-2 text-sm shadow-lg {copyError
+		? 'bg-red-600 text-white'
+		: 'sr-only'}"
+>
+	{copyError || (copiedCode ? 'Copiado al portapapeles' : '')}
 </div>

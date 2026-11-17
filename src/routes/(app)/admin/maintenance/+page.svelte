@@ -355,8 +355,8 @@
 						>
 							<Table hoverable>
 								<TableHead>
-									<TableHeadCell>Usuario</TableHeadCell>
-									<TableHeadCell>Email</TableHeadCell>
+									<TableHeadCell scope="col">Usuario</TableHeadCell>
+									<TableHeadCell scope="col">Email</TableHeadCell>
 								</TableHead>
 								<TableBody>
 									{#each pd.users as u (u.email)}
@@ -376,9 +376,9 @@
 						>
 							<Table hoverable>
 								<TableHead>
-									<TableHeadCell>Usuario</TableHeadCell>
-									<TableHeadCell>Email</TableHeadCell>
-									<TableHeadCell>Rol</TableHeadCell>
+									<TableHeadCell scope="col">Usuario</TableHeadCell>
+									<TableHeadCell scope="col">Email</TableHeadCell>
+									<TableHeadCell scope="col">Rol</TableHeadCell>
 								</TableHead>
 								<TableBody>
 									{#each pd.assignments as a (a.email + (a.roleName ?? ''))}
@@ -399,9 +399,9 @@
 						>
 							<Table hoverable>
 								<TableHead>
-									<TableHeadCell>Nombre</TableHeadCell>
-									<TableHeadCell>Categoría</TableHeadCell>
-									<TableHeadCell>Tamaño (KB)</TableHeadCell>
+									<TableHeadCell scope="col">Nombre</TableHeadCell>
+									<TableHeadCell scope="col">Categoría</TableHeadCell>
+									<TableHeadCell scope="col">Tamaño (KB)</TableHeadCell>
 								</TableHead>
 								<TableBody>
 									{#each pd.files as f (f.entityId + f.name)}
@@ -483,8 +483,8 @@
 						<div class="mb-4 rounded-lg border border-gray-200 dark:border-gray-700">
 							<Table hoverable>
 								<TableHead>
-									<TableHeadCell>Dominio</TableHeadCell>
-									<TableHeadCell>Built-in detectadas</TableHeadCell>
+									<TableHeadCell scope="col">Dominio</TableHeadCell>
+									<TableHeadCell scope="col">Built-in detectadas</TableHeadCell>
 								</TableHead>
 								<TableBody>
 									{#each Object.entries(pd.domains) as [domain, total] (domain)}
@@ -503,9 +503,9 @@
 							>
 								<Table hoverable>
 									<TableHead>
-										<TableHeadCell>Herramienta</TableHeadCell>
-										<TableHeadCell>Dominio</TableHeadCell>
-										<TableHeadCell>Acción prevista</TableHeadCell>
+										<TableHeadCell scope="col">Herramienta</TableHeadCell>
+										<TableHeadCell scope="col">Dominio</TableHeadCell>
+										<TableHeadCell scope="col">Acción prevista</TableHeadCell>
 									</TableHead>
 									<TableBody>
 										{#each pd.tools as tool (tool.name)}
@@ -539,7 +539,7 @@
 </div>
 
 <!-- Modal de confirmación -->
-<Modal bind:open={confirmModalOpen} size="sm" autoclose>
+<Modal bind:open={confirmModalOpen} aria-label="¿Confirmar ejecución?" size="sm" autoclose>
 	<div class="text-center">
 		<ShieldAlert class="mx-auto mb-4 h-12 w-12 text-yellow-400" />
 		<h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">¿Confirmar ejecución?</h3>

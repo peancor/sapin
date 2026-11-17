@@ -390,7 +390,7 @@
 </div>
 
 <!-- Delete Confirmation Modal -->
-<Modal bind:open={showDeleteModal} size="sm" class="backdrop-blur-sm">
+<Modal bind:open={showDeleteModal} aria-label="¿Eliminar curso?" size="sm" class="backdrop-blur-sm">
 	<div class="p-2 text-center">
 		<div
 			class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-red-100 to-red-200 shadow-lg shadow-red-500/20 dark:from-red-900/30 dark:to-red-800/30"
@@ -437,7 +437,12 @@
 </Modal>
 
 <!-- Rebuild Progress Modal -->
-<Modal bind:open={showRebuildModal} size="sm" class="backdrop-blur-sm">
+<Modal
+	bind:open={showRebuildModal}
+	aria-label="Regenerar progreso"
+	size="sm"
+	class="backdrop-blur-sm"
+>
 	<div class="p-2">
 		<h3 class="mb-2 text-center text-xl font-bold text-gray-900 dark:text-white">
 			Regenerar progreso

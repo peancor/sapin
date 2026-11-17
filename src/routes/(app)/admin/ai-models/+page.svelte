@@ -331,12 +331,12 @@
 
 				<Table striped>
 					<TableHead>
-						<TableHeadCell>Modelo</TableHeadCell>
-						<TableHeadCell>Proveedor</TableHeadCell>
-						<TableHeadCell>Contexto</TableHeadCell>
-						<TableHeadCell>Precio (Input/Output)</TableHeadCell>
-						<TableHeadCell>Estado</TableHeadCell>
-						<TableHeadCell>Acciones</TableHeadCell>
+						<TableHeadCell scope="col">Modelo</TableHeadCell>
+						<TableHeadCell scope="col">Proveedor</TableHeadCell>
+						<TableHeadCell scope="col">Contexto</TableHeadCell>
+						<TableHeadCell scope="col">Precio (Input/Output)</TableHeadCell>
+						<TableHeadCell scope="col">Estado</TableHeadCell>
+						<TableHeadCell scope="col">Acciones</TableHeadCell>
 					</TableHead>
 					<TableBody>
 						{#each data.models as { model, provider } (model.id)}
@@ -436,12 +436,12 @@
 
 				<Table striped>
 					<TableHead>
-						<TableHeadCell>Proveedor</TableHeadCell>
-						<TableHeadCell>Tipo</TableHeadCell>
-						<TableHeadCell>URL Base</TableHeadCell>
-						<TableHeadCell>API Key</TableHeadCell>
-						<TableHeadCell>Estado</TableHeadCell>
-						<TableHeadCell>Acciones</TableHeadCell>
+						<TableHeadCell scope="col">Proveedor</TableHeadCell>
+						<TableHeadCell scope="col">Tipo</TableHeadCell>
+						<TableHeadCell scope="col">URL Base</TableHeadCell>
+						<TableHeadCell scope="col">API Key</TableHeadCell>
+						<TableHeadCell scope="col">Estado</TableHeadCell>
+						<TableHeadCell scope="col">Acciones</TableHeadCell>
 					</TableHead>
 					<TableBody>
 						{#each data.providers as provider (provider.id)}
@@ -515,12 +515,12 @@
 
 				<Table striped>
 					<TableHead>
-						<TableHeadCell>Tipo</TableHeadCell>
-						<TableHeadCell>Período</TableHeadCell>
-						<TableHeadCell>Límites</TableHeadCell>
-						<TableHeadCell>Uso Actual</TableHeadCell>
-						<TableHeadCell>Estado</TableHeadCell>
-						<TableHeadCell>Acciones</TableHeadCell>
+						<TableHeadCell scope="col">Tipo</TableHeadCell>
+						<TableHeadCell scope="col">Período</TableHeadCell>
+						<TableHeadCell scope="col">Límites</TableHeadCell>
+						<TableHeadCell scope="col">Uso Actual</TableHeadCell>
+						<TableHeadCell scope="col">Estado</TableHeadCell>
+						<TableHeadCell scope="col">Acciones</TableHeadCell>
 					</TableHead>
 					<TableBody>
 						{#each data.quotas as quota (quota.id)}
@@ -669,14 +669,14 @@
 					<h3 class="mb-3 text-lg font-medium text-gray-900 dark:text-white">Logs Recientes</h3>
 					<Table striped>
 						<TableHead>
-							<TableHeadCell>Fecha</TableHeadCell>
-							<TableHeadCell>Usuario</TableHeadCell>
-							<TableHeadCell>Modelo</TableHeadCell>
-							<TableHeadCell>Operación</TableHeadCell>
-							<TableHeadCell>Tokens</TableHeadCell>
-							<TableHeadCell>Costo</TableHeadCell>
-							<TableHeadCell>Estado</TableHeadCell>
-							<TableHeadCell>Detalle</TableHeadCell>
+							<TableHeadCell scope="col">Fecha</TableHeadCell>
+							<TableHeadCell scope="col">Usuario</TableHeadCell>
+							<TableHeadCell scope="col">Modelo</TableHeadCell>
+							<TableHeadCell scope="col">Operación</TableHeadCell>
+							<TableHeadCell scope="col">Tokens</TableHeadCell>
+							<TableHeadCell scope="col">Costo</TableHeadCell>
+							<TableHeadCell scope="col">Estado</TableHeadCell>
+							<TableHeadCell scope="col">Detalle</TableHeadCell>
 						</TableHead>
 						<TableBody>
 							{#each data.recentLogs as { log, model, user } (log.id)}
@@ -728,6 +728,7 @@
 
 <!-- Provider Modal -->
 <Modal
+	aria-label={editingProvider ? 'Editar Proveedor' : 'Nuevo Proveedor'}
 	title={editingProvider ? 'Editar Proveedor' : 'Nuevo Proveedor'}
 	bind:open={showProviderModal}
 	size="md"
@@ -862,6 +863,7 @@
 
 <!-- Model Modal -->
 <Modal
+	aria-label={editingModel ? 'Editar Modelo' : 'Nuevo Modelo'}
 	title={editingModel ? 'Editar Modelo' : 'Nuevo Modelo'}
 	bind:open={showModelModal}
 	size="lg"
@@ -1034,6 +1036,7 @@
 
 <!-- Quota Modal -->
 <Modal
+	aria-label={editingQuota ? 'Editar Cuota' : 'Nueva Cuota'}
 	title={editingQuota ? 'Editar Cuota' : 'Nueva Cuota'}
 	bind:open={showQuotaModal}
 	size="md"

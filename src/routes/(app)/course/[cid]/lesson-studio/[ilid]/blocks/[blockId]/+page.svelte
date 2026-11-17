@@ -1830,30 +1830,34 @@
 												class="rounded-xl border border-gray-300 p-2"
 												onclick={() => moveCheckQuestion(questionIndex, -1)}
 												disabled={questionIndex === 0}
+												aria-label={`Subir la pregunta ${questionIndex + 1}`}
 											>
-												<ArrowUp class="h-4 w-4" />
+												<ArrowUp class="h-4 w-4" aria-hidden="true" />
 											</button>
 											<button
 												type="button"
 												class="rounded-xl border border-gray-300 p-2"
 												onclick={() => moveCheckQuestion(questionIndex, 1)}
 												disabled={questionIndex === workingBlock.checkConfig.questions.length - 1}
+												aria-label={`Bajar la pregunta ${questionIndex + 1}`}
 											>
-												<ArrowDown class="h-4 w-4" />
+												<ArrowDown class="h-4 w-4" aria-hidden="true" />
 											</button>
 											<button
 												type="button"
 												class="rounded-xl border border-gray-300 p-2"
 												onclick={() => duplicateCheckQuestion(questionIndex)}
+												aria-label={`Duplicar la pregunta ${questionIndex + 1}`}
 											>
-												<Copy class="h-4 w-4" />
+												<Copy class="h-4 w-4" aria-hidden="true" />
 											</button>
 											<button
 												type="button"
 												class="rounded-xl border border-red-200 p-2 text-red-700"
 												onclick={() => removeCheckQuestion(questionIndex)}
+												aria-label={`Eliminar la pregunta ${questionIndex + 1}`}
 											>
-												<Trash2 class="h-4 w-4" />
+												<Trash2 class="h-4 w-4" aria-hidden="true" />
 											</button>
 										</div>
 									</div>

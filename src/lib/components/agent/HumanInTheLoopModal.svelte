@@ -30,7 +30,22 @@
 		onError
 	}: Props = $props();
 
+	const dialogId = $props.id();
+	let dialogElement: HTMLDialogElement | null = $state(null);
 	let isConfirming = $state(false);
+
+	// <dialog> nativo abierto como modal: el navegador deja la página inerte, contiene el foco,
+	// atiende Esc y devuelve el foco al cerrar.
+	$effect(() => {
+		if (!dialogElement) return;
+		if (isOpen && !dialogElement.open) dialogElement.showModal();
+		else if (!isOpen && dialogElement.open) dialogElement.close();
+	});
+
+	function handleCancel(event: Event) {
+		// Con la confirmación en curso no se cierra con Esc.
+		if (isConfirming) event.preventDefault();
+	}
 
 	async function handleApprove() {
 		isConfirming = true;
@@ -103,23 +118,26 @@
 	const formattedArgs = $derived(JSON.stringify(args, null, 2));
 </script>
 
-{#if isOpen}
-	<!-- Overlay -->
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-		<!-- Modal panel -->
-		<div
-			class="flex w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby="hitl-title"
-		>
+<dialog
+	bind:this={dialogElement}
+	aria-labelledby="{dialogId}-title"
+	oncancel={handleCancel}
+	onclose={() => (isOpen = false)}
+	class="hitl-dialog m-auto w-[calc(100%-2rem)] max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white p-0 text-gray-900 shadow-2xl dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+>
+	{#if isOpen}
+		<div class="flex flex-col">
 			<!-- Header -->
 			<div class="flex items-center gap-3 border-b border-gray-200 px-5 py-4 dark:border-gray-700">
 				<Shield class="h-5 w-5 flex-shrink-0 text-amber-500" />
-				<h2 id="hitl-title" class="flex-1 text-base font-semibold text-gray-900 dark:text-gray-100">
+				<h2
+					id="{dialogId}-title"
+					class="flex-1 text-base font-semibold text-gray-900 dark:text-gray-100"
+				>
 					Confirmación requerida
 				</h2>
 				<button
+					type="button"
 					onclick={() => {
 						if (!isConfirming) {
 							isOpen = false;
@@ -179,7 +197,11 @@
 			<div
 				class="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-5 py-4 dark:border-gray-700 dark:bg-gray-800/50"
 			>
+				<!-- El foco inicial va a la acción segura, no a «Autorizar». -->
+				<!-- svelte-ignore a11y_autofocus -->
 				<button
+					type="button"
+					autofocus
 					onclick={handleReject}
 					disabled={isConfirming}
 					class="inline-flex items-center gap-2 rounded-xl border border-red-400 px-4 py-2 text-sm font-medium text-red-600 transition-colors
@@ -208,6 +230,7 @@
 				</button>
 
 				<button
+					type="button"
 					onclick={handleApprove}
 					disabled={isConfirming}
 					class="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-medium text-white
@@ -236,5 +259,12 @@
 				</button>
 			</div>
 		</div>
-	</div>
-{/if}
+	{/if}
+</dialog>
+
+<style>
+	.hitl-dialog::backdrop {
+		background: rgb(0 0 0 / 0.5);
+		backdrop-filter: blur(4px);
+	}
+</style>

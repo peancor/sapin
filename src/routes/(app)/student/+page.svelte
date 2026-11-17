@@ -25,6 +25,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Mi aprendizaje - SAPIN</title>
+</svelte:head>
+
 <div class="mx-auto max-w-[2000px] p-4">
 	<Breadcrumb items={breadcrumbItems} />
 
