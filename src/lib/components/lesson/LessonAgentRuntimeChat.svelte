@@ -7,6 +7,13 @@
 	import 'katex/dist/katex.min.css';
 	import type { AgentDisplayMessage, AgentDisplayPart, AgentStreamPart } from '$lib/types/agent';
 	import { renderMarkdownMath } from '$lib/utils';
+	import {
+		autosizeTextarea,
+		createFrameBatcher,
+		isImeComposing,
+		toAnnouncementText,
+		type FrameBatcher
+	} from '$lib/utils/composer';
 	import HumanInTheLoopModal from '$lib/components/agent/HumanInTheLoopModal.svelte';
 	import ImmersiveToolOverlay from '$lib/components/agent/ImmersiveToolOverlay.svelte';
 	import UIComponentRenderer from '$lib/components/agent/UIComponentRenderer.svelte';
@@ -36,6 +43,8 @@
 		onLoadingChange
 	}: Props = $props();
 
+	const composerId = $props.id();
+
 	let messages = $state<AgentDisplayMessage[]>([]);
 	let messageInput = $state('');
 	let isLoading = $state(false);
@@ -43,6 +52,18 @@
 	let chatContainer: HTMLDivElement | undefined = $state();
 	let textarea: HTMLTextAreaElement | undefined = $state();
 	let eventSource: EventSource | null = null;
+	let streamBatcher: FrameBatcher | null = null;
+
+	// Texto que se anuncia a lectores de pantalla al terminar cada respuesta.
+	let announcement = $state('');
+
+	function announceAssistantMessage(messageId: string) {
+		const message = messages.find((candidate) => candidate.id === messageId);
+		const text = (message?.parts ?? [])
+			.map((part) => (part.kind === 'text' ? part.content : ''))
+			.join(' ');
+		announcement = toAnnouncementText(text);
+	}
 	let currentAssistantMsgId = $state('');
 	let uiResponseOverrides = $state<Record<string, Record<string, unknown>>>({});
 	let activeImmersiveUI = $state<ActiveImmersiveUI | null>(null);
@@ -86,9 +107,7 @@
 	}
 
 	function autoResize() {
-		if (!textarea) return;
-		textarea.style.height = '0';
-		textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+		autosizeTextarea(textarea);
 	}
 
 	function getEffectiveUserResponse(
@@ -126,7 +145,7 @@
 
 		errorMessage = '';
 		messageInput = '';
-		if (textarea) textarea.style.height = 'auto';
+		if (textarea) textarea.style.height = '';
 
 		const userMessage: AgentDisplayMessage = {
 			id: crypto.randomUUID(),
@@ -181,11 +200,24 @@
 		currentAssistantMsgId = targetAssistantMsgId;
 		let currentTextPartIndex = -1;
 
+		// Los text-delta se acumulan y se aplican una vez por frame: aplicar cada token
+		// reparsea el mensaje completo (Markdown + KaTeX + sanitizado).
+		let pendingText = '';
+		streamBatcher?.flushNow();
+		const batcher = createFrameBatcher(() => {
+			if (!pendingText) return;
+			const text = pendingText;
+			pendingText = '';
+			applyPart({ type: 'text-delta', text } as AgentStreamPart);
+		});
+		streamBatcher = batcher;
+
 		eventSource?.close();
 		eventSource = new EventSource(url);
 
 		eventSource.addEventListener('message', (event) => {
 			if (event.data === '[DONE]') {
+				batcher.flushNow();
 				eventSource?.close();
 				eventSource = null;
 				isLoading = false;
@@ -199,6 +231,14 @@
 			} catch {
 				return;
 			}
+
+			if (part.type === 'text-delta') {
+				pendingText += part.text;
+				batcher.schedule();
+				return;
+			}
+			// Cualquier otro evento debe ver el texto anterior ya aplicado, en su orden.
+			batcher.flushNow();
 
 			if (part.type === 'tool-confirm-required') {
 				hitlToolCallId = part.toolCallId;
@@ -223,6 +263,10 @@
 				return;
 			}
 
+			applyPart(part);
+		});
+
+		function applyPart(part: AgentStreamPart) {
 			messages = messages.map((message) => {
 				if (message.id !== targetAssistantMsgId) return message;
 
@@ -308,9 +352,11 @@
 			});
 
 			scrollToBottom();
-		});
+			if (part.type === 'done') announceAssistantMessage(targetAssistantMsgId);
+		}
 
 		eventSource.addEventListener('error', () => {
+			batcher.flushNow();
 			eventSource?.close();
 			eventSource = null;
 			isLoading = false;
@@ -384,6 +430,7 @@
 	});
 
 	onDestroy(() => {
+		streamBatcher?.cancel();
 		eventSource?.close();
 	});
 </script>
@@ -404,6 +451,7 @@
 						? 'border-blue-600 bg-blue-600 text-white'
 						: ''}"
 				>
+					<span class="sr-only">{message.role === 'user' ? 'Tú:' : 'Asistente:'}</span>
 					{#each message.parts as part, index (`${message.id}-${index}`)}
 						{#if part.kind === 'text' && part.content}
 							<div
@@ -455,8 +503,11 @@
 		{/each}
 	</div>
 
+	<div class="sr-only" role="status" aria-live="polite">{announcement}</div>
+
 	{#if errorMessage}
 		<div
+			role="alert"
 			class="mx-4 mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
 		>
 			{errorMessage}
@@ -509,20 +560,24 @@
 	{#if showComposer}
 		<div class="border-t border-gray-200 p-4 dark:border-gray-700">
 			<div class="flex items-end gap-2">
+				<label class="sr-only" for="{composerId}-message">Mensaje</label>
 				<textarea
+					id="{composerId}-message"
 					bind:this={textarea}
 					bind:value={messageInput}
 					oninput={autoResize}
 					onkeydown={(event) => {
 						if (event.key === 'Enter' && !event.shiftKey) {
 							event.preventDefault();
+							// Enter que confirma una composición IME: no es un envío.
+							if (isImeComposing(event)) return;
 							sendMessage();
 						}
 					}}
 					disabled={isLoading || composerDisabled}
 					placeholder={composerPlaceholder}
 					rows={1}
-					class="flex-1 resize-none overflow-hidden rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
+					class="field-sizing-content flex-1 resize-none overflow-y-auto rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 placeholder-gray-400 transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
 					style="min-height: 40px; max-height: 120px;"
 				></textarea>
 

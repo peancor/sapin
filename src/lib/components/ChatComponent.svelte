@@ -6,6 +6,13 @@
 	import { onMount } from 'svelte';
 	import { Spinner, TextPlaceholder } from 'flowbite-svelte';
 	import { renderMarkdownMath } from '$lib/utils';
+	import {
+		autosizeTextarea,
+		createFrameBatcher,
+		isImeComposing,
+		resetTextareaSize,
+		toAnnouncementText
+	} from '$lib/utils/composer';
 
 	interface Message {
 		content: string;
@@ -34,14 +41,19 @@
 		};
 	}
 
-	let props = $props<{
+	let props: {
 		initialMessages?: Message[];
 		apiEndpoint: string;
 		user?: ChatUser;
 		onSendMessage?: (message: string) => void;
-	}>();
+	} = $props();
+
+	const composerId = $props.id();
 
 	let messageInput = $state('');
+	let textareaElement: HTMLTextAreaElement | null = $state(null);
+	// Texto que se anuncia a lectores de pantalla al terminar cada respuesta.
+	let announcement = $state('');
 	let messages = $state<Message[]>(props.initialMessages || []);
 	let container: HTMLDivElement | null = $state(null);
 	let serverSentEvents: EventSource | null = null;
@@ -67,7 +79,7 @@
 
 	let metricsInterval: number | null = null;
 
-	let responseText = $state('');
+	let responseText = '';
 	let isLoading = $state(false);
 
 	let userHasScrolled = $state(false);
@@ -100,7 +112,7 @@
 		isAtBottom = checkIfAtBottom();
 	}
 
-	function scrollToNewMessage() {
+	function scrollToNewMessage(behavior: ScrollBehavior = 'smooth') {
 		if (!container) return;
 		const lastMessage = container.querySelector('.chat-container > div > div:last-child');
 		if (lastMessage instanceof HTMLElement) {
@@ -109,7 +121,7 @@
 			const scrollPosition = lastMessage.offsetTop - (containerHeight - lastMessageHeight - 100);
 			container.scrollTo({
 				top: scrollPosition,
-				behavior: 'smooth'
+				behavior
 			});
 		}
 	}
@@ -150,7 +162,8 @@
 	}
 
 	function submitChatMessage() {
-		if (messageInput.trim()) {
+		// Con una respuesta en curso, un segundo envío cerraría el stream y la dejaría cortada.
+		if (messageInput.trim() && !isLoading) {
 			// Actualizar conteo final
 			updateTextMetrics();
 
@@ -170,6 +183,7 @@
 			const currentMessage = messageInput;
 			const finalMetrics = JSON.stringify(messageMetrics);
 			messageInput = '';
+			resetTextareaSize(textareaElement);
 
 			// Reiniciar métricas para el próximo mensaje
 			resetMetrics();
@@ -185,6 +199,8 @@
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter' && !event.shiftKey && !isMobileDevice) {
 			event.preventDefault();
+			// Enter que confirma una composición IME: no es un envío.
+			if (isImeComposing(event)) return;
 			submitChatMessage();
 		} else {
 			// Incrementar contador de pulsaciones
@@ -223,10 +239,7 @@
 	}
 
 	function autoResize(event: Event) {
-		const textarea = event.target as HTMLTextAreaElement;
-		textarea.style.height = '0';
-		const newHeight = Math.min(textarea.scrollHeight, 120); // Limit height to 120px
-		textarea.style.height = newHeight + 'px';
+		autosizeTextarea(event.target as HTMLTextAreaElement);
 	}
 
 	function adjustLastMessageHeight() {
@@ -239,6 +252,19 @@
 			}
 		}
 	}
+
+	function shouldFollowStream() {
+		return !userHasScrolled || isAtBottom;
+	}
+
+	// Vuelca el texto acumulado una vez por frame: sin esto cada token reparsea el mensaje
+	// completo (Markdown + KaTeX + sanitizado) y lanza un scroll animado.
+	const streamBatcher = createFrameBatcher(() => {
+		const lastMessage = messages[messages.length - 1];
+		if (lastMessage?.type !== 'assistant') return;
+		lastMessage.content = responseText;
+		if (shouldFollowStream()) scrollToNewMessage('instant');
+	});
 
 	async function sendMessage(message: string, metrics?: string) {
 		if (!message.trim()) return;
@@ -278,8 +304,11 @@
 			serverSentEvents.addEventListener('message', (event) => {
 				if (event.data === '[DONE]') {
 					serverSentEvents?.close();
+					streamBatcher.flushNow();
 					isLoading = false;
-					scrollToNewMessage();
+					// No se arrastra al final a quien ha subido a releer.
+					if (shouldFollowStream()) scrollToNewMessage();
+					announcement = toAnnouncementText(responseText);
 					return;
 				}
 
@@ -289,6 +318,7 @@
 						console.error('Error del servidor:', parsedData.error);
 						isLoading = false;
 						serverSentEvents?.close();
+						streamBatcher.cancel();
 						responseText = `Error del servidor ${parsedData.error}`;
 						errorMessage = responseText;
 						setTimeout(() => (errorMessage = ''), 3000);
@@ -296,12 +326,7 @@
 					}
 					if (parsedData.text !== undefined) {
 						responseText = responseText + parsedData.text;
-						messages[messages.length - 1].content = responseText;
-						messages = messages;
-						// Solo hacemos scroll si no hay interacción del usuario
-						if (!userHasScrolled || isAtBottom) {
-							scrollToNewMessage();
-						}
+						streamBatcher.schedule();
 					}
 				} catch (err) {
 					console.error('Error parsing response:', err);
@@ -318,6 +343,7 @@
 					setTimeout(setupEventSource, 1000 * retryCount);
 				} else {
 					isLoading = false;
+					streamBatcher.cancel();
 					responseText = 'Error: No se pudo establecer la conexión con el servidor.';
 					errorMessage = 'Error: No se pudo establecer la conexión con el servidor.';
 					setTimeout(() => (errorMessage = ''), 3000);
@@ -375,6 +401,7 @@
 			if (serverSentEvents) {
 				serverSentEvents.close();
 			}
+			streamBatcher.cancel();
 			// Limpiar intervalo de métricas
 			if (metricsInterval) {
 				clearInterval(metricsInterval);
@@ -426,6 +453,7 @@
 									{/if}
 								</div>
 							{:else}
+								<span class="sr-only">{message.type === 'user' ? 'Tú:' : 'Asistente:'}</span>
 								<div class="prose dark:prose-invert max-w-none">
 									{#if message.type === 'user'}
 										<SafeHtml html={processContent(message.content.replace(/\n/g, '<br>'))} />
@@ -441,7 +469,10 @@
 		</div>
 	</div>
 
+	<div class="sr-only" role="status" aria-live="polite">{announcement}</div>
+
 	<form
+		aria-busy={isLoading}
 		class="mx-2 mb-2 flex shrink-0 flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-3 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:shadow-gray-900/30"
 		onsubmit={(e) => {
 			e.preventDefault();
@@ -450,7 +481,10 @@
 	>
 		<div class="flex w-full items-end">
 			<div class="relative w-full">
+				<label class="sr-only" for="{composerId}-message">Mensaje</label>
 				<textarea
+					id="{composerId}-message"
+					bind:this={textareaElement}
 					bind:value={messageInput}
 					placeholder="Escribe un mensaje..."
 					rows="1"
@@ -459,7 +493,7 @@
 					onpaste={handlePaste}
 					oncut={handleCut}
 					onselect={handleSelect}
-					class="max-h-[120px] min-h-[40px] w-full resize-none scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent overflow-y-auto bg-transparent px-3 py-2 focus:outline-none dark:scrollbar-thumb-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
+					class="field-sizing-content max-h-[120px] min-h-[40px] w-full resize-none scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent overflow-y-auto bg-transparent px-3 py-2 dark:scrollbar-thumb-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
 					style="overflow-y: auto;"
 				></textarea>
 			</div>
@@ -469,7 +503,7 @@
 					type="submit"
 					class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 p-2 text-white transition-all duration-200 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-offset-gray-800"
 					aria-label="Enviar mensaje"
-					disabled={!messageInput.trim()}
+					disabled={!messageInput.trim() || isLoading}
 				>
 					<ChevronsUp size={20} />
 				</button>
@@ -593,8 +627,10 @@
 		opacity: 0.5;
 	}
 
-	textarea:focus-visible {
+	/* El textarea no tiene borde propio: el foco se muestra en la caja del formulario. */
+	textarea:focus {
 		outline: none;
+		box-shadow: none;
 	}
 
 	form {
@@ -602,27 +638,13 @@
 		background: white;
 	}
 
-	form:focus-within {
-		/* Completely remove any focus style changes */
-		border-color: #e5e7eb; /* Match exactly the default border color */
-		box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-		outline: none;
-	}
-
-	/* Apply to any potential focusable element within the form */
-	form *:focus {
-		outline: none !important;
-		box-shadow: none !important;
-		border-color: transparent !important;
+	form:has(textarea:focus-visible) {
+		outline: 2px solid var(--color-blue-500, #3b82f6);
+		outline-offset: 2px;
 	}
 
 	:global(.dark) form {
-		background: var(--gray-800);
-	}
-
-	:global(.dark) form:focus-within {
-		border-color: #374151; /* Match exactly the default dark border color */
-		box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+		background: var(--color-gray-800, #1f2937);
 	}
 
 	/* Custom scrollbar styling for webkit browsers */

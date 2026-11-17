@@ -2,6 +2,12 @@
 	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { renderMarkdownMath } from '$lib/utils';
+	import {
+		autosizeTextarea,
+		createFrameBatcher,
+		isImeComposing,
+		toAnnouncementText
+	} from '$lib/utils/composer';
 	import type { LessonAgentConfig } from '$lib/types/lesson';
 	import { SendHorizontal } from 'lucide-svelte';
 	import { onDestroy, tick } from 'svelte';
@@ -47,6 +53,10 @@
 		autoStartEnabled = true,
 		onStateChange
 	}: Props = $props();
+
+	const composerId = $props.id();
+	// Texto que se anuncia a lectores de pantalla al terminar cada respuesta.
+	let announcement = $state('');
 
 	let messages = $state<LessonAgentChatMessage[]>([]);
 	let messageInput = $state('');
@@ -142,7 +152,11 @@
 			}));
 	}
 
+	let cancelPendingText: (() => void) | null = null;
+
 	function stopStream() {
+		cancelPendingText?.();
+		cancelPendingText = null;
 		eventSource?.close();
 		eventSource = null;
 		isStreaming = false;
@@ -171,15 +185,13 @@
 	}
 
 	function autoResize() {
-		if (!textarea) return;
-		textarea.style.height = '0';
-		textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+		autosizeTextarea(textarea);
 	}
 
 	function resetComposer() {
 		messageInput = '';
 		if (textarea) {
-			textarea.style.height = 'auto';
+			textarea.style.height = '';
 		}
 	}
 
@@ -211,6 +223,8 @@
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter' && !event.shiftKey) {
 			event.preventDefault();
+			// Enter que confirma una composición IME: no es un envío.
+			if (isImeComposing(event)) return;
 			void sendMessage();
 		}
 	}
@@ -236,9 +250,29 @@
 		userHasScrolled = false;
 		isAtBottom = true;
 
+		// El texto se acumula y se aplica una vez por frame: aplicar cada token reparsea el
+		// mensaje completo (Markdown + KaTeX + sanitizado).
+		let pendingText = '';
+		const batcher = createFrameBatcher(() => {
+			if (!pendingText) return;
+			const text = pendingText;
+			pendingText = '';
+			messages = messages.map((message) =>
+				message.id === assistantMessageId
+					? { ...message, content: message.content + text }
+					: message
+			);
+			queueScroll();
+		});
+		cancelPendingText = () => batcher.cancel();
+
 		eventSource = new EventSource(url);
 		eventSource.addEventListener('message', (event) => {
 			if (event.data === '[DONE]') {
+				batcher.flushNow();
+				announcement = toAnnouncementText(
+					messages.find((message) => message.id === assistantMessageId)?.content ?? ''
+				);
 				stopStream();
 				void invalidateAll();
 				setTimeout(() => textarea?.focus(), 0);
@@ -253,6 +287,7 @@
 			}
 
 			if (parsedData.error) {
+				batcher.flushNow();
 				errorMessage = parsedData.error;
 				stopStream();
 				const assistantMessage = messages.find((message) => message.id === assistantMessageId);
@@ -267,15 +302,12 @@
 				hasGeneratedResponse = true;
 			}
 
-			messages = messages.map((message) =>
-				message.id === assistantMessageId
-					? { ...message, content: message.content + parsedData.text }
-					: message
-			);
-			queueScroll();
+			pendingText += parsedData.text;
+			batcher.schedule();
 		});
 
 		eventSource.addEventListener('error', () => {
+			batcher.flushNow();
 			errorMessage = 'Se perdió la conexión con el servidor. Inténtalo de nuevo.';
 			stopStream();
 			const assistantMessage = messages.find((message) => message.id === assistantMessageId);
@@ -330,8 +362,11 @@
 </script>
 
 <div class="space-y-4">
+	<div class="sr-only" role="status" aria-live="polite">{announcement}</div>
+
 	{#if errorMessage}
 		<div
+			role="alert"
 			class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300"
 		>
 			{errorMessage}
@@ -358,6 +393,7 @@
 						? 'bg-primary-600 ml-10 text-white'
 						: 'mr-10 bg-white text-gray-900 dark:bg-gray-800 dark:text-white'}"
 				>
+					<span class="sr-only">{message.type === 'USER' ? 'Tú:' : 'Asistente:'}</span>
 					<div class="prose dark:prose-invert max-w-none">
 						<SafeHtml html={renderMarkdownMath(message.content)} />
 					</div>
@@ -399,9 +435,13 @@
 
 	{#if agentConfig.interactionMode !== 'none' && !isReadOnly}
 		<div class="flex gap-3">
+			<label class="sr-only" for="{composerId}-message">
+				{agentConfig.placeholder || 'Escribe tu respuesta'}
+			</label>
 			<textarea
+				id="{composerId}-message"
 				bind:this={textarea}
-				class="min-h-24 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+				class="field-sizing-content max-h-[120px] min-h-24 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-base md:text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
 				bind:value={messageInput}
 				placeholder={agentConfig.placeholder || 'Escribe tu respuesta'}
 				oninput={autoResize}

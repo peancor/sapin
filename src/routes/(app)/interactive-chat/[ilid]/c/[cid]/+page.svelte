@@ -20,7 +20,7 @@
 	console.log((() => chatUser())());
 </script>
 
-<div class="h-[calc(100vh-128px)]">
+<div class="h-[calc(100dvh-128px)]">
 	<ChatComponent
 		initialMessages={mappedMessages()}
 		apiEndpoint={`/api/interactive-chat/${data.chat.id}/chat/${data.chatInstance}/ask`}

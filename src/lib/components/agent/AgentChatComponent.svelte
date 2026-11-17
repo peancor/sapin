@@ -8,6 +8,13 @@
 	import 'katex/dist/katex.min.css';
 	import type { AgentStreamPart, AgentDisplayMessage, AgentDisplayPart } from '$lib/types/agent';
 	import { renderMarkdownMath } from '$lib/utils';
+	import {
+		autosizeTextarea,
+		createFrameBatcher,
+		isImeComposing,
+		toAnnouncementText,
+		type FrameBatcher
+	} from '$lib/utils/composer';
 	import HumanInTheLoopModal from './HumanInTheLoopModal.svelte';
 	import ImmersiveToolOverlay from './ImmersiveToolOverlay.svelte';
 	import AgentImageAttachmentPreview from './AgentImageAttachmentPreview.svelte';
@@ -59,6 +66,8 @@
 
 	let { initialMessages = [], apiEndpoint, user, onComplete }: Props = $props();
 
+	const composerId = $props.id();
+
 	function createInitialMessageState(messagesSeed: AgentDisplayMessage[]): AgentDisplayMessage[] {
 		return messagesSeed.map((message) => ({
 			...message,
@@ -89,6 +98,18 @@
 	let textarea: HTMLTextAreaElement | undefined = $state();
 	let imageInput: HTMLInputElement | undefined = $state();
 	let eventSource: EventSource | null = null;
+	let streamBatcher: FrameBatcher | null = null;
+
+	// Texto que se anuncia a lectores de pantalla al terminar cada respuesta.
+	let announcement = $state('');
+
+	function announceAssistantMessage(messageId: string) {
+		const message = messages.find((candidate) => candidate.id === messageId);
+		const text = (message?.parts ?? [])
+			.map((part) => (part.kind === 'text' ? part.content : ''))
+			.join(' ');
+		announcement = toAnnouncementText(text);
+	}
 	let messageMetrics = $state<MessageMetrics>(createMessageMetrics());
 	let pendingRevisionContext: PendingRevisionContext | null = null;
 	let previousDraftValue = '';
@@ -270,15 +291,15 @@
 	}
 
 	function autoResize() {
-		if (!textarea) return;
-		textarea.style.height = '0';
-		textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+		autosizeTextarea(textarea);
 	}
 
 	// ─── Envío de mensajes ───
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
+			// Enter que confirma una composición IME: no es un envío.
+			if (isImeComposing(e)) return;
 			sendMessage();
 			return;
 		}
@@ -370,7 +391,7 @@
 		errorMessage = '';
 		messageInput = '';
 		pendingImageAttachments = [];
-		if (textarea) textarea.style.height = 'auto';
+		if (textarea) textarea.style.height = '';
 
 		// Añadir mensaje del usuario inmediatamente
 		const userMsg: AgentDisplayMessage = {
@@ -460,11 +481,24 @@
 		// Acumulador de texto actual del assistant
 		let currentTextPartIndex = -1;
 
+		// Los text-delta se acumulan y se aplican una vez por frame: aplicar cada token
+		// reparsea el mensaje completo (Markdown + KaTeX + sanitizado).
+		let pendingText = '';
+		streamBatcher?.flushNow();
+		const batcher = createFrameBatcher(() => {
+			if (!pendingText) return;
+			const text = pendingText;
+			pendingText = '';
+			applyPart({ type: 'text-delta', text } as AgentStreamPart);
+		});
+		streamBatcher = batcher;
+
 		eventSource?.close();
 		eventSource = new EventSource(url);
 
 		eventSource.addEventListener('message', (event) => {
 			if (event.data === '[DONE]') {
+				batcher.flushNow();
 				eventSource?.close();
 				eventSource = null;
 				isLoading = false;
@@ -478,6 +512,14 @@
 			} catch {
 				return;
 			}
+
+			if (part.type === 'text-delta') {
+				pendingText += part.text;
+				batcher.schedule();
+				return;
+			}
+			// Cualquier otro evento debe ver el texto anterior ya aplicado, en su orden.
+			batcher.flushNow();
 
 			// ─── HITL: pause stream when confirmation is required ───
 			if ((part as { type: string }).type === 'tool-confirm-required') {
@@ -513,7 +555,10 @@
 				return;
 			}
 
-			// Actualizar el mensaje del assistant según el tipo de parte
+			applyPart(part);
+		});
+
+		function applyPart(part: AgentStreamPart) {
 			messages = messages.map((msg) => {
 				if (msg.id !== targetMsgId) return msg;
 
@@ -612,9 +657,11 @@
 			});
 
 			scrollToBottom();
-		});
+			if (part.type === 'done') announceAssistantMessage(targetMsgId);
+		}
 
 		eventSource.addEventListener('error', () => {
+			batcher.flushNow();
 			eventSource?.close();
 			eventSource = null;
 			isLoading = false;
@@ -714,6 +761,7 @@
 	});
 
 	onDestroy(() => {
+		streamBatcher?.cancel();
 		eventSource?.close();
 		chatContainer?.removeEventListener('scroll', handleScroll);
 	});
@@ -736,6 +784,7 @@
 						? 'bg-blue-600 text-white'
 						: 'border border-gray-200 bg-white text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100'}"
 				>
+					<span class="sr-only">{msg.role === 'user' ? 'Tú:' : 'Asistente:'}</span>
 					{#each msg.parts as part, index (`${msg.id}-${index}`)}
 						{#if part.kind === 'text' && part.content}
 							<div
@@ -792,9 +841,12 @@
 		{/each}
 	</div>
 
+	<div class="sr-only" role="status" aria-live="polite">{announcement}</div>
+
 	<!-- Error -->
 	{#if errorMessage}
 		<div
+			role="alert"
 			class="mx-4 mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
 		>
 			{errorMessage}
@@ -914,7 +966,9 @@
 				{/if}
 			</button>
 
+			<label class="sr-only" for="{composerId}-message">Mensaje</label>
 			<textarea
+				id="{composerId}-message"
 				bind:this={textarea}
 				bind:value={messageInput}
 				onbeforeinput={queueRevisionContext}
@@ -925,10 +979,10 @@
 				disabled={isLoading}
 				placeholder="Escribe un mensaje..."
 				rows={1}
-				class="flex-1 resize-none overflow-hidden rounded-xl border border-gray-300 bg-white px-3
-                    py-2 text-sm text-gray-900 placeholder-gray-400 transition-all
-                    focus:border-blue-500 focus:ring-1
-                    focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50
+				class="field-sizing-content flex-1 resize-none overflow-y-auto rounded-xl border border-gray-300 bg-white px-3
+                    py-2 text-base text-gray-900 placeholder-gray-400 transition-all focus:border-blue-500
+                    focus:ring-1 focus:ring-blue-500
+                    focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm
                     dark:border-gray-600 dark:bg-gray-800
                     dark:text-gray-100 dark:placeholder-gray-500"
 				style="min-height: 40px; max-height: 120px;"

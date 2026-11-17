@@ -8,7 +8,7 @@
 	const apiEndpoint = $derived(`/api/agent-chat/${data.activityId}/chat/${data.chatId}/ask`);
 </script>
 
-<div class="flex h-[calc(100vh-4rem)] flex-col">
+<div class="flex h-[calc(100dvh-4rem)] flex-col">
 	<!-- Header compacto -->
 	<div
 		class="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900"

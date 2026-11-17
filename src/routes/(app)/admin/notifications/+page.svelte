@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { isImeComposing } from '$lib/utils/composer';
 	import { resolve } from '$app/paths';
 	import { breadcrumb } from '$lib/stores/breadcrumb';
 	import { enhance } from '$app/forms';
@@ -483,7 +484,11 @@
 								placeholder="Buscar por email o nombre..."
 								bind:value={searchQuery}
 								class="flex-1"
-								onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearch())}
+								onkeydown={(e) => {
+									if (e.key !== 'Enter') return;
+									e.preventDefault();
+									if (!isImeComposing(e)) handleSearch();
+								}}
 							/>
 							<Button
 								color="alternative"

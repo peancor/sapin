@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { isImeComposing } from '$lib/utils/composer';
 	import { tick } from 'svelte';
 	import type { LessonFlowQuickMenuItem } from '$lib/lesson/lessonFlowQuickMenu';
 
@@ -101,6 +102,7 @@
 
 		if (event.key === 'Enter') {
 			event.preventDefault();
+			if (isImeComposing(event)) return;
 			selectItem(filteredItems[activeIndex]);
 		}
 	}

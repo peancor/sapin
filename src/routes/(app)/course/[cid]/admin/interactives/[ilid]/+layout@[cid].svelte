@@ -186,7 +186,7 @@
 			{activeUrl}
 			isOpen={isSidebarOpen}
 			closeSidebar={sidebarUi.close}
-			class="fixed top-16 left-0 z-40 h-[calc(100vh-4rem)] w-64 border-r border-gray-200 bg-white transition-transform lg:translate-x-0 dark:border-gray-700 dark:bg-gray-800"
+			class="fixed top-16 left-0 z-40 h-[calc(100dvh-4rem)] w-64 border-r border-gray-200 bg-white transition-transform lg:translate-x-0 dark:border-gray-700 dark:bg-gray-800"
 			position="fixed"
 			backdrop={true}
 			backdropClass="!top-16"

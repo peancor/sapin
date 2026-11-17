@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { isImeComposing } from '$lib/utils/composer';
 	import SafeHtml from '$lib/components/SafeHtml.svelte';
 	import { onMount, tick } from 'svelte';
 	import {
@@ -443,6 +444,7 @@
 	function handleChatKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter' && !event.shiftKey) {
 			event.preventDefault();
+			if (isImeComposing(event)) return;
 			sendChatMessage();
 		}
 	}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { isImeComposing } from '$lib/utils/composer';
 	import '@xyflow/svelte/dist/style.css';
 
 	import type { PageProps } from './$types';
@@ -2645,6 +2646,7 @@
 									onkeydown={(event) => {
 										if (event.key === 'Enter') {
 											event.preventDefault();
+											if (isImeComposing(event)) return;
 											commitRenameSelectedBlock();
 										}
 

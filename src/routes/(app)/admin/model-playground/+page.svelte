@@ -37,7 +37,7 @@
 	});
 </script>
 
-<div class="flex h-[calc(100vh-16rem)] flex-col">
+<div class="flex h-[calc(100dvh-16rem)] flex-col">
 	<!-- Header con selector de modelo -->
 	<div
 		class="mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-4 dark:border-gray-700"
