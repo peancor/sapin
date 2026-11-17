@@ -132,10 +132,12 @@ for (const lesson of [false, true]) {
 		await page.screenshot({
 			path: `output/tool-activity-${lesson ? 'lesson' : 'chat'}-mobile.png`
 		});
-		const themeToggle = lesson
-			? page.getByRole('button').filter({ has: page.locator('svg.text-indigo-600') })
-			: page.getByRole('button', { name: 'Activar tema oscuro', exact: true });
+		// Sin preferencia guardada la aplicación sigue al sistema, emulado en oscuro más arriba.
+		await expect(page.locator('html')).toHaveClass(/dark/);
+		const themeToggle = page.getByRole('button', { name: 'Activar tema claro', exact: true });
 		await themeToggle.click();
+		await expect(page.locator('html')).not.toHaveClass(/dark/);
+		await page.getByRole('button', { name: 'Activar tema oscuro', exact: true }).click();
 		await expect(page.locator('html')).toHaveClass(/dark/);
 		await expect(activity).toBeVisible();
 		await page.screenshot({ path: `output/tool-activity-${lesson ? 'lesson' : 'chat'}-dark.png` });

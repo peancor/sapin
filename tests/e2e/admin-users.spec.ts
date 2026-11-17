@@ -99,7 +99,9 @@ test('admin creates a user without autofill leaks or accidental closing', async 
 	await password.fill('Nueva-persona-2026!');
 	await dialog.getByRole('button', { name: 'Crear usuario' }).click();
 	await expect(dialog).toBeHidden();
-	await expect(page.getByRole('status')).toContainText('nueva.persona@example.invalid');
+	await expect(page.getByRole('region', { name: 'Notificaciones' })).toContainText(
+		'nueva.persona@example.invalid'
+	);
 	const row = page.getByRole('row').filter({ hasText: 'nueva.persona@example.invalid' });
 	await expect(row).toBeVisible();
 	await expect(row.getByText('teacher', { exact: true })).toBeVisible();

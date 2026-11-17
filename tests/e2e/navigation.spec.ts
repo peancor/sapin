@@ -35,7 +35,7 @@ test('global tutor is unavailable and absent from navigation', async ({ page }) 
 	await expect(page.locator('header a[href="/dashboard"]').first()).toBeVisible();
 	await expect(page.locator('a[href^="/tutor"]')).toHaveCount(0);
 	await page.setViewportSize({ width: 390, height: 844 });
-	await page.getByRole('button', { name: 'Menu', exact: true }).click();
+	await page.getByRole('button', { name: 'Menú', exact: true }).click();
 	await expect(page.getByText('Navegación', { exact: true })).toBeVisible();
 	await expect(page.locator('a[href^="/tutor"]')).toHaveCount(0);
 	for (const path of ['/tutor', '/tutor/c/retired-chat']) {
@@ -146,7 +146,7 @@ test('mobile global menu occupies the viewport and closes on Escape and navigati
 	await login(page, 'admin');
 	await page.goto('/admin');
 	await page.setViewportSize({ width: 390, height: 844 });
-	const toggle = page.getByRole('button', { name: 'Menu', exact: true });
+	const toggle = page.getByRole('button', { name: 'Menú', exact: true });
 	const menu = page.locator('#mobile-navigation');
 	await toggle.click();
 	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
