@@ -1,3 +1,4 @@
+import { orderTranscriptParts } from './orderTranscriptParts';
 import { asc, eq, inArray } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
@@ -188,7 +189,7 @@ export class AgentTranscriptService {
 			displayMessages.push({
 				id: message.id,
 				role: message.role,
-				parts,
+				parts: orderTranscriptParts(parts, parseJsonRecord(message.metadata).uiPositions),
 				createdAt: message.createdAt
 			});
 		}

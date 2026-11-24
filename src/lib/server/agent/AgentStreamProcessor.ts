@@ -24,6 +24,7 @@ export interface FinalizeSentinel {
 
 export interface StreamAccumulator {
 	text: string;
+	uiPositions?: { instanceId: string; offset: number }[];
 	toolCallsCount: number;
 	hitlTriggered: boolean;
 	uiWaitTriggered: boolean;
@@ -242,6 +243,10 @@ export class AgentStreamProcessor {
 					const toolOutput = event.output as unknown;
 
 					if (isUISentinel(toolOutput)) {
+						(accumulated.uiPositions ??= []).push({
+							instanceId: toolOutput.instanceId,
+							offset: accumulated.text.length
+						});
 						yield {
 							type: 'ui-component',
 							toolCallId,
@@ -265,6 +270,9 @@ export class AgentStreamProcessor {
 
 							await DBAgentMessageUtils.updateAgentMessage(assistantMsgId, {
 								textContent: accumulated.text,
+								metadata: accumulated.uiPositions?.length
+									? JSON.stringify({ uiPositions: accumulated.uiPositions })
+									: undefined,
 								finishReason: 'ui_wait'
 							});
 
@@ -300,6 +308,9 @@ export class AgentStreamProcessor {
 					if (isHitlSentinel(toolOutput)) {
 						await DBAgentMessageUtils.updateAgentMessage(assistantMsgId, {
 							textContent: accumulated.text,
+							metadata: accumulated.uiPositions?.length
+								? JSON.stringify({ uiPositions: accumulated.uiPositions })
+								: undefined,
 							finishReason: 'hitl'
 						});
 

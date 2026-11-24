@@ -105,3 +105,12 @@ Recomendación: promover versiones semánticas (`X.Y.Z`) y actualizar `latest` s
   - debe ser hex de 64 caracteres.
 - No persisten datos:
   - confirma que el volumen `data` existe y que no estás usando `docker compose down -v` por accidente.
+
+## Exportación de conversaciones
+
+La imagen de Sapin incluye Chromium y las fuentes necesarias para generar PDF.
+En instalaciones Node sin Docker, instala el navegador con `npx playwright-core install --with-deps chromium`
+o configura `PDF_CHROMIUM_PATH` con la ruta de un Chromium instalado.
+El proceso de exportación lee los recursos de la aplicación por el puerto local de Node
+(`PORT`, 3000 por defecto, o 5173 con Vite). Configura `PDF_APP_PORT` si el servidor escucha en otro puerto.
+Cada proceso de Sapin admite dos exportaciones simultáneas.

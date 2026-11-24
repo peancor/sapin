@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { ArrowLeft, BarChart3, Bot, Clock3, FileCheck2, User } from 'lucide-svelte';
+	import ConversationActions from '$lib/components/conversation/ConversationActions.svelte';
 	import AgentTranscriptReadOnly from '$lib/components/agent/AgentTranscriptReadOnly.svelte';
 	import { formatDate } from '$lib/helpers/dateUtils';
 	import type { PageProps } from './$types';
@@ -70,6 +71,7 @@
 				<h1 class="truncate text-lg font-semibold text-slate-900 sm:text-xl dark:text-white">
 					{data.activity.name}
 				</h1>
+				<ConversationActions ilid={data.activity.id} cid={data.chatId} />
 			</div>
 		</div>
 	</div>

@@ -85,7 +85,7 @@ function parseUserMessageMetrics(value: string | null | undefined): AgentUserMes
 	};
 }
 
-function parseFinalizationMetadata(
+export function parseFinalizationMetadata(
 	value: string | null | undefined
 ): AgentSessionFinalization | null {
 	const parsed = parseJsonObject(value);

@@ -4,7 +4,7 @@ import { preprocessMathExpressions } from './mathPreprocessor';
 
 let mathMarkdownRenderer: Marked | null = null;
 
-function stripAgentInternalMarkers(content: string): string {
+export function stripAgentInternalMarkers(content: string): string {
 	return content
 		.replace(/\[\[DONE\]\]/g, '')
 		.replace(/\[\[CONTEXTO_RAG\]\][\s\S]*?\[\[FIN_CONTEXTO_RAG\]\]/g, '');
@@ -40,4 +40,12 @@ export function renderMarkdownMath(
 	return inline
 		? (renderer.parseInline(processed) as string)
 		: (renderer.parse(processed) as string);
+}
+
+export function renderInteractiveMessage(content: string, userMessage: boolean): string {
+	const visible = stripAgentInternalMarkers(content).replace(
+		/<think>(.*?)<\/think>/gs,
+		'<div class="think-block">$1</div>'
+	);
+	return renderMarkdownMath(userMessage ? visible.replace(/\n/g, '<br>') : visible);
 }

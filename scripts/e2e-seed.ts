@@ -1,3 +1,4 @@
+import { seedConversationExports } from './e2e-seed-conversation';
 import { hash } from '@node-rs/argon2';
 import { eq } from 'drizzle-orm';
 import { existsSync } from 'node:fs';
@@ -468,6 +469,7 @@ try {
 			courseId: 'foreign-course'
 		})
 		.run();
+	await seedConversationExports(f.database, destination, now);
 	await f.client.backup(destination);
 } finally {
 	f.client.close();

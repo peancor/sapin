@@ -5,7 +5,8 @@
 	import { AlertTriangle, ChevronsUp, KeyRound } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { Spinner, TextPlaceholder } from 'flowbite-svelte';
-	import { renderMarkdownMath } from '$lib/utils';
+	import { renderInteractiveMessage } from '$lib/utils/markdownMath';
+	import ConversationActions from '$lib/components/conversation/ConversationActions.svelte';
 	import {
 		autosizeTextarea,
 		createFrameBatcher,
@@ -43,6 +44,7 @@
 
 	let props: {
 		initialMessages?: Message[];
+		attempt?: { ilid: string; cid: string };
 		apiEndpoint: string;
 		user?: ChatUser;
 		onSendMessage?: (message: string) => void;
@@ -354,23 +356,6 @@
 		setupEventSource();
 	}
 
-	function processThinkTags(content: string) {
-		return content.replace(/<think>(.*?)<\/think>/gs, '<div class="think-block">$1</div>');
-	}
-
-	function processContent(content: string) {
-		// Lista de palabras a filtrar
-		const wordsToFilter = ['[[DONE]]'];
-
-		// Filtrar las palabras no deseadas
-		let filteredContent = content;
-		for (const word of wordsToFilter) {
-			filteredContent = filteredContent.replace(word, '');
-		}
-
-		return renderMarkdownMath(processThinkTags(filteredContent));
-	}
-
 	function getConnectedUserLabel(user?: ChatUser) {
 		return user?.alias?.trim() || user?.username?.trim() || 'usuario';
 	}
@@ -455,11 +440,9 @@
 							{:else}
 								<span class="sr-only">{message.type === 'user' ? 'Tú:' : 'Asistente:'}</span>
 								<div class="prose dark:prose-invert max-w-none">
-									{#if message.type === 'user'}
-										<SafeHtml html={processContent(message.content.replace(/\n/g, '<br>'))} />
-									{:else}
-										<SafeHtml html={processContent(message.content)} />
-									{/if}
+									<SafeHtml
+										html={renderInteractiveMessage(message.content, message.type === 'user')}
+									/>
 								</div>
 							{/if}
 						</div>
@@ -468,6 +451,10 @@
 			{/each}
 		</div>
 	</div>
+
+	{#if props.attempt && !isLoading && messages.some((msg) => msg.type === 'assistant' && msg.content.includes('[[DONE]]'))}
+		<div class="mx-3"><ConversationActions {...props.attempt} /></div>
+	{/if}
 
 	<div class="sr-only" role="status" aria-live="polite">{announcement}</div>
 

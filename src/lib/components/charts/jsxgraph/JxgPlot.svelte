@@ -12,6 +12,7 @@
 		height?: string;
 		class?: string;
 		theme?: 'light' | 'dark';
+		staticView?: boolean;
 	}
 
 	interface JxgBoardLike {
@@ -30,13 +31,20 @@
 		};
 	}
 
-	let { plot, height = '320px', class: className = '', theme = 'light' }: Props = $props();
+	let {
+		plot,
+		height = '320px',
+		class: className = '',
+		theme = 'light',
+		staticView = false
+	}: Props = $props();
 
 	let container = $state<HTMLDivElement | undefined>(undefined);
 	let board: JxgBoardLike | null = null;
 	let jxg: JxgLike | null = null;
 	let mounted = false;
 	let renderError = $state('');
+	let ready = $state(false);
 	let renderRun = 0;
 
 	function resolveJxgNamespace(module: unknown): JxgLike {
@@ -60,6 +68,7 @@
 		if (!browser || !container) return;
 
 		const runId = ++renderRun;
+		ready = false;
 		destroyBoard();
 		renderError = '';
 
@@ -96,7 +105,7 @@
 			showCopyright: false,
 			keepAspectRatio: false,
 			pan: {
-				enabled: true
+				enabled: !staticView
 			},
 			zoom: {
 				enabled: false
@@ -160,6 +169,8 @@
 				],
 				{
 					anchorX: 'right',
+					display: 'internal',
+					parse: false,
 					anchorY: 'bottom',
 					fontSize: 12,
 					fixed: true
@@ -177,6 +188,8 @@
 				],
 				{
 					anchorX: 'left',
+					display: 'internal',
+					parse: false,
 					anchorY: 'top',
 					fontSize: 12,
 					fixed: true
@@ -185,6 +198,13 @@
 		}
 
 		board.update();
+		ready = true;
+	}
+
+	function updatePlot() {
+		void renderBoard().catch((error) => {
+			renderError = error instanceof Error ? error.message : 'Could not draw the graph.';
+		});
 	}
 
 	function handleResize() {
@@ -198,13 +218,14 @@
 		board.update();
 	}
 
-	onMount(async () => {
+	onMount(() => {
 		mounted = true;
-		await renderBoard();
+		updatePlot();
 		window.addEventListener('resize', handleResize);
 	});
 
 	onDestroy(() => {
+		renderRun++;
 		if (browser) {
 			window.removeEventListener('resize', handleResize);
 		}
@@ -213,12 +234,22 @@
 
 	$effect(() => {
 		if (!mounted) return;
-		void renderBoard();
+		updatePlot();
 	});
 </script>
 
 {#if browser}
-	<div class="relative w-full {className}" style="height: {height}">
+	<div
+		class="relative w-full {className}"
+		style="height: {height}"
+		data-transcript-resource={staticView
+			? renderError
+				? 'error'
+				: ready
+					? 'ready'
+					: 'pending'
+			: undefined}
+	>
 		<div
 			bind:this={container}
 			class="jxgbox h-full w-full rounded-lg border border-gray-200 dark:border-gray-700"
@@ -236,6 +267,7 @@
 	<div
 		class="w-full {className} flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500"
 		style="height: {height}"
+		data-transcript-resource={staticView ? 'pending' : undefined}
 	>
 		Cargando grafico...
 	</div>

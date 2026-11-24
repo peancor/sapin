@@ -8,7 +8,11 @@
 	} from '$lib/utils/agentToolActivity';
 	import * as m from '$lib/paraglide/messages';
 
-	let { parts, running = false }: { parts: AgentDisplayPart[]; running?: boolean } = $props();
+	let {
+		parts,
+		running = false,
+		expanded = false
+	}: { parts: AgentDisplayPart[]; running?: boolean; expanded?: boolean } = $props();
 	let activity = $derived(toolActivity(parts, running));
 	let summary = $derived.by(() => {
 		if (activity.calls.some((item) => item.state === 'awaiting_confirmation'))
@@ -85,7 +89,11 @@
 				</p>
 			{/if}
 		{/each}
-		<details>
+		<details
+			{@attach (node) => {
+				if (expanded) node.open = true;
+			}}
+		>
 			<summary
 				class="min-h-8 cursor-pointer rounded py-2 break-words focus-visible:outline-2 focus-visible:outline-offset-2"
 			>
@@ -98,7 +106,11 @@
 			<div class="ml-2 border-l border-gray-200 pl-3 dark:border-gray-700">
 				{#each activity.groups as group (group.id)}
 					{#if group.items.length > 1}
-						<details>
+						<details
+							{@attach (node) => {
+								if (expanded) node.open = true;
+							}}
+						>
 							<summary
 								class="min-h-8 cursor-pointer rounded py-2 break-words focus-visible:outline-2 focus-visible:outline-offset-2"
 								>{group.items[0].call.toolDisplayName} ×{group.items.length} · {stateLabel(

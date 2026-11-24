@@ -25,7 +25,7 @@
 		initialMessages?: AgentDisplayMessage[];
 		apiEndpoint: string;
 		user?: { username?: string; alias?: string };
-		onComplete?: () => void;
+		onComplete?: (finishReason: string) => void;
 	}
 
 	interface MessageMetrics {
@@ -641,7 +641,7 @@
 
 					case 'done': {
 						isLoading = false;
-						onComplete?.();
+						onComplete?.(part.finishReason);
 						setTimeout(() => textarea?.focus(), 0);
 						break;
 					}

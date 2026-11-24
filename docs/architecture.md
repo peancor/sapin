@@ -71,6 +71,20 @@ Los endpoints de confirmación devuelven también `status` (`completed` o `faile
 junto con el resultado: autorizar una acción no implica que su ejecución haya tenido éxito.
 El diálogo transmite ese resultado al chat antes de reanudar la conversación.
 
+### Repaso y PDF de conversaciones
+
+La vista de repaso y el PDF comparten la transcripción de lectura de un intento.
+El estudiante accede a sus intentos finalizados y el personal autorizado puede revisar los de la actividad.
+El chat clásico reconoce el marcador de cierre de un mensaje del asistente y el agente usa
+la finalización registrada en la sesión. Los componentes se reconstruyen con sus propiedades
+y las respuestas guardadas. Para mensajes nuevos, el agente guarda la posición de las interfaces
+dentro del texto. Los históricos sin posiciones conservan el orden que ofrecía su revisión.
+Las métricas docentes y los argumentos internos de herramientas quedan fuera del documento.
+La generación espera a las fuentes, imágenes, gráficos y diagramas de la vista de lectura.
+Si un mensaje conserva una URL absoluta de otra instalación para una imagen de la actividad,
+el PDF la lee del almacenamiento local tras comprobar el identificador, su pertenencia a la
+actividad y los permisos de lectura del solicitante y del estudiante.
+
 ## Lecciones, revisiones y progreso
 
 [LessonRevisionService](../src/lib/server/lesson/LessonRevisionService.ts),

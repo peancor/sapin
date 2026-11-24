@@ -322,6 +322,7 @@ export default class DBAgentUIUtils {
 						hits: { type: 'integer' },
 						commissionErrors: { type: 'integer' },
 						omissionErrors: { type: 'integer' },
+						trialLog: { type: 'array', items: { type: 'object' } },
 						meanReactionMs: { type: ['number', 'null'] },
 						score: { type: 'number' },
 						completed: { type: 'boolean' }

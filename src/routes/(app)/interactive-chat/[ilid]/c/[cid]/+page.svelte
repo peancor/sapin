@@ -6,10 +6,12 @@
 
 	// Map the messages to the format expected by ChatComponent
 	const mappedMessages = $derived(() =>
-		data.messages.map((msg) => ({
-			content: msg.content,
-			type: msg.type.toLowerCase() === 'user' ? ('user' as const) : ('assistant' as const)
-		}))
+		data.messages
+			.filter((msg) => msg.type !== 'SYSTEM')
+			.map((msg) => ({
+				content: msg.content,
+				type: msg.type.toLowerCase() === 'user' ? ('user' as const) : ('assistant' as const)
+			}))
 	);
 
 	// Extract just the username for the chat component
@@ -27,6 +29,7 @@
 <div class="h-[calc(100dvh-128px)]">
 	<ChatComponent
 		initialMessages={mappedMessages()}
+		attempt={data.chat.id ? { ilid: data.chat.id, cid: data.chatInstance } : undefined}
 		apiEndpoint={`/api/interactive-chat/${data.chat.id}/chat/${data.chatInstance}/ask`}
 		user={chatUser()}
 	/>

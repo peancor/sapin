@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { db, InteractiveChatAuthUtils } from '$lib/server/db';
+import { db } from '$lib/server/db';
+import { authorizeConversation } from '$lib/server/conversation/transcript';
 import { message } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
@@ -11,19 +12,8 @@ export const load = (async ({ params, locals }) => {
 	const chatInstance = params.cid;
 	const { ilid } = params;
 
-	// Verificar acceso al chat específico
-	// - El usuario debe ser el propietario del chat, O
-	// - El usuario debe ser profesor/admin del curso
-	const chatAccess = await InteractiveChatAuthUtils.userCanAccessChat(
-		user.id,
-		chatInstance,
-		ilid,
-		user.highestRoleLevel
-	);
-
-	if (!chatAccess.allowed) {
-		throw error(403, chatAccess.reason || 'No tienes acceso a este chat');
-	}
+	const attempt = await authorizeConversation(user, ilid, chatInstance);
+	if (attempt.type !== 'chat') error(404);
 
 	// Fetch messages for this chat instance
 	const messages = await db
@@ -35,6 +25,6 @@ export const load = (async ({ params, locals }) => {
 	return {
 		chatInstance,
 		messages,
-		isOwner: chatAccess.isOwner
+		isOwner: attempt.isOwner
 	};
 }) satisfies PageServerLoad;

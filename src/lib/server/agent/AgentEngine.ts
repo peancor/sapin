@@ -609,6 +609,9 @@ export class AgentEngine {
 			if (!accumulated.hitlTriggered && !accumulated.uiWaitTriggered) {
 				await DBAgentMessageUtils.updateAgentMessage(assistantMsgId, {
 					textContent: accumulated.text,
+					metadata: accumulated.uiPositions?.length
+						? JSON.stringify({ uiPositions: accumulated.uiPositions })
+						: undefined,
 					finishReason: accumulated.finalizationTriggered ? 'finalized' : 'stop'
 				});
 
@@ -894,6 +897,9 @@ export class AgentEngine {
 			if (!accumulated.hitlTriggered && !accumulated.uiWaitTriggered) {
 				await DBAgentMessageUtils.updateAgentMessage(assistantMsgId, {
 					textContent: accumulated.text,
+					metadata: accumulated.uiPositions?.length
+						? JSON.stringify({ uiPositions: accumulated.uiPositions })
+						: undefined,
 					finishReason: accumulated.finalizationTriggered ? 'finalized' : 'stop'
 				});
 

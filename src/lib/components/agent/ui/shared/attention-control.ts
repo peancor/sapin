@@ -139,7 +139,10 @@ const ATTENTION_DEFAULTS: Record<
 	}
 };
 
-const DEFAULT_INSTRUCTIONS: Record<Exclude<AttentionControlTestType, 'sdmt'>, string> = {
+export const attentionControlInstructions: Record<
+	Exclude<AttentionControlTestType, 'sdmt'>,
+	string
+> = {
 	go_no_go:
 		'Pulsa espacio o toca el boton solo cuando aparezca el estimulo objetivo. No respondas al estimulo de inhibicion.',
 	stroop:
@@ -341,7 +344,7 @@ export function resolveAttentionControlConfig(
 		instructions:
 			typeof input.instructions === 'string' && input.instructions.trim().length > 0
 				? input.instructions.trim()
-				: DEFAULT_INSTRUCTIONS[testType],
+				: attentionControlInstructions[testType],
 		practiceTrials: buildTrials('practice', practiceCount),
 		mainTrials: buildTrials('main', mainCount),
 		goStimulus,

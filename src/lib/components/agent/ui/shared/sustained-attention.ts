@@ -16,6 +16,7 @@ export interface SustainedAttentionTrial {
 
 export interface SustainedAttentionTrialResult {
 	trialId: string;
+	stimulus: string;
 	phase: SustainedAttentionPhase;
 	kind: SustainedAttentionTrialKind;
 	responded: boolean;
@@ -24,6 +25,7 @@ export interface SustainedAttentionTrialResult {
 }
 
 export interface SustainedAttentionPayload {
+	trialLog?: SustainedAttentionTrialResult[];
 	testType: SustainedAttentionTestType;
 	difficulty: Difficulty;
 	totalTrials: number;
@@ -50,7 +52,7 @@ export interface SustainedAttentionConfig {
 	interStimulusMs: number;
 }
 
-const DEFAULT_COPY =
+export const sustainedAttentionInstructions =
 	'Pulsa espacio o haz click solo cuando veas el estímulo objetivo. No respondas al estímulo de inhibición.';
 
 const DIFFICULTY_DEFAULTS: Record<
@@ -168,7 +170,7 @@ export function resolveSustainedAttentionConfig(
 		instructions:
 			typeof input.instructions === 'string' && input.instructions.trim().length > 0
 				? input.instructions.trim()
-				: DEFAULT_COPY,
+				: sustainedAttentionInstructions,
 		practiceTrials: buildTrials({
 			phase: 'practice',
 			count: practiceCount,
@@ -224,6 +226,7 @@ export function buildSustainedAttentionPayload(params: {
 	return {
 		testType: params.testType,
 		difficulty: params.difficulty,
+		trialLog: params.results,
 		totalTrials,
 		goTrials,
 		noGoTrials,
@@ -251,6 +254,7 @@ export function buildTrialResult(params: {
 
 	return {
 		trialId: params.trial.id,
+		stimulus: params.trial.stimulus,
 		phase: params.trial.phase,
 		kind: params.trial.kind,
 		responded: params.responded,

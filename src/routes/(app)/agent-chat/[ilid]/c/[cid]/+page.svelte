@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { resolve } from '$app/paths';
+	import ConversationActions from '$lib/components/conversation/ConversationActions.svelte';
+	import { invalidateAll } from '$app/navigation';
 	import AgentChatComponent from '$lib/components/agent/AgentChatComponent.svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -36,14 +38,23 @@
 			</p>
 		</div>
 
-		<div class="flex items-center gap-1.5">
-			<span class="h-2 w-2 rounded-full bg-green-500"></span>
-			<span class="text-xs text-gray-500">Activo</span>
-		</div>
+		{#if data.completed}<ConversationActions ilid={data.activityId} cid={data.chatId} />{:else}<div
+				class="flex items-center gap-1.5"
+			>
+				<span class="h-2 w-2 rounded-full bg-green-500"></span>
+				<span class="text-xs text-gray-500">Activo</span>
+			</div>{/if}
 	</div>
 
 	<!-- Componente de chat agéntico -->
 	<div class="flex-1 overflow-hidden">
-		<AgentChatComponent initialMessages={data.messages} {apiEndpoint} user={data.user} />
+		<AgentChatComponent
+			initialMessages={data.messages}
+			{apiEndpoint}
+			user={data.user}
+			onComplete={(reason) => {
+				if (reason === 'finalized') void invalidateAll();
+			}}
+		/>
 	</div>
 </div>

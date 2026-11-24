@@ -24,7 +24,8 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000
 
-RUN addgroup -S nodejs && adduser -S sapin -G nodejs
+ENV PDF_CHROMIUM_PATH=/usr/bin/chromium
+RUN apk add --no-cache chromium font-noto && addgroup -S nodejs && adduser -S sapin -G nodejs
 
 COPY --from=builder /app/package.json /app/package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules

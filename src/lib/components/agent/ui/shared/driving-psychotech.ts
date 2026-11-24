@@ -176,7 +176,7 @@ export interface BimanualSummaryInput {
 	meanAbsoluteOffsetRight: number;
 }
 
-const DEFAULT_INSTRUCTIONS: Record<DrivingPsychotechTestType, string> = {
+export const drivingInstructions: Record<DrivingPsychotechTestType, string> = {
 	bimanual_coordination:
 		'Mantén ambos cursores dentro de sus pistas al mismo tiempo. Usa dos dedos en móvil o A/D y J/L en desktop.',
 	time_to_contact:
@@ -376,7 +376,7 @@ export function resolveDrivingPsychotechConfig(
 			instructions:
 				typeof input.instructions === 'string' && input.instructions.trim().length > 0
 					? input.instructions.trim()
-					: DEFAULT_INSTRUCTIONS[testType],
+					: drivingInstructions[testType],
 			practiceDurationSec: sanitizePositiveInteger(
 				input.practiceDurationSec,
 				defaults.practiceDurationSec,
@@ -413,7 +413,7 @@ export function resolveDrivingPsychotechConfig(
 			instructions:
 				typeof input.instructions === 'string' && input.instructions.trim().length > 0
 					? input.instructions.trim()
-					: DEFAULT_INSTRUCTIONS[testType],
+					: drivingInstructions[testType],
 			practiceTrials: buildTimeToContactTrials({
 				phase: 'practice',
 				count: practiceTrials,
@@ -455,7 +455,7 @@ export function resolveDrivingPsychotechConfig(
 		instructions:
 			typeof input.instructions === 'string' && input.instructions.trim().length > 0
 				? input.instructions.trim()
-				: DEFAULT_INSTRUCTIONS[testType],
+				: drivingInstructions[testType],
 		practiceTrials: buildReactionTrials({
 			phase: 'practice',
 			count: practiceTrials,
