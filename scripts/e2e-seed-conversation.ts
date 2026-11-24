@@ -10,7 +10,7 @@ export async function seedConversationExports(
 	destination: string,
 	now: Date
 ) {
-	// Dedicated completed attempts keep PDF tests independent of progress and review lists.
+	// A dedicated course keeps PDF tests independent of progress and review lists.
 	db.insert(s.course)
 		.values({
 			id: 'pdf-course',
@@ -47,6 +47,16 @@ export async function seedConversationExports(
 			})
 			.run();
 	}
+	db.insert(s.courseRole)
+		.values({
+			id: 'pdf-classmate',
+			userId: 'student2',
+			courseId: 'pdf-course',
+			role: 'student',
+			isActive: true,
+			assignedAt: now
+		})
+		.run();
 	for (const type of ['chat', 'agent'] as const) {
 		const id = 'pdf-' + type;
 		db.insert(s.interactiveLearning)
@@ -120,6 +130,17 @@ export async function seedConversationExports(
 			.run();
 		if (type === 'chat') {
 			db.insert(s.interactiveLearningChat).values({ id, createdAt: now }).run();
+			db.insert(s.message)
+				.values({
+					id: 'pdf-chat-open-message',
+					chatId: id + '-open',
+					type: 'USER',
+					content: 'Mi primera pregunta de álgebra.',
+					tokenCount: 0,
+					finishReason: 'stop',
+					createdAt: now
+				})
+				.run();
 			const texts = [
 				'Instrucción interna reservada',
 				'¿Cómo cambia la curva?',
@@ -195,6 +216,15 @@ export async function seedConversationExports(
 					explanation: 'Solución privada pendiente.'
 				}
 			];
+			db.insert(s.agentMessage)
+				.values({
+					id: 'pdf-agent-open-message',
+					chatId: id + '-open',
+					role: 'assistant',
+					textContent: 'Prueba a resolver esta pregunta.',
+					createdAt: now
+				})
+				.run();
 			const quiz = { answers: [0], score: 1, completed: true };
 			for (const [key, props, response] of [
 				[
@@ -289,6 +319,15 @@ export async function seedConversationExports(
 					})
 					.run();
 			}
+			db.insert(s.agentUIInstance)
+				.values({
+					id: 'pdf-agent-open-quiz',
+					messageId: 'pdf-agent-open-message',
+					uiComponentId: 'pdf-QuizCard',
+					props: JSON.stringify({ title: 'Cuestionario en curso', questions }),
+					createdAt: now
+				})
+				.run();
 		}
 	}
 }

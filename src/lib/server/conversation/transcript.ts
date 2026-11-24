@@ -45,29 +45,13 @@ export async function authorizeConversation(user: App.Locals['user'], ilid: stri
 		CourseInteractiveAuthUtils.STAFF_ROLES.some((role) => role === access.courseRole);
 	if (!access.allowed || (!isOwner && !canReview))
 		error(403, 'No tienes acceso a esta conversación.');
-	const completed =
-		record.type === 'agent'
-			? !!parseFinalizationMetadata(record.metadata)
-			: !!(await db
-					.select({ id: message.id })
-					.from(message)
-					.where(
-						and(
-							eq(message.chatId, cid),
-							eq(message.type, 'ASSISTANT'),
-							sql`instr(${message.content}, '[[DONE]]') > 0`
-						)
-					)
-					.limit(1)
-					.get());
 	return {
 		title: record.title,
 		ownerId: record.ownerId,
 		type: record.type,
 		createdAt: record.createdAt,
-		completed,
-		isOwner,
-		canReview
+		agentFinalized: record.type === 'agent' && !!parseFinalizationMetadata(record.metadata),
+		isOwner
 	};
 }
 function visiblePart(part: AgentDisplayPart): AgentDisplayPart {

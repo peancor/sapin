@@ -83,6 +83,9 @@
 
 	let responseText = '';
 	let isLoading = $state(false);
+	const completed = $derived(
+		messages.some((msg) => msg.type === 'assistant' && msg.content.includes('[[DONE]]'))
+	);
 
 	let userHasScrolled = $state(false);
 	let isAtBottom = $state(true);
@@ -452,8 +455,10 @@
 		</div>
 	</div>
 
-	{#if props.attempt && !isLoading && messages.some((msg) => msg.type === 'assistant' && msg.content.includes('[[DONE]]'))}
-		<div class="mx-3"><ConversationActions {...props.attempt} /></div>
+	{#if props.attempt}
+		<div class="mx-3">
+			<ConversationActions {...props.attempt} inProgress={isLoading || !completed} />
+		</div>
 	{/if}
 
 	<div class="sr-only" role="status" aria-live="polite">{announcement}</div>

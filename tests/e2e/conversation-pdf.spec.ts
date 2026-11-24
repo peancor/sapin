@@ -9,6 +9,16 @@ async function login(page: Page, name: string) {
 	await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
 	await expect(page).not.toHaveURL(/\/login/);
 }
+
+async function downloadConversation(page: Page, path: string) {
+	const downloading = page.waitForEvent('download');
+	await page.getByRole('link', { name: 'Exportar conversación en PDF' }).click();
+	const download = await downloading;
+	expect(download.suggestedFilename()).toBe('Repaso de álgebra.pdf');
+	await download.saveAs(path);
+	return new PDFParse({ data: new Uint8Array(await readFile(path)) });
+}
+
 test.beforeEach(async ({ page }) => {
 	await page.route('https://old-campus.example.invalid/**', (route) => route.abort());
 });
@@ -26,13 +36,7 @@ for (const type of ['chat', 'agent']) {
 			await expect(transcript.getByText('Curva cuadrática')).toBeVisible();
 			await expect(transcript.getByText('Dos por dos son cuatro.')).toBeVisible();
 		} else await expect(transcript.locator('.katex').first()).toBeVisible();
-		const downloading = page.waitForEvent('download');
-		await page.getByRole('link', { name: 'Exportar conversación en PDF' }).click();
-		const download = await downloading;
-		expect(download.suggestedFilename()).toBe('Repaso de álgebra.pdf');
-		const path = info.outputPath(type + '.pdf');
-		await download.saveAs(path);
-		const parser = new PDFParse({ data: new Uint8Array(await readFile(path)) });
+		const parser = await downloadConversation(page, info.outputPath(type + '.pdf'));
 		try {
 			const pdf = await parser.getText();
 			expect(pdf.text).toContain(
@@ -63,6 +67,42 @@ for (const type of ['chat', 'agent']) {
 		}
 	});
 }
+for (const [entry, url, content] of [
+	[
+		'chat interactivo',
+		'/interactive-chat/pdf-chat/c/pdf-chat-open',
+		'Mi primera pregunta de álgebra.'
+	],
+	[
+		'chat desde el curso',
+		'/course/pdf-course/run/chat/pdf-chat-open',
+		'Mi primera pregunta de álgebra.'
+	],
+	['chat de agente', '/agent-chat/pdf-agent/c/pdf-agent-open', 'Cuestionario en curso']
+] as const) {
+	test('El alumno descarga su intento en curso desde ' + entry, async ({ page }, info) => {
+		await login(page, 'pdf-student');
+		await page.goto(url);
+		await expect(page.getByRole('link', { name: 'Repasar conversación' })).toHaveCount(0);
+		const composer = page.getByRole('textbox', { name: 'Mensaje', exact: true });
+		const draft = 'Este borrador aún no se ha enviado.';
+		await composer.fill(draft);
+		const parser = await downloadConversation(page, info.outputPath('en-curso.pdf'));
+		try {
+			const pdf = await parser.getText();
+			expect(pdf.text).toContain(content);
+			expect(pdf.text).not.toContain(draft);
+			if (entry === 'chat de agente') {
+				expect(pdf.text).toContain('Sin respuesta guardada.');
+				expect(pdf.text).not.toMatch(/Solución privada pendiente|Respuesta correcta/i);
+			}
+		} finally {
+			await parser.destroy();
+		}
+		await expect(page).toHaveURL(url);
+		await expect(composer).toHaveValue(draft);
+	});
+}
 test('La revisión docente enlaza a la misma lectura y protege los intentos', async ({
 	page,
 	request
@@ -70,10 +110,13 @@ test('La revisión docente enlaza a la misma lectura y protege los intentos', as
 	const base = '/api/conversation/';
 	expect((await request.get(base + 'pdf-chat/pdf-chat/pdf')).status()).toBe(401);
 	await login(page, 'pdf-student');
-	expect((await page.request.get(base + 'pdf-agent/pdf-agent-open/pdf')).status()).toBe(403);
 	expect((await page.request.get(base + 'pdf-agent/pdf-chat/pdf')).status()).toBe(404);
 	await page.context().clearCookies();
 	await login(page, 'student2');
+	for (const id of ['pdf-chat', 'pdf-agent']) {
+		expect((await page.request.get(base + id + '/' + id + '-open/pdf')).status()).toBe(403);
+		expect((await page.request.get('/conversation/' + id + '/' + id + '-open')).status()).toBe(403);
+	}
 	expect((await page.request.get(base + 'pdf-chat/pdf-chat/pdf')).status()).toBe(403);
 	await page.context().clearCookies();
 	await login(page, 'pdf-teacher');

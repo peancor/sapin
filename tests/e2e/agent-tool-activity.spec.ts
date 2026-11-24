@@ -229,6 +229,7 @@ test('new events and opening details preserve the scroll position while reading 
 	});
 	const activity = page.getByTestId('agent-tool-activity').last();
 	const scroller = activity.locator('xpath=ancestor::div[contains(@class,"overflow-y-auto")][1]');
+	await expect(scroller.getByText('Párrafo de prueba 49.', { exact: true })).toBeInViewport();
 	await scroller.evaluate((element) => {
 		element.scrollTop = 0;
 		element.dispatchEvent(new Event('scroll'));

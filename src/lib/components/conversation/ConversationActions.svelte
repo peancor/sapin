@@ -5,8 +5,9 @@
 	let {
 		ilid,
 		cid,
-		showReview = true
-	}: { ilid: string; cid: string; showReview?: boolean } = $props();
+		showReview = true,
+		inProgress = false
+	}: { ilid: string; cid: string; showReview?: boolean; inProgress?: boolean } = $props();
 
 	let busy = $state(false);
 	let failed = $state(false);
@@ -39,7 +40,7 @@
 	class="flex flex-wrap items-center gap-x-4 gap-y-1 py-1 text-sm print:hidden"
 	aria-label={m.conversation_actions()}
 >
-	{#if showReview}<a
+	{#if showReview && (!inProgress || failed)}<a
 			class="inline-flex items-center gap-1.5 underline"
 			href={resolve('/conversation/[ilid]/[cid]', { ilid, cid })}
 			><BookOpen size={16} />{m.conversation_review()}</a

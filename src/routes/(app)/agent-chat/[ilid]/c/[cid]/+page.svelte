@@ -17,7 +17,7 @@
 <div class="flex h-[calc(100dvh-4rem)] flex-col">
 	<!-- Header compacto -->
 	<div
-		class="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900"
+		class="flex flex-wrap items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900"
 	>
 		<a
 			href={resolve(`/agent-chat/${data.activityId}`)}
@@ -38,12 +38,13 @@
 			</p>
 		</div>
 
-		{#if data.completed}<ConversationActions ilid={data.activityId} cid={data.chatId} />{:else}<div
-				class="flex items-center gap-1.5"
-			>
+		{#if !data.completed}
+			<div class="flex items-center gap-1.5">
 				<span class="h-2 w-2 rounded-full bg-green-500"></span>
 				<span class="text-xs text-gray-500">Activo</span>
-			</div>{/if}
+			</div>
+		{/if}
+		<ConversationActions ilid={data.activityId} cid={data.chatId} inProgress={!data.completed} />
 	</div>
 
 	<!-- Componente de chat agéntico -->

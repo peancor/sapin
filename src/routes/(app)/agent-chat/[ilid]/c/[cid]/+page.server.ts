@@ -19,7 +19,7 @@ export const load = (async ({ params, locals }) => {
 		messages: displayMessages,
 		interactiveLearning: { name: attempt.title },
 		isOwner: attempt.isOwner,
-		completed: attempt.completed,
+		completed: attempt.agentFinalized,
 		user: {
 			username: user.username ?? undefined,
 			alias: user.alias ?? undefined
