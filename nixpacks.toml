@@ -1,0 +1,10 @@
+[variables]
+PLAYWRIGHT_BROWSERS_PATH = "/opt/sapin/ms-playwright"
+
+[phases.pdf-browser]
+dependsOn = ["build"]
+cmds = [
+  "test -s build/index.js",
+  "node node_modules/playwright-core/cli.js install --with-deps --only-shell chromium",
+  "node scripts/check-pdf-browser.mjs",
+]

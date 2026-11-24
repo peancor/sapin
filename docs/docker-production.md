@@ -114,3 +114,15 @@ o configura `PDF_CHROMIUM_PATH` con la ruta de un Chromium instalado.
 El proceso de exportación lee los recursos de la aplicación por el puerto local de Node
 (`PORT`, 3000 por defecto, o 5173 con Vite). Configura `PDF_APP_PORT` si el servidor escucha en otro puerto.
 Cada proceso de Sapin admite dos exportaciones simultáneas.
+
+### Coolify con Nixpacks
+
+El archivo `nixpacks.toml` instala la versión de Chromium sin interfaz que corresponde al
+`playwright-core` del proyecto y sus bibliotecas de Linux. Tras compilar Sapin, la fase
+`pdf-browser` comprueba que existe `build/index.js` y genera un PDF de prueba antes de que
+se publique la imagen. El navegador se guarda en `/opt/sapin/ms-playwright`,
+disponible también en ejecución. Deja `PDF_CHROMIUM_PATH` sin definir para usar ese navegador.
+
+En la terminal del contenedor de Sapin, desde `/app`, puedes repetir la prueba con
+`node scripts/check-pdf-browser.mjs`. Si muestra `PDF OK` y la exportación sigue devolviendo
+503, consulta la etapa registrada con `[conversation-pdf]` en los logs de la aplicación.
